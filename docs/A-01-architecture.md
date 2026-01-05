@@ -479,12 +479,12 @@ let venues_page ~data () =
 **Goal:** Render MLX components to HTML string with hydration markers
 
 **Tasks:**
-- [ ] Implement HTML element functions (div, p, input, etc.)
-- [ ] Implement `render_to_string`
-- [ ] Generate hydration markers (`data-hk` attributes)
+- [x] Implement HTML element functions (div, p, input, etc.)
+- [x] Implement `render_to_string`
+- [x] Generate hydration markers (`data-hk` attributes)
 - [ ] Serialize component state for hydration script
 - [ ] Dream integration example
-- [ ] Test SSR output
+- [x] Test SSR output
 
 **Deliverable:** `solid-ml-html` opam package
 

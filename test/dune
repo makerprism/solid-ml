@@ -1,3 +1,7 @@
 (test
  (name test_reactive)
  (libraries solid-ml))
+
+(test
+ (name test_html)
+ (libraries solid-ml solid-ml-html))

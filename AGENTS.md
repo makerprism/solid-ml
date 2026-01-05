@@ -15,8 +15,8 @@ solid-ml is an OCaml framework for building reactive web applications with SSR, 
 
 | Package | Purpose | Status |
 |---------|---------|--------|
-| `solid-ml` | Core reactive primitives (signals, effects, memos) | In Progress |
-| `solid-ml-html` | Server-side rendering to HTML strings | Not Started |
+| `solid-ml` | Core reactive primitives (signals, effects, memos) | Complete |
+| `solid-ml-html` | Server-side rendering to HTML strings | Complete |
 | `solid-ml-dom` | Client-side rendering and hydration (Melange) | Not Started |
 | `solid-ml-router` | SSR-aware routing with data loaders | Not Started |
 
@@ -35,23 +35,36 @@ dune clean
 
 ## Current Development Phase
 
-**Phase 1: Reactive Core** (in progress)
+**Phase 1: Reactive Core** (complete)
 
-Completed:
 - [x] Signal.create, get, set, update, peek
 - [x] Dependency tracking via execution context
 - [x] Effect.create with auto-tracking
 - [x] Effect.create_with_cleanup
 - [x] Effect.untrack
-- [x] Memo.create
-- [x] Batch.run (basic implementation)
-- [x] Basic test suite
+- [x] Memo.create, create_with_equals
+- [x] Batch.run with Signal integration
+- [x] Owner.create_root, run_with_owner, on_cleanup, dispose
+- [x] Context.create, provide, use
+- [x] Comprehensive test suite (28 tests)
+- [x] Counter example in native OCaml
 
-Remaining:
-- [ ] Ownership tracking for cleanup/disposal
-- [ ] Context (createContext equivalent)
-- [ ] More comprehensive tests
-- [ ] Example: counter in native OCaml
+**Thread Safety:**
+- All reactive state is stored in `Runtime.t`, not global variables
+- Each `Runtime.run` or `Render.to_string` creates isolated state
+- Safe for concurrent requests in Dream or other servers
+
+**Phase 2: Server Rendering** (complete)
+
+- [x] HTML element functions (div, p, input, etc.)
+- [x] render_to_string function
+- [x] Hydration markers for reactive text
+- [x] Attribute escaping and boolean attributes
+- [x] Comprehensive test suite (23 tests)
+
+**Phase 3: Client Runtime** (next)
+
+See `docs/A-01-architecture.md` for Phase 3 tasks.
 
 ## Code Style
 
@@ -64,11 +77,18 @@ Remaining:
 
 | File | Purpose |
 |------|---------|
+| `lib/solid-ml/runtime.ml` | Thread-safe execution context for reactive state |
 | `lib/solid-ml/signal.ml` | Reactive signals with dependency tracking |
 | `lib/solid-ml/effect.ml` | Auto-tracking side effects |
 | `lib/solid-ml/memo.ml` | Cached derived values |
 | `lib/solid-ml/batch.ml` | Batched updates |
-| `test/test_reactive.ml` | Test suite for reactive primitives |
+| `lib/solid-ml/owner.ml` | Ownership and disposal tracking |
+| `lib/solid-ml/context.ml` | Component context (stored on owner tree) |
+| `lib/solid-ml-html/html.ml` | HTML element functions for SSR |
+| `lib/solid-ml-html/render.ml` | Render components to HTML strings |
+| `test/test_reactive.ml` | Test suite for reactive primitives (28 tests) |
+| `test/test_html.ml` | Test suite for HTML rendering (23 tests) |
+| `examples/counter/counter.ml` | Counter example demonstrating all features |
 
 ## Design Principles
 

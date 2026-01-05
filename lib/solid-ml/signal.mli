@@ -22,12 +22,25 @@ type 'a t
 
 (** Create a new signal with an initial value.
     Returns a tuple of (signal, setter function).
+    
+    By default, uses physical equality (==) to skip updates when
+    the value hasn't changed.
 
     {[
       let count, set_count = Signal.create 0
     ]}
 *)
-val create : 'a -> 'a t * ('a -> unit)
+val create : ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
+
+(** Create a signal with a custom equality function.
+    
+    {[
+      let items, set_items = Signal.create_eq 
+        ~equals:(fun a b -> List.length a = List.length b) 
+        []
+    ]}
+*)
+val create_eq : equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
 
 (** Read the current value of a signal.
     If called inside an effect or memo, registers a dependency.
@@ -48,7 +61,7 @@ val get : 'a t -> 'a
 val peek : 'a t -> 'a
 
 (** Set a new value for the signal.
-    Notifies all dependents to re-run.
+    Notifies all dependents to re-run if value changed.
 
     {[
       Signal.set count 42
@@ -64,17 +77,7 @@ val set : 'a t -> 'a -> unit
 *)
 val update : 'a t -> ('a -> 'a) -> unit
 
-(** {2 Internal API}
-
-    These functions are used by Effect and Memo modules.
-    You typically don't need to call them directly.
-*)
+(** {2 Advanced API} *)
 
 (** Subscribe to a signal. Returns an unsubscribe function. *)
 val subscribe : 'a t -> (unit -> unit) -> (unit -> unit)
-
-(** Get the current tracking context (if any). *)
-val get_tracking_context : unit -> (unit -> unit) option
-
-(** Set the tracking context for dependency collection. *)
-val set_tracking_context : (unit -> unit) option -> unit

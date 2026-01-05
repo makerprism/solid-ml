@@ -16,6 +16,9 @@
     ]}
 *)
 
+(** The effect handle (opaque). *)
+type t
+
 (** Create an effect that re-runs when its dependencies change.
     The effect runs immediately once, then re-runs whenever any
     signal read during execution changes.
