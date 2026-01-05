@@ -1,21 +1,21 @@
-(** Reactive signals with automatic dependency tracking. *)
+(** Reactive signals with automatic dependency tracking.
+
+    {b Important}: Signals should not be shared across runtimes or domains.
+    Each signal belongs to the runtime in which it was created. Sharing
+    signals between runtimes leads to undefined behavior.
+*)
 
 (** A signal holds a value and a set of subscribers *)
 type 'a t = {
   mutable value : 'a;
   mutable subscribers : (unit -> unit) list;
-  equals : ('a -> 'a -> bool) option;
+  equals : 'a -> 'a -> bool;
 }
 
-let create ?equals initial =
+let create ?(equals = (=)) initial =
   let signal = { value = initial; subscribers = []; equals } in
   let setter new_value =
-    (* Check equality if provided *)
-    let should_update = match signal.equals with
-      | Some eq -> not (eq signal.value new_value)
-      | None -> signal.value != new_value  (* Physical equality by default *)
-    in
-    if should_update then begin
+    if not (signal.equals signal.value new_value) then begin
       signal.value <- new_value;
       (* Notify all subscribers *)
       if Batch.is_batching () then
@@ -27,6 +27,11 @@ let create ?equals initial =
   (signal, setter)
 
 let create_eq ~equals initial = create ~equals initial
+
+(** Create a signal using physical equality (==) for comparisons.
+    Use this for signals holding mutable values or when you want
+    updates on every set regardless of value. *)
+let create_physical initial = create ~equals:(==) initial
 
 let peek signal = signal.value
 
@@ -49,12 +54,7 @@ let get signal =
   signal.value
 
 let set signal new_value =
-  (* Check equality if provided *)
-  let should_update = match signal.equals with
-    | Some eq -> not (eq signal.value new_value)
-    | None -> signal.value != new_value
-  in
-  if should_update then begin
+  if not (signal.equals signal.value new_value) then begin
     signal.value <- new_value;
     if Batch.is_batching () then
       List.iter (fun notify -> Batch.queue_notification notify) signal.subscribers

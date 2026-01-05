@@ -2,6 +2,9 @@
 
     Each render/request should create its own runtime to ensure
     thread safety. All reactive operations happen within a runtime context.
+    
+    Uses Domain-local storage (OCaml 5) for safe parallel execution
+    across domains.
 *)
 
 type owner = {
@@ -20,8 +23,16 @@ type t = {
   mutable pending_notifications : (unit -> unit) list;
 }
 
-(** The current runtime - set via run_with *)
-let current_runtime : t option ref = ref None
+(** Domain-local storage key for current runtime.
+    Each domain has its own independent runtime stack. *)
+let current_runtime_key : t option Domain.DLS.key = 
+  Domain.DLS.new_key (fun () -> None)
+
+let get_current_runtime_opt () =
+  Domain.DLS.get current_runtime_key
+
+let set_current_runtime rt =
+  Domain.DLS.set current_runtime_key rt
 
 let create () = {
   current_owner = None;
@@ -32,22 +43,22 @@ let create () = {
 }
 
 let get_current () =
-  match !current_runtime with
+  match get_current_runtime_opt () with
   | Some rt -> rt
-  | None -> failwith "No reactive runtime active. Use Runtime.run_with or Owner.create_root."
+  | None -> failwith "No reactive runtime active. Use Runtime.run or Owner.create_root."
 
-let get_current_opt () = !current_runtime
+let get_current_opt () = get_current_runtime_opt ()
 
 let run_with runtime fn =
-  let prev = !current_runtime in
-  current_runtime := Some runtime;
+  let prev = get_current_runtime_opt () in
+  set_current_runtime (Some runtime);
   let result =
     try fn ()
     with e ->
-      current_runtime := prev;
+      set_current_runtime prev;
       raise e
   in
-  current_runtime := prev;
+  set_current_runtime prev;
   result
 
 (** Create a new runtime and run function within it *)

@@ -157,8 +157,8 @@ let context_example () =
 (** Example with batching *)
 let batch_example () =
   run_example "Batch Example" (fun () ->
-    let first_name, set_first = Signal.create ~equals:(=) "John" in
-    let last_name, set_last = Signal.create ~equals:(=) "Doe" in
+    let first_name, set_first = Signal.create "John" in
+    let last_name, set_last = Signal.create "Doe" in
     
     let effect_count = ref 0 in
     

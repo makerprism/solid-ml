@@ -2,15 +2,15 @@
 
 An OCaml framework for building reactive web applications with server-side rendering (SSR), inspired by [SolidJS](https://www.solidjs.com/).
 
-> **Status:** Phase 1 (Reactive Core) complete. Not ready for production use.
+> **Status:** Phase 2 (SSR) complete. Phase 3 (Client Runtime) not started.
 
 ## Features
 
 - **Fine-grained reactivity** - Signals, effects, and memos with automatic dependency tracking
-- **Server-side rendering** - Full HTML rendering for SEO and fast first paint (coming soon)
-- **Client-side hydration** - Seamless transition to interactive SPA (coming soon)
+- **Server-side rendering** - Full HTML rendering for SEO and fast first paint
+- **Thread-safe** - Domain-local storage enables safe parallel execution (OCaml 5)
 - **MLX templates** - JSX-like syntax for OCaml via [mlx](https://github.com/ocaml-mlx/mlx)
-- **Melange** - Compiles to optimized JavaScript
+- **Melange** - Compiles to optimized JavaScript (client runtime coming soon)
 - **Type-safe** - Full OCaml type checking for your UI
 
 ## Quick Start
@@ -18,34 +18,62 @@ An OCaml framework for building reactive web applications with server-side rende
 ```ocaml
 open Solid_ml
 
-let () =
-  (* Create a signal (reactive value) *)
-  let count, set_count = Signal.create 0 in
-  
-  (* Create a memo (derived value) *)
-  let doubled = Memo.create (fun () ->
-    Signal.get count * 2
+let () = Runtime.run (fun () ->
+  let dispose = Owner.create_root (fun () ->
+    (* Create a signal (reactive value) *)
+    let count, set_count = Signal.create 0 in
+    
+    (* Create a memo (derived value) *)
+    let doubled = Memo.create (fun () ->
+      Signal.get count * 2
+    ) in
+    
+    (* Create an effect (side effect that re-runs when dependencies change) *)
+    Effect.create (fun () ->
+      Printf.printf "Count: %d, Doubled: %d\n" 
+        (Signal.get count) 
+        (Signal.get doubled)
+    );
+    
+    (* Update the signal - effect automatically re-runs *)
+    set_count 1;  (* prints: Count: 1, Doubled: 2 *)
+    set_count 2   (* prints: Count: 2, Doubled: 4 *)
   ) in
-  
-  (* Create an effect (side effect that re-runs when dependencies change) *)
-  Effect.create (fun () ->
-    Printf.printf "Count: %d, Doubled: %d\n" 
-      (Signal.get count) 
-      (Signal.get doubled)
-  );
-  
-  (* Update the signal - effect automatically re-runs *)
-  set_count 1;  (* prints: Count: 1, Doubled: 2 *)
-  set_count 2;  (* prints: Count: 2, Doubled: 4 *)
+  dispose ()
+)
 ```
 
 ## Core API
 
+### Runtime
+
+All reactive code must run within a `Runtime.run` context:
+
+```ocaml
+(* Create isolated reactive context *)
+Runtime.run (fun () ->
+  (* Reactive code here *)
+)
+
+(* For Dream/web servers - each request gets its own runtime *)
+let handler _req =
+  let html = Solid_ml_html.Render.to_string my_component in
+  Dream.html html
+```
+
 ### Signals
 
 ```ocaml
-(* Create a signal with initial value *)
+(* Create a signal with initial value (uses structural equality by default) *)
 let count, set_count = Signal.create 0
+
+(* Create with physical equality (for mutable values) *)
+let buffer, set_buffer = Signal.create_physical (Bytes.create 100)
+
+(* Create with custom equality *)
+let items, set_items = Signal.create_eq 
+  ~equals:(fun a b -> List.length a = List.length b) 
+  []
 
 (* Read value (tracks dependency in effects/memos) *)
 let value = Signal.get count
@@ -53,7 +81,7 @@ let value = Signal.get count
 (* Read without tracking *)
 let value = Signal.peek count
 
-(* Update value *)
+(* Update value - only notifies if value changed *)
 Signal.set count 42
 Signal.update count (fun n -> n + 1)
 ```
@@ -127,12 +155,33 @@ Context.provide theme_context "dark" (fun () ->
 )
 ```
 
+## Thread Safety
+
+solid-ml uses OCaml 5's Domain-local storage for thread safety:
+
+- Each domain has independent runtime state
+- Safe for parallel execution with `Domain.spawn`
+- Each Dream request can run in its own runtime
+
+```ocaml
+(* Parallel rendering across domains *)
+let results = Array.init 4 (fun _ ->
+  Domain.spawn (fun () ->
+    Runtime.run (fun () ->
+      Render.to_string my_component
+    )
+  )
+) |> Array.map Domain.join
+```
+
+**Important**: Signals should not be shared across runtimes or domains. Each runtime maintains its own reactive graph.
+
 ## Packages
 
 | Package | Description | Status |
 |---------|-------------|--------|
 | `solid-ml` | Core reactive primitives (signals, effects, memos) | Ready |
-| `solid-ml-html` | Server-side rendering to HTML strings | Planned |
+| `solid-ml-html` | Server-side rendering to HTML strings | Ready |
 | `solid-ml-dom` | Client-side rendering and hydration (Melange) | Planned |
 | `solid-ml-router` | SSR-aware routing with data loaders | Planned |
 
@@ -148,6 +197,11 @@ dune runtest
 # Run counter example
 dune exec examples/counter/counter.exe
 ```
+
+## Requirements
+
+- OCaml 5.0 or later (uses Domain-local storage)
+- dune 3.0 or later
 
 ## Installation
 

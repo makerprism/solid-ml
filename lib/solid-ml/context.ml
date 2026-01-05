@@ -10,12 +10,11 @@ type 'a t = {
   default : 'a;
 }
 
-(** Counter for generating unique context IDs *)
-let next_id = ref 0
+(** Atomic counter for generating unique context IDs across domains *)
+let next_id = Atomic.make 0
 
 let create default =
-  let id = !next_id in
-  incr next_id;
+  let id = Atomic.fetch_and_add next_id 1 in
   { id; default }
 
 (** Find a context value by walking up the owner tree *)

@@ -52,7 +52,10 @@ dune clean
 **Thread Safety:**
 - All reactive state is stored in `Runtime.t`, not global variables
 - Each `Runtime.run` or `Render.to_string` creates isolated state
+- Uses Domain-local storage (OCaml 5) for safe parallel execution across domains
 - Safe for concurrent requests in Dream or other servers
+
+**Important:** Signals should not be shared across runtimes or domains. Each runtime maintains its own reactive graph.
 
 **Phase 2: Server Rendering** (complete)
 
@@ -86,7 +89,7 @@ See `docs/A-01-architecture.md` for Phase 3 tasks.
 | `lib/solid-ml/context.ml` | Component context (stored on owner tree) |
 | `lib/solid-ml-html/html.ml` | HTML element functions for SSR |
 | `lib/solid-ml-html/render.ml` | Render components to HTML strings |
-| `test/test_reactive.ml` | Test suite for reactive primitives (28 tests) |
+| `test/test_reactive.ml` | Test suite for reactive primitives (31 tests) |
 | `test/test_html.ml` | Test suite for HTML rendering (23 tests) |
 | `examples/counter/counter.ml` | Counter example demonstrating all features |
 

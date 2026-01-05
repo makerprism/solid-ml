@@ -56,7 +56,7 @@ let test_signal_subscribe () =
   print_endline "  PASSED"
 
 let test_signal_equality () =
-  print_endline "Test: Signal skips update on equal value";
+  print_endline "Test: Signal skips update on equal value (structural)";
   with_runtime (fun () ->
     let count, set_count = Signal.create 0 in
     let effect_runs = ref 0 in
@@ -68,6 +68,44 @@ let test_signal_equality () =
     set_count 0;  (* Same value *)
     assert (!effect_runs = 1);  (* Should not re-run *)
     set_count 1;  (* Different value *)
+    assert (!effect_runs = 2)
+  );
+  print_endline "  PASSED"
+
+let test_signal_physical_equality () =
+  print_endline "Test: Signal.create_physical uses physical equality";
+  with_runtime (fun () ->
+    (* Use mutable bytes to ensure different physical objects *)
+    let b1 = Bytes.of_string "hello" in
+    let b2 = Bytes.of_string "hello" in
+    let s, set_s = Signal.create_physical b1 in
+    let effect_runs = ref 0 in
+    Effect.create (fun () ->
+      let _ = Signal.get s in
+      incr effect_runs
+    );
+    assert (!effect_runs = 1);
+    set_s b2;  (* Different bytes object but same content *)
+    assert (!effect_runs = 2);  (* Should re-run with physical equality *)
+    let same_ref = Signal.peek s in
+    set_s same_ref;  (* Same exact object *)
+    assert (!effect_runs = 2)  (* Should not re-run *)
+  );
+  print_endline "  PASSED"
+
+let test_signal_structural_equality_strings () =
+  print_endline "Test: Signal uses structural equality for strings by default";
+  with_runtime (fun () ->
+    let s, set_s = Signal.create "hello" in
+    let effect_runs = ref 0 in
+    Effect.create (fun () ->
+      let _ = Signal.get s in
+      incr effect_runs
+    );
+    assert (!effect_runs = 1);
+    set_s "hello";  (* Same content, different object *)
+    assert (!effect_runs = 1);  (* Should NOT re-run with structural equality *)
+    set_s "world";  (* Different content *)
     assert (!effect_runs = 2)
   );
   print_endline "  PASSED"
@@ -532,6 +570,46 @@ let test_runtime_isolation () =
   assert (List.mem ("r2", 201) !results);
   print_endline "  PASSED"
 
+let test_domain_parallelism () =
+  print_endline "Test: Domain parallelism with Domain-local storage";
+  (* Each domain gets its own runtime via Domain.DLS *)
+  let num_domains = 4 in
+  let results = Array.make num_domains 0 in
+  
+  let domains = Array.init num_domains (fun i ->
+    Domain.spawn (fun () ->
+      Runtime.run (fun () ->
+        let dispose = Owner.create_root (fun () ->
+          let count, _set_count = Signal.create 0 in
+          let sum = ref 0 in
+          Effect.create (fun () ->
+            sum := !sum + Signal.get count
+          );
+          (* Each domain increments differently *)
+          for _ = 1 to (i + 1) * 10 do
+            Signal.update count (fun n -> n + 1)
+          done;
+          results.(i) <- !sum
+        ) in
+        dispose ()
+      )
+    )
+  ) in
+  
+  (* Wait for all domains *)
+  Array.iter Domain.join domains;
+  
+  (* Each domain should have computed its own sum independently *)
+  (* Domain 0: 1+2+...+10 = 55 *)
+  (* Domain 1: 1+2+...+20 = 210 *)
+  (* Domain 2: 1+2+...+30 = 465 *)
+  (* Domain 3: 1+2+...+40 = 820 *)
+  assert (results.(0) = 55);
+  assert (results.(1) = 210);
+  assert (results.(2) = 465);
+  assert (results.(3) = 820);
+  print_endline "  PASSED"
+
 (* ============ Main ============ *)
 
 let () =
@@ -542,6 +620,8 @@ let () =
   test_signal_peek ();
   test_signal_subscribe ();
   test_signal_equality ();
+  test_signal_physical_equality ();
+  test_signal_structural_equality_strings ();
   
   print_endline "\n-- Effect Tests --";
   test_effect_tracking ();
@@ -576,5 +656,6 @@ let () =
   test_diamond_dependency ();
   test_effect_with_memo ();
   test_runtime_isolation ();
+  test_domain_parallelism ();
   
   print_endline "\n=== All tests passed! ===\n"
