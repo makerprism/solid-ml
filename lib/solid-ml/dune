@@ -1,0 +1,4 @@
+(library
+ (name solid_ml)
+ (public_name solid-ml)
+ (libraries))
