@@ -175,9 +175,10 @@ module Make (B : Backend.S) = struct
   
   (** Write to a signal, notifying observers *)
   let write_signal (signal : signal_state) (value : Obj.t) : unit =
+    (* Default: use physical inequality (==) like SolidJS's === *)
     let should_update = match signal.comparator with
       | Some cmp -> not (cmp signal.value value)
-      | None -> signal.value <> value
+      | None -> signal.value != value  (* Physical inequality, matching SolidJS *)
     in
     
     if should_update then begin
@@ -760,10 +761,21 @@ module Make (B : Backend.S) = struct
   }
   
   (** Counter for unique context IDs.
-      Note: Not thread-safe, but contexts are typically created at module init time. *)
+      
+      Note: This uses a regular ref, not Atomic.t, because:
+      1. Browser (Melange) doesn't have Atomic
+      2. Contexts are typically created at module initialization time
+         (before any concurrent execution)
+      3. In practice, concurrent context creation is rare
+      
+      If thread-safe context creation is needed on server, create all
+      contexts before spawning domains. *)
   let next_context_id = ref 0
   
-  (** Create a new context with a default value. *)
+  (** Create a new context with a default value.
+      
+      Note: Context creation is not thread-safe. Create contexts at
+      module initialization time, before spawning domains. *)
   let create_context (type a) (default : a) : a context =
     let id = !next_context_id in
     incr next_context_id;

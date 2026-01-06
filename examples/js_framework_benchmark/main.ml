@@ -69,7 +69,8 @@ let data, set_data = Reactive.Signal.create [||]
 let selected, set_selected = Reactive.Signal.create (-1)
 
 (* Selector initialized later inside reactive root *)
-let selector : int Reactive.selector option ref = ref None
+(* New API: selector is just a function (int -> bool) with auto-cleanup *)
+let is_selected : (int -> bool) option ref = ref None
 
 (** {1 Benchmark Operations} *)
 
@@ -177,7 +178,7 @@ type row_state = {
     - Proper cleanup on disposal *)
 let render_row row =
   let row_id = row.id in
-  let sel = match !selector with Some s -> s | None -> failwith "selector not initialized" in
+  let check_selected = match !is_selected with Some f -> f | None -> failwith "selector not initialized" in
   
   (* Clone the template - much faster than creating elements individually *)
   let tr = Dom.clone_node (Lazy.force row_template) true in
@@ -210,22 +211,21 @@ let render_row row =
     
     (* Reactive class binding using selector - O(1) instead of O(n)! *)
     (* Initial value *)
-    let init_sel = Reactive.Effect.untrack (fun () -> sel.check row_id) in
+    let init_sel = Reactive.Effect.untrack (fun () -> check_selected row_id) in
     if init_sel then Dom.set_class_name tr "danger";
     (* Effect for updates *)
     let first_sel = ref true in
     Reactive.Effect.create (fun () ->
-      let is_sel = sel.check row_id in
+      let is_sel = check_selected row_id in
       if !first_sel then first_sel := false
       else Dom.set_class_name tr (if is_sel then "danger" else "")
     );
     
     (* Inline event handlers - matching SolidJS exactly *)
     Dom.add_event_listener a "click" (fun _ -> select row_id);
-    Dom.add_event_listener a_del "click" (fun _ -> remove row_id);
+    Dom.add_event_listener a_del "click" (fun _ -> remove row_id)
     
-    (* Cleanup selector subscription to prevent memory leak *)
-    Reactive.Owner.on_cleanup (fun () -> sel.unsubscribe row_id)
+    (* No manual cleanup needed - selector auto-cleans up via Owner.on_cleanup *)
   ) in
   
   { element = tr; dispose }
@@ -448,7 +448,8 @@ let () =
     (* Set up keyed list rendering inside reactive root *)
     let _dispose = Reactive.Owner.create_root (fun () ->
       (* Initialize the selector inside the root context *)
-      selector := Some (Reactive.create_selector selected);
+      (* New API: create_selector returns (int -> bool), auto-cleans up *)
+      is_selected := Some (Reactive.create_selector selected);
       render_keyed_list ~items:data tbody
     ) in
     

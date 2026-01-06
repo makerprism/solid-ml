@@ -66,3 +66,23 @@ val get_owner : unit -> t option
     ]}
 *)
 val on_cleanup : (unit -> unit) -> unit
+
+(** Create an error boundary (like SolidJS's catchError).
+    
+    Wraps a computation and catches any exceptions thrown during execution.
+    The error handler receives the exception and can return a fallback value.
+    
+    {[
+      let result = Owner.catch_error
+        (fun () ->
+          if bad_input then failwith "Invalid input";
+          compute_something ())
+        (fun exn ->
+          log_error exn;
+          default_value)
+    ]}
+    
+    @param fn Function that might throw an exception
+    @param handler Error handler that returns a fallback value
+    @return Result of [fn], or handler's fallback if [fn] threw *)
+val catch_error : (unit -> 'a) -> (exn -> 'a) -> 'a

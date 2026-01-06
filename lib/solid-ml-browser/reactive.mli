@@ -22,12 +22,19 @@ module Effect : sig
   val create : (unit -> unit) -> unit
   val create_with_cleanup : (unit -> (unit -> unit)) -> unit
   val untrack : (unit -> 'a) -> 'a
+  
+  (** Create an effect with explicit dependencies (like SolidJS's `on`).
+      Only [deps] is tracked; the body of [fn] runs untracked. *)
+  val on : ?defer:bool -> (unit -> 'a) -> (value:'a -> prev:'a -> unit) -> unit
 end
 
 module Owner : sig
   val on_cleanup : (unit -> unit) -> unit
   val get_owner : unit -> Reactive_core.owner option
   val create_root : (unit -> 'a) -> (unit -> unit)
+  
+  (** Create an error boundary (like SolidJS's catchError). *)
+  val catch_error : (unit -> 'a) -> (exn -> 'a) -> 'a
 end
 
 module Memo : sig
@@ -43,16 +50,7 @@ end
 
 (** {1 Selector} *)
 
-(** Result of create_selector - includes the selector function and cleanup *)
-type 'k selector = {
-  check : 'k -> bool;
-  (** Check if a key is currently selected (reactive) *)
-  
-  unsubscribe : 'k -> unit;
-  (** Remove a key from tracking. Call this when a row is disposed to prevent memory leaks. *)
-}
-
-val create_selector : ?equals:('a -> 'a -> bool) -> 'a Signal.t -> 'a selector
+val create_selector : ?equals:('a -> 'a -> bool) -> 'a Signal.t -> ('a -> bool)
 (** [create_selector source] creates an optimized selection checker.
     
     Unlike directly comparing [Signal.get source = key] (which subscribes every
@@ -63,26 +61,28 @@ val create_selector : ?equals:('a -> 'a -> bool) -> 'a Signal.t -> 'a selector
     - Without selector: O(n) effect updates when selection changes
     - With selector: O(1) updates (only previous and new selected item)
     
-    IMPORTANT: Call [selector.unsubscribe key] when disposing a row to prevent
-    memory leaks. The selector tracks all keys that have been checked.
+    Auto-cleanup: Subscribers are automatically removed when their owning
+    computation is disposed (via Owner.on_cleanup). No manual unsubscribe needed.
+    
+    Matches SolidJS's createSelector exactly:
+    - Returns a simple function (k -> bool)
+    - Auto-cleanup via onCleanup when the calling computation is disposed
+    - No manual unsubscribe needed
     
     {[
       let selected, set_selected = Signal.create (-1) in
-      let selector = create_selector selected in
+      let is_selected = create_selector selected in
       
-      (* In each row - only re-runs when THIS row's selection state changes *)
+      (* In each row - auto-cleans up when effect is disposed *)
       Effect.create (fun () ->
-        let selected = selector.check row_id in
-        set_class tr (if selected then "danger" else "")
-      );
-      
-      (* On row disposal *)
-      Owner.on_cleanup (fun () -> selector.unsubscribe row_id)
+        let sel = is_selected row_id in
+        set_class tr (if sel then "danger" else "")
+      )
     ]}
     
     @param equals Optional equality function (default: structural equality)
     @param source Signal containing the currently selected value
-    @return Selector record with check and unsubscribe functions *)
+    @return A function that reactively checks if a given key is selected *)
 
 module Context : sig
   type 'a t

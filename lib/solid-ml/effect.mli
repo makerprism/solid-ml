@@ -56,3 +56,27 @@ val create_with_cleanup : (unit -> (unit -> unit)) -> unit
     ]}
 *)
 val untrack : (unit -> 'a) -> 'a
+
+(** Create an effect with explicit dependencies (like SolidJS's `on`).
+    
+    Unlike [create], which automatically tracks all signals read,
+    [on] explicitly specifies which signals to track via the [deps] function.
+    The body of [fn] is NOT tracked - only [deps] is tracked.
+    
+    {[
+      let count, set_count = Signal.create 0 in
+      let name, set_name = Signal.create "Alice" in
+      
+      (* Only re-runs when count changes, NOT when name changes *)
+      Effect.on
+        (fun () -> Signal.get count)
+        (fun ~value ~prev ->
+          (* Reading name here does NOT cause re-run when name changes *)
+          let n = Signal.get name in
+          print_endline (Printf.sprintf "%s: count %d -> %d" n prev value))
+    ]}
+    
+    @param defer If true, skip the first execution (default: false)
+    @param deps Function that reads signals to track
+    @param fn Callback receiving ~value (current) and ~prev (previous dep value) *)
+val on : ?defer:bool -> (unit -> 'a) -> (value:'a -> prev:'a -> unit) -> unit

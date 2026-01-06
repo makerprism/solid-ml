@@ -42,3 +42,26 @@ let run_with_owner fn =
     let result = fn () in
     (result, dispose)
   )
+
+(** Create an error boundary (like SolidJS's catchError).
+    
+    Wraps a computation and catches any exceptions thrown during execution.
+    The error handler receives the exception and can return a fallback value.
+    
+    Unlike SolidJS which uses a setter to reset, this returns the result
+    directly since OCaml exceptions are synchronous.
+    
+    {[
+      let result = Owner.catch_error
+        (fun () ->
+          (* Code that might throw *)
+          if some_condition then failwith "error";
+          "success")
+        (fun exn ->
+          Printf.printf "Caught: %s\n" (Printexc.to_string exn);
+          "fallback")
+    ]}
+*)
+let catch_error (fn : unit -> 'a) (handler : exn -> 'a) : 'a =
+  try fn ()
+  with exn -> handler exn

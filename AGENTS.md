@@ -226,3 +226,54 @@ let read_typed_signal (type a) (s : a signal) : a =
 - Server: Each `Runtime.run` is fully isolated
 
 **Important:** Signals should not be shared across runtimes or domains.
+
+## Differences from SolidJS
+
+solid-ml aims to match SolidJS semantics closely. Here are the known differences:
+
+### Implemented Features Matching SolidJS
+
+| Feature | solid-ml | SolidJS | Notes |
+|---------|----------|---------|-------|
+| Signal equality | Physical (`!=`) | Reference (`===`) | Matches - both skip updates for same reference |
+| Memo equality | Structural (`=`) | Reference (`===`) | solid-ml uses structural by default (customizable) |
+| createSelector | `create_selector` | `createSelector` | Returns `(k -> bool)` with auto-cleanup |
+| Effect.on | `Effect.on` | `on()` | Explicit deps, untracked body, `~defer` option |
+| catchError | `Owner.catch_error` | `catchError` | Sync error handling (no setter reset) |
+| Batch | `Batch.run` | `batch` | Groups updates, defers effects |
+| Context | `Context.create/provide/use` | `createContext/useContext` | Owner-tree based lookup |
+
+### Features NOT Implemented (Intentionally Omitted)
+
+| Feature | Reason |
+|---------|--------|
+| `createResource` | Use `Resource` module in router for async data |
+| `createDeferred` | No microtask scheduling in OCaml |
+| `createReaction` | Use `Effect.on` for explicit tracking |
+| `createRenderEffect` | Effects run synchronously already |
+| Transitions API | Requires concurrent rendering not available in OCaml |
+| Suspense | Would require effect-based async (use Resource instead) |
+| `startTransition` | No concurrent mode |
+| `useTransition` | No concurrent mode |
+| `children` helper | Use direct children access |
+| `lazy` | Use OCaml's native `lazy` |
+| `createUniqueId` | Use a counter or UUID library |
+| Event delegation | Uses inline handlers (simpler, same perf) |
+
+### Semantic Differences
+
+1. **Effect scheduling**: solid-ml effects run synchronously during `run_updates`. SolidJS sometimes defers to microtasks. This rarely matters in practice.
+
+2. **Error boundaries**: `Owner.catch_error` catches synchronously thrown exceptions. SolidJS's `catchError` provides a setter to reset; solid-ml returns the fallback value directly since OCaml exceptions are sync.
+
+3. **Context ID generation**: Not thread-safe (uses `ref`, not `Atomic`). Create contexts at module init time before spawning domains.
+
+4. **No JSX compiler**: solid-ml requires manual DOM/HTML construction or use of MLX syntax. There's no Babel-like transform.
+
+5. **Memo evaluation**: solid-ml memos are eager (computed immediately on creation). SolidJS memos are also eager but may defer in some cases.
+
+### Browser-specific Notes
+
+- `create_selector` auto-cleans up when the owning computation is disposed (via `Owner.on_cleanup`)
+- No manual `unsubscribe` needed (unlike earlier versions)
+- Multiple apps on same page share the global runtime ref

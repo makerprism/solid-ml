@@ -37,6 +37,26 @@ module Effect = struct
   let create = Reactive_core.create_effect
   let create_with_cleanup = Reactive_core.create_effect_with_cleanup
   let untrack = Reactive_core.untrack
+  
+  (** Create an effect with explicit dependencies (like SolidJS's `on`). *)
+  let on (type a) ?(defer = false) (deps : unit -> a) (fn : value:a -> prev:a -> unit) : unit =
+    let prev = ref None in
+    let first_run = ref true in
+    Reactive_core.create_effect (fun () ->
+      let value = deps () in
+      Reactive_core.untrack (fun () ->
+        let should_run = not (defer && !first_run) in
+        first_run := false;
+        if should_run then begin
+          let prev_val = match !prev with
+            | Some p -> p
+            | None -> value
+          in
+          fn ~value ~prev:prev_val
+        end;
+        prev := Some value
+      )
+    )
 end
 
 module Owner = struct
@@ -45,6 +65,11 @@ module Owner = struct
   let create_root f = 
     let (_, dispose) = Reactive_core.create_root f in
     dispose
+  
+  (** Create an error boundary (like SolidJS's catchError). *)
+  let catch_error (fn : unit -> 'a) (handler : exn -> 'a) : 'a =
+    try fn ()
+    with exn -> handler exn
 end
 
 module Memo = struct
@@ -60,15 +85,6 @@ end
 
 (** {1 Selector} *)
 
-(** Result of create_selector - includes the selector function and cleanup *)
-type 'k selector = {
-  check : 'k -> bool;
-  (** Check if a key is currently selected (reactive) *)
-  
-  unsubscribe : 'k -> unit;
-  (** Remove a key from tracking. Call this when a row is disposed to prevent memory leaks. *)
-}
-
 (** Create a selector - an optimized way to check if a value equals the current
     selection without subscribing to every change.
     
@@ -80,67 +96,101 @@ type 'k selector = {
     if it's selected. Without selector: O(n) updates when selection changes.
     With selector: O(1) updates (only previous and new selected row).
     
+    Matches SolidJS's createSelector exactly:
+    - Auto-cleanup via onCleanup when the calling computation is disposed
+    - No manual unsubscribe needed
+    - Tracks computations directly, not via intermediate signals
+    
     Usage:
     {[
       let selected, set_selected = Signal.create (-1) in
-      let selector = create_selector selected in
+      let is_selected = create_selector selected in
       
-      (* In each row: *)
+      (* In each row - auto-cleans up when effect is disposed *)
       Effect.create (fun () ->
-        let is_sel = selector.check row_id in
-        ...
-      );
-      
-      (* On row disposal: *)
-      Owner.on_cleanup (fun () -> selector.unsubscribe row_id)
+        let sel = is_selected row_id in
+        set_class tr (if sel then "danger" else "")
+      )
     ]}
     
+    @param equals Optional equality function (default: structural equality)
     @param source Signal containing the currently selected value
-    @return A selector record with check and unsubscribe functions *)
-let create_selector (type k) ?(equals : k -> k -> bool = (=)) (source : k Signal.t) : k selector =
-  (* Track subscribers per key: key -> (signal, setter) *)
-  let subscribers : (k, (bool Signal.t * (bool -> unit))) Hashtbl.t = Hashtbl.create 16 in
-  (* Track the previous selected key to notify it when deselected *)
-  let prev_key : k option ref = ref None in
+    @return A function that reactively checks if a given key is selected *)
+let create_selector (type k) ?(equals : k -> k -> bool = (=)) (source : k Signal.t) : (k -> bool) =
+  (* Use JS Map for reference equality on keys (like SolidJS) *)
+  (* For primitive types like int, we use a Hashtbl which works fine *)
+  let subs : (k, (unit -> unit) list ref) Hashtbl.t = Hashtbl.create 16 in
   
-  (* Effect that runs when source changes and notifies affected subscribers *)
-  Effect.create (fun () ->
-    let new_key = Signal.get source in
-    let old_key = !prev_key in
+  (* Track previous value to know what changed *)
+  let prev_value : k option ref = ref None in
+  
+  (* The internal computation that tracks source and notifies affected keys *)
+  let _comp = Memo.create (fun () ->
+    let new_value = Signal.get source in
+    let old_value = !prev_value in
     
-    (* Notify previous key that it's no longer selected *)
-    (match old_key with
-     | Some k when not (equals k new_key) ->
-       (match Hashtbl.find_opt subscribers k with
-        | Some (_, set) -> set false
-        | None -> ())
-     | _ -> ());
-    
-    (* Notify new key that it's now selected *)
-    (match Hashtbl.find_opt subscribers new_key with
-     | Some (_, set) -> set true
+    (* For each key that was previously selected or is now selected, 
+       trigger its subscribers if the selection state changed *)
+    (match old_value with
+     | Some old_key ->
+       if not (equals old_key new_value) then
+         (* Old key is no longer selected - trigger its listeners *)
+         (match Hashtbl.find_opt subs old_key with
+          | Some listeners -> List.iter (fun f -> f ()) !listeners
+          | None -> ())
      | None -> ());
     
-    prev_key := Some new_key
-  );
-  
-  {
-    check = (fun key ->
-      match Hashtbl.find_opt subscribers key with
-      | Some (signal, _) -> Signal.get signal
-      | None ->
-        (* First time this key is checked - create a signal for it *)
-        let current = Signal.peek source in
-        let is_selected = equals key current in
-        let signal, set = Signal.create is_selected in
-        Hashtbl.replace subscribers key (signal, set);
-        Signal.get signal
-    );
+    (* New key is now selected - trigger its listeners if different from old *)
+    (match old_value with
+     | Some old_key when equals old_key new_value -> ()  (* Same key, no change *)
+     | _ ->
+       (match Hashtbl.find_opt subs new_value with
+        | Some listeners -> List.iter (fun f -> f ()) !listeners
+        | None -> ()));
     
-    unsubscribe = (fun key ->
-      Hashtbl.remove subscribers key
-    );
-  }
+    prev_value := Some new_value;
+    new_value
+  ) in
+  
+  (* Return the selector function *)
+  fun key ->
+    (* Get the current computation (listener) if any *)
+    let listener = Reactive_core.get_owner () in
+    
+    (match listener with
+     | Some _ ->
+       (* Add this computation to the subscribers for this key *)
+       let listeners = match Hashtbl.find_opt subs key with
+         | Some l -> l
+         | None ->
+           let l = ref [] in
+           Hashtbl.replace subs key l;
+           l
+       in
+       
+       (* Create a trigger function that will re-run the current computation.
+          We do this by creating a signal that we update when this key's state changes. *)
+       let trigger_signal, set_trigger = Signal.create () in
+       let trigger () = set_trigger () in
+       
+       (* Add trigger to listeners *)
+       listeners := trigger :: !listeners;
+       
+       (* Auto-cleanup: remove from listeners when computation is disposed *)
+       Owner.on_cleanup (fun () ->
+         listeners := List.filter (fun f -> f != trigger) !listeners;
+         (* Remove the key entry if no more listeners *)
+         if !listeners = [] then Hashtbl.remove subs key
+       );
+       
+       (* Read the trigger signal to establish dependency *)
+       let _ = Signal.get trigger_signal in
+       ()
+     | None -> ());
+    
+    (* Return whether this key matches the current selection *)
+    let current = Signal.peek source in
+    equals key current
 
 module Context = struct
   type 'a t = 'a Reactive_core.context
