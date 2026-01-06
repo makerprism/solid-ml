@@ -9133,7 +9133,7 @@ var json_get_int = (function(json, key) {
     return 0;
   }
 });
-var json_array_map = (function(json, fn) {
+var json_array_map_raw = (function(json, fn) {
   try {
     var arr = JSON.parse(json);
     return arr.map(function(item) {
@@ -9143,6 +9143,9 @@ var json_array_map = (function(json, fn) {
     return [];
   }
 });
+function json_array_map(json, fn) {
+  return to_list(json_array_map_raw(json, fn));
+}
 function parse_user(json) {
   return {
     id: json_get_int(json, "id"),
@@ -9174,9 +9177,9 @@ function parse_comment(json) {
 }
 function fetch_users(on_success, on_error) {
   fetch_json_raw("/api/users", (function(json) {
-    _1(on_success, map(parse_user, json_array_map(json, (function(item) {
+    _1(on_success, map(parse_user, to_list(json_array_map_raw(json, (function(item) {
       return item;
-    }))));
+    })))));
   }), on_error);
 }
 function fetch_user(id, on_success, on_error) {
@@ -9186,16 +9189,16 @@ function fetch_user(id, on_success, on_error) {
 }
 function fetch_user_posts(user_id, on_success, on_error) {
   fetch_json_raw("/api/users/" + (String(user_id) + "/posts"), (function(json) {
-    _1(on_success, map(parse_post, json_array_map(json, (function(item) {
+    _1(on_success, map(parse_post, to_list(json_array_map_raw(json, (function(item) {
       return item;
-    }))));
+    })))));
   }), on_error);
 }
 function fetch_posts(on_success, on_error) {
   fetch_json_raw("/api/posts", (function(json) {
-    _1(on_success, map(parse_post, json_array_map(json, (function(item) {
+    _1(on_success, map(parse_post, to_list(json_array_map_raw(json, (function(item) {
       return item;
-    }))));
+    })))));
   }), on_error);
 }
 function fetch_post(id, on_success, on_error) {
@@ -9205,9 +9208,9 @@ function fetch_post(id, on_success, on_error) {
 }
 function fetch_comments(post_id, on_success, on_error) {
   fetch_json_raw("/api/posts/" + (String(post_id) + "/comments"), (function(json) {
-    _1(on_success, map(parse_comment, json_array_map(json, (function(item) {
+    _1(on_success, map(parse_comment, to_list(json_array_map_raw(json, (function(item) {
       return item;
-    }))));
+    })))));
   }), on_error);
 }
 function html_escape(s) {
@@ -9554,6 +9557,7 @@ export {
   get_element,
   html_escape,
   json_array_map,
+  json_array_map_raw,
   json_get_int,
   json_get_string,
   navigate,

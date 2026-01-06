@@ -50,7 +50,8 @@ let json_get_int : string -> string -> int = [%mel.raw {|
   }
 |}]
 
-let json_array_map : string -> (string -> string) -> string list = [%mel.raw {|
+(* Returns a JS array of strings, we'll convert to list in OCaml *)
+let json_array_map_raw : string -> (string -> string) -> string array = [%mel.raw {|
   function(json, fn) {
     try {
       var arr = JSON.parse(json);
@@ -58,6 +59,9 @@ let json_array_map : string -> (string -> string) -> string list = [%mel.raw {|
     } catch(e) { return []; }
   }
 |}]
+
+let json_array_map json fn =
+  Array.to_list (json_array_map_raw json fn)
 
 (** {1 Data Types and Parsing} *)
 
