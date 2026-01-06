@@ -487,3 +487,23 @@ let query_selector_all doc selector =
 let set_location path =
   let _ = path in
   [%mel.raw {| window.location.href = path |}]
+
+(** {1 JavaScript Map} *)
+
+(** JavaScript Map type - uses reference equality for object keys.
+    This is needed for DOM reconciliation algorithms that use DOM elements as keys. *)
+type ('k, 'v) js_map
+
+external js_map_create : unit -> ('k, 'v) js_map = "Map" [@@mel.new]
+external js_map_set : ('k, 'v) js_map -> 'k -> 'v -> ('k, 'v) js_map = "set" [@@mel.send]
+external js_map_get : ('k, 'v) js_map -> 'k -> 'v Js.undefined = "get" [@@mel.send]
+external js_map_has : ('k, 'v) js_map -> 'k -> bool = "has" [@@mel.send]
+external js_map_delete : ('k, 'v) js_map -> 'k -> bool = "delete" [@@mel.send]
+external js_map_clear : ('k, 'v) js_map -> unit = "clear" [@@mel.send]
+external js_map_size : ('k, 'v) js_map -> int = "size" [@@mel.get]
+
+let js_map_get_opt map key =
+  Js.Undefined.toOption (js_map_get map key)
+
+let js_map_set_ map key value =
+  ignore (js_map_set map key value)

@@ -202,6 +202,9 @@ let render_row row =
     - Pure append/remove cases
     - Swap detection
     - General case with map-based lookup
+    
+    Uses JavaScript Map for element->index mapping since it uses reference
+    equality for object keys (required for DOM element comparison).
 *)
 let reconcile_arrays (parent : Dom.element) (a : Dom.element array) (b : Dom.element array) =
   let b_length = Array.length b in
@@ -210,17 +213,19 @@ let reconcile_arrays (parent : Dom.element) (a : Dom.element array) (b : Dom.ele
   let a_start = ref 0 in
   let b_start = ref 0 in
   
-  (* Get the node after the last element in 'a', or None if at end *)
+  (* Get the node after the last element in 'a', used as insertion reference.
+     Note: In the original JS, this captures the sibling at algorithm start.
+     If 'a' is empty, we use null (None) which means append to end. *)
   let after = 
     if !a_end > 0 then Dom.get_next_sibling a.(!a_end - 1)
     else None
   in
   
-  (* Map for fallback case - lazily initialized *)
-  let map = ref None in
+  (* JS Map for fallback case - uses reference equality for DOM element keys *)
+  let map : (Dom.element, int) Dom.js_map option ref = ref None in
   
   while !a_start < !a_end || !b_start < !b_end do
-    (* Common prefix - nodes match, skip them *)
+    (* Common prefix - nodes are identical (physical equality), skip them *)
     if !a_start < !a_end && !b_start < !b_end && a.(!a_start) == b.(!b_start) then begin
       incr a_start;
       incr b_start
@@ -232,63 +237,73 @@ let reconcile_arrays (parent : Dom.element) (a : Dom.element array) (b : Dom.ele
     end
     (* Append case - old array exhausted, insert remaining new nodes *)
     else if !a_end = !a_start then begin
-      let node =
+      (* Find the reference node to insert before:
+         - If we haven't processed all of b (b_end < b_length), insert before
+           the next unprocessed node that's already in the DOM
+         - Otherwise use 'after' (the node that was after the original 'a' array) *)
+      let ref_node =
         if !b_end < b_length then
-          if !b_start > 0 then Dom.get_next_sibling b.(!b_start - 1)
-          else Some (Dom.node_of_element b.(!b_end - !b_start))
-        else after
+          (* b[b_end] is already in the DOM (it was in common suffix), insert before it *)
+          Some (Dom.node_of_element b.(!b_end))
+        else 
+          after
       in
       while !b_start < !b_end do
-        Dom.insert_before parent (Dom.node_of_element b.(!b_start)) node;
+        Dom.insert_before parent (Dom.node_of_element b.(!b_start)) ref_node;
         incr b_start
       done
     end
     (* Remove case - new array exhausted, remove remaining old nodes *)
     else if !b_end = !b_start then begin
       while !a_start < !a_end do
-        (* Only remove if not in the map (not being reused) *)
-        let dominated = match !map with
+        (* Only remove if not in the map (i.e., not being reused elsewhere in b) *)
+        let in_map = match !map with
           | None -> false
-          | Some m -> Hashtbl.mem m a.(!a_start)
+          | Some m -> Dom.js_map_has m a.(!a_start)
         in
-        if not dominated then
+        if not in_map then
           Dom.remove_element a.(!a_start);
         incr a_start
       done
     end
-    (* Swap backward detection - first and last swapped *)
+    (* Swap backward detection - a[start] goes to b[end-1] and a[end-1] goes to b[start] *)
     else if !a_start < !a_end && !b_start < !b_end &&
             a.(!a_start) == b.(!b_end - 1) && b.(!b_start) == a.(!a_end - 1) then begin
+      (* Swap the two nodes *)
       decr a_end;
-      let node = Dom.get_next_sibling a.(!a_end) in
+      let node_after_a_end = Dom.get_next_sibling a.(!a_end) in
+      (* Move b[b_start] (which is a[a_end]) to after a[a_start] *)
       Dom.insert_before parent (Dom.node_of_element b.(!b_start)) 
         (Dom.get_next_sibling a.(!a_start));
       incr b_start;
       incr a_start;
       decr b_end;
-      Dom.insert_before parent (Dom.node_of_element b.(!b_end)) node
+      (* Move b[b_end] (which is original a[a_start]) to where a[a_end] was *)
+      Dom.insert_before parent (Dom.node_of_element b.(!b_end)) node_after_a_end
     end
     (* Fallback to map-based reconciliation *)
     else begin
-      (* Build map lazily *)
+      (* Build map lazily: maps each element in b to its index *)
       if !map = None then begin
-        let m = Hashtbl.create (!b_end - !b_start) in
+        let m = Dom.js_map_create () in
         for i = !b_start to !b_end - 1 do
-          Hashtbl.replace m b.(i) i
+          Dom.js_map_set_ m b.(i) i
         done;
         map := Some m
       end;
       
       let m = match !map with Some m -> m | None -> assert false in
       
-      match Hashtbl.find_opt m a.(!a_start) with
-      | Some index when !b_start < index && index < !b_end ->
-        (* Found in new array - check for sequence *)
-        let i = ref !a_start in
+      match Dom.js_map_get_opt m a.(!a_start) with
+      | Some index when !b_start <= index && index < !b_end ->
+        (* a[a_start] exists in b at position 'index' *)
+        
+        (* Check for a sequence: consecutive elements in 'a' that are also 
+           consecutive in 'b'. This lets us skip moving them. *)
+        let i = ref (!a_start + 1) in
         let sequence = ref 1 in
-        incr i;
-        while !i < !a_end && !i < !b_end do
-          match Hashtbl.find_opt m a.(!i) with
+        while !i < !a_end do
+          match Dom.js_map_get_opt m a.(!i) with
           | Some t when t = index + !sequence ->
             incr sequence;
             incr i
@@ -296,7 +311,7 @@ let reconcile_arrays (parent : Dom.element) (a : Dom.element array) (b : Dom.ele
         done;
         
         if !sequence > index - !b_start then begin
-          (* Insert nodes before current position *)
+          (* More efficient to insert the nodes before a[a_start] than to move the sequence *)
           let node = a.(!a_start) in
           while !b_start < index do
             Dom.insert_before parent (Dom.node_of_element b.(!b_start)) 
@@ -304,7 +319,7 @@ let reconcile_arrays (parent : Dom.element) (a : Dom.element array) (b : Dom.ele
             incr b_start
           done
         end else begin
-          (* Replace node *)
+          (* Replace a[a_start] with b[b_start] *)
           Dom.replace_child parent 
             (Dom.node_of_element b.(!b_start)) 
             (Dom.node_of_element a.(!a_start));
@@ -312,10 +327,10 @@ let reconcile_arrays (parent : Dom.element) (a : Dom.element array) (b : Dom.ele
           incr a_start
         end
       | Some _ ->
-        (* Found but outside range, skip *)
+        (* Element exists in b but outside current range - already processed, skip *)
         incr a_start
       | None ->
-        (* Not in new array, remove it *)
+        (* Element not in b at all, remove it *)
         Dom.remove_element a.(!a_start);
         incr a_start
     end

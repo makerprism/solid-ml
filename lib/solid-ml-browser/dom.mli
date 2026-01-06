@@ -294,3 +294,36 @@ val query_selector_all_within : element -> string -> element list
 
 val set_location : string -> unit
 (** Navigate to a URL (full page load) *)
+
+(** {1 JavaScript Map} *)
+
+(** JavaScript Map type - uses reference equality for object keys.
+    This is needed for DOM reconciliation algorithms that use DOM elements as keys. *)
+type ('k, 'v) js_map
+
+val js_map_create : unit -> ('k, 'v) js_map
+(** Create a new empty Map *)
+
+val js_map_set : ('k, 'v) js_map -> 'k -> 'v -> ('k, 'v) js_map
+(** Set a key-value pair, returns the map *)
+
+val js_map_set_ : ('k, 'v) js_map -> 'k -> 'v -> unit
+(** Set a key-value pair, ignoring return value *)
+
+val js_map_get : ('k, 'v) js_map -> 'k -> 'v Js.undefined
+(** Get a value by key, returns undefined if not found *)
+
+val js_map_get_opt : ('k, 'v) js_map -> 'k -> 'v option
+(** Get a value by key as option *)
+
+val js_map_has : ('k, 'v) js_map -> 'k -> bool
+(** Check if key exists *)
+
+val js_map_delete : ('k, 'v) js_map -> 'k -> bool
+(** Delete a key, returns true if key existed *)
+
+val js_map_clear : ('k, 'v) js_map -> unit
+(** Remove all entries *)
+
+val js_map_size : ('k, 'v) js_map -> int
+(** Get number of entries *)
