@@ -68,8 +68,8 @@ let data, set_data = Reactive.Signal.create [||]
 (* Selected row ID signal - use -1 for "no selection" like null in JS *)
 let selected, set_selected = Reactive.Signal.create (-1)
 
-(* Create selector for O(1) selection checks instead of O(n) *)
-let is_selected = Reactive.create_selector selected
+(* Selector initialized later inside reactive root *)
+let selector : int Reactive.selector option ref = ref None
 
 (** {1 Benchmark Operations} *)
 
@@ -111,10 +111,12 @@ let swap_rows () =
 let remove id =
   let d = Reactive.Signal.peek data in
   let len = Array.length d in
-  (* Find index of item to remove *)
+  (* Find index of item to remove - early exit when found *)
   let idx = ref (-1) in
-  for i = 0 to len - 1 do
-    if d.(i).id = id then idx := i
+  let i = ref 0 in
+  while !i < len && !idx < 0 do
+    if d.(!i).id = id then idx := !i;
+    incr i
   done;
   if !idx >= 0 then begin
     (* Create new array without the item *)
@@ -127,6 +129,39 @@ let remove id =
 let select id =
   set_selected id
 
+(** {1 Row Template for Cloning} *)
+
+(* Create a template row element for cloning - faster than createElement for each row *)
+let row_template : Dom.element Lazy.t = lazy (
+  let tr = Dom.create_element Dom.document "tr" in
+  
+  let td1 = Dom.create_element Dom.document "td" in
+  Dom.set_class_name td1 "col-md-1";
+  Dom.append_child tr (Dom.node_of_element td1);
+  
+  let td2 = Dom.create_element Dom.document "td" in
+  Dom.set_class_name td2 "col-md-4";
+  let a = Dom.create_element Dom.document "a" in
+  Dom.append_child td2 (Dom.node_of_element a);
+  Dom.append_child tr (Dom.node_of_element td2);
+  
+  let td3 = Dom.create_element Dom.document "td" in
+  Dom.set_class_name td3 "col-md-1";
+  let a_del = Dom.create_element Dom.document "a" in
+  let span = Dom.create_element Dom.document "span" in
+  Dom.set_class_name span "glyphicon glyphicon-remove";
+  Dom.set_attribute span "aria-hidden" "true";
+  Dom.append_child a_del (Dom.node_of_element span);
+  Dom.append_child td3 (Dom.node_of_element a_del);
+  Dom.append_child tr (Dom.node_of_element td3);
+  
+  let td4 = Dom.create_element Dom.document "td" in
+  Dom.set_class_name td4 "col-md-6";
+  Dom.append_child tr (Dom.node_of_element td4);
+  
+  tr
+)
+
 (** {1 Row Rendering with Disposal Tracking} *)
 
 (** Row state includes the DOM element and dispose function for cleanup *)
@@ -136,56 +171,61 @@ type row_state = {
 }
 
 (** Render a single row. Uses:
+    - Template cloning for faster DOM creation
     - createSelector for O(1) selection updates
-    - textContent for faster text updates
-    - Owner.create_root for proper disposal *)
+    - Inline event handlers matching SolidJS
+    - Proper cleanup on disposal *)
 let render_row row =
   let row_id = row.id in
-  let tr = Dom.create_element Dom.document "tr" in
-  Dom.set_attribute tr "data-id" (string_of_int row_id);
+  let sel = match !selector with Some s -> s | None -> failwith "selector not initialized" in
+  
+  (* Clone the template - much faster than creating elements individually *)
+  let tr = Dom.clone_node (Lazy.force row_template) true in
+  
+  (* Get references to child elements *)
+  let children = Dom.get_children tr in
+  let td1 = children.(0) in
+  let td2 = children.(1) in
+  let td3 = children.(2) in
+  
+  (* Get the anchor elements *)
+  let a = (Dom.get_children td2).(0) in
+  let a_del = (Dom.get_children td3).(0) in
   
   (* Create effects within a root so we can dispose them *)
   let dispose = Reactive.Owner.create_root (fun () ->
-    (* Reactive class binding using selector - O(1) instead of O(n)! *)
-    Reactive.Effect.create (fun () ->
-      let sel = is_selected row_id in
-      Dom.set_class_name tr (if sel then "danger" else "")
-    );
-    
-    (* TD 1: ID - static, use textContent directly *)
-    let td1 = Dom.create_element Dom.document "td" in
-    Dom.set_class_name td1 "col-md-1";
+    (* TD 1: ID - static content, set once *)
     Dom.set_text_content td1 (string_of_int row_id);
-    Dom.append_child tr (Dom.node_of_element td1);
     
-    (* TD 2: Label - reactive via signal, use textContent *)
-    let td2 = Dom.create_element Dom.document "td" in
-    Dom.set_class_name td2 "col-md-4";
-    let a = Dom.create_element Dom.document "a" in
-    (* Set initial value *)
+    (* TD 2: Label - reactive text content *)
+    (* Initial value set without tracking *)
     Dom.set_text_content a (Reactive.Signal.peek row.label);
-    (* Update reactively *)
+    (* Effect for updates - skips first run since we set initial above *)
+    let first_label = ref true in
     Reactive.Effect.create (fun () ->
-      Dom.set_text_content a (Reactive.Signal.get row.label)
+      let label = Reactive.Signal.get row.label in
+      if !first_label then first_label := false
+      else Dom.set_text_content a label
     );
-    Dom.append_child td2 (Dom.node_of_element a);
-    Dom.append_child tr (Dom.node_of_element td2);
     
-    (* TD 3: Delete button *)
-    let td3 = Dom.create_element Dom.document "td" in
-    Dom.set_class_name td3 "col-md-1";
-    let a_del = Dom.create_element Dom.document "a" in
-    let span = Dom.create_element Dom.document "span" in
-    Dom.set_class_name span "glyphicon glyphicon-remove";
-    Dom.set_attribute span "aria-hidden" "true";
-    Dom.append_child a_del (Dom.node_of_element span);
-    Dom.append_child td3 (Dom.node_of_element a_del);
-    Dom.append_child tr (Dom.node_of_element td3);
+    (* Reactive class binding using selector - O(1) instead of O(n)! *)
+    (* Initial value *)
+    let init_sel = Reactive.Effect.untrack (fun () -> sel.check row_id) in
+    if init_sel then Dom.set_class_name tr "danger";
+    (* Effect for updates *)
+    let first_sel = ref true in
+    Reactive.Effect.create (fun () ->
+      let is_sel = sel.check row_id in
+      if !first_sel then first_sel := false
+      else Dom.set_class_name tr (if is_sel then "danger" else "")
+    );
     
-    (* TD 4: Spacer *)
-    let td4 = Dom.create_element Dom.document "td" in
-    Dom.set_class_name td4 "col-md-6";
-    Dom.append_child tr (Dom.node_of_element td4)
+    (* Inline event handlers - matching SolidJS exactly *)
+    Dom.add_event_listener a "click" (fun _ -> select row_id);
+    Dom.add_event_listener a_del "click" (fun _ -> remove row_id);
+    
+    (* Cleanup selector subscription to prevent memory leak *)
+    Reactive.Owner.on_cleanup (fun () -> sel.unsubscribe row_id)
   ) in
   
   { element = tr; dispose }
@@ -397,44 +437,6 @@ let render_keyed_list ~(items : row array Reactive.Signal.t) (parent : Dom.eleme
     Hashtbl.clear node_map
   )
 
-(** {1 Event Delegation} *)
-
-(** Set up event delegation on the tbody for select and remove actions *)
-let setup_event_delegation tbody =
-  Dom.add_event_listener tbody "click" (fun evt ->
-    (* Find the clicked element and its closest tr *)
-    let rec find_row el =
-      let tag = String.lowercase_ascii (Dom.get_tag_name el) in
-      if tag = "tr" then Some el
-      else if tag = "tbody" || tag = "table" then None
-      else match Dom.get_parent_element el with
-        | Some parent -> find_row parent
-        | None -> None
-    in
-    
-    let target = Dom.target evt in
-    let tag = String.lowercase_ascii (Dom.get_tag_name target) in
-    
-    (* Check if this is a delete action (span with glyphicon-remove) *)
-    let is_delete = 
-      tag = "span" && Dom.has_class target "glyphicon-remove" ||
-      tag = "a" && (match Dom.get_first_child target with
-        | Some child when Dom.is_element child -> 
-          Dom.has_class (Dom.element_of_node child) "glyphicon-remove"
-        | _ -> false)
-    in
-    
-    match find_row target with
-    | None -> ()
-    | Some tr ->
-      match Dom.get_attribute tr "data-id" with
-      | None -> ()
-      | Some id_str ->
-        let id = int_of_string id_str in
-        if is_delete then remove id
-        else select id
-  )
-
 (** {1 Main App} *)
 
 let () =
@@ -443,11 +445,10 @@ let () =
   match Dom.get_element_by_id Dom.document "tbody" with
   | None -> Dom.error "tbody not found"
   | Some tbody ->
-    (* Set up event delegation *)
-    setup_event_delegation tbody;
-    
-    (* Set up keyed list rendering *)
+    (* Set up keyed list rendering inside reactive root *)
     let _dispose = Reactive.Owner.create_root (fun () ->
+      (* Initialize the selector inside the root context *)
+      selector := Some (Reactive.create_selector selected);
       render_keyed_list ~items:data tbody
     ) in
     

@@ -43,7 +43,16 @@ end
 
 (** {1 Selector} *)
 
-val create_selector : ?equals:('a -> 'a -> bool) -> 'a Signal.t -> ('a -> bool)
+(** Result of create_selector - includes the selector function and cleanup *)
+type 'k selector = {
+  check : 'k -> bool;
+  (** Check if a key is currently selected (reactive) *)
+  
+  unsubscribe : 'k -> unit;
+  (** Remove a key from tracking. Call this when a row is disposed to prevent memory leaks. *)
+}
+
+val create_selector : ?equals:('a -> 'a -> bool) -> 'a Signal.t -> 'a selector
 (** [create_selector source] creates an optimized selection checker.
     
     Unlike directly comparing [Signal.get source = key] (which subscribes every
@@ -54,20 +63,26 @@ val create_selector : ?equals:('a -> 'a -> bool) -> 'a Signal.t -> ('a -> bool)
     - Without selector: O(n) effect updates when selection changes
     - With selector: O(1) updates (only previous and new selected item)
     
+    IMPORTANT: Call [selector.unsubscribe key] when disposing a row to prevent
+    memory leaks. The selector tracks all keys that have been checked.
+    
     {[
       let selected, set_selected = Signal.create (-1) in
-      let is_selected = create_selector selected in
+      let selector = create_selector selected in
       
       (* In each row - only re-runs when THIS row's selection state changes *)
       Effect.create (fun () ->
-        let selected = is_selected row_id in
+        let selected = selector.check row_id in
         set_class tr (if selected then "danger" else "")
-      )
+      );
+      
+      (* On row disposal *)
+      Owner.on_cleanup (fun () -> selector.unsubscribe row_id)
     ]}
     
     @param equals Optional equality function (default: structural equality)
     @param source Signal containing the currently selected value
-    @return Function that reactively checks if a given key is selected *)
+    @return Selector record with check and unsubscribe functions *)
 
 module Context : sig
   type 'a t

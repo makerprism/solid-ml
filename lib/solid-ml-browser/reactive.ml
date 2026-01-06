@@ -60,6 +60,15 @@ end
 
 (** {1 Selector} *)
 
+(** Result of create_selector - includes the selector function and cleanup *)
+type 'k selector = {
+  check : 'k -> bool;
+  (** Check if a key is currently selected (reactive) *)
+  
+  unsubscribe : 'k -> unit;
+  (** Remove a key from tracking. Call this when a row is disposed to prevent memory leaks. *)
+}
+
 (** Create a selector - an optimized way to check if a value equals the current
     selection without subscribing to every change.
     
@@ -73,16 +82,22 @@ end
     
     Usage:
     {[
-      let selected, set_selected = Signal.create None in
-      let is_selected = create_selector selected in
+      let selected, set_selected = Signal.create (-1) in
+      let selector = create_selector selected in
       
       (* In each row: *)
-      let row_class = if is_selected row_id then "selected" else "" in
+      Effect.create (fun () ->
+        let is_sel = selector.check row_id in
+        ...
+      );
+      
+      (* On row disposal: *)
+      Owner.on_cleanup (fun () -> selector.unsubscribe row_id)
     ]}
     
     @param source Signal containing the currently selected value
-    @return A function that checks if a given key is selected, reactively *)
-let create_selector (type k) ?(equals : k -> k -> bool = (=)) (source : k Signal.t) : (k -> bool) =
+    @return A selector record with check and unsubscribe functions *)
+let create_selector (type k) ?(equals : k -> k -> bool = (=)) (source : k Signal.t) : k selector =
   (* Track subscribers per key: key -> (signal, setter) *)
   let subscribers : (k, (bool Signal.t * (bool -> unit))) Hashtbl.t = Hashtbl.create 16 in
   (* Track the previous selected key to notify it when deselected *)
@@ -109,17 +124,23 @@ let create_selector (type k) ?(equals : k -> k -> bool = (=)) (source : k Signal
     prev_key := Some new_key
   );
   
-  (* Return the selector function *)
-  fun key ->
-    match Hashtbl.find_opt subscribers key with
-    | Some (signal, _) -> Signal.get signal
-    | None ->
-      (* First time this key is checked - create a signal for it *)
-      let current = Signal.peek source in
-      let is_selected = equals key current in
-      let signal, set = Signal.create is_selected in
-      Hashtbl.replace subscribers key (signal, set);
-      Signal.get signal
+  {
+    check = (fun key ->
+      match Hashtbl.find_opt subscribers key with
+      | Some (signal, _) -> Signal.get signal
+      | None ->
+        (* First time this key is checked - create a signal for it *)
+        let current = Signal.peek source in
+        let is_selected = equals key current in
+        let signal, set = Signal.create is_selected in
+        Hashtbl.replace subscribers key (signal, set);
+        Signal.get signal
+    );
+    
+    unsubscribe = (fun key ->
+      Hashtbl.remove subscribers key
+    );
+  }
 
 module Context = struct
   type 'a t = 'a Reactive_core.context
