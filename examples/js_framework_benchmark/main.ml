@@ -190,15 +190,146 @@ let render_row row =
   
   { element = tr; dispose }
 
+(** {1 DOM Reconciliation Algorithm} *)
+
+(** Reconcile two arrays of DOM nodes using the udomdiff algorithm.
+    This is the same algorithm used by SolidJS (via dom-expressions).
+    
+    Based on: https://github.com/WebReflection/udomdiff
+    
+    The algorithm handles:
+    - Common prefix/suffix (no moves needed)
+    - Pure append/remove cases
+    - Swap detection
+    - General case with map-based lookup
+*)
+let reconcile_arrays (parent : Dom.element) (a : Dom.element array) (b : Dom.element array) =
+  let b_length = Array.length b in
+  let a_end = ref (Array.length a) in
+  let b_end = ref b_length in
+  let a_start = ref 0 in
+  let b_start = ref 0 in
+  
+  (* Get the node after the last element in 'a', or None if at end *)
+  let after = 
+    if !a_end > 0 then Dom.get_next_sibling a.(!a_end - 1)
+    else None
+  in
+  
+  (* Map for fallback case - lazily initialized *)
+  let map = ref None in
+  
+  while !a_start < !a_end || !b_start < !b_end do
+    (* Common prefix - nodes match, skip them *)
+    if !a_start < !a_end && !b_start < !b_end && a.(!a_start) == b.(!b_start) then begin
+      incr a_start;
+      incr b_start
+    end
+    (* Common suffix - nodes match at end, skip them *)
+    else if !a_end > !a_start && !b_end > !b_start && a.(!a_end - 1) == b.(!b_end - 1) then begin
+      decr a_end;
+      decr b_end
+    end
+    (* Append case - old array exhausted, insert remaining new nodes *)
+    else if !a_end = !a_start then begin
+      let node =
+        if !b_end < b_length then
+          if !b_start > 0 then Dom.get_next_sibling b.(!b_start - 1)
+          else Some (Dom.node_of_element b.(!b_end - !b_start))
+        else after
+      in
+      while !b_start < !b_end do
+        Dom.insert_before parent (Dom.node_of_element b.(!b_start)) node;
+        incr b_start
+      done
+    end
+    (* Remove case - new array exhausted, remove remaining old nodes *)
+    else if !b_end = !b_start then begin
+      while !a_start < !a_end do
+        (* Only remove if not in the map (not being reused) *)
+        let dominated = match !map with
+          | None -> false
+          | Some m -> Hashtbl.mem m a.(!a_start)
+        in
+        if not dominated then
+          Dom.remove_element a.(!a_start);
+        incr a_start
+      done
+    end
+    (* Swap backward detection - first and last swapped *)
+    else if !a_start < !a_end && !b_start < !b_end &&
+            a.(!a_start) == b.(!b_end - 1) && b.(!b_start) == a.(!a_end - 1) then begin
+      decr a_end;
+      let node = Dom.get_next_sibling a.(!a_end) in
+      Dom.insert_before parent (Dom.node_of_element b.(!b_start)) 
+        (Dom.get_next_sibling a.(!a_start));
+      incr b_start;
+      incr a_start;
+      decr b_end;
+      Dom.insert_before parent (Dom.node_of_element b.(!b_end)) node
+    end
+    (* Fallback to map-based reconciliation *)
+    else begin
+      (* Build map lazily *)
+      if !map = None then begin
+        let m = Hashtbl.create (!b_end - !b_start) in
+        for i = !b_start to !b_end - 1 do
+          Hashtbl.replace m b.(i) i
+        done;
+        map := Some m
+      end;
+      
+      let m = match !map with Some m -> m | None -> assert false in
+      
+      match Hashtbl.find_opt m a.(!a_start) with
+      | Some index when !b_start < index && index < !b_end ->
+        (* Found in new array - check for sequence *)
+        let i = ref !a_start in
+        let sequence = ref 1 in
+        incr i;
+        while !i < !a_end && !i < !b_end do
+          match Hashtbl.find_opt m a.(!i) with
+          | Some t when t = index + !sequence ->
+            incr sequence;
+            incr i
+          | _ -> i := !a_end (* break *)
+        done;
+        
+        if !sequence > index - !b_start then begin
+          (* Insert nodes before current position *)
+          let node = a.(!a_start) in
+          while !b_start < index do
+            Dom.insert_before parent (Dom.node_of_element b.(!b_start)) 
+              (Some (Dom.node_of_element node));
+            incr b_start
+          done
+        end else begin
+          (* Replace node *)
+          Dom.replace_child parent 
+            (Dom.node_of_element b.(!b_start)) 
+            (Dom.node_of_element a.(!a_start));
+          incr b_start;
+          incr a_start
+        end
+      | Some _ ->
+        (* Found but outside range, skip *)
+        incr a_start
+      | None ->
+        (* Not in new array, remove it *)
+        Dom.remove_element a.(!a_start);
+        incr a_start
+    end
+  done
+
 (** {1 Keyed List Rendering with Optimized Reconciliation} *)
 
 (** Efficient keyed list rendering with minimal DOM updates.
-    Similar to SolidJS's <For> component. *)
+    Uses the same reconciliation algorithm as SolidJS (udomdiff). *)
 let render_keyed_list ~(items : row array Reactive.Signal.t) (parent : Dom.element) =
   (* Map from row id to row state (element + dispose) - sized for 10k rows *)
   let node_map : (int, row_state) Hashtbl.t = Hashtbl.create 16384 in
-  (* Track previous order for minimal reordering *)
-  let prev_ids : int array ref = ref [||] in
+  (* Track previous DOM elements for reconciliation *)
+  let prev_nodes : Dom.element array ref = ref [||] in
   
   Reactive.Effect.create (fun () ->
     let new_items = Reactive.Signal.get items in
@@ -208,17 +339,16 @@ let render_keyed_list ~(items : row array Reactive.Signal.t) (parent : Dom.eleme
     let new_id_set = Hashtbl.create new_len in
     Array.iter (fun row -> Hashtbl.replace new_id_set row.id ()) new_items;
     
-    (* Remove nodes that are no longer in the list and dispose their effects *)
+    (* Dispose removed items (but don't remove from DOM yet - reconcile handles that) *)
     Hashtbl.iter (fun id state ->
       if not (Hashtbl.mem new_id_set id) then begin
         state.dispose ();
-        Dom.remove_child parent (Dom.node_of_element state.element);
         Hashtbl.remove node_map id
       end
     ) node_map;
     
     (* Build array of nodes, creating new ones as needed *)
-    let nodes = Array.map (fun row ->
+    let new_nodes = Array.map (fun row ->
       match Hashtbl.find_opt node_map row.id with
       | Some state -> state.element
       | None ->
@@ -227,62 +357,20 @@ let render_keyed_list ~(items : row array Reactive.Signal.t) (parent : Dom.eleme
         state.element
     ) new_items in
     
-    (* Optimized reconciliation: only move nodes that are out of order *)
-    let prev = !prev_ids in
-    let prev_len = Array.length prev in
-    
-    if prev_len = 0 then begin
+    (* Reconcile DOM *)
+    let prev = !prev_nodes in
+    if Array.length prev = 0 && new_len > 0 then begin
       (* Initial render: just append all *)
       Array.iter (fun node ->
         Dom.append_child parent (Dom.node_of_element node)
-      ) nodes
-    end else if new_len = 0 then begin
-      (* Already handled by removal above *)
-      ()
-    end else begin
-      (* Build position map for previous order *)
-      let prev_pos = Hashtbl.create prev_len in
-      Array.iteri (fun i id -> Hashtbl.replace prev_pos id i) prev;
-      
-      (* Get the position each new item had in prev (or -1 if new) *)
-      let positions = Array.map (fun row ->
-        match Hashtbl.find_opt prev_pos row.id with
-        | Some p -> p
-        | None -> -1  (* New item *)
-      ) new_items in
-      
-      (* Find nodes that need to be moved using a simple approach:
-         Track max position seen; anything less needs to move *)
-      let max_pos = ref (-1) in
-      let needs_move = Array.map (fun pos ->
-        if pos = -1 then begin
-          (* New node, needs to be inserted *)
-          true
-        end else if pos < !max_pos then begin
-          (* Out of order, needs move *)
-          true
-        end else begin
-          (* In order, update max *)
-          max_pos := pos;
-          false
-        end
-      ) positions in
-      
-      (* Now insert/move nodes that need it *)
-      for i = 0 to new_len - 1 do
-        if needs_move.(i) then begin
-          let node = nodes.(i) in
-          let ref_node = 
-            if i + 1 < new_len then Some (Dom.node_of_element nodes.(i + 1))
-            else None
-          in
-          Dom.insert_before parent (Dom.node_of_element node) ref_node
-        end
-      done
+      ) new_nodes
+    end else if new_len > 0 || Array.length prev > 0 then begin
+      (* Use reconciliation algorithm *)
+      reconcile_arrays parent prev new_nodes
     end;
     
-    (* Update previous IDs for next reconciliation *)
-    prev_ids := Array.map (fun row -> row.id) new_items
+    (* Update previous nodes for next reconciliation *)
+    prev_nodes := new_nodes
   );
   
   (* Cleanup on disposal *)
