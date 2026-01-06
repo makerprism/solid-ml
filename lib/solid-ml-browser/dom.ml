@@ -94,8 +94,10 @@ let insert_before parent new_node ref_node =
 external replace_child : element -> node -> node -> unit = "replaceChild"
   [@@mel.send]
 
-external clone_node : element -> bool -> element = "cloneNode"
+external clone_node_raw : element -> bool -> node = "cloneNode"
   [@@mel.send]
+
+let clone_node el deep = element_of_node (clone_node_raw el deep)
 
 external set_attribute : element -> string -> string -> unit = "setAttribute"
   [@@mel.send]
@@ -246,6 +248,15 @@ external event_target : event -> event_target = "target"
 external event_current_target : event -> event_target = "currentTarget"
   [@@mel.get]
 
+(** Get target as element. Returns None if target is not an element (e.g., window, document).
+    For input events where the target is known to be an element, this is safe to use with Option.get. *)
+let target_opt evt =
+  let t = event_target evt in
+  (* In practice we check by seeing if it has tagName property *)
+  let has_tag : event_target -> bool = [%mel.raw {| function(t) { return t && typeof t.tagName === 'string' } |}] in
+  if has_tag t then Some (element_of_event_target t) else None
+
+(** Get target as element, assuming it is one. Use only when you know the target is an element. *)
 let target evt = element_of_event_target (event_target evt)
 
 external prevent_default : event -> unit = "preventDefault"

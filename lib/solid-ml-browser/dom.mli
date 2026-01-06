@@ -155,8 +155,13 @@ val add_event_listener : element -> string -> (event -> unit) -> unit
 val remove_event_listener : element -> string -> (event -> unit) -> unit
 val event_target : event -> event_target
 val event_current_target : event -> event_target
+val target_opt : event -> element option
+(** Get the target element of an event, if it is an element.
+    Returns None if the target is not an element (e.g., window, document). *)
+
 val target : event -> element
-(** Get the target element of an event (convenience wrapper) *)
+(** Get the target element of an event. Use only when you know the target is an element
+    (e.g., click handlers on elements). For safer code, use target_opt. *)
 val prevent_default : event -> unit
 val stop_propagation : event -> unit
 val event_type : event -> string
