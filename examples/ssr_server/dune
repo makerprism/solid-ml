@@ -1,12 +1,11 @@
-; This example requires dream to be installed:
-; opam install dream
-; 
-; To build: dune build examples/ssr_server/server.exe
-; To run: dune exec examples/ssr_server/server.exe
+; SSR Server Example
 ;
-; Disabled by default - set ENABLE_SSR_SERVER=1 to build
+; To build: dune build examples/ssr_server/server.exe
+; To run:   dune exec examples/ssr_server/server.exe
+;           or: make example-ssr-server
+;
+; Requires dream: opam install dream
 
 (executable
  (name server)
- (enabled_if (= %{env:ENABLE_SSR_SERVER=0} "1"))
  (libraries solid-ml solid-ml-html dream))

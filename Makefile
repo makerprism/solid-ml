@@ -10,8 +10,8 @@
 #   make example-browser    # Build and serve browser example
 
 .PHONY: build test clean setup \
-        example-counter example-todo example-router example-parallel \
-        example-browser browser-tests
+        example-counter example-todo example-router example-parallel example-ssr-server \
+        example-browser example-browser-router browser-examples browser-tests
 
 # ==============================================================================
 # Native Development (no extra dependencies needed)
@@ -50,7 +50,14 @@ example-parallel:
 	@echo "=== Running Parallel Domains Example ==="
 	@dune exec examples/parallel/parallel.exe
 
-# Run all native examples
+example-ssr-server:
+	@echo "=== Starting SSR Server Example ==="
+	@echo "Visit http://localhost:8080 in your browser"
+	@echo "Press Ctrl+C to stop"
+	@echo ""
+	@dune exec examples/ssr_server/server.exe
+
+# Run all native examples (except ssr-server which is long-running)
 examples: example-counter example-todo example-router example-parallel
 
 # ==============================================================================
@@ -122,12 +129,13 @@ help:
 	@echo "solid-ml Makefile"
 	@echo ""
 	@echo "Native development (no extra setup needed):"
-	@echo "  make build           - Build native packages"
-	@echo "  make test            - Run native tests"
-	@echo "  make example-counter - Run counter example"
-	@echo "  make example-todo    - Run todo example"
-	@echo "  make example-router  - Run router example"
-	@echo "  make examples        - Run all native examples"
+	@echo "  make build              - Build native packages"
+	@echo "  make test               - Run native tests"
+	@echo "  make example-counter    - Run counter example"
+	@echo "  make example-todo       - Run todo example"
+	@echo "  make example-router     - Run router example"
+	@echo "  make example-ssr-server - Start SSR server (requires dream)"
+	@echo "  make examples           - Run all native examples"
 	@echo ""
 	@echo "Browser development (requires: npm install -g esy):"
 	@echo "  make setup               - Install esy dependencies (one-time)"
