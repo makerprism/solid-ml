@@ -1,0 +1,9 @@
+; SSR API App Example - Client Hydration
+;
+; Build: make example-ssr-api-client
+
+(melange.emit
+ (target output)
+ (libraries solid-ml-browser)
+ (preprocess (pps melange.ppx))
+ (module_systems es6))

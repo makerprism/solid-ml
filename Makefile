@@ -12,7 +12,8 @@
 .PHONY: build test clean setup \
         example-counter example-todo example-router example-parallel example-ssr-server \
         example-browser example-browser-router browser-examples browser-tests serve \
-        example-full-ssr example-full-ssr-client
+        example-full-ssr example-full-ssr-client \
+        example-ssr-api example-ssr-api-client
 
 # ==============================================================================
 # Native Development (no extra dependencies needed)
@@ -77,6 +78,27 @@ example-full-ssr: example-full-ssr-client
 	@echo "Press Ctrl+C to stop"
 	@echo ""
 	@ENABLE_DREAM=1 dune exec examples/full_ssr_app/server.exe || stty sane
+
+# Build SSR API client
+example-ssr-api-client: check-esy
+	@echo "Building SSR API client..."
+	@esy dune build examples/ssr_api_app/client/output/examples/ssr_api_app/client/client.js 2>/dev/null || \
+		(echo "Error: Run 'make setup' first to install dependencies" && exit 1)
+	@mkdir -p examples/ssr_api_app/static
+	@echo "Bundling with esbuild..."
+	@cd $$(esy echo '#{self.target_dir}')/default/examples/ssr_api_app/client/output && \
+		npx esbuild examples/ssr_api_app/client/client.js --bundle --outfile=$(PWD)/examples/ssr_api_app/static/client.js --format=esm 2>/dev/null
+	@echo "Client built: examples/ssr_api_app/static/client.js"
+
+# Run SSR API example (server + client with REST API fetching)
+example-ssr-api: example-ssr-api-client
+	@echo ""
+	@echo "=== Starting SSR API Example ==="
+	@echo "Visit http://localhost:8080"
+	@echo "This app fetches data from JSONPlaceholder API"
+	@echo "Press Ctrl+C to stop"
+	@echo ""
+	@ENABLE_DREAM=1 dune exec examples/ssr_api_app/server.exe || stty sane
 
 # Run all native examples (except long-running servers)
 examples: example-counter example-todo example-router example-parallel
@@ -156,8 +178,9 @@ help:
 	@echo "  make example-router     - Run router example"
 	@echo "  make examples           - Run all native examples"
 	@echo ""
-	@echo "Full SSR (requires: dream + esy):"
-	@echo "  make example-full-ssr   - Build client and start SSR server"
+	@echo "Full SSR (requires: dream + cohttp-lwt-unix + esy):"
+	@echo "  make example-full-ssr   - SSR with counter and todos"
+	@echo "  make example-ssr-api    - SSR with REST API data fetching"
 	@echo ""
 	@echo "Browser development (requires: npm install -g esy):"
 	@echo "  make setup               - Install esy dependencies (one-time)"
