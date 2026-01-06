@@ -36,6 +36,10 @@ module Params = struct
   let of_list pairs : t = pairs
   
   let to_list (params : t) = params
+  
+  let is_empty (params : t) = params = []
+  
+  let iter f (params : t) = List.iter (fun (k, v) -> f k v) params
 end
 
 (** A segment in a route pattern *)

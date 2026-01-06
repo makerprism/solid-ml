@@ -61,10 +61,19 @@ let on_cleanup = R.on_cleanup
 let get_owner = R.get_owner
 
 let create_root f =
-  (* Ensure we have a runtime *)
+  (* Ensure we have a runtime.
+     
+     Unlike the server, the browser runtime should persist globally
+     so that event handlers (which run outside create_root) can still
+     access signals. We use ensure_runtime to create a runtime that
+     stays active after this function returns. *)
   match R.get_runtime_opt () with
   | Some _ -> R.create_root (fun dispose -> (f (), dispose))
-  | None -> R.run (fun () -> R.create_root (fun dispose -> (f (), dispose)))
+  | None ->
+    (* Create a persistent runtime for the browser *)
+    let rt = Internal.Types.create_runtime () in
+    Backend_Browser.set_runtime (Some rt);
+    R.create_root (fun dispose -> (f (), dispose))
 
 let run_with_owner = create_root
 

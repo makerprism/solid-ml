@@ -19,7 +19,7 @@ solid-ml is an OCaml framework for building reactive web applications with SSR, 
 | `solid-ml` | Server-side reactive framework (OCaml 5 with DLS) | Complete |
 | `solid-ml-html` | Server-side rendering to HTML strings | Complete |
 | `solid-ml-browser` | Browser-side reactive framework (Melange) | Complete |
-| `solid-ml-router` | SSR-aware routing with data loaders | Not Started |
+| `solid-ml-router` | SSR-aware routing with data loaders | Complete |
 
 ## Build Commands
 
@@ -164,6 +164,8 @@ let read_typed_signal (type a) (s : a signal) : a =
 - [x] Scroll restoration
 - [x] Loading/error states (Resource module)
 
+**Test Summary:** 195 tests total (31 reactive + 23 HTML + 36 SolidJS compat + 91 router + 14 browser)
+
 ## Code Style
 
 - Use OCaml standard library where possible
@@ -200,8 +202,14 @@ let read_typed_signal (type a) (s : a signal) : a =
 | `test/test_reactive.ml` | Test suite for reactive primitives (31 tests) |
 | `test/test_html.ml` | Test suite for HTML rendering (23 tests) |
 | `test/test_solidjs_compat.ml` | SolidJS compatibility tests (36 tests) |
+| `test/test_router.ml` | Router tests (91 tests) |
 | `test_browser/test_reactive.ml` | Browser reactive core tests (14 tests) |
-| `examples/counter/counter.ml` | Counter example demonstrating all features |
+| `examples/counter/counter.ml` | Counter example demonstrating reactive features |
+| `examples/todo/todo.ml` | Todo list with SSR rendering |
+| `examples/router/router.ml` | Router example with routes, params, NavLink |
+| `examples/browser_counter/` | Browser counter + todo (Melange) |
+| `examples/parallel/parallel.ml` | OCaml 5 domain parallelism demo |
+| `examples/ssr_server/server.ml` | Dream server SSR demo (requires dream) |
 
 ## Design Principles
 

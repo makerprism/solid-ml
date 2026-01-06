@@ -1,32 +1,20 @@
 # Browser Counter Example
 
-This example demonstrates solid-ml-dom running in the browser, compiled to JavaScript via Melange.
+This example demonstrates solid-ml-browser running in the browser, compiled to JavaScript via Melange.
 
-## Prerequisites
-
-Install Melange:
+## Quick Start
 
 ```bash
-opam install melange
+# From the repository root:
+
+# 1. One-time setup (installs Melange via esy)
+make setup
+
+# 2. Build the example
+make example-browser
+
+# 3. Open in browser (URL shown after build)
 ```
-
-## Building
-
-```bash
-# From the repository root
-dune build @melange
-```
-
-This compiles the OCaml code to JavaScript in:
-```
-_build/default/examples/browser_counter/output/
-```
-
-## Running
-
-1. Build with `dune build @melange`
-2. Open `index.html` in a browser
-3. The counter and todo list should be interactive
 
 ## What This Example Shows
 
@@ -43,18 +31,18 @@ _build/default/examples/browser_counter/output/
 - Event handlers (click, keydown, change)
 - Conditional styling based on completion status
 
-## Code Structure
+## Files
 
 ```
 browser_counter/
-├── counter.ml      # OCaml source with components
-├── dune           # Build configuration for Melange
-├── index.html     # HTML page that loads the compiled JS
-└── README.md      # This file
+├── counter.ml   # OCaml source with components
+├── dune         # Build configuration for Melange
+├── index.html   # HTML page that loads the compiled JS
+└── dist/        # Built JS output (created by make)
 ```
 
 ## Notes
 
-- The example is marked as optional in the dune file and only builds when Melange is installed
+- Requires [esy](https://esy.sh/) for Melange: `npm install -g esy`
 - The compiled JavaScript uses ES6 modules
 - All reactive updates happen automatically when signals change
