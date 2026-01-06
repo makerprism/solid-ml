@@ -3,7 +3,8 @@
     This library provides routing with support for:
     - Pattern matching with parameters and wildcards
     - Server-side route matching for SSR
-    - (Future) Client-side navigation
+    - Reactive router state
+    - URL parsing and building
     
     {1 Basic Usage}
     
@@ -26,8 +27,27 @@
         (* No matching route *)
     ]}
     
+    {1 Using the Router}
+    
+    {[
+      (* In a component *)
+      let my_component () =
+        let path = Router.use_path () in
+        let user_id = Router.use_param "id" in
+        ...
+        
+      (* Navigate programmatically *)
+      Router.navigate "/users/123"
+    ]}
+    
     {1 Modules}
 *)
 
 (** Route definition and pattern matching *)
 module Route = Route
+
+(** Router state and navigation *)
+module Router = Router
+
+(** Router components (Link, Outlet, provide) *)
+module Components = Components

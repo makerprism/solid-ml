@@ -146,9 +146,23 @@ let read_typed_signal (type a) (s : a signal) : a =
 - [x] Builds successfully with esy
 - [x] Browser reactive tests (14 tests via Node.js)
 
-**Phase 4: Router** (not started)
+**Phase 4: Router** (in progress)
 
-See `docs/A-01-architecture.md` for Phase 4 tasks.
+- [x] Route matching (static, params, wildcards)
+- [x] Route pattern parsing
+- [x] URL parsing (path, query, hash)
+- [x] Query string parsing
+- [x] Router context and state management
+- [x] Router.navigate for programmatic navigation  
+- [x] Link component for navigation
+- [x] NavLink with active class support
+- [x] Outlet component for rendering matched routes
+- [x] RouterProvider for initializing router context
+- [x] Comprehensive test suite (60 tests)
+- [ ] History API integration (browser)
+- [ ] Client-side navigation without reload (browser)
+- [ ] Scroll restoration
+- [ ] Loading/error states
 
 ## Code Style
 
@@ -180,6 +194,9 @@ See `docs/A-01-architecture.md` for Phase 4 tasks.
 | `lib/solid-ml-browser/hydration.ml` | Hydration state and marker parsing |
 | `lib/solid-ml-browser/event.ml` | Event handling utilities |
 | `lib/solid-ml-browser/render.ml` | Client-side render and hydrate functions |
+| `lib/solid-ml-router/route.ml` | Route pattern matching and params |
+| `lib/solid-ml-router/router.ml` | Router state and navigation |
+| `lib/solid-ml-router/components.ml` | Link, NavLink, Outlet components |
 | `test/test_reactive.ml` | Test suite for reactive primitives (31 tests) |
 | `test/test_html.ml` | Test suite for HTML rendering (23 tests) |
 | `test/test_solidjs_compat.ml` | SolidJS compatibility tests (36 tests) |

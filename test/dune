@@ -12,4 +12,4 @@
 
 (test
  (name test_router)
- (libraries solid-ml-router))
+ (libraries solid-ml solid-ml-html solid-ml-router))
