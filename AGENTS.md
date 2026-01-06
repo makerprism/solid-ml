@@ -195,7 +195,6 @@ See `docs/A-01-architecture.md` for Phase 4 tasks.
 
 ## Known Limitations
 
-- `look_upstream` is a placeholder (marks nodes clean without checking upstream)
 - Browser: Multiple independent apps on same page share global state
 - Server: Each `Runtime.run` is fully isolated
 

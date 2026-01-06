@@ -272,20 +272,30 @@ module Make (B : Backend.S) = struct
       let prev_listener = rt.listener in
       let prev_owner = rt.owner in
       
-      rt.listener <- Some node;
-      rt.owner <- Some {
-        owned = node.owned;
-        cleanups = node.cleanups;
+      (* Create a temporary owner to collect nested computations/cleanups.
+         After execution, we copy these back to the node. *)
+      let temp_owner = {
+        owned = [];  (* Will collect new nested computations *)
+        cleanups = [];  (* Will collect new cleanups *)
         owner = node.owner;
         context = node.context;
         child_owners = [];
-      };
+      } in
+      
+      rt.listener <- Some node;
+      rt.owner <- Some temp_owner;
       
       begin try
         let next_value = fn node.value in
         node.value <- next_value;
-        node.updated_at <- rt.exec_count
+        node.updated_at <- rt.exec_count;
+        (* Copy registered computations and cleanups back to node *)
+        node.owned <- temp_owner.owned;
+        node.cleanups <- temp_owner.cleanups
       with exn ->
+        (* Still copy on exception so cleanup can run *)
+        node.owned <- temp_owner.owned;
+        node.cleanups <- temp_owner.cleanups;
         rt.listener <- prev_listener;
         rt.owner <- prev_owner;
         raise exn
@@ -305,6 +315,16 @@ module Make (B : Backend.S) = struct
 
   (** {1 Run Top} *)
   
+  (** Resolve PENDING state.
+      
+      A node is PENDING when an upstream memo was queued for update but
+      we don't know if its value actually changed. Since we process memos
+      in topological order (pure computations first), by the time we reach
+      a PENDING node, all its upstream memos have already run.
+      
+      If an upstream memo's value changed, it would have marked this node
+      as STALE. So if we're still PENDING, no upstream values changed and
+      we can safely mark this node CLEAN without recomputing. *)
   let look_upstream (node : computation) =
     node.state <- Clean
 
