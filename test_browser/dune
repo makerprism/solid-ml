@@ -1,0 +1,11 @@
+; Browser reactive core tests
+;
+; These tests verify the browser reactive implementation works correctly.
+; Run with: esy dune build @test_browser/melange
+;           esy sh -c 'node $cur__target_dir/default/test_browser/output/test_browser/test_reactive.js'
+
+(melange.emit
+ (target output)
+ (libraries solid-ml-browser)
+ (preprocess (pps melange.ppx))
+ (module_systems es6))
