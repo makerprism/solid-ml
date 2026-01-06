@@ -117,9 +117,8 @@ end
     @param source Signal containing the currently selected value
     @return A function that reactively checks if a given key is selected *)
 let create_selector (type k) ?(equals : k -> k -> bool = (=)) (source : k Signal.t) : (k -> bool) =
-  (* Use JS Map for reference equality on keys (like SolidJS) *)
-  (* For primitive types like int, we use a Hashtbl which works fine *)
-  let subs : (k, (unit -> unit) list ref) Hashtbl.t = Hashtbl.create 16 in
+  (* Use JS Map for subscribers - avoids pulling in heavy Hashtbl/Random stdlib *)
+  let subs : (k, (unit -> unit) list ref) Dom.js_map = Dom.js_map_create () in
   
   (* Track previous value to know what changed *)
   let prev_value : k option ref = ref None in
@@ -135,7 +134,7 @@ let create_selector (type k) ?(equals : k -> k -> bool = (=)) (source : k Signal
      | Some old_key ->
        if not (equals old_key new_value) then
          (* Old key is no longer selected - trigger its listeners *)
-         (match Hashtbl.find_opt subs old_key with
+         (match Dom.js_map_get_opt subs old_key with
           | Some listeners -> List.iter (fun f -> f ()) !listeners
           | None -> ())
      | None -> ());
@@ -144,7 +143,7 @@ let create_selector (type k) ?(equals : k -> k -> bool = (=)) (source : k Signal
     (match old_value with
      | Some old_key when equals old_key new_value -> ()  (* Same key, no change *)
      | _ ->
-       (match Hashtbl.find_opt subs new_value with
+       (match Dom.js_map_get_opt subs new_value with
         | Some listeners -> List.iter (fun f -> f ()) !listeners
         | None -> ()));
     
@@ -160,11 +159,11 @@ let create_selector (type k) ?(equals : k -> k -> bool = (=)) (source : k Signal
     (match listener with
      | Some _ ->
        (* Add this computation to the subscribers for this key *)
-       let listeners = match Hashtbl.find_opt subs key with
+       let listeners = match Dom.js_map_get_opt subs key with
          | Some l -> l
          | None ->
            let l = ref [] in
-           Hashtbl.replace subs key l;
+           Dom.js_map_set_ subs key l;
            l
        in
        
@@ -181,7 +180,7 @@ let create_selector (type k) ?(equals : k -> k -> bool = (=)) (source : k Signal
        Owner.on_cleanup (fun () ->
          listeners := List.filter (fun f -> f != trigger) !listeners;
          (* Remove the key entry if no more listeners *)
-         if !listeners = [] then Hashtbl.remove subs key
+         if !listeners = [] then ignore (Dom.js_map_delete subs key)
        );
        
        (* Read the trigger signal to establish dependency *)
@@ -395,8 +394,8 @@ let each ~(items : 'a list Signal.t) ~(render : 'a -> Html.node) (parent : Dom.e
     @param parent DOM element to append items to *)
 let each_keyed ~(items : 'a list Signal.t) ~(key : 'a -> string) 
     ~(render : 'a -> Html.node) (parent : Dom.element) =
-  (* Map from key to (dom_node, item) *)
-  let current_map : (string, Dom.node * 'a) Hashtbl.t = Hashtbl.create 16 in
+  (* Map from key to (dom_node, item) - using JS Map to avoid heavy stdlib deps *)
+  let current_map : (string, Dom.node * 'a) Dom.js_map = Dom.js_map_create () in
   let current_order : string list ref = ref [] in
   
   Effect.create (fun () ->
@@ -410,10 +409,10 @@ let each_keyed ~(items : 'a list Signal.t) ~(key : 'a -> string)
     List.iter (fun old_key ->
       let module S = Set.Make(String) in
       if not (S.mem old_key new_set) then begin
-        match Hashtbl.find_opt current_map old_key with
+        match Dom.js_map_get_opt current_map old_key with
         | Some (node, _) -> 
           Dom.remove_node node;
-          Hashtbl.remove current_map old_key
+          ignore (Dom.js_map_delete current_map old_key)
         | None -> ()
       end
     ) !current_order;
@@ -421,7 +420,7 @@ let each_keyed ~(items : 'a list Signal.t) ~(key : 'a -> string)
     (* Add or reuse nodes *)
     let new_nodes = List.map (fun item ->
       let k = key item in
-      match Hashtbl.find_opt current_map k with
+      match Dom.js_map_get_opt current_map k with
       | Some (node, _old_item) ->
         (* Reuse existing node - note: doesn't update content! *)
         (* For full reactivity, items should contain signals *)
@@ -429,7 +428,7 @@ let each_keyed ~(items : 'a list Signal.t) ~(key : 'a -> string)
       | None ->
         (* Create new node *)
         let node = Html.to_dom_node (render item) in
-        Hashtbl.replace current_map k (node, item);
+        Dom.js_map_set_ current_map k (node, item);
         (k, node)
     ) new_items in
     

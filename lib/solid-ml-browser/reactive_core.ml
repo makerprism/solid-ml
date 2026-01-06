@@ -11,15 +11,31 @@ module Internal = Solid_ml_internal
 
 external console_error : string -> unit = "error" [@@mel.scope "console"]
 
+(** Lightweight exception to string - avoids heavy Printexc/Printf deps *)
+let exn_to_string : exn -> string = [%mel.raw {|
+  function(exn) {
+    if (exn && exn.MEL_EXN_ID) {
+      var msg = exn.MEL_EXN_ID;
+      if (exn._1 !== undefined) msg += ": " + String(exn._1);
+      return msg;
+    } else if (exn instanceof Error) {
+      return exn.message || exn.toString();
+    } else {
+      return String(exn);
+    }
+  }
+|}]
+
 module Backend_Browser : Internal.Backend.S = struct
   let current_runtime : Internal.Types.runtime option ref = ref None
   
   let get_runtime () = !current_runtime
   let set_runtime rt = current_runtime := rt
   
-  (* Browser logs errors to console instead of crashing *)
+  (* Browser logs errors to console instead of crashing.
+     Note: We use our local exn_to_string to avoid circular dependency with Dom. *)
   let handle_error exn context =
-    console_error ("solid-ml: Error in " ^ context ^ ": " ^ Printexc.to_string exn)
+    console_error ("solid-ml: Error in " ^ context ^ ": " ^ exn_to_string exn)
 end
 
 (** {1 Instantiate with Browser Backend} *)

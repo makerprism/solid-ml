@@ -172,7 +172,8 @@ exception No_router_context
 
 (** {1 Internal State} *)
 
-let scroll_positions : (string, float * float) Hashtbl.t = Hashtbl.create 16
+(** Scroll positions stored by URL - using JS Map to avoid heavy stdlib deps *)
+let scroll_positions : (string, float * float) Dom.js_map = Dom.js_map_create ()
 let current_config : config ref = ref default_config
 let popstate_handler : (Dom.event -> unit) option ref = ref None
 
@@ -260,7 +261,7 @@ let navigate ?(replace=false) url =
     let current_url = get_current_url () in
     let scroll_x = Dom.get_scroll_x () in
     let scroll_y = Dom.get_scroll_y () in
-    Hashtbl.replace scroll_positions current_url (scroll_x, scroll_y)
+    Dom.js_map_set_ scroll_positions current_url (scroll_x, scroll_y)
   end;
   
   (* The url is an app-relative path like "/users" *)
@@ -314,7 +315,7 @@ let handle_popstate _evt =
       
       (* Restore scroll position *)
       if !current_config.scroll_restoration then begin
-        match Hashtbl.find_opt scroll_positions full_url with
+        match Dom.js_map_get_opt scroll_positions full_url with
         | Some (x, y) -> 
           let _ = Dom.set_timeout (fun () -> Dom.scroll_to x y) 0 in ()
         | None -> ()

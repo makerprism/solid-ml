@@ -210,6 +210,13 @@ val log : 'a -> unit
 val error : 'a -> unit
 val warn : 'a -> unit
 
+(** {1 Exception Handling} *)
+
+val exn_to_string : exn -> string
+(** Get error message from an exception.
+    This is a lightweight alternative to Printexc.to_string that avoids
+    pulling in the heavy Printf/Format stdlib modules. *)
+
 (** {1 History API} *)
 
 val get_pathname : unit -> string

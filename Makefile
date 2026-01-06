@@ -67,7 +67,7 @@ example-full-ssr-client: check-esy
 	@mkdir -p examples/full_ssr_app/static
 	@echo "Bundling with esbuild..."
 	@cd $$(esy echo '#{self.target_dir}')/default/examples/full_ssr_app/client/output && \
-		npx esbuild examples/full_ssr_app/client/client.js --bundle --outfile=$(PWD)/examples/full_ssr_app/static/client.js --format=esm 2>/dev/null
+		npx esbuild examples/full_ssr_app/client/client.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/full_ssr_app/static/client.js --format=esm 2>/dev/null
 	@echo "Client built: examples/full_ssr_app/static/client.js"
 
 # Run full SSR example (server + client)
@@ -87,7 +87,7 @@ example-ssr-api-client: check-esy
 	@mkdir -p examples/ssr_api_app/static
 	@echo "Bundling with esbuild..."
 	@cd $$(esy echo '#{self.target_dir}')/default/examples/ssr_api_app/client/output && \
-		npx esbuild examples/ssr_api_app/client/client.js --bundle --outfile=$(PWD)/examples/ssr_api_app/static/client.js --format=esm 2>/dev/null
+		npx esbuild examples/ssr_api_app/client/client.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/ssr_api_app/static/client.js --format=esm 2>/dev/null
 	@echo "Client built: examples/ssr_api_app/static/client.js"
 
 # Run SSR API example (server + client with REST API fetching)
@@ -126,7 +126,7 @@ example-browser: check-esy
 	@rm -f examples/browser_counter/dist/counter.js
 	@echo "Bundling with esbuild..."
 	@cd $$(esy echo '#{self.target_dir}')/default/examples/browser_counter/output && \
-		npx esbuild examples/browser_counter/counter.js --bundle --outfile=$(PWD)/examples/browser_counter/dist/counter.js --format=esm 2>/dev/null
+		npx esbuild examples/browser_counter/counter.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/browser_counter/dist/counter.js --format=esm 2>/dev/null
 	@echo ""
 	@echo "Build complete! Run 'make serve' then open http://localhost:8000/browser_counter/"
 
@@ -139,7 +139,7 @@ example-browser-router: check-esy
 	@rm -f examples/browser_router/dist/router_demo.js
 	@echo "Bundling with esbuild..."
 	@cd $$(esy echo '#{self.target_dir}')/default/examples/browser_router/output && \
-		npx esbuild examples/browser_router/router_demo.js --bundle --outfile=$(PWD)/examples/browser_router/dist/router_demo.js --format=esm 2>/dev/null
+		npx esbuild examples/browser_router/router_demo.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/browser_router/dist/router_demo.js --format=esm 2>/dev/null
 	@echo ""
 	@echo "Build complete! Run 'make serve' then open http://localhost:8000/browser_router/"
 

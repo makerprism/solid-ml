@@ -83,7 +83,7 @@ let create fetcher =
       let data = fetcher () in
       set_state (Ready data)
     with exn ->
-      set_state (Error (Printexc.to_string exn))
+      set_state (Error (Dom.exn_to_string exn))
   in
   
   do_fetch ();

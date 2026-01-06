@@ -17,18 +17,20 @@ open Dom
 
 (** {1 Hydration State} *)
 
-(** Hydration context tracks the current position in the DOM tree. *)
+(** Hydration context tracks the current position in the DOM tree.
+    Uses JS Map instead of OCaml Hashtbl to avoid pulling in heavy
+    stdlib dependencies (Random, Domain, etc.) *)
 type hydration_context = {
   mutable is_hydrating : bool;
   (** Map from hydration key to text node *)
-  text_nodes : (int, text_node) Hashtbl.t;
+  text_nodes : (int, text_node) js_map;
 }
 
 (** Create a fresh hydration context.
     Use this if you need isolated hydration (e.g., for testing). *)
 let create_context () : hydration_context = {
   is_hydrating = false;
-  text_nodes = Hashtbl.create 16;
+  text_nodes = js_map_create ();
 }
 
 (** The current hydration context.
@@ -46,7 +48,7 @@ let start_hydration () =
   if !current_context.is_hydrating then
     failwith "solid-ml: start_hydration called while already hydrating";
   !current_context.is_hydrating <- true;
-  Hashtbl.clear !current_context.text_nodes
+  js_map_clear !current_context.text_nodes
 
 (** End hydration mode.
     @raise Failure if not hydrating (indicates a bug) *)
@@ -54,7 +56,7 @@ let end_hydration () =
   if not !current_context.is_hydrating then
     failwith "solid-ml: end_hydration called while not hydrating";
   !current_context.is_hydrating <- false;
-  Hashtbl.clear !current_context.text_nodes
+  js_map_clear !current_context.text_nodes
 
 (** {1 Hydration Marker Parsing} *)
 
@@ -67,7 +69,7 @@ let end_hydration () =
     opening markers, storing them in the context for later adoption. *)
 let parse_hydration_markers root =
   let ctx = !current_context in
-  Hashtbl.clear ctx.text_nodes;
+  js_map_clear ctx.text_nodes;
   
   let rec walk_children (parent : element) =
     let children = get_child_nodes parent in
@@ -88,7 +90,7 @@ let parse_hydration_markers root =
               let next = children.(!i + 1) in
               if is_text next then begin
                 let text_node = text_of_node next in
-                Hashtbl.add ctx.text_nodes key text_node
+                js_map_set_ ctx.text_nodes key text_node
               end
             end
           | None -> ()
@@ -110,7 +112,7 @@ let parse_hydration_markers root =
 let adopt_text_node key =
   let ctx = !current_context in
   if ctx.is_hydrating then
-    Hashtbl.find_opt ctx.text_nodes key
+    js_map_get_opt ctx.text_nodes key
   else
     None
 

@@ -362,6 +362,25 @@ external error : 'a -> unit = "error"
 external warn : 'a -> unit = "warn"
   [@@mel.scope "console"]
 
+(** {1 Exception Handling} *)
+
+(** Get error message from an exception.
+    This is a lightweight alternative to Printexc.to_string that avoids
+    pulling in the heavy Printf/Format stdlib modules. *)
+let exn_to_string : exn -> string = [%mel.raw {|
+  function(exn) {
+    if (exn && exn.MEL_EXN_ID) {
+      var msg = exn.MEL_EXN_ID;
+      if (exn._1 !== undefined) msg += ": " + String(exn._1);
+      return msg;
+    } else if (exn instanceof Error) {
+      return exn.message || exn.toString();
+    } else {
+      return String(exn);
+    }
+  }
+|}]
+
 (** {1 History API} *)
 
 (** Get the current URL pathname *)

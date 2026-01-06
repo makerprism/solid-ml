@@ -56,7 +56,7 @@ let make ~fallback children =
       try
         children ()
       with exn ->
-        let msg = Printexc.to_string exn in
+        let msg = Dom.exn_to_string exn in
         set_state (Has_error msg);
         fallback ~error:msg ~reset
   ) in
@@ -67,5 +67,5 @@ let make_simple ~fallback children =
   try
     children ()
   with exn ->
-    let msg = Printexc.to_string exn in
+    let msg = Dom.exn_to_string exn in
     fallback msg
