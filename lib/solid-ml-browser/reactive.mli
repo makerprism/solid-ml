@@ -48,6 +48,12 @@ module Context : sig
   val use : 'a t -> 'a
 end
 
+(** {1 Hydration Support} *)
+
+val reset_hydration_keys : unit -> unit
+(** Reset the hydration key counter. Called at the start of render/hydrate
+    to ensure client-side key generation matches server-side. *)
+
 (** {1 Reactive Text} *)
 
 val text : int Signal.t -> Html.node

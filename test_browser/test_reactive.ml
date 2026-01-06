@@ -11,6 +11,9 @@
 open Solid_ml_browser
 open Reactive_core
 
+(* Note: Hydration and Render modules require DOM APIs and can't be tested in Node.js
+   without a DOM polyfill. These tests focus on the reactive core which is pure OCaml. *)
+
 (* Test helpers *)
 external console_log : string -> unit = "log" [@@mel.scope "console"]
 

@@ -49,5 +49,8 @@ module Event = Event
 (** Rendering and hydration *)
 module Render = Render
 
+(** Hydration state and utilities (internal) *)
+module Hydration = Hydration
+
 (** Browser-optimized reactive core - use Reactive module for higher-level API *)
 module Reactive_core = Reactive_core

@@ -14,6 +14,9 @@
     @param root The DOM element to render into
     @param component The component function to render *)
 let render root component =
+  (* Reset hydration keys for fresh render *)
+  Reactive.reset_hydration_keys ();
+  
   let (_, dispose) = Reactive_core.create_root (fun () ->
     (* Clear existing content *)
     Dom.set_inner_html root "";
@@ -28,6 +31,9 @@ let render root component =
     
     Returns a dispose function. *)
 let render_append root component =
+  (* Reset hydration keys for fresh render *)
+  Reactive.reset_hydration_keys ();
+  
   let (_, dispose) = Reactive_core.create_root (fun () ->
     let node = component () in
     Html.append_to_element root node
@@ -36,95 +42,63 @@ let render_append root component =
 
 (** {1 Hydration} *)
 
-(** Hydration marker format from solid-ml-html:
-    <!--hk:N-->content<!--/hk-->
-    
-    Where N is the hydration key (integer). *)
-
-(** Find a text node following a hydration marker comment.
-    Walks child nodes looking for pattern: Comment(hk:N) -> Text -> Comment(/hk) *)
-let find_hydration_text_nodes root =
-  let markers = Hashtbl.create 16 in
-  
-  let rec walk_children (parent : Dom.element) =
-    let children = Dom.get_child_nodes parent in
-    let len = Array.length children in
-    let i = ref 0 in
-    while !i < len do
-      let node = children.(!i) in
-      if Dom.is_comment node then begin
-        let comment = Dom.comment_of_node node in
-        let data = Dom.comment_data comment in
-        (* Check if this is a start marker: hk:N *)
-        if String.length data > 3 && String.sub data 0 3 = "hk:" then begin
-          let key_str = String.sub data 3 (String.length data - 3) in
-          match int_of_string_opt key_str with
-          | Some key ->
-            (* Next node should be the text content *)
-            if !i + 1 < len then begin
-              let next = children.(!i + 1) in
-              if Dom.is_text next then begin
-                let text_node = Dom.text_of_node next in
-                Hashtbl.add markers key text_node
-              end
-            end
-          | None -> ()
-        end
-      end else if Dom.is_element node then begin
-        (* Recurse into child elements *)
-        walk_children (Dom.element_of_node node)
-      end;
-      incr i
-    done
-  in
-  
-  walk_children root;
-  markers
-
 (** Hydrate server-rendered HTML.
     
     This function "adopts" existing DOM nodes rendered by the server and
     attaches reactive bindings without re-rendering.
     
-    For hydration to work correctly:
-    1. The component must produce the same structure as the server render
-    2. Reactive text nodes are matched via hydration markers (<!--hk:N-->)
-    3. Event handlers are attached to existing elements
+    How it works:
+    1. Parse hydration markers to find existing text nodes
+    2. Enable hydration mode so reactive text functions adopt existing nodes
+    3. Run the component to set up the reactive graph
+    4. Clean up hydration markers from the DOM
+    5. Disable hydration mode
     
-    Current limitations:
+    For hydration to work correctly:
+    - The component must produce the same structure as the server render
+    - Reactive text nodes are matched via hydration markers (<!--hk:N-->)
+    - Event handlers are attached to existing elements
+    
+    Limitations:
     - Only reactive text nodes (signal_text) are hydrated via markers
-    - Element structure must match exactly
+    - Element structure must match exactly (elements are not adopted yet)
     - No support for streaming/progressive hydration
     
     @param root The DOM element containing server-rendered HTML
     @param component The component function (must match server render) *)
 let hydrate root component =
-  (* Find existing hydration markers and their text nodes *)
-  let markers = find_hydration_text_nodes root in
+  (* Reset hydration keys to match server's ordering *)
+  Reactive.reset_hydration_keys ();
   
-  (* Store markers for reactive text to find *)
-  (* This is a simplified approach - a full implementation would
-     walk the component tree and DOM tree simultaneously *)
-  let _ = markers in
+  (* Parse hydration markers and store text node references *)
+  Hydration.parse_hydration_markers root;
+  
+  (* Enable hydration mode *)
+  Hydration.start_hydration ();
   
   let (_, dispose) = Reactive_core.create_root (fun () ->
     (* Run the component to set up the reactive graph.
        
-       In a full implementation, we would:
-       1. Walk component output and existing DOM simultaneously
-       2. For each element, attach event handlers to existing DOM element
-       3. For each reactive text, connect to existing text node via marker
-       4. Skip creating new DOM nodes entirely
+       During hydration mode:
+       - Reactive text functions (text, text_of, etc.) will adopt
+         existing text nodes via hydration markers instead of creating new ones
+       - Effects are set up to update the adopted nodes when signals change
+       - Event handlers need to be attached to existing elements
        
-       Current simplified approach:
-       - Runs component (which creates signals/effects)
-       - Effects will try to update DOM
-       - For text nodes, they create new nodes (not ideal)
+       Note: Element adoption is not yet implemented - the component still
+       creates new elements, but they are not appended to the DOM. Only the
+       reactive text bindings are connected to existing nodes.
        
-       TODO: Implement proper DOM walking hydration *)
+       TODO: Full element adoption by walking DOM tree *)
     let _node = component () in
     ()
   ) in
+  
+  (* Clean up hydration markers from the DOM *)
+  Hydration.remove_hydration_markers root;
+  
+  (* Disable hydration mode *)
+  Hydration.end_hydration ();
   
   dispose
 

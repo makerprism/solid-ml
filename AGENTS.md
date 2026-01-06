@@ -141,10 +141,10 @@ let read_typed_signal (type a) (s : a signal) : a =
 - [x] Browser reactive core using shared functor
 - [x] Event handling system
 - [x] Render function (client-side from scratch)
-- [x] Hydrate function (basic implementation)
+- [x] Hydrate function with text node adoption via hydration markers
 - [x] Browser counter example (`examples/browser_counter/`)
 - [x] Builds successfully with esy
-- [ ] Improve hydration to properly walk DOM tree
+- [x] Browser reactive tests (14 tests via Node.js)
 
 **Phase 4: Router** (not started)
 
@@ -177,11 +177,13 @@ See `docs/A-01-architecture.md` for Phase 4 tasks.
 | `lib/solid-ml-browser/dom.ml` | Melange FFI bindings for browser DOM |
 | `lib/solid-ml-browser/html.ml` | DOM element functions |
 | `lib/solid-ml-browser/reactive.ml` | Reactive DOM bindings (text, attr, etc.) |
+| `lib/solid-ml-browser/hydration.ml` | Hydration state and marker parsing |
 | `lib/solid-ml-browser/event.ml` | Event handling utilities |
 | `lib/solid-ml-browser/render.ml` | Client-side render and hydrate functions |
 | `test/test_reactive.ml` | Test suite for reactive primitives (31 tests) |
 | `test/test_html.ml` | Test suite for HTML rendering (23 tests) |
 | `test/test_solidjs_compat.ml` | SolidJS compatibility tests (36 tests) |
+| `test_browser/test_reactive.ml` | Browser reactive core tests (14 tests) |
 | `examples/counter/counter.ml` | Counter example demonstrating all features |
 
 ## Design Principles

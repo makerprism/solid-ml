@@ -7,6 +7,21 @@
     properly disposed when the component is unmounted.
 *)
 
+(** {1 Hydration Key Counter} *)
+
+(** Hydration key counter - must match server's key generation order.
+    Reset at the start of each render/hydrate. *)
+let hydration_key = ref 0
+
+let next_hydration_key () =
+  let key = !hydration_key in
+  incr hydration_key;
+  key
+
+(** Reset hydration keys to 0. Called at the start of render/hydrate. *)
+let reset_hydration_keys () =
+  hydration_key := 0
+
 module Signal = struct
   type 'a t = 'a Reactive_core.signal
   let get = Reactive_core.get_signal
@@ -52,42 +67,67 @@ end
 
 (** {1 Reactive Text} *)
 
+(** Helper to get or create a text node during hydration.
+    If hydrating and we have a text node for this key, adopt it.
+    Otherwise create a new text node. *)
+let get_or_create_text_node key initial_value =
+  match Hydration.adopt_text_node key with
+  | Some txt -> txt  (* Adopt existing node *)
+  | None -> Dom.create_text_node Dom.document initial_value
+
 (** Create a reactive text node that updates when the signal changes.
-    The signal value is converted to string via [string_of_int]. *)
+    The signal value is converted to string via [string_of_int].
+    
+    During hydration, this adopts the existing text node from server-rendered
+    HTML instead of creating a new one. *)
 let text (signal : int Signal.t) : Html.node =
-  let txt = Dom.create_text_node Dom.document (string_of_int (Signal.get signal)) in
+  let key = next_hydration_key () in
+  let initial = string_of_int (Signal.get signal) in
+  let txt = get_or_create_text_node key initial in
   Effect.create (fun () ->
     Dom.text_set_data txt (string_of_int (Signal.get signal))
   );
   Html.Text txt
 
-(** Create a reactive text node with custom formatting. *)
+(** Create a reactive text node with custom formatting.
+    During hydration, adopts existing text node. *)
 let text_of (fmt : 'a -> string) (signal : 'a Signal.t) : Html.node =
-  let txt = Dom.create_text_node Dom.document (fmt (Signal.get signal)) in
+  let key = next_hydration_key () in
+  let initial = fmt (Signal.get signal) in
+  let txt = get_or_create_text_node key initial in
   Effect.create (fun () ->
     Dom.text_set_data txt (fmt (Signal.get signal))
   );
   Html.Text txt
 
-(** Create a reactive text node from a string signal. *)
+(** Create a reactive text node from a string signal.
+    During hydration, adopts existing text node. *)
 let text_string (signal : string Signal.t) : Html.node =
-  let txt = Dom.create_text_node Dom.document (Signal.get signal) in
+  let key = next_hydration_key () in
+  let initial = Signal.get signal in
+  let txt = get_or_create_text_node key initial in
   Effect.create (fun () ->
     Dom.text_set_data txt (Signal.get signal)
   );
   Html.Text txt
 
-(** Create a reactive text node from an int memo. *)
+(** Create a reactive text node from an int memo.
+    During hydration, adopts existing text node. *)
 let memo_text (memo : int Memo.t) : Html.node =
-  let txt = Dom.create_text_node Dom.document (string_of_int (Memo.get memo)) in
+  let key = next_hydration_key () in
+  let initial = string_of_int (Memo.get memo) in
+  let txt = get_or_create_text_node key initial in
   Effect.create (fun () ->
     Dom.text_set_data txt (string_of_int (Memo.get memo))
   );
   Html.Text txt
 
-(** Create a reactive text node from a memo with custom formatting. *)
+(** Create a reactive text node from a memo with custom formatting.
+    During hydration, adopts existing text node. *)
 let memo_text_of (fmt : 'a -> string) (memo : 'a Memo.t) : Html.node =
-  let txt = Dom.create_text_node Dom.document (fmt (Memo.get memo)) in
+  let key = next_hydration_key () in
+  let initial = fmt (Memo.get memo) in
+  let txt = get_or_create_text_node key initial in
   Effect.create (fun () ->
     Dom.text_set_data txt (fmt (Memo.get memo))
   );
