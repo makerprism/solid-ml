@@ -57,6 +57,30 @@ val create_with_cleanup : (unit -> (unit -> unit)) -> unit
 *)
 val untrack : (unit -> 'a) -> 'a
 
+(** Create an effect that skips the side effect on first execution.
+    Useful when initial values are set directly and only updates need the effect.
+    
+    The [~track] function is called on every execution to read signals and
+    establish dependencies. The [~run] function is called only after the first
+    execution to perform the side effect.
+    
+    This is more efficient than using a mutable ref to skip the first run,
+    and cleaner than using [on ~defer:true] for simple cases.
+    
+    {[
+      (* Set initial value directly *)
+      Dom.set_text_content el (Signal.peek label);
+      
+      (* Effect only updates on changes, not initial render *)
+      Effect.create_deferred
+        ~track:(fun () -> Signal.get label)
+        ~run:(fun label -> Dom.set_text_content el label)
+    ]}
+    
+    @param track Function that reads signals to track (auto-tracked)
+    @param run Side effect function, receives the tracked value *)
+val create_deferred : track:(unit -> 'a) -> run:('a -> unit) -> unit
+
 (** Create an effect with explicit dependencies (like SolidJS's `on`).
     
     Unlike [create], which automatically tracks all signals read,

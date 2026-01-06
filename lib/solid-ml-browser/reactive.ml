@@ -36,6 +36,7 @@ end
 module Effect = struct
   let create = Reactive_core.create_effect
   let create_with_cleanup = Reactive_core.create_effect_with_cleanup
+  let create_deferred = Reactive_core.create_effect_deferred
   let untrack = Reactive_core.untrack
   
   (** Create an effect with explicit dependencies (like SolidJS's `on`). *)

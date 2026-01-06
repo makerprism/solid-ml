@@ -63,6 +63,7 @@ let update_signal s f = set_signal s (f (peek_signal s))
 
 let create_effect = R.create_effect
 let create_effect_with_cleanup = R.create_effect_with_cleanup
+let create_effect_deferred = R.create_effect_deferred
 let untrack = R.untrack
 
 (** {1 Memo API} *)

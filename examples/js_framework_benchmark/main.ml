@@ -202,24 +202,18 @@ let render_row row =
     (* Initial value set without tracking *)
     Dom.set_text_content a (Reactive.Signal.peek row.label);
     (* Effect for updates - skips first run since we set initial above *)
-    let first_label = ref true in
-    Reactive.Effect.create (fun () ->
-      let label = Reactive.Signal.get row.label in
-      if !first_label then first_label := false
-      else Dom.set_text_content a label
-    );
+    Reactive.Effect.create_deferred
+      ~track:(fun () -> Reactive.Signal.get row.label)
+      ~run:(fun label -> Dom.set_text_content a label);
     
     (* Reactive class binding using selector - O(1) instead of O(n)! *)
     (* Initial value *)
     let init_sel = Reactive.Effect.untrack (fun () -> check_selected row_id) in
     if init_sel then Dom.set_class_name tr "danger";
-    (* Effect for updates *)
-    let first_sel = ref true in
-    Reactive.Effect.create (fun () ->
-      let is_sel = check_selected row_id in
-      if !first_sel then first_sel := false
-      else Dom.set_class_name tr (if is_sel then "danger" else "")
-    );
+    (* Effect for updates - skips first run *)
+    Reactive.Effect.create_deferred
+      ~track:(fun () -> check_selected row_id)
+      ~run:(fun is_sel -> Dom.set_class_name tr (if is_sel then "danger" else ""));
     
     (* Inline event handlers - matching SolidJS exactly *)
     Dom.add_event_listener a "click" (fun _ -> select row_id);

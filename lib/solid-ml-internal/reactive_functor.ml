@@ -43,6 +43,44 @@ module Make (B : Backend.S) = struct
       new_arr
     end
 
+  (** {1 List Helpers} *)
+  
+  (** Iterate a list in reverse order without allocating a reversed copy *)
+  let iter_rev f = function
+    | [] -> ()
+    | [x] -> f x
+    | [x; y] -> f y; f x
+    | [x; y; z] -> f z; f y; f x
+    | lst ->
+      (* For longer lists, we need to reverse - but this is rare in practice *)
+      List.iter f (List.rev lst)
+
+  (** {1 Queue Helpers} *)
+  
+  (** Push a computation onto the updates queue *)
+  let push_update rt comp =
+    let len = rt.updates_len in
+    let arr = rt.updates in
+    if len >= Array.length arr then begin
+      let new_arr = Array.make (len * 2) dummy_computation in
+      Array.blit arr 0 new_arr 0 len;
+      rt.updates <- new_arr
+    end;
+    Array.unsafe_set rt.updates len comp;
+    rt.updates_len <- len + 1
+  
+  (** Push a computation onto the effects queue *)
+  let push_effect rt comp =
+    let len = rt.effects_len in
+    let arr = rt.effects in
+    if len >= Array.length arr then begin
+      let new_arr = Array.make (len * 2) dummy_computation in
+      Array.blit arr 0 new_arr 0 len;
+      rt.effects <- new_arr
+    end;
+    Array.unsafe_set rt.effects len comp;
+    rt.effects_len <- len + 1
+
   (** {1 Forward Declarations} *)
   
   let clean_node_ref : (computation -> unit) ref = ref (fun _ -> ())
@@ -84,7 +122,7 @@ module Make (B : Backend.S) = struct
         signal.observers_len <- 1
       end else begin
         signal.observers <- ensure_capacity signal.observers signal.observers_len 
-          (signal.observers_len + 1) (empty_computation ());
+          (signal.observers_len + 1) dummy_computation;
         signal.observer_slots <- ensure_capacity signal.observer_slots signal.observers_len 
           (signal.observers_len + 1) 0;
         Array.set signal.observers signal.observers_len listener;
@@ -133,7 +171,7 @@ module Make (B : Backend.S) = struct
         memo.memo_observers_len <- 1
       end else begin
         let new_observers = ensure_capacity observers memo.memo_observers_len 
-          (memo.memo_observers_len + 1) (empty_computation ()) in
+          (memo.memo_observers_len + 1) dummy_computation in
         let new_slots = ensure_capacity slots memo.memo_observers_len 
           (memo.memo_observers_len + 1) 0 in
         Array.set new_observers memo.memo_observers_len listener;
@@ -160,9 +198,9 @@ module Make (B : Backend.S) = struct
         if o.state = Clean then begin
           o.state <- Pending;
           if o.pure then
-            rt.updates <- o :: rt.updates
+            push_update rt o
           else
-            rt.effects <- o :: rt.effects;
+            push_effect rt o;
           if o.memo_observers <> None then
             mark_downstream o
         end
@@ -191,9 +229,9 @@ module Make (B : Backend.S) = struct
             let o = Array.get signal.observers i in
             if o.state = Clean then begin
               if o.pure then
-                rt.updates <- o :: rt.updates
+                push_update rt o
               else
-                rt.effects <- o :: rt.effects;
+                push_effect rt o;
               if o.memo_observers <> None then
                 mark_downstream o
             end;
@@ -250,16 +288,16 @@ module Make (B : Backend.S) = struct
     
     node.sources_len <- 0;
     
-    (* Dispose child owners (roots created inside this computation) *)
-    List.iter (fun child_owner -> !dispose_owner_ref child_owner) (List.rev node.child_owners);
+    (* Dispose child owners (roots created inside this computation) - newest first *)
+    iter_rev (fun child_owner -> !dispose_owner_ref child_owner) node.child_owners;
     node.child_owners <- [];
     
     (* Clean owned computations *)
     List.iter (fun child -> !clean_node_ref child) node.owned;
     node.owned <- [];
     
-    (* Run cleanups in reverse order *)
-    List.iter (fun cleanup -> cleanup ()) (List.rev node.cleanups);
+    (* Run cleanups in reverse order (newest first) *)
+    iter_rev (fun cleanup -> cleanup ()) node.cleanups;
     node.cleanups <- [];
     
     node.state <- Clean
@@ -349,29 +387,39 @@ module Make (B : Backend.S) = struct
     let rt = get_runtime () in
     
     let rec loop () =
-      if rt.updates <> [] || rt.effects <> [] then begin
-        while rt.updates <> [] do
+      if rt.updates_len > 0 || rt.effects_len > 0 then begin
+        (* Process updates (memos) - already in correct order *)
+        while rt.updates_len > 0 do
+          let len = rt.updates_len in
           let updates = rt.updates in
-          rt.updates <- [];
-          List.iter (fun node ->
-            try run_top node
-            with exn -> B.handle_error exn "memo"
-          ) (List.rev updates)
+          rt.updates_len <- 0;
+          for i = 0 to len - 1 do
+            let node = Array.unsafe_get updates i in
+            (try run_top node
+             with exn -> B.handle_error exn "memo")
+          done
         done;
         
+        (* Process effects - render effects first, then user effects *)
+        let effects_len = rt.effects_len in
         let effects = rt.effects in
-        rt.effects <- [];
+        rt.effects_len <- 0;
         
-        let render_effects, user_effects = List.partition (fun e -> not e.user) effects in
+        (* First pass: render effects (not user) *)
+        for i = 0 to effects_len - 1 do
+          let node = Array.unsafe_get effects i in
+          if not node.user then
+            (try run_top node
+             with exn -> B.handle_error exn "effect")
+        done;
         
-        List.iter (fun node ->
-          try run_top node
-          with exn -> B.handle_error exn "effect"
-        ) (List.rev render_effects);
-        List.iter (fun node ->
-          try run_top node
-          with exn -> B.handle_error exn "effect"
-        ) (List.rev user_effects);
+        (* Second pass: user effects *)
+        for i = 0 to effects_len - 1 do
+          let node = Array.unsafe_get effects i in
+          if node.user then
+            (try run_top node
+             with exn -> B.handle_error exn "effect")
+        done;
         
         loop ()
       end
@@ -390,8 +438,8 @@ module Make (B : Backend.S) = struct
       rt.exec_count <- rt.exec_count + 1;
       
       if not init then begin
-        rt.updates <- [];
-        rt.effects <- []
+        rt.updates_len <- 0;
+        rt.effects_len <- 0
       end;
       
       let result = 
@@ -401,8 +449,8 @@ module Make (B : Backend.S) = struct
           res
         with exn ->
           rt.in_update <- false;
-          rt.updates <- [];
-          rt.effects <- [];
+          rt.updates_len <- 0;
+          rt.effects_len <- 0;
           raise exn
       in
       
@@ -464,8 +512,8 @@ module Make (B : Backend.S) = struct
 
   (** Dispose an owner and all its children *)
   let rec dispose_owner (owner : owner) =
-    (* Dispose child owners first (depth-first) *)
-    List.iter dispose_owner (List.rev owner.child_owners);
+    (* Dispose child owners first (depth-first, newest first) *)
+    iter_rev dispose_owner owner.child_owners;
     owner.child_owners <- [];
     
     (* Clean owned computations *)
@@ -475,8 +523,8 @@ module Make (B : Backend.S) = struct
     ) owner.owned;
     owner.owned <- [];
     
-    (* Run cleanups in reverse order *)
-    List.iter (fun cleanup -> cleanup ()) (List.rev owner.cleanups);
+    (* Run cleanups in reverse order (newest first) *)
+    iter_rev (fun cleanup -> cleanup ()) owner.cleanups;
     owner.cleanups <- [];
     
     (* Remove self from parent's child_owners *)
@@ -600,8 +648,8 @@ module Make (B : Backend.S) = struct
                 let o = Array.get observers i in
                 if o.state = Clean then begin
                   o.state <- Stale;
-                  if o.pure then rt.updates <- o :: rt.updates
-                  else rt.effects <- o :: rt.effects
+                  if o.pure then push_update rt o
+                  else push_effect rt o
                 end else if o.state = Pending then
                   o.state <- Stale
               done
@@ -688,7 +736,7 @@ module Make (B : Backend.S) = struct
         comp.memo_observers_len <- 1
       end else begin
         let new_observers = ensure_capacity observers comp.memo_observers_len 
-          (comp.memo_observers_len + 1) (empty_computation ()) in
+          (comp.memo_observers_len + 1) dummy_computation in
         let new_slots = ensure_capacity slots comp.memo_observers_len 
           (comp.memo_observers_len + 1) 0 in
         Array.set new_observers comp.memo_observers_len listener;
@@ -721,7 +769,7 @@ module Make (B : Backend.S) = struct
     
     let rt = get_runtime () in
     if rt.in_update then
-      rt.effects <- comp :: rt.effects
+      push_effect rt comp
     else
       run_updates (fun () -> run_top comp) true
   
@@ -748,7 +796,47 @@ module Make (B : Backend.S) = struct
     
     let rt = get_runtime () in
     if rt.in_update then
-      rt.effects <- comp :: rt.effects
+      push_effect rt comp
+    else
+      run_updates (fun () -> run_top comp) true
+
+  (** Create an effect that skips the side effect on first execution.
+      Useful when initial values are set directly and only updates need the effect.
+      This avoids the pattern of using a mutable ref to skip the first run.
+      
+      The effect function is split into two parts:
+      - [track]: Called on every execution to read signals and establish dependencies
+      - [run]: Called only after the first execution to perform the side effect
+      
+      Example:
+      {[
+        (* Initial value set directly *)
+        Dom.set_text_content el (Signal.peek label);
+        (* Effect only updates on changes *)
+        Effect.create_deferred
+          ~track:(fun () -> Signal.get label)
+          ~run:(fun label -> Dom.set_text_content el label)
+      ]} *)
+  let create_effect_deferred ~(track : unit -> 'a) ~(run : 'a -> unit) : unit =
+    let first_run = ref true in
+    let comp = create_computation
+      ~fn:(fun _ ->
+        let value = track () in
+        if !first_run then
+          first_run := false
+        else
+          run value;
+        Obj.repr ()
+      )
+      ~init:(Obj.repr ())
+      ~pure:false
+      ~initial_state:Stale
+    in
+    comp.user <- true;
+    
+    let rt = get_runtime () in
+    if rt.in_update then
+      push_effect rt comp
     else
       run_updates (fun () -> run_top comp) true
 

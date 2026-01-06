@@ -67,26 +67,60 @@ and computation = {
 
 (** {1 Runtime} *)
 
+(** Initial capacity for update/effect queues.
+    Sized for typical benchmark operations (100 updates for every-10th-row). *)
+let initial_queue_capacity = 128
+
 type runtime = {
   mutable listener: computation option;
   mutable owner: owner option;
-  mutable updates: computation list;
-  mutable effects: computation list;
+  (* Mutable array queues instead of lists - avoids allocation on every push *)
+  mutable updates: computation array;
+  mutable updates_len: int;
+  mutable effects: computation array;
+  mutable effects_len: int;
   mutable exec_count: int;
   mutable in_update: bool;
 }
 
 (** {1 Constructors} *)
 
+(** Singleton dummy computation for array padding.
+    Avoids allocating a fresh 19-field record on every array resize. *)
+let dummy_computation : computation = {
+  fn = None;
+  state = Clean;
+  sources = [||];
+  source_slots = [||];
+  source_kinds = [||];
+  sources_len = 0;
+  value = Obj.repr ();
+  updated_at = 0;
+  pure = false;
+  user = false;
+  owned = [];
+  cleanups = [];
+  owner = None;
+  context = [];
+  child_owners = [];
+  memo_observers = None;
+  memo_observer_slots = None;
+  memo_observers_len = 0;
+  memo_comparator = None;
+}
+
 let create_runtime () = {
   listener = None;
   owner = None;
-  updates = [];
-  effects = [];
+  updates = Array.make initial_queue_capacity dummy_computation;
+  updates_len = 0;
+  effects = Array.make initial_queue_capacity dummy_computation;
+  effects_len = 0;
   exec_count = 0;
   in_update = false;
 }
 
+(** Create a fresh computation. Use dummy_computation for array padding instead. *)
 let empty_computation () = {
   fn = None;
   state = Clean;

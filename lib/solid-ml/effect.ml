@@ -22,6 +22,14 @@ let create_with_cleanup = R.create_effect_with_cleanup
 (** Execute a function without tracking dependencies. *)
 let untrack = R.untrack
 
+(** Create an effect that skips the side effect on first execution.
+    Useful when initial values are set directly and only updates need the effect.
+    
+    The ~track function is called on every execution to read signals and
+    establish dependencies. The ~run function is called only after the first
+    execution to perform the side effect. *)
+let create_deferred = R.create_effect_deferred
+
 (** Create an effect with explicit dependencies (like SolidJS's `on`).
     
     Unlike [create], which automatically tracks all signals read during execution,

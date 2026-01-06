@@ -23,6 +23,23 @@ module Effect : sig
   val create_with_cleanup : (unit -> (unit -> unit)) -> unit
   val untrack : (unit -> 'a) -> 'a
   
+  (** Create an effect that skips the side effect on first execution.
+      Useful when initial values are set directly and only updates need the effect.
+      
+      [~track] is called on every execution to read signals and establish dependencies.
+      [~run] is called only after the first execution to perform the side effect.
+      
+      {[
+        (* Set initial value directly *)
+        Dom.set_text_content el (Signal.peek label);
+        
+        (* Effect only updates on changes *)
+        Effect.create_deferred
+          ~track:(fun () -> Signal.get label)
+          ~run:(fun label -> Dom.set_text_content el label)
+      ]} *)
+  val create_deferred : track:(unit -> 'a) -> run:('a -> unit) -> unit
+  
   (** Create an effect with explicit dependencies (like SolidJS's `on`).
       Only [deps] is tracked; the body of [fn] runs untracked. *)
   val on : ?defer:bool -> (unit -> 'a) -> (value:'a -> prev:'a -> unit) -> unit
