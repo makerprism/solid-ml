@@ -168,12 +168,21 @@ let handle_todos _req =
 
 (** Main server *)
 let () =
-  print_endline "Starting solid-ml SSR server on http://localhost:8080";
+  (* Allow port to be configured via environment variable *)
+  let port = 
+    match Sys.getenv_opt "PORT" with
+    | Some p -> (try int_of_string p with _ -> 8080)
+    | None -> 8080
+  in
+  Printf.printf "Starting solid-ml SSR server on http://localhost:%d\n" port;
   print_endline "Try these URLs:";
-  print_endline "  http://localhost:8080/";
-  print_endline "  http://localhost:8080/counter?count=42";
-  print_endline "  http://localhost:8080/todos";
-  Dream.run ~port:8080
+  Printf.printf "  http://localhost:%d/\n" port;
+  Printf.printf "  http://localhost:%d/counter?count=42\n" port;
+  Printf.printf "  http://localhost:%d/todos\n" port;
+  print_endline "";
+  print_endline "Set PORT environment variable to use a different port.";
+  flush stdout;
+  Dream.run ~port
   @@ Dream.logger
   @@ Dream.router [
     Dream.get "/" handle_home;

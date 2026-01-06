@@ -2,16 +2,16 @@
 #
 # Quick start:
 #   make example-counter    # Run the counter example
-#   make example-router     # Run the router example
+#   make example-router     # Run the router example  
 #   make test               # Run all tests
 #
 # For browser examples (requires esy):
 #   make setup              # One-time setup: install esy dependencies
-#   make example-browser    # Build and serve browser example
+#   make serve              # Build and serve browser examples at http://localhost:8000
 
 .PHONY: build test clean setup \
         example-counter example-todo example-router example-parallel example-ssr-server \
-        example-browser example-browser-router browser-examples browser-tests
+        example-browser example-browser-router browser-examples browser-tests serve
 
 # ==============================================================================
 # Native Development (no extra dependencies needed)
@@ -52,10 +52,10 @@ example-parallel:
 
 example-ssr-server:
 	@echo "=== Starting SSR Server Example ==="
-	@echo "Visit http://localhost:8080 in your browser"
+	@echo "Set PORT=XXXX to use a different port (default: 8080)"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	@dune exec examples/ssr_server/server.exe
+	@dune exec examples/ssr_server/server.exe || stty sane
 
 # Run all native examples (except ssr-server which is long-running)
 examples: example-counter example-todo example-router example-parallel
@@ -85,8 +85,7 @@ example-browser: check-esy
 	@cd $$(esy echo '#{self.target_dir}')/default/examples/browser_counter/output && \
 		npx esbuild examples/browser_counter/counter.js --bundle --outfile=$(PWD)/examples/browser_counter/dist/counter.js --format=esm 2>/dev/null
 	@echo ""
-	@echo "Build complete! Open in browser:"
-	@echo "  file://$(PWD)/examples/browser_counter/index.html"
+	@echo "Build complete! Run 'make serve' then open http://localhost:8000/browser_counter/"
 
 # Build browser router example
 example-browser-router: check-esy
@@ -99,21 +98,21 @@ example-browser-router: check-esy
 	@cd $$(esy echo '#{self.target_dir}')/default/examples/browser_router/output && \
 		npx esbuild examples/browser_router/router_demo.js --bundle --outfile=$(PWD)/examples/browser_router/dist/router_demo.js --format=esm 2>/dev/null
 	@echo ""
-	@echo "Build complete! Open in browser:"
-	@echo "  file://$(PWD)/examples/browser_router/index.html"
-	@echo ""
-	@echo "NOTE: For routing to work properly, use a local server:"
-	@echo "  python3 -m http.server 8001 -d examples/browser_router"
-	@echo "  Then open: http://localhost:8001"
+	@echo "Build complete! Run 'make serve' then open http://localhost:8000/browser_router/"
 
 # Build all browser examples
 browser-examples: example-browser example-browser-router
 	@echo ""
-	@echo "All browser examples built!"
+	@echo "All browser examples built! Run 'make serve' to view them."
+
+# Serve browser examples (required due to ES module CORS restrictions)
+serve: browser-examples
 	@echo ""
-	@echo "Start a server to view all examples:"
-	@echo "  python3 -m http.server 8000 -d examples"
-	@echo "  Then open: http://localhost:8000"
+	@echo "=== Serving Browser Examples ==="
+	@echo "Open http://localhost:8000 in your browser"
+	@echo "Press Ctrl+C to stop"
+	@echo ""
+	@python3 -m http.server 8000 -d examples || stty sane
 
 # Run browser tests (requires Node.js)
 browser-tests: check-esy
@@ -139,8 +138,7 @@ help:
 	@echo ""
 	@echo "Browser development (requires: npm install -g esy):"
 	@echo "  make setup               - Install esy dependencies (one-time)"
-	@echo "  make example-browser     - Build counter+todo browser example"
-	@echo "  make example-browser-router - Build router browser example"
+	@echo "  make serve               - Build and serve browser examples"
 	@echo "  make browser-examples    - Build all browser examples"
 	@echo "  make browser-tests       - Run browser tests"
 	@echo ""

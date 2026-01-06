@@ -1,11 +1,20 @@
-; SSR Server Example
+; SSR Server Example with Hydration
 ;
-; To build: dune build examples/ssr_server/server.exe
-; To run:   dune exec examples/ssr_server/server.exe
-;           or: make example-ssr-server
+; Server (native):
+;   dune build examples/ssr_server/server.exe
+;   make example-ssr-server
 ;
-; Requires dream: opam install dream
+; Client (Melange - requires esy):
+;   make example-ssr-client
+;
+; Requires: opam install dream
 
 (executable
  (name server)
  (libraries solid-ml solid-ml-html dream))
+
+; Client-side hydration script (Melange)
+(melange.emit
+ (target output)
+ (libraries solid-ml-browser)
+ (module_systems es6))
