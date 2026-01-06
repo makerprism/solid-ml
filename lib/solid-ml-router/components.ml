@@ -8,29 +8,24 @@ open Solid_ml
 
 (** {1 Router Provider} *)
 
-(** Configuration for the router *)
-type router_config = {
-  routes : unit Route.t list;
-  initial_path : string;
-}
-
-(** Initialize the router with the given configuration.
+(** Initialize the router with the given path and routes.
     
     This sets up the router context with:
     - The initial navigation state based on the current path
     - Route matching to extract params
     
     On the server, the initial_path should be the request URL.
-    On the browser, it should be window.location.pathname.
+    On the browser, it should be window.location.pathname + search + hash.
     
-    @param config Router configuration
+    @param initial_path The current URL path (with optional query and hash)
+    @param routes Routes used for param extraction (can be empty if not needed)
     @param f Function to run with the router context *)
-let provide ~config f =
-  let path, query, hash = Router.parse_url config.initial_path in
+let provide ~initial_path ?(routes=[]) f =
+  let path, query, hash = Router.parse_url initial_path in
   
   (* Match against routes to get params *)
   let params = 
-    match Router.match_path config.routes path with
+    match Router.match_path routes path with
     | Some (_, result) -> result.params
     | None -> Route.Params.empty
   in
@@ -42,14 +37,14 @@ let provide ~config f =
     hash;
   } in
   
-  (* Create the router signal *)
+  (* Create the router signal - fresh per provide call, not global *)
   let current, set_current = Signal.create initial_state in
   
-  (* Create navigate function (no-op on server, will be enhanced on browser) *)
+  (* Create navigate function *)
   let navigate new_path =
     let new_path_parsed, new_query, new_hash = Router.parse_url new_path in
     let new_params =
-      match Router.match_path config.routes new_path_parsed with
+      match Router.match_path routes new_path_parsed with
       | Some (_, result) -> result.params
       | None -> Route.Params.empty
     in
@@ -71,14 +66,6 @@ let provide ~config f =
 
 (** {1 Link Component} *)
 
-(** Props for the Link component *)
-type link_props = {
-  href : string;
-  class_ : string option;
-  active_class : string option;  (** Class to add when link matches current path *)
-  children : Solid_ml_html.Html.node list;
-}
-
 (** Create a Link component that renders as an anchor tag.
     
     On the server, this renders a regular anchor.
@@ -86,32 +73,49 @@ type link_props = {
     
     @param href The target URL
     @param class_ Optional CSS class
-    @param active_class Optional class to add when the link's href matches current path
     @param children Child nodes *)
-let link ?(class_="") ?active_class ~href ~children () =
+let link ?(class_="") ~href ~children () =
+  if class_ = "" then
+    Solid_ml_html.Html.a ~href ~children ()
+  else
+    Solid_ml_html.Html.a ~class_ ~href ~children ()
+
+(** Create a NavLink that adds an active class when matching.
+    
+    @param href The target URL
+    @param class_ Base CSS class (optional)
+    @param active_class Class to add when active (default: "active")
+    @param exact If true, path must match exactly. If false (default), 
+                 current path starting with href counts as active.
+    @param children Child nodes *)
+let nav_link ?(class_="") ?(active_class="active") ?(exact=false) ~href ~children () =
   (* Get current path to check if link is active *)
   let current_path = Router.use_path () in
   
   (* Check if this link is active *)
-  let is_active = current_path = href in
+  let is_active = 
+    if exact then
+      current_path = href
+    else
+      (* Partial match: /users is active when viewing /users/123 *)
+      current_path = href || 
+      (href <> "/" && String.length current_path > String.length href &&
+       String.sub current_path 0 (String.length href) = href &&
+       current_path.[String.length href] = '/')
+  in
   
   (* Build class string *)
   let final_class = 
-    match active_class with
-    | Some ac when is_active -> 
-      if class_ = "" then ac else class_ ^ " " ^ ac
-    | _ -> class_
+    if is_active then
+      if class_ = "" then active_class else class_ ^ " " ^ active_class
+    else
+      class_
   in
   
-  (* Render as anchor tag *)
   if final_class = "" then
     Solid_ml_html.Html.a ~href ~children ()
   else
     Solid_ml_html.Html.a ~class_:final_class ~href ~children ()
-
-(** Create a NavLink that adds an active class when matching *)
-let nav_link ?(class_="") ?(active_class="active") ~href ~children () =
-  link ~class_ ~active_class ~href ~children ()
 
 (** {1 Outlet Component} *)
 
@@ -120,7 +124,7 @@ let nav_link ?(class_="") ?(active_class="active") ~href ~children () =
     This looks up the current route and renders its associated component.
     If no route matches, renders nothing (or a 404 component if provided).
     
-    @param routes List of routes with component functions
+    @param routes List of routes where data is a component function
     @param not_found Optional component to render when no route matches *)
 let outlet ~(routes : (unit -> Solid_ml_html.Html.node) Route.t list) ?not_found () =
   let path = Router.use_path () in

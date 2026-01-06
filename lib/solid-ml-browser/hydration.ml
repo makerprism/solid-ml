@@ -4,9 +4,13 @@
     attaching reactive bindings without re-creating elements.
     
     This module provides:
-    - A global hydration context that tracks current DOM position
+    - Hydration context creation and management
     - Functions to adopt existing elements and text nodes
     - Hydration marker parsing (<!--hk:N-->text<!--/hk-->)
+    
+    Note: In the browser, we use a simple global context since JavaScript
+    is single-threaded. This is safe because only one hydration can occur
+    at a time. The context is explicitly started/ended to catch misuse.
 *)
 
 open Dom
@@ -20,24 +24,37 @@ type hydration_context = {
   text_nodes : (int, text_node) Hashtbl.t;
 }
 
-(** Global hydration context *)
-let context : hydration_context = {
+(** Create a fresh hydration context.
+    Use this if you need isolated hydration (e.g., for testing). *)
+let create_context () : hydration_context = {
   is_hydrating = false;
   text_nodes = Hashtbl.create 16;
 }
 
+(** The current hydration context.
+    
+    In the browser, we use a single global context since JS is single-threaded.
+    The context is explicitly started/ended to prevent misuse. *)
+let current_context : hydration_context ref = ref (create_context ())
+
 (** Check if we're currently in hydration mode *)
-let is_hydrating () = context.is_hydrating
+let is_hydrating () = !current_context.is_hydrating
 
-(** Start hydration mode *)
+(** Start hydration mode.
+    @raise Failure if already hydrating (indicates a bug) *)
 let start_hydration () =
-  context.is_hydrating <- true;
-  Hashtbl.clear context.text_nodes
+  if !current_context.is_hydrating then
+    failwith "solid-ml: start_hydration called while already hydrating";
+  !current_context.is_hydrating <- true;
+  Hashtbl.clear !current_context.text_nodes
 
-(** End hydration mode *)
+(** End hydration mode.
+    @raise Failure if not hydrating (indicates a bug) *)
 let end_hydration () =
-  context.is_hydrating <- false;
-  Hashtbl.clear context.text_nodes
+  if not !current_context.is_hydrating then
+    failwith "solid-ml: end_hydration called while not hydrating";
+  !current_context.is_hydrating <- false;
+  Hashtbl.clear !current_context.text_nodes
 
 (** {1 Hydration Marker Parsing} *)
 
@@ -49,7 +66,8 @@ let end_hydration () =
     This function walks the DOM tree and extracts text nodes that follow
     opening markers, storing them in the context for later adoption. *)
 let parse_hydration_markers root =
-  Hashtbl.clear context.text_nodes;
+  let ctx = !current_context in
+  Hashtbl.clear ctx.text_nodes;
   
   let rec walk_children (parent : element) =
     let children = get_child_nodes parent in
@@ -70,7 +88,7 @@ let parse_hydration_markers root =
               let next = children.(!i + 1) in
               if is_text next then begin
                 let text_node = text_of_node next in
-                Hashtbl.add context.text_nodes key text_node
+                Hashtbl.add ctx.text_nodes key text_node
               end
             end
           | None -> ()
@@ -90,10 +108,13 @@ let parse_hydration_markers root =
 (** Get a text node for a hydration key, if one exists.
     Returns Some text_node if we're hydrating and have a node for this key. *)
 let adopt_text_node key =
-  if context.is_hydrating then
-    Hashtbl.find_opt context.text_nodes key
+  let ctx = !current_context in
+  if ctx.is_hydrating then
+    Hashtbl.find_opt ctx.text_nodes key
   else
     None
+
+(** {1 Marker Cleanup} *)
 
 (** Remove hydration markers from the DOM.
     Called after hydration is complete to clean up comments. *)
@@ -119,3 +140,10 @@ let remove_hydration_markers root =
   
   (* Remove all marked nodes *)
   List.iter remove_node !markers_to_remove
+
+(** {1 Testing Support} *)
+
+(** Reset the hydration context. 
+    Only use this for testing to ensure clean state between tests. *)
+let reset_for_testing () =
+  current_context := create_context ()

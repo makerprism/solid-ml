@@ -389,6 +389,58 @@ let test_url_building () =
     assert_equal url "/page?foo=bar#top"
   )
 
+(* ========== URL Encoding/Decoding ========== *)
+
+let test_url_encoding () =
+  print_endline "\n=== URL Encoding/Decoding ===";
+  
+  test "url_decode simple" (fun () ->
+    assert_equal (Router.url_decode "hello") "hello"
+  );
+  
+  test "url_decode percent encoding" (fun () ->
+    assert_equal (Router.url_decode "hello%20world") "hello world"
+  );
+  
+  test "url_decode plus as space" (fun () ->
+    assert_equal (Router.url_decode "hello+world") "hello world"
+  );
+  
+  test "url_decode special chars" (fun () ->
+    assert_equal (Router.url_decode "foo%26bar%3Dbaz") "foo&bar=baz"
+  );
+  
+  test "url_encode simple" (fun () ->
+    assert_equal (Router.url_encode "hello") "hello"
+  );
+  
+  test "url_encode spaces" (fun () ->
+    assert_equal (Router.url_encode "hello world") "hello+world"
+  );
+  
+  test "url_encode special chars" (fun () ->
+    let encoded = Router.url_encode "foo&bar=baz" in
+    assert_equal encoded "foo%26bar%3Dbaz"
+  );
+  
+  test "url_encode roundtrip" (fun () ->
+    let original = "hello world & foo=bar" in
+    let encoded = Router.url_encode original in
+    let decoded = Router.url_decode encoded in
+    assert_equal decoded original
+  );
+  
+  test "query string decodes values" (fun () ->
+    let pairs = Router.parse_query_string "name=john%20doe&city=new+york" in
+    assert_equal (List.assoc_opt "name" pairs) (Some "john doe");
+    assert_equal (List.assoc_opt "city" pairs) (Some "new york")
+  );
+  
+  test "build_query_string encodes values" (fun () ->
+    let qs = Router.build_query_string [("name", "john doe"); ("q", "foo&bar")] in
+    assert_equal qs "name=john+doe&q=foo%26bar"
+  )
+
 (* ========== Router Provider ========== *)
 
 let test_router_provider () =
@@ -399,9 +451,8 @@ let test_router_provider () =
       Route.create ~path:"/" ~data:();
       Route.create ~path:"/users/:id" ~data:();
     ] in
-    let config = Components.{ routes; initial_path = "/users/123" } in
     Runtime.run (fun () ->
-      Components.provide ~config (fun () ->
+      Components.provide ~initial_path:"/users/123" ~routes (fun () ->
         let path = Router.use_path () in
         assert_equal path "/users/123"
       )
@@ -412,9 +463,8 @@ let test_router_provider () =
     let routes = [
       Route.create ~path:"/users/:id" ~data:();
     ] in
-    let config = Components.{ routes; initial_path = "/users/456" } in
     Runtime.run (fun () ->
-      Components.provide ~config (fun () ->
+      Components.provide ~initial_path:"/users/456" ~routes (fun () ->
         let id = Router.use_param "id" in
         assert_equal id (Some "456")
       )
@@ -423,9 +473,8 @@ let test_router_provider () =
   
   test "provide parses query string" (fun () ->
     let routes = [Route.create ~path:"/search" ~data:()] in
-    let config = Components.{ routes; initial_path = "/search?q=test&page=2" } in
     Runtime.run (fun () ->
-      Components.provide ~config (fun () ->
+      Components.provide ~initial_path:"/search?q=test&page=2" ~routes (fun () ->
         (* Query parsing is tested via URL parsing tests *)
         let path = Router.use_path () in
         assert_equal path "/search"
@@ -438,13 +487,21 @@ let test_router_provider () =
       Route.create ~path:"/" ~data:();
       Route.create ~path:"/about" ~data:();
     ] in
-    let config = Components.{ routes; initial_path = "/" } in
     Runtime.run (fun () ->
-      Components.provide ~config (fun () ->
+      Components.provide ~initial_path:"/" ~routes (fun () ->
         assert_equal (Router.use_path ()) "/";
         Router.navigate "/about";
         assert_equal (Router.use_path ()) "/about"
       )
+    )
+  );
+  
+  test "use_path outside context raises" (fun () ->
+    Runtime.run (fun () ->
+      try
+        let _ = Router.use_path () in
+        failwith "should have raised"
+      with Router.No_router_context -> ()
     )
   )
 
@@ -454,10 +511,8 @@ let test_link_component () =
   print_endline "\n=== Link Component ===";
   
   test "link renders anchor tag" (fun () ->
-    let routes = [Route.create ~path:"/" ~data:()] in
-    let config = Components.{ routes; initial_path = "/" } in
     Runtime.run (fun () ->
-      Components.provide ~config (fun () ->
+      Components.provide ~initial_path:"/" (fun () ->
         let node = Components.link ~href:"/about" ~children:[Solid_ml_html.Html.text "About"] () in
         let html = Solid_ml_html.Html.to_string node in
         assert (String.length html > 0);
@@ -467,10 +522,8 @@ let test_link_component () =
   );
   
   test "link with class" (fun () ->
-    let routes = [Route.create ~path:"/" ~data:()] in
-    let config = Components.{ routes; initial_path = "/" } in
     Runtime.run (fun () ->
-      Components.provide ~config (fun () ->
+      Components.provide ~initial_path:"/" (fun () ->
         let node = Components.link ~class_:"nav-link" ~href:"/about" ~children:[Solid_ml_html.Html.text "About"] () in
         let html = Solid_ml_html.Html.to_string node in
         assert (String.length html > 0)
@@ -478,15 +531,48 @@ let test_link_component () =
     )
   );
   
-  test "nav_link adds active class when current" (fun () ->
-    let routes = [Route.create ~path:"/about" ~data:()] in
-    let config = Components.{ routes; initial_path = "/about" } in
+  test "nav_link adds active class when exact match" (fun () ->
     Runtime.run (fun () ->
-      Components.provide ~config (fun () ->
-        let node = Components.nav_link ~href:"/about" ~children:[Solid_ml_html.Html.text "About"] () in
+      Components.provide ~initial_path:"/about" (fun () ->
+        let node = Components.nav_link ~exact:true ~href:"/about" ~children:[Solid_ml_html.Html.text "About"] () in
         let html = Solid_ml_html.Html.to_string node in
-        (* Should contain class="active" *)
-        assert (String.length html > 0)
+        (* Should contain class="active" - class comes before href *)
+        assert (String.length html > 0);
+        (* Check that "active" appears in the output *)
+        assert (String.length html > 10);
+        let has_active = ref false in
+        for i = 0 to String.length html - 6 do
+          if String.sub html i 6 = "active" then has_active := true
+        done;
+        assert !has_active
+      )
+    )
+  );
+  
+  test "nav_link partial match (default)" (fun () ->
+    Runtime.run (fun () ->
+      Components.provide ~initial_path:"/users/123" (fun () ->
+        (* /users should be active when viewing /users/123 *)
+        let node = Components.nav_link ~href:"/users" ~children:[Solid_ml_html.Html.text "Users"] () in
+        let html = Solid_ml_html.Html.to_string node in
+        (* Check that "active" appears in the output *)
+        let has_active = ref false in
+        for i = 0 to String.length html - 6 do
+          if String.sub html i 6 = "active" then has_active := true
+        done;
+        assert !has_active
+      )
+    )
+  );
+  
+  test "nav_link exact match does not match partial" (fun () ->
+    Runtime.run (fun () ->
+      Components.provide ~initial_path:"/users/123" (fun () ->
+        (* With exact=true, /users should NOT be active when viewing /users/123 *)
+        let node = Components.nav_link ~exact:true ~href:"/users" ~children:[Solid_ml_html.Html.text "Users"] () in
+        let html = Solid_ml_html.Html.to_string node in
+        (* Should NOT have active class *)
+        assert (String.sub html 0 9 = "<a href=\"")
       )
     )
   )
@@ -504,9 +590,8 @@ let test_outlet_component () =
       Route.create ~path:"/" ~data:home_component;
       Route.create ~path:"/about" ~data:about_component;
     ] in
-    let config = Components.{ routes = List.map (fun r -> Route.create ~path:(Route.path_template r) ~data:()) routes; initial_path = "/" } in
     Runtime.run (fun () ->
-      Components.provide ~config (fun () ->
+      Components.provide ~initial_path:"/" (fun () ->
         let node = Components.outlet ~routes () in
         let html = Solid_ml_html.Html.to_string node in
         assert_equal html "Home Page"
@@ -518,9 +603,8 @@ let test_outlet_component () =
     let routes = [
       Route.create ~path:"/" ~data:(fun () -> Solid_ml_html.Html.text "Home");
     ] in
-    let config = Components.{ routes = [Route.create ~path:"/" ~data:()]; initial_path = "/unknown" } in
     Runtime.run (fun () ->
-      Components.provide ~config (fun () ->
+      Components.provide ~initial_path:"/unknown" (fun () ->
         let not_found () = Solid_ml_html.Html.text "404 Not Found" in
         let node = Components.outlet ~routes ~not_found () in
         let html = Solid_ml_html.Html.to_string node in
@@ -546,6 +630,7 @@ let () =
   test_url_parsing ();
   test_query_string_parsing ();
   test_url_building ();
+  test_url_encoding ();
   test_router_provider ();
   test_link_component ();
   test_outlet_component ();

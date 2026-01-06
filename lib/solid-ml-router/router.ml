@@ -7,6 +7,10 @@
     
     The router uses context to share state across the component tree,
     allowing nested components to access route information and navigate.
+    
+    IMPORTANT: Router functions like [use_path], [use_params], and [navigate]
+    must be called within a [Components.provide] context. Calling them outside
+    will raise [No_router_context].
 *)
 
 open Solid_ml
@@ -28,46 +32,60 @@ type router_context = {
   navigate : string -> unit;
 }
 
+(** {1 Exceptions} *)
+
+exception No_router_context
+
 (** {1 Context} *)
 
-(** Default router context (before initialization) *)
-let default_nav_state = {
-  path = "/";
-  params = Route.Params.empty;
-  query = None;
-  hash = None;
+(** The router context. 
+    
+    Unlike most contexts, this one does NOT have a usable default value.
+    Accessing it outside of [Components.provide] will raise [No_router_context].
+    
+    We use a sentinel that raises on any access. *)
+let raise_no_context () = raise No_router_context
+
+(** Marker function to detect uninitialized context *)
+let uninitialized_navigate _ = raise No_router_context
+
+(** Sentinel context that raises on any use *)
+let no_context_sentinel : router_context = {
+  current = Obj.magic ();  (* Will never be accessed if used correctly *)
+  set_current = (fun _ -> raise No_router_context);
+  navigate = uninitialized_navigate;
 }
 
-(** Create the default signal for the context *)
-let default_signal, default_setter = Signal.create default_nav_state
-
-(** The router context, shared across the component tree *)
+(** The router context, shared across the component tree.
+    Must be initialized via [Components.provide] before use. *)
 let context : router_context Context.t = 
-  Context.create {
-    current = default_signal;
-    set_current = default_setter;
-    navigate = (fun _ -> ());
-  }
+  Context.create no_context_sentinel
 
 (** {1 Accessing Router State} *)
 
 (** Get the current navigation state signal.
-    Use inside effects to react to route changes. *)
+    Use inside effects to react to route changes.
+    
+    @raise No_router_context if called outside router context *)
 let use_location () =
   let ctx = Context.use context in
+  if ctx.navigate == uninitialized_navigate then raise No_router_context;
   ctx.current
 
-(** Get the current path *)
+(** Get the current path.
+    @raise No_router_context if called outside router context *)
 let use_path () =
   let loc = use_location () in
   Signal.get loc |> fun s -> s.path
 
-(** Get the current params *)
+(** Get the current params.
+    @raise No_router_context if called outside router context *)
 let use_params () =
   let loc = use_location () in
   Signal.get loc |> fun s -> s.params
 
-(** Get a specific param value *)
+(** Get a specific param value.
+    @raise No_router_context if called outside router context *)
 let use_param name =
   let params = use_params () in
   Route.Params.get name params
@@ -75,16 +93,12 @@ let use_param name =
 (** {1 Navigation} *)
 
 (** Navigate to a new path.
-    This updates the current route and (on browser) pushes to history. *)
+    This updates the current route and (on browser) pushes to history.
+    @raise No_router_context if called outside router context *)
 let navigate path =
   let ctx = Context.use context in
+  if ctx.navigate == uninitialized_navigate then raise No_router_context;
   ctx.navigate path
-
-(** Navigate back in history (browser only, no-op on server) *)
-let go_back () = ()  (* Will be overridden in browser implementation *)
-
-(** Navigate forward in history (browser only, no-op on server) *)
-let go_forward () = ()  (* Will be overridden in browser implementation *)
 
 (** {1 Route Matching} *)
 
@@ -127,10 +141,58 @@ let build_url ~path ?query ?hash () =
   in
   url
 
+(** {1 URL Encoding/Decoding} *)
+
+(** Decode a percent-encoded string.
+    Converts %XX sequences to their character equivalents.
+    Also converts + to space (for query strings). *)
+let url_decode s =
+  let len = String.length s in
+  let buf = Buffer.create len in
+  let i = ref 0 in
+  while !i < len do
+    let c = s.[!i] in
+    if c = '%' && !i + 2 < len then begin
+      let hex = String.sub s (!i + 1) 2 in
+      match int_of_string_opt ("0x" ^ hex) with
+      | Some code -> 
+        Buffer.add_char buf (Char.chr code);
+        i := !i + 3
+      | None ->
+        Buffer.add_char buf c;
+        incr i
+    end else if c = '+' then begin
+      Buffer.add_char buf ' ';
+      incr i
+    end else begin
+      Buffer.add_char buf c;
+      incr i
+    end
+  done;
+  Buffer.contents buf
+
+(** Encode a string for use in URLs.
+    Converts special characters to %XX sequences. *)
+let url_encode s =
+  let len = String.length s in
+  let buf = Buffer.create (len * 3) in
+  for i = 0 to len - 1 do
+    let c = s.[i] in
+    match c with
+    | 'a'..'z' | 'A'..'Z' | '0'..'9' | '-' | '_' | '.' | '~' ->
+      Buffer.add_char buf c
+    | ' ' ->
+      Buffer.add_char buf '+'
+    | _ ->
+      Buffer.add_string buf (Printf.sprintf "%%%02X" (Char.code c))
+  done;
+  Buffer.contents buf
+
 (** {1 Query String Parsing} *)
 
 (** Parse a query string into key-value pairs.
-    Example: "foo=bar&baz=qux" -> [("foo", "bar"); ("baz", "qux")] *)
+    Values are URL-decoded.
+    Example: "foo=bar&name=john%20doe" -> [("foo", "bar"); ("name", "john doe")] *)
 let parse_query_string query =
   if query = "" then []
   else
@@ -138,18 +200,25 @@ let parse_query_string query =
     |> List.filter_map (fun pair ->
       match String.index_opt pair '=' with
       | Some i ->
-        let key = String.sub pair 0 i in
-        let value = String.sub pair (i + 1) (String.length pair - i - 1) in
+        let key = url_decode (String.sub pair 0 i) in
+        let value = url_decode (String.sub pair (i + 1) (String.length pair - i - 1)) in
         Some (key, value)
       | None ->
         (* Key without value *)
-        Some (pair, "")
+        Some (url_decode pair, "")
     )
 
-(** Get a query parameter value *)
+(** Get a query parameter value (URL-decoded) *)
 let get_query_param key query =
   match query with
   | None -> None
   | Some q ->
     let pairs = parse_query_string q in
     List.assoc_opt key pairs
+
+(** Build a query string from key-value pairs.
+    Values are URL-encoded. *)
+let build_query_string pairs =
+  pairs
+  |> List.map (fun (k, v) -> url_encode k ^ "=" ^ url_encode v)
+  |> String.concat "&"
