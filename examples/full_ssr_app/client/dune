@@ -1,0 +1,8 @@
+; Full SSR App Example - Client Hydration
+;
+; Build: make example-full-ssr-client
+
+(melange.emit
+ (target output)
+ (libraries solid-ml-browser)
+ (module_systems es6))

@@ -422,3 +422,31 @@ let remove_text_node txt =
 (** Remove an element from its parent *)
 let remove_element el =
   remove_node (node_of_element el)
+
+(** Get inner text of an element *)
+external get_inner_text : element -> string = "innerText"
+  [@@mel.get]
+
+(** Get data attribute *)
+let get_data_attribute el name =
+  get_attribute el ("data-" ^ name)
+
+(** Query selector within an element *)
+external query_selector_within : element -> string -> element option = "querySelector"
+  [@@mel.send] [@@mel.return nullable]
+
+(** Query selector all within an element *)
+external query_selector_all_within_raw : element -> string -> element array = "querySelectorAll"
+  [@@mel.send]
+
+let query_selector_all_within el selector =
+  Array.to_list (query_selector_all_within_raw el selector)
+
+(** Query selector all - returns list *)
+let query_selector_all doc selector =
+  Array.to_list (query_selector_all doc selector)
+
+(** Set location (navigate) *)
+let set_location path =
+  let _ = path in
+  [%mel.raw {| window.location.href = path |}]

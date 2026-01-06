@@ -254,18 +254,20 @@
     </div>
     
     <div class="example">
-      <h2>SSR Server</h2>
-      <p>Full server-side rendering with Dream web framework. Serves HTML pages rendered from solid-ml components.</p>
+      <h2>Full SSR + Hydration</h2>
+      <p>Complete SSR example with Dream server and client-side hydration. Server renders HTML, client makes it interactive.</p>
       <div class="tags">
         <span class="tag native">Native</span>
+        <span class="tag browser">Browser</span>
         <span class="tag">SSR</span>
+        <span class="tag">Hydration</span>
         <span class="tag">Dream</span>
-        <span class="tag">Server</span>
       </div>
       <div class="actions">
-        <a href="https://github.com/makerprism/solid-ml/blob/main/examples/ssr_server/server.ml" class="btn secondary" target="_blank">View Source</a>
+        <a href="https://github.com/makerprism/solid-ml/blob/main/examples/full_ssr_app/server.ml" class="btn secondary" target="_blank">Server</a>
+        <a href="https://github.com/makerprism/solid-ml/blob/main/examples/full_ssr_app/client/client.ml" class="btn secondary" target="_blank">Client</a>
       </div>
-      <p style="margin-top: 12px; margin-bottom: 0;"><code>make example-ssr-server</code> (requires dream: <code>opam install dream</code>)</p>
+      <p style="margin-top: 12px; margin-bottom: 0;"><code>make example-full-ssr</code> (requires dream + esy)</p>
     </div>
   </div>
   

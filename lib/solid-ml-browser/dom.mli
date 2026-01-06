@@ -59,7 +59,7 @@ val create_comment : document -> string -> comment_node
 val create_document_fragment : document -> document_fragment
 val get_element_by_id : document -> string -> element option
 val query_selector : document -> string -> element option
-val query_selector_all : document -> string -> element array
+val query_selector_all : document -> string -> element list
 
 (** {1 Node Methods} *)
 
@@ -251,3 +251,18 @@ val remove_text_node : text_node -> unit
 
 val remove_element : element -> unit
 (** Remove an element from its parent *)
+
+val get_inner_text : element -> string
+(** Get inner text of an element *)
+
+val get_data_attribute : element -> string -> string option
+(** Get a data attribute value *)
+
+val query_selector_within : element -> string -> element option
+(** Query selector within an element *)
+
+val query_selector_all_within : element -> string -> element list
+(** Query selector all within an element *)
+
+val set_location : string -> unit
+(** Navigate to a URL (full page load) *)

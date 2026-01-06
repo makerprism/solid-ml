@@ -11,7 +11,8 @@
 
 .PHONY: build test clean setup \
         example-counter example-todo example-router example-parallel example-ssr-server \
-        example-browser example-browser-router browser-examples browser-tests serve
+        example-browser example-browser-router browser-examples browser-tests serve \
+        example-full-ssr example-full-ssr-client
 
 # ==============================================================================
 # Native Development (no extra dependencies needed)
@@ -55,9 +56,29 @@ example-ssr-server:
 	@echo "Set PORT=XXXX to use a different port (default: 8080)"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	@dune exec examples/ssr_server/server.exe || stty sane
+	@ENABLE_DREAM=1 dune exec examples/ssr_server/server.exe || stty sane
 
-# Run all native examples (except ssr-server which is long-running)
+# Build full SSR client
+example-full-ssr-client: check-esy
+	@echo "Building full SSR client..."
+	@esy dune build examples/full_ssr_app/client/output/examples/full_ssr_app/client/client.js 2>/dev/null || \
+		(echo "Error: Run 'make setup' first to install dependencies" && exit 1)
+	@mkdir -p examples/full_ssr_app/static
+	@echo "Bundling with esbuild..."
+	@cd $$(esy echo '#{self.target_dir}')/default/examples/full_ssr_app/client/output && \
+		npx esbuild examples/full_ssr_app/client/client.js --bundle --outfile=$(PWD)/examples/full_ssr_app/static/client.js --format=esm 2>/dev/null
+	@echo "Client built: examples/full_ssr_app/static/client.js"
+
+# Run full SSR example (server + client)
+example-full-ssr: example-full-ssr-client
+	@echo ""
+	@echo "=== Starting Full SSR Example ==="
+	@echo "Visit http://localhost:8080"
+	@echo "Press Ctrl+C to stop"
+	@echo ""
+	@ENABLE_DREAM=1 dune exec examples/full_ssr_app/server.exe || stty sane
+
+# Run all native examples (except long-running servers)
 examples: example-counter example-todo example-router example-parallel
 
 # ==============================================================================
@@ -133,8 +154,10 @@ help:
 	@echo "  make example-counter    - Run counter example"
 	@echo "  make example-todo       - Run todo example"
 	@echo "  make example-router     - Run router example"
-	@echo "  make example-ssr-server - Start SSR server (requires dream)"
 	@echo "  make examples           - Run all native examples"
+	@echo ""
+	@echo "Full SSR (requires: dream + esy):"
+	@echo "  make example-full-ssr   - Build client and start SSR server"
 	@echo ""
 	@echo "Browser development (requires: npm install -g esy):"
 	@echo "  make setup               - Install esy dependencies (one-time)"
