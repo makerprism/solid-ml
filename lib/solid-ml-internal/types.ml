@@ -58,6 +58,7 @@ and computation = {
   mutable cleanups: (unit -> unit) list;
   mutable owner: owner option;
   mutable context: (int * Obj.t) list;
+  mutable child_owners: owner list;  (* Roots created inside this computation *)
   mutable memo_observers: computation array option;
   mutable memo_observer_slots: int array option;
   mutable memo_observers_len: int;
@@ -101,6 +102,7 @@ let empty_computation () = {
   cleanups = [];
   owner = None;
   context = [];
+  child_owners = [];
   memo_observers = None;
   memo_observer_slots = None;
   memo_observers_len = 0;

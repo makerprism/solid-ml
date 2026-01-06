@@ -46,6 +46,7 @@ module Make (B : Backend.S) = struct
   (** {1 Forward Declarations} *)
   
   let clean_node_ref : (computation -> unit) ref = ref (fun _ -> ())
+  let dispose_owner_ref : (owner -> unit) ref = ref (fun _ -> ())
   
   (** {1 Dependency Tracking} *)
   
@@ -248,6 +249,10 @@ module Make (B : Backend.S) = struct
     
     node.sources_len <- 0;
     
+    (* Dispose child owners (roots created inside this computation) *)
+    List.iter (fun child_owner -> !dispose_owner_ref child_owner) (List.rev node.child_owners);
+    node.child_owners <- [];
+    
     (* Clean owned computations *)
     List.iter (fun child -> !clean_node_ref child) node.owned;
     node.owned <- [];
@@ -272,14 +277,14 @@ module Make (B : Backend.S) = struct
       let prev_listener = rt.listener in
       let prev_owner = rt.owner in
       
-      (* Create a temporary owner to collect nested computations/cleanups.
+      (* Create a temporary owner to collect nested computations/cleanups/child_owners.
          After execution, we copy these back to the node. *)
       let temp_owner = {
         owned = [];  (* Will collect new nested computations *)
         cleanups = [];  (* Will collect new cleanups *)
         owner = node.owner;
         context = node.context;
-        child_owners = [];
+        child_owners = [];  (* Will collect new roots created inside *)
       } in
       
       rt.listener <- Some node;
@@ -289,13 +294,15 @@ module Make (B : Backend.S) = struct
         let next_value = fn node.value in
         node.value <- next_value;
         node.updated_at <- rt.exec_count;
-        (* Copy registered computations and cleanups back to node *)
+        (* Copy registered computations, cleanups, and child owners back to node *)
         node.owned <- temp_owner.owned;
-        node.cleanups <- temp_owner.cleanups
+        node.cleanups <- temp_owner.cleanups;
+        node.child_owners <- temp_owner.child_owners
       with exn ->
         (* Still copy on exception so cleanup can run *)
         node.owned <- temp_owner.owned;
         node.cleanups <- temp_owner.cleanups;
+        node.child_owners <- temp_owner.child_owners;
         rt.listener <- prev_listener;
         rt.owner <- prev_owner;
         raise exn
@@ -424,6 +431,7 @@ module Make (B : Backend.S) = struct
       cleanups = [];
       owner = rt.owner;
       context = (match rt.owner with Some o -> o.context | None -> []);
+      child_owners = [];
       memo_observers = None;
       memo_observer_slots = None;
       memo_observers_len = 0;
@@ -453,6 +461,32 @@ module Make (B : Backend.S) = struct
     set_runtime prev;
     result
 
+  (** Dispose an owner and all its children *)
+  let rec dispose_owner (owner : owner) =
+    (* Dispose child owners first (depth-first) *)
+    List.iter dispose_owner (List.rev owner.child_owners);
+    owner.child_owners <- [];
+    
+    (* Clean owned computations *)
+    List.iter (fun comp -> 
+      comp.fn <- None;
+      clean_node comp
+    ) owner.owned;
+    owner.owned <- [];
+    
+    (* Run cleanups in reverse order *)
+    List.iter (fun cleanup -> cleanup ()) (List.rev owner.cleanups);
+    owner.cleanups <- [];
+    
+    (* Remove self from parent's child_owners *)
+    begin match owner.owner with
+    | Some parent ->
+      parent.child_owners <- List.filter (fun c -> c != owner) parent.child_owners
+    | None -> ()
+    end
+  
+  let () = dispose_owner_ref := dispose_owner
+
   (** Create a root owner for cleanup *)
   let create_root fn =
     let rt = get_runtime () in
@@ -471,26 +505,6 @@ module Make (B : Backend.S) = struct
     end;
     
     rt.owner <- Some root_owner;
-    
-    let rec dispose_owner owner =
-      List.iter dispose_owner (List.rev owner.child_owners);
-      owner.child_owners <- [];
-      
-      List.iter (fun comp -> 
-        comp.fn <- None;
-        clean_node comp
-      ) owner.owned;
-      owner.owned <- [];
-      
-      List.iter (fun cleanup -> cleanup ()) (List.rev owner.cleanups);
-      owner.cleanups <- [];
-      
-      begin match owner.owner with
-      | Some parent ->
-        parent.child_owners <- List.filter (fun c -> c != owner) parent.child_owners
-      | None -> ()
-      end
-    in
     
     let dispose () = dispose_owner root_owner in
     
@@ -689,4 +703,132 @@ module Make (B : Backend.S) = struct
   
   (** Peek at memo value without tracking *)
   let peek_typed_memo (type a) (m : a memo) : a = m.cached
+
+  (** {1 Effect API} *)
+  
+  (** Create an effect that runs when dependencies change.
+      The effect function is called immediately, and then re-called
+      whenever any signal read during execution changes. *)
+  let create_effect (fn : unit -> unit) : unit =
+    let comp = create_computation
+      ~fn:(fun _ -> fn (); Obj.repr ())
+      ~init:(Obj.repr ())
+      ~pure:false
+      ~initial_state:Stale
+    in
+    comp.user <- true;
+    
+    let rt = get_runtime () in
+    if rt.in_update then
+      rt.effects <- comp :: rt.effects
+    else
+      run_updates (fun () -> run_top comp) true
+  
+  (** Create an effect with a cleanup function.
+      The effect function should return a cleanup function that will
+      be called before the next execution and when the effect is disposed. *)
+  let create_effect_with_cleanup (fn : unit -> (unit -> unit)) : unit =
+    let cleanup_ref = ref (fun () -> ()) in
+    
+    let comp = create_computation
+      ~fn:(fun _ ->
+        !cleanup_ref ();
+        let new_cleanup = fn () in
+        cleanup_ref := new_cleanup;
+        Obj.repr ()
+      )
+      ~init:(Obj.repr ())
+      ~pure:false
+      ~initial_state:Stale
+    in
+    comp.user <- true;
+    
+    on_cleanup (fun () -> !cleanup_ref ());
+    
+    let rt = get_runtime () in
+    if rt.in_update then
+      rt.effects <- comp :: rt.effects
+    else
+      run_updates (fun () -> run_top comp) true
+
+  (** {1 Context API} *)
+  
+  (** A context holds a default value and a unique ID *)
+  type 'a context = {
+    ctx_id: int;
+    ctx_default: 'a;
+  }
+  
+  (** Counter for unique context IDs.
+      Note: Not thread-safe, but contexts are typically created at module init time. *)
+  let next_context_id = ref 0
+  
+  (** Create a new context with a default value. *)
+  let create_context (type a) (default : a) : a context =
+    let id = !next_context_id in
+    incr next_context_id;
+    { ctx_id = id; ctx_default = default }
+  
+  (** Find a context value by walking up the owner tree *)
+  let rec find_context_in_owner ctx_id (owner : owner) : Obj.t option =
+    match List.assoc_opt ctx_id owner.context with
+    | Some v -> Some v
+    | None ->
+      match owner.owner with
+      | Some parent -> find_context_in_owner ctx_id parent
+      | None -> None
+  
+  (** Use (read) a context value.
+      Looks up the owner tree for a provided value.
+      Returns the default if no value was provided. *)
+  let use_context (type a) (ctx : a context) : a =
+    match get_runtime_opt () with
+    | Some rt ->
+      (match rt.owner with
+       | Some owner ->
+         (match find_context_in_owner ctx.ctx_id owner with
+          | Some v -> Obj.obj v
+          | None -> ctx.ctx_default)
+       | None -> ctx.ctx_default)
+    | None -> ctx.ctx_default
+  
+  (** Provide a context value for a scope.
+      All [use_context] calls within [fn] (and its descendants) will
+      see the provided value instead of the default. *)
+  let provide_context (type a) (ctx : a context) (value : a) (fn : unit -> 'b) : 'b =
+    match get_runtime_opt () with
+    | Some rt ->
+      (match rt.owner with
+       | Some owner ->
+         let prev = owner.context in
+         owner.context <- (ctx.ctx_id, Obj.repr value) :: prev;
+         let result =
+           try fn ()
+           with e ->
+             owner.context <- prev;
+             raise e
+         in
+         owner.context <- prev;
+         result
+       | None ->
+         (* No owner - create a root to hold the context *)
+         create_root (fun _dispose ->
+           let rt = get_runtime () in
+           match rt.owner with
+           | Some owner ->
+             owner.context <- (ctx.ctx_id, Obj.repr value) :: owner.context;
+             fn ()
+           | None -> fn ()
+         ))
+    | None ->
+      (* No runtime - create one with a root *)
+      run (fun () ->
+        create_root (fun _dispose ->
+          let rt = get_runtime () in
+          match rt.owner with
+          | Some owner ->
+            owner.context <- (ctx.ctx_id, Obj.repr value) :: owner.context;
+            fn ()
+          | None -> fn ()
+        ))
 end

@@ -33,6 +33,7 @@ type 'a signal = 'a Internal.Types.signal
 type 'a memo = 'a Internal.Types.memo
 type owner = Internal.Types.owner
 type computation = Internal.Types.computation
+type 'a context = 'a R.context
 
 (** {1 Signal API} *)
 
@@ -44,45 +45,8 @@ let update_signal s f = set_signal s (f (peek_signal s))
 
 (** {1 Effect API} *)
 
-let create_effect fn =
-  let comp = R.create_computation
-    ~fn:(fun _ -> fn (); Obj.repr ())
-    ~init:(Obj.repr ())
-    ~pure:false
-    ~initial_state:Stale
-  in
-  comp.Internal.Types.user <- true;
-  
-  let rt = R.get_runtime () in
-  if rt.Internal.Types.in_update then
-    rt.Internal.Types.effects <- comp :: rt.effects
-  else
-    R.run_updates (fun () -> R.run_top comp) true
-
-let create_effect_with_cleanup fn =
-  let cleanup_ref = ref (fun () -> ()) in
-  
-  let comp = R.create_computation
-    ~fn:(fun _ ->
-      !cleanup_ref ();
-      let new_cleanup = fn () in
-      cleanup_ref := new_cleanup;
-      Obj.repr ()
-    )
-    ~init:(Obj.repr ())
-    ~pure:false
-    ~initial_state:Stale
-  in
-  comp.Internal.Types.user <- true;
-  
-  R.on_cleanup (fun () -> !cleanup_ref ());
-  
-  let rt = R.get_runtime () in
-  if rt.Internal.Types.in_update then
-    rt.Internal.Types.effects <- comp :: rt.effects
-  else
-    R.run_updates (fun () -> R.run_top comp) true
-
+let create_effect = R.create_effect
+let create_effect_with_cleanup = R.create_effect_with_cleanup
 let untrack = R.untrack
 
 (** {1 Memo API} *)
@@ -98,18 +62,9 @@ let get_owner = R.get_owner
 
 let create_root f =
   (* Ensure we have a runtime *)
-  let has_runtime = match R.get_runtime_opt () with
-    | Some _ -> true
-    | None -> false
-  in
-  if has_runtime then
-    R.create_root (fun dispose -> (f (), dispose))
-  else begin
-    (* Create a runtime for this root *)
-    R.run (fun () ->
-      R.create_root (fun dispose -> (f (), dispose))
-    )
-  end
+  match R.get_runtime_opt () with
+  | Some _ -> R.create_root (fun dispose -> (f (), dispose))
+  | None -> R.run (fun () -> R.create_root (fun dispose -> (f (), dispose)))
 
 let run_with_owner = create_root
 
@@ -119,51 +74,6 @@ let batch fn = R.run_updates fn false
 
 (** {1 Context API} *)
 
-type 'a context = {
-  id: int;
-  default: 'a;
-}
-
-let next_context_id = ref 0
-
-let create_context default =
-  let id = !next_context_id in
-  incr next_context_id;
-  { id; default }
-
-let rec find_context_in_owner ctx (owner : owner) =
-  match List.assoc_opt ctx.id owner.Internal.Types.context with
-  | Some v -> Some (Obj.obj v)
-  | None ->
-    match owner.Internal.Types.owner with
-    | Some parent -> find_context_in_owner ctx parent
-    | None -> None
-
-let use_context ctx =
-  match R.get_runtime_opt () with
-  | Some rt ->
-    (match rt.Internal.Types.owner with
-     | Some owner ->
-       (match find_context_in_owner ctx owner with
-        | Some v -> v
-        | None -> ctx.default)
-     | None -> ctx.default)
-  | None -> ctx.default
-
-let provide_context ctx value fn =
-  match R.get_runtime_opt () with
-  | Some rt ->
-    (match rt.Internal.Types.owner with
-     | Some owner ->
-       let prev = owner.Internal.Types.context in
-       owner.Internal.Types.context <- (ctx.id, Obj.repr value) :: prev;
-       let result =
-         try fn ()
-         with e ->
-           owner.Internal.Types.context <- prev;
-           raise e
-       in
-       owner.Internal.Types.context <- prev;
-       result
-     | None -> fn ())
-  | None -> fn ()
+let create_context = R.create_context
+let use_context = R.use_context
+let provide_context = R.provide_context

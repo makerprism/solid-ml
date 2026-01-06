@@ -60,6 +60,7 @@ let subscribe (signal : 'a t) callback =
     cleanups = [];
     owner = None;
     context = [];
+    child_owners = [];
     memo_observers = None;
     memo_observer_slots = None;
     memo_observers_len = 0;
