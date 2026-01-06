@@ -16,11 +16,19 @@
 (generate_opam_files true)
 
 (package
+ (name solid-ml-core)
+ (synopsis "Shared reactive core for solid-ml")
+ (description "Functor-based reactive primitives shared between server and browser.")
+ (depends
+  (ocaml (>= 4.14.0))))
+
+(package
  (name solid-ml)
  (synopsis "Core reactive primitives for solid-ml")
  (description "Fine-grained reactivity with signals, effects, and memos. Inspired by SolidJS.")
  (depends
-  (ocaml (>= 4.14.0))))
+  (ocaml (>= 5.0.0))
+  (solid-ml-core (= :version))))
 
 (package
  (name solid-ml-html)
@@ -38,7 +46,6 @@
  (allow_empty)
  (depends
   (ocaml (>= 4.14.0))
-  (solid-ml (= :version))
   (melange (>= 3.0.0))))
 
 (package
