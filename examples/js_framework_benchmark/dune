@@ -1,0 +1,10 @@
+; js-framework-benchmark implementation for solid-ml
+;
+; To build:
+; 1. esy build
+; 2. Bundle with esbuild (see package.json in js-framework-benchmark)
+
+(melange.emit
+ (target output)
+ (libraries solid-ml-browser)
+ (module_systems es6))

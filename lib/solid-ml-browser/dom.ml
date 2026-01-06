@@ -85,10 +85,16 @@ external append_child : element -> node -> unit = "appendChild"
 external remove_child : element -> node -> unit = "removeChild"
   [@@mel.send]
 
-external insert_before : element -> node -> node option -> unit = "insertBefore"
+external insert_before_raw : element -> node -> node Js.nullable -> unit = "insertBefore"
   [@@mel.send]
 
+let insert_before parent new_node ref_node =
+  insert_before_raw parent new_node (Js.Nullable.fromOption ref_node)
+
 external replace_child : element -> node -> node -> unit = "replaceChild"
+  [@@mel.send]
+
+external clone_node : element -> bool -> element = "cloneNode"
   [@@mel.send]
 
 external set_attribute : element -> string -> string -> unit = "setAttribute"
@@ -96,6 +102,12 @@ external set_attribute : element -> string -> string -> unit = "setAttribute"
 
 external get_attribute : element -> string -> string option = "getAttribute"
   [@@mel.send] [@@mel.return nullable]
+
+external get_id : element -> string = "id"
+  [@@mel.get]
+
+external set_id : element -> string -> unit = "id"
+  [@@mel.set]
 
 external remove_attribute : element -> string -> unit = "removeAttribute"
   [@@mel.send]
@@ -214,6 +226,12 @@ let toggle_class element cls =
 let has_class element cls =
   class_list_contains (get_class_list element) cls
 
+external get_class_name : element -> string = "className"
+  [@@mel.get]
+
+external set_class_name : element -> string -> unit = "className"
+  [@@mel.set]
+
 (** {1 Event Handling} *)
 
 external add_event_listener : element -> string -> (event -> unit) -> unit = "addEventListener"
@@ -227,6 +245,8 @@ external event_target : event -> event_target = "target"
 
 external event_current_target : event -> event_target = "currentTarget"
   [@@mel.get]
+
+let target evt = element_of_event_target (event_target evt)
 
 external prevent_default : event -> unit = "preventDefault"
   [@@mel.send]

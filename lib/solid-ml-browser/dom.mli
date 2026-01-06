@@ -76,7 +76,16 @@ val node_set_text_content : node -> string -> unit
 val append_child : element -> node -> unit
 val remove_child : element -> node -> unit
 val insert_before : element -> node -> node option -> unit
+(** Insert a node before a reference node. If reference is None, appends to end. *)
 val replace_child : element -> node -> node -> unit
+val clone_node : element -> bool -> element
+(** Clone a DOM element. If deep is true, clone all descendants. *)
+
+val get_id : element -> string
+(** Get the id attribute of an element *)
+
+val set_id : element -> string -> unit
+(** Set the id attribute of an element *)
 val set_attribute : element -> string -> string -> unit
 val get_attribute : element -> string -> string option
 val remove_attribute : element -> string -> unit
@@ -134,12 +143,20 @@ val remove_class : element -> string -> unit
 val toggle_class : element -> string -> bool
 val has_class : element -> string -> bool
 
+val get_class_name : element -> string
+(** Get the className of an element *)
+
+val set_class_name : element -> string -> unit
+(** Set the className of an element *)
+
 (** {1 Event Handling} *)
 
 val add_event_listener : element -> string -> (event -> unit) -> unit
 val remove_event_listener : element -> string -> (event -> unit) -> unit
 val event_target : event -> event_target
 val event_current_target : event -> event_target
+val target : event -> element
+(** Get the target element of an event (convenience wrapper) *)
 val prevent_default : event -> unit
 val stop_propagation : event -> unit
 val event_type : event -> string
