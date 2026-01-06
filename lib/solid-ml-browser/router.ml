@@ -456,27 +456,35 @@ let nav_link ?(class_="") ?(active_class="active") ?(exact=false) ~href ~childre
 let outlet ~(routes : (unit -> Html.node) Route.t list) ?not_found () =
   (* Create a container element that will be updated reactively *)
   let container = Dom.create_element Dom.document "div" in
+  let current_path = ref "" in
   
   (* Effect that re-renders the outlet when the path changes *)
   Reactive_core.create_effect (fun () ->
     let path = use_path () in
     
-    (* Clear existing content *)
-    Dom.set_inner_html container "";
-    
-    (* Render the matched route *)
-    let node = match Route.match_routes routes path with
-      | Some (route, _result) ->
-        let component = Route.data route in
-        component ()
-      | None ->
-        match not_found with
-        | Some render_404 -> render_404 ()
-        | None -> Html.empty
-    in
-    
-    (* Append the new content *)
-    Html.append_to_element container node
+    (* Only re-render if the path actually changed *)
+    if path <> !current_path then begin
+      current_path := path;
+      
+      (* Clear existing content *)
+      Dom.set_inner_html container "";
+      
+      (* Render the matched route - use untrack so component's internal
+         signals don't cause the outlet to re-render *)
+      let node = Reactive_core.untrack (fun () ->
+        match Route.match_routes routes path with
+        | Some (route, _result) ->
+          let component = Route.data route in
+          component ()
+        | None ->
+          match not_found with
+          | Some render_404 -> render_404 ()
+          | None -> Html.empty
+      ) in
+      
+      (* Append the new content *)
+      Html.append_to_element container node
+    end
   );
   
   Html.Element container
