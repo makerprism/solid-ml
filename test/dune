@@ -1,19 +1,23 @@
 (test
- (name test_reactive)
- (libraries solid-ml))
+  (name test_reactive)
+  (libraries solid-ml))
 
 (test
- (name test_html)
- (libraries solid-ml solid-ml-html))
+  (name test_html)
+  (libraries solid-ml solid-ml-html))
 
 (test
- (name test_solidjs_compat)
- (libraries solid-ml))
+  (name test_solidjs_compat)
+  (libraries solid-ml))
 
 (test
- (name test_router)
- (libraries solid-ml solid-ml-html solid-ml-router))
+  (name test_router)
+  (libraries solid-ml solid-ml-html solid-ml-router))
 
 (test
- (name test_suspense)
- (libraries solid-ml solid-ml-router))
+  (name test_suspense)
+  (libraries solid-ml solid-ml-router))
+
+(test
+  (name test_additional_components)
+  (libraries solid-ml))

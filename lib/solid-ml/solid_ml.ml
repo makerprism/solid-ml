@@ -75,3 +75,9 @@ module ErrorBoundary = Error_boundary
 
 (** Generate unique IDs for SSR hydration *)
 module Unique_id = Unique_id
+
+(** Reactive store with nested reactivity *)
+module Store = Store
+
+(** Async resource with loading/error/ready states *)
+module Resource = Resource

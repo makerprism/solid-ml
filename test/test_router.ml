@@ -645,12 +645,12 @@ let test_resource () =
     )
   );
   
-  test "resource create_loading is loading" (fun () ->
+  test "resource create_loading is pending" (fun () ->
     Runtime.run (fun () ->
       let r = Resource.create_loading () in
       match Resource.read r with
-      | Resource.Loading -> ()
-      | _ -> failwith "expected Loading"
+      | Resource.Pending -> ()
+      | _ -> failwith "expected Pending"
     )
   );
   
@@ -732,16 +732,17 @@ let test_resource () =
     Runtime.run (fun () ->
       let r = Resource.create_loading () in
       match Resource.map (fun x -> x * 2) r with
-      | Resource.Loading -> ()
-      | _ -> failwith "expected Loading"
+      | Resource.Pending -> ()
+      | _ -> failwith "expected Pending"
     )
   );
-  
+
   test "resource combine both ready" (fun () ->
     Runtime.run (fun () ->
       let r1 = Resource.of_value 1 in
       let r2 = Resource.of_value 2 in
-      match Resource.combine r1 r2 with
+      let combined = Resource.combine r1 r2 in
+      match Resource.read combined with
       | Resource.Ready (a, b) -> 
         assert_equal a 1;
         assert_equal b 2
@@ -753,9 +754,10 @@ let test_resource () =
     Runtime.run (fun () ->
       let r1 = Resource.of_value 1 in
       let r2 = Resource.create_loading () in
-      match Resource.combine r1 r2 with
-      | Resource.Loading -> ()
-      | _ -> failwith "expected Loading"
+      let combined = Resource.combine r1 r2 in
+      match Resource.read combined with
+      | Resource.Pending -> ()
+      | _ -> failwith "expected Pending"
     )
   );
   
@@ -763,7 +765,8 @@ let test_resource () =
     Runtime.run (fun () ->
       let r1 = Resource.of_value 1 in
       let r2 = Resource.of_error "fail" in
-      match Resource.combine r1 r2 with
+      let combined = Resource.combine r1 r2 in
+      match Resource.read combined with
       | Resource.Error msg -> assert_equal msg "fail"
       | _ -> failwith "expected Error"
     )
@@ -774,7 +777,8 @@ let test_resource () =
       let r1 = Resource.of_value 1 in
       let r2 = Resource.of_value 2 in
       let r3 = Resource.of_value 3 in
-      match Resource.combine_all [r1; r2; r3] with
+      let combined = Resource.combine_all [r1; r2; r3] in
+      match Resource.read combined with
       | Resource.Ready lst -> assert_equal lst [1; 2; 3]
       | _ -> failwith "expected Ready"
     )

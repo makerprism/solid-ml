@@ -271,6 +271,37 @@ let img ?id ?class_ ?src ?alt ?width ?height () =
   (match height with Some n -> set_attribute el "height" (string_of_int n) | None -> ());
   Element el
 
+(** {1 Portal} *)
+
+(** Portal type for the browser module *)
+type portal_props = {
+  target : Dom.element option;
+  use_shadow : bool;
+  is_svg : bool;
+  children : node;
+}
+
+(** Create a portal (client-side only) *)
+external portal : portal_props -> node = "undefined" [@@mel.scope "window"]
+
+(** Shorthand portal functions *)
+let portal ?target ?(use_shadow=false) ?(is_svg=false) ~children () =
+  portal { target; use_shadow; is_svg; children }
+
+(** {1 Portal} *)
+
+(** Create a portal that mounts children into a different DOM node.
+    - target: DOM element to mount into (None = document.body)
+    - is_svg: Use <g> wrapper instead of <div> for SVG context
+    - children: Content to render in the portal *)
+let portal ?target ?(is_svg=false) ~(children : node) () : node =
+  Portal.create {
+    target;
+    use_shadow = false;
+    is_svg;
+    children;
+  }
+
 (** {1 Node Access} *)
 
 (** Get the underlying DOM element (for direct manipulation) *)
