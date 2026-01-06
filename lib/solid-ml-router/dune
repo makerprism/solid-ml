@@ -1,0 +1,11 @@
+; solid-ml-router: SSR-aware routing
+;
+; Provides route matching with:
+; - Static paths: /users/profile
+; - Dynamic parameters: /users/:id
+; - Wildcards: /files/*
+
+(library
+ (name solid_ml_router)
+ (public_name solid-ml-router)
+ (libraries solid-ml))

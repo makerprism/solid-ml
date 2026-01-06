@@ -9,3 +9,7 @@
 (test
  (name test_solidjs_compat)
  (libraries solid-ml))
+
+(test
+ (name test_router)
+ (libraries solid-ml-router))
