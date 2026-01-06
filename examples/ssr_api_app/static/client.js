@@ -2399,6 +2399,9 @@ function get_element_by_id(prim0, prim1) {
 function query_selector(prim0, prim1) {
   return nullable_to_opt(prim0.querySelector(prim1));
 }
+function set_attribute(prim0, prim1, prim2) {
+  prim0.setAttribute(prim1, prim2);
+}
 function get_attribute(prim0, prim1) {
   return nullable_to_opt(prim0.getAttribute(prim1));
 }
@@ -9140,6 +9143,18 @@ var json_array_map = (function(json, fn) {
     return [];
   }
 });
+function parse_user(json) {
+  return {
+    id: json_get_int(json, "id"),
+    name: json_get_string(json, "name"),
+    username: json_get_string(json, "username"),
+    email: json_get_string(json, "email"),
+    phone: json_get_string(json, "phone"),
+    website: json_get_string(json, "website"),
+    company: json_get_string(json, "company"),
+    city: json_get_string(json, "city")
+  };
+}
 function parse_post(json) {
   return {
     id: json_get_int(json, "id"),
@@ -9156,6 +9171,25 @@ function parse_comment(json) {
     email: json_get_string(json, "email"),
     body: json_get_string(json, "body")
   };
+}
+function fetch_users(on_success, on_error) {
+  fetch_json_raw("/api/users", (function(json) {
+    _1(on_success, map(parse_user, json_array_map(json, (function(item) {
+      return item;
+    }))));
+  }), on_error);
+}
+function fetch_user(id, on_success, on_error) {
+  fetch_json_raw("/api/users/" + String(id), (function(json) {
+    _1(on_success, parse_user(json));
+  }), on_error);
+}
+function fetch_user_posts(user_id, on_success, on_error) {
+  fetch_json_raw("/api/users/" + (String(user_id) + "/posts"), (function(json) {
+    _1(on_success, map(parse_post, json_array_map(json, (function(item) {
+      return item;
+    }))));
+  }), on_error);
 }
 function fetch_posts(on_success, on_error) {
   fetch_json_raw("/api/posts", (function(json) {
@@ -9203,11 +9237,24 @@ function html_escape(s) {
   }), s);
   return contents(b);
 }
-function render_post_card(post) {
-  return '<div class="post-card">\n    <h3><a href="/posts/' + (String(post.id) + ('" data-link>' + (html_escape(post.title) + ("</a></h3>\n    <p>" + (html_escape(sub4(post.body, 0, caml_int_min(120, post.body.length))) + ('...</p>\n    <div class="meta">Post #' + (String(post.id) + (" by User #" + (String(post.user_id) + "</div>\n  </div>")))))))));
+function render_post_card(show_userOpt, post) {
+  const show_user = show_userOpt !== void 0 ? show_userOpt : true;
+  const meta = show_user ? "Post #" + (String(post.id) + (' by <a href="/users/' + (String(post.user_id) + ('">User #' + (String(post.user_id) + "</a>"))))) : "Post #" + String(post.id);
+  return '<div class="card">\n    <h3><a href="/posts/' + (String(post.id) + ('">' + (html_escape(post.title) + ("</a></h3>\n    <p>" + (html_escape(sub4(post.body, 0, caml_int_min(120, post.body.length))) + ('...</p>\n    <div class="meta">' + (meta + "</div>\n  </div>")))))));
 }
-function render_posts_list(posts) {
-  return concat2("\n", map(render_post_card, posts));
+function render_posts_list(show_userOpt, posts) {
+  const show_user = show_userOpt !== void 0 ? show_userOpt : true;
+  const partial_arg = show_user;
+  return concat2("\n", map((function(param) {
+    return render_post_card(partial_arg, param);
+  }), posts));
+}
+function render_user_card(user) {
+  const initial = user.name.length !== 0 ? sub4(user.name, 0, 1) : "?";
+  return '<div class="card user-card">\n    <div class="avatar">' + (initial + ('</div>\n    <div class="info">\n      <h3><a href="/users/' + (String(user.id) + ('">' + (html_escape(user.name) + ('</a></h3>\n      <p class="username">@' + (html_escape(user.username) + ('</p>\n      <div class="details">' + (html_escape(user.email) + (" \xC2\xB7 " + (html_escape(user.city) + "</div>\n    </div>\n  </div>")))))))))));
+}
+function render_users_list(users) {
+  return concat2("\n", map(render_user_card, users));
 }
 function render_comment(comment) {
   return '<div class="comment">\n    <div class="author">' + (html_escape(comment.name) + ('</div>\n    <div class="email">' + (html_escape(comment.email) + ('</div>\n    <div class="body">' + (html_escape(comment.body) + "</div>\n  </div>")))));
@@ -9215,94 +9262,261 @@ function render_comment(comment) {
 function render_comments(comments) {
   return concat2("\n", map(render_comment, comments));
 }
-function render_post_detail(post) {
-  return "<h2>" + (html_escape(post.title) + ('</h2>\n  <div class="meta">Post #' + (String(post.id) + (" by User #" + (String(post.user_id) + ('</div>\n  <div class="body">' + (html_escape(post.body) + "</div>")))))));
-}
 function render_loading(param) {
   return '<div class="loading">Loading...</div>';
 }
 function render_error(msg) {
   return '<div class="error"><h2>Error</h2><p>' + (html_escape(msg) + "</p></div>");
 }
+function render_breadcrumb(items) {
+  const render = function(param) {
+    if (!param) {
+      return "";
+    }
+    const match = param.hd;
+    const href = match[1];
+    const label = match[0];
+    if (href !== void 0) {
+      return '<a href="' + (href + ('">' + (html_escape(label) + ('</a><span class="separator"> / </span>' + render(param.tl)))));
+    }
+    const rest = param.tl;
+    if (rest) {
+      return '<span class="current">' + (html_escape(label) + ('</span><span class="separator"> / </span>' + render(rest)));
+    } else {
+      return '<span class="current">' + (html_escape(label) + "</span>");
+    }
+  };
+  return '<div class="breadcrumb">' + (render(items) + "</div>");
+}
+function render_hydration_status(param) {
+  return '<div id="hydration-status" class="hydration-status active">Client-side navigation active.</div>';
+}
 var current_path = {
   contents: get_pathname()
 };
 function setup_links(param) {
-  const links = query_selector_all($$document, "a[data-link], .post-card h3 a, .back-link, .nav-link");
+  const links = query_selector_all($$document, "a[href^='/']");
   iter((function(link) {
-    add_event_listener(link, "click", (function(evt) {
-      const href = get_attribute(link, "href");
-      if (href !== void 0 && href.length !== 0 && get(href, 0) === /* '/' */
-      47) {
-        prevent_default(evt);
-        return navigate(href);
-      }
-    }));
+    const match = get_attribute(link, "data-setup");
+    if (match !== void 0) {
+      return;
+    } else {
+      set_attribute(link, "data-setup", "true");
+      return add_event_listener(link, "click", (function(evt) {
+        const href = get_attribute(link, "href");
+        if (href !== void 0 && href.length !== 0 && get(href, 0) === /* '/' */
+        47) {
+          prevent_default(evt);
+          return navigate(href);
+        }
+      }));
+    }
   }), links);
 }
 function navigate(path) {
-  if (path !== current_path.contents) {
-    current_path.contents = path;
-    push_state(path);
-    return render_page(path);
-  }
+  log("Navigating to: " + path);
+  current_path.contents = path;
+  push_state(path);
+  render_page(path);
 }
 function render_page(path) {
+  log("Rendering page: " + path);
   const app_el = get_element_by_id($$document, "app");
-  if (app_el === void 0) {
-    return;
-  }
-  const app_el$1 = valFromOption(app_el);
-  if (!(path.length > 7 && sub4(path, 0, 7) === "/posts/")) {
+  if (app_el !== void 0) {
+    const app_el$1 = valFromOption(app_el);
     if (path === "/") {
       return render_posts_page(app_el$1);
-    } else {
+    }
+    if (path === "/users") {
+      return render_users_page(app_el$1);
+    }
+    if (path.length > 7 && sub4(path, 0, 7) === "/posts/") {
+      const id_str = sub4(path, 7, path.length - 7 | 0);
+      const id = int_of_string_opt(id_str);
+      if (id !== void 0) {
+        return render_post_page(app_el$1, id);
+      } else {
+        return set_inner_html(app_el$1, render_error("Invalid post ID"));
+      }
+    }
+    if (!(path.length > 7 && sub4(path, 0, 7) === "/users/")) {
       return set_inner_html(app_el$1, render_error("Page not found: " + path));
     }
+    const id_str$1 = sub4(path, 7, path.length - 7 | 0);
+    const id$1 = int_of_string_opt(id_str$1);
+    if (id$1 !== void 0) {
+      return render_user_page(app_el$1, id$1);
+    } else {
+      return set_inner_html(app_el$1, render_error("Invalid user ID"));
+    }
   }
-  const id_str = sub4(path, 7, path.length - 7 | 0);
-  const id = int_of_string_opt(id_str);
-  if (id !== void 0) {
-    return render_post_page(app_el$1, id);
-  } else {
-    return set_inner_html(app_el$1, render_error("Invalid post ID"));
-  }
+  log("Error: #app element not found");
 }
 function render_posts_page(app_el) {
-  set_inner_html(app_el, '<h2>Recent Posts</h2>\n    <p>Click on a post to view details and comments.</p>\n    <div id="posts-list"><div class="loading">Loading...</div></div>\n    <div id="hydration-status" class="hydration-status active">\n      Client-side navigation active.\n    </div>');
+  log("Rendering posts page...");
+  set_inner_html(app_el, '<div class="section-title">\n      <h2>Recent Posts</h2>\n      <span class="count">Loading...</span>\n    </div>\n    <p>Click on a post to view details and comments, or click on a user to see their profile.</p>\n    <div id="content-list"><div class="loading">Loading...</div></div>\n    <div id="hydration-status" class="hydration-status active">Client-side navigation active.</div>');
+  setup_links();
   fetch_posts((function(posts) {
-    const el = get_element_by_id($$document, "posts-list");
+    log("Fetched " + (String(length(posts)) + " posts"));
+    const el = get_element_by_id($$document, "content-list");
+    if (el === void 0) {
+      return log("Error: content-list not found");
+    }
+    log("Found content-list, updating...");
+    set_inner_html(valFromOption(el), render_posts_list(true, posts));
+    const count_el = query_selector($$document, ".section-title .count");
+    if (count_el !== void 0) {
+      set_inner_html(valFromOption(count_el), String(length(posts)) + " posts");
+    }
+    setup_links();
+  }), (function(err) {
+    log("Error fetching posts: " + err);
+    const el = get_element_by_id($$document, "content-list");
     if (el !== void 0) {
-      set_inner_html(valFromOption(el), render_posts_list(posts));
+      return set_inner_html(valFromOption(el), render_error("Failed to load posts: " + err));
+    }
+  }));
+}
+function render_users_page(app_el) {
+  log("Rendering users page...");
+  set_inner_html(app_el, '<div class="section-title">\n      <h2>All Users</h2>\n      <span class="count">Loading...</span>\n    </div>\n    <p>Click on a user to view their profile and posts.</p>\n    <div id="content-list"><div class="loading">Loading...</div></div>\n    <div id="hydration-status" class="hydration-status active">Client-side navigation active.</div>');
+  setup_links();
+  fetch_users((function(users) {
+    log("Fetched " + (String(length(users)) + " users"));
+    const el = get_element_by_id($$document, "content-list");
+    if (el === void 0) {
+      return log("Error: content-list not found");
+    }
+    set_inner_html(valFromOption(el), render_users_list(users));
+    const count_el = query_selector($$document, ".section-title .count");
+    if (count_el !== void 0) {
+      set_inner_html(valFromOption(count_el), String(length(users)) + " users");
+    }
+    setup_links();
+  }), (function(err) {
+    log("Error fetching users: " + err);
+    const el = get_element_by_id($$document, "content-list");
+    if (el !== void 0) {
+      return set_inner_html(valFromOption(el), render_error("Failed to load users: " + err));
+    }
+  }));
+}
+function render_user_page(app_el, user_id) {
+  log("Rendering user page for ID: " + String(user_id));
+  set_inner_html(app_el, render_breadcrumb({
+    hd: [
+      "Users",
+      "/users"
+    ],
+    tl: {
+      hd: [
+        "Loading...",
+        void 0
+      ],
+      tl: (
+        /* [] */
+        0
+      )
+    }
+  }) + '<div id="user-profile"><div class="loading">Loading...</div></div>\n    <div class="detail-section" id="user-posts">\n      <div class="section-title">\n        <h3>Posts</h3>\n        <span class="count">Loading...</span>\n      </div>\n      <div id="content-list"><div class="loading">Loading...</div></div>\n    </div>\n    <div id="hydration-status" class="hydration-status active">Client-side navigation active.</div>');
+  setup_links();
+  fetch_user(user_id, (function(user) {
+    log("Fetched user: " + user.name);
+    const initial = user.name.length !== 0 ? sub4(user.name, 0, 1) : "?";
+    const bc = query_selector($$document, ".breadcrumb");
+    if (bc !== void 0) {
+      set_inner_html(valFromOption(bc), '<a href="/users">Users</a><span class="separator"> / </span><span class="current">' + (html_escape(user.name) + "</span>"));
+    }
+    const el = get_element_by_id($$document, "user-profile");
+    if (el !== void 0) {
+      set_inner_html(valFromOption(el), '<div class="user-profile">\n            <div class="avatar">' + (initial + ('</div>\n            <div class="info">\n              <h2>' + (html_escape(user.name) + ('</h2>\n              <p class="username">@' + (html_escape(user.username) + ('</p>\n              <div class="details">\n                <span>Email: ' + (html_escape(user.email) + ("</span>\n                <span>Phone: " + (html_escape(user.phone) + ('</span>\n                <span>Website: <a href="https://' + (html_escape(user.website) + ('" target="_blank">' + (html_escape(user.website) + ("</a></span>\n                <span>Location: " + (html_escape(user.city) + ("</span>\n                <span>Company: " + (html_escape(user.company) + "</span>\n              </div>\n            </div>\n          </div>"))))))))))))))))));
       return setup_links();
     }
   }), (function(err) {
-    const el = get_element_by_id($$document, "posts-list");
+    log("Error fetching user: " + err);
+    const el = get_element_by_id($$document, "user-profile");
+    if (el !== void 0) {
+      return set_inner_html(valFromOption(el), render_error("Failed to load user: " + err));
+    }
+  }));
+  fetch_user_posts(user_id, (function(posts) {
+    log("Fetched " + (String(length(posts)) + " posts for user"));
+    const el = get_element_by_id($$document, "content-list");
+    if (el === void 0) {
+      return log("Error: content-list not found");
+    }
+    set_inner_html(valFromOption(el), render_posts_list(false, posts));
+    const count_el = query_selector($$document, "#user-posts .count");
+    if (count_el !== void 0) {
+      set_inner_html(valFromOption(count_el), String(length(posts)) + " posts");
+    }
+    setup_links();
+  }), (function(err) {
+    log("Error fetching user posts: " + err);
+    const el = get_element_by_id($$document, "content-list");
     if (el !== void 0) {
       return set_inner_html(valFromOption(el), render_error("Failed to load posts: " + err));
     }
   }));
 }
 function render_post_page(app_el, post_id) {
-  set_inner_html(app_el, '<a href="/" class="back-link" data-link>\xE2\x86\x90 Back to all posts</a>\n    <div class="post-detail" id="post-detail"><div class="loading">Loading...</div></div>\n    <div class="comments" id="comments-section">\n      <h3>Comments</h3>\n      <div id="comments-list"><div class="loading">Loading...</div></div>\n    </div>\n    <div id="hydration-status" class="hydration-status active">\n      Client-side navigation active.\n    </div>');
+  log("Rendering post page for ID: " + String(post_id));
+  set_inner_html(app_el, render_breadcrumb({
+    hd: [
+      "Posts",
+      "/"
+    ],
+    tl: {
+      hd: [
+        "Loading...",
+        void 0
+      ],
+      tl: (
+        /* [] */
+        0
+      )
+    }
+  }) + '<div class="detail-section" id="post-detail"><div class="loading">Loading...</div></div>\n    <div class="comments-section" id="comments-section">\n      <div class="section-title">\n        <h3>Comments</h3>\n        <span class="count">Loading...</span>\n      </div>\n      <div id="comments-list"><div class="loading">Loading...</div></div>\n    </div>\n    <div id="hydration-status" class="hydration-status active">Client-side navigation active.</div>');
   setup_links();
   fetch_post(post_id, (function(post) {
-    const el = get_element_by_id($$document, "post-detail");
-    if (el !== void 0) {
-      return set_inner_html(valFromOption(el), render_post_detail(post));
+    log("Fetched post: " + post.title);
+    const bc = query_selector($$document, ".breadcrumb");
+    if (bc !== void 0) {
+      set_inner_html(valFromOption(bc), '<a href="/">Posts</a><span class="separator"> / </span><span class="current">' + (html_escape(post.title) + "</span>"));
     }
+    fetch_user(post.user_id, (function(author) {
+      const el = get_element_by_id($$document, "post-detail");
+      if (el !== void 0) {
+        set_inner_html(valFromOption(el), "<h2>" + (html_escape(post.title) + ('</h2>\n              <div class="meta">By <a href="/users/' + (String(author.id) + ('">' + (html_escape(author.name) + ("</a> (@" + (html_escape(author.username) + (')</div>\n              <div class="body">' + (html_escape(post.body) + "</div>"))))))))));
+        return setup_links();
+      }
+    }), (function(param) {
+      const el = get_element_by_id($$document, "post-detail");
+      if (el !== void 0) {
+        set_inner_html(valFromOption(el), "<h2>" + (html_escape(post.title) + ('</h2>\n              <div class="meta">By <a href="/users/' + (String(post.user_id) + ('">User #' + (String(post.user_id) + ('</a></div>\n              <div class="body">' + (html_escape(post.body) + "</div>"))))))));
+        return setup_links();
+      }
+    }));
   }), (function(err) {
+    log("Error fetching post: " + err);
     const el = get_element_by_id($$document, "post-detail");
     if (el !== void 0) {
       return set_inner_html(valFromOption(el), render_error("Failed to load post: " + err));
     }
   }));
   fetch_comments(post_id, (function(comments) {
-    const el = get_element_by_id($$document, "comments-section");
-    if (el !== void 0) {
-      return set_inner_html(valFromOption(el), "<h3>Comments (" + (String(length(comments)) + (')</h3>\n          <div id="comments-list">' + (render_comments(comments) + "</div>"))));
+    log("Fetched " + (String(length(comments)) + " comments"));
+    const el = get_element_by_id($$document, "comments-list");
+    if (el === void 0) {
+      return log("Error: comments-list not found");
+    }
+    set_inner_html(valFromOption(el), render_comments(comments));
+    const count_el = query_selector($$document, "#comments-section .count");
+    if (count_el !== void 0) {
+      return set_inner_html(valFromOption(count_el), String(length(comments)) + " comments");
     }
   }), (function(err) {
+    log("Error fetching comments: " + err);
     const el = get_element_by_id($$document, "comments-list");
     if (el !== void 0) {
       return set_inner_html(valFromOption(el), render_error("Failed to load comments: " + err));
@@ -9312,6 +9526,7 @@ function render_post_page(app_el, post_id) {
 function setup_navigation(param) {
   on_popstate(function(_evt) {
     const path = get_pathname();
+    log("Popstate event, path: " + path);
     current_path.contents = path;
     render_page(path);
   });
@@ -9333,6 +9548,9 @@ export {
   fetch_json_raw,
   fetch_post,
   fetch_posts,
+  fetch_user,
+  fetch_user_posts,
+  fetch_users,
   get_element,
   html_escape,
   json_array_map,
@@ -9341,18 +9559,24 @@ export {
   navigate,
   parse_comment,
   parse_post,
+  parse_user,
   query_selector2 as query_selector,
   query_selector_all2 as query_selector_all,
+  render_breadcrumb,
   render_comment,
   render_comments,
   render_error,
+  render_hydration_status,
   render_loading,
   render_page,
   render_post_card,
-  render_post_detail,
   render_post_page,
   render_posts_list,
   render_posts_page,
+  render_user_card,
+  render_user_page,
+  render_users_list,
+  render_users_page,
   setup_links,
   setup_navigation
 };

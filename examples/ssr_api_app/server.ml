@@ -5,6 +5,12 @@
     2. Server renders HTML with the fetched data
     3. Client hydrates and enables SPA navigation with client-side fetching
     
+    Routes:
+    - /           - All posts
+    - /posts/:id  - Post detail with comments
+    - /users      - All users
+    - /users/:id  - User detail with their posts
+    
     Run with: make example-ssr-api
     Then visit: http://localhost:8080
 *)
@@ -12,6 +18,17 @@
 open Solid_ml_html
 
 (** {1 Data Types} *)
+
+type user = {
+  id : int;
+  name : string;
+  username : string;
+  email : string;
+  phone : string;
+  website : string;
+  company_name : string;
+  city : string;
+}
 
 type post = {
   id : int;
@@ -29,6 +46,23 @@ type comment = {
 }
 
 (** {1 JSON Parsing} *)
+
+let parse_user json =
+  let open Yojson.Basic.Util in
+  {
+    id = json |> member "id" |> to_int;
+    name = json |> member "name" |> to_string;
+    username = json |> member "username" |> to_string;
+    email = json |> member "email" |> to_string;
+    phone = json |> member "phone" |> to_string;
+    website = json |> member "website" |> to_string;
+    company_name = json |> member "company" |> member "name" |> to_string;
+    city = json |> member "address" |> member "city" |> to_string;
+  }
+
+let parse_users json =
+  let open Yojson.Basic.Util in
+  json |> to_list |> List.map parse_user
 
 let parse_post json =
   let open Yojson.Basic.Util in
@@ -72,9 +106,30 @@ let fetch_json url =
   else
     Lwt.return_error (Printf.sprintf "HTTP %d" (Cohttp.Code.code_of_status status))
 
+let fetch_users () =
+  let open Lwt.Syntax in
+  let* result = fetch_json (api_base ^ "/users") in
+  match result with
+  | Ok json -> Lwt.return_ok (parse_users json)
+  | Error e -> Lwt.return_error e
+
+let fetch_user id =
+  let open Lwt.Syntax in
+  let* result = fetch_json (api_base ^ "/users/" ^ string_of_int id) in
+  match result with
+  | Ok json -> Lwt.return_ok (parse_user json)
+  | Error e -> Lwt.return_error e
+
 let fetch_posts () =
   let open Lwt.Syntax in
   let* result = fetch_json (api_base ^ "/posts?_limit=10") in
+  match result with
+  | Ok json -> Lwt.return_ok (parse_posts json)
+  | Error e -> Lwt.return_error e
+
+let fetch_user_posts user_id =
+  let open Lwt.Syntax in
+  let* result = fetch_json (api_base ^ "/users/" ^ string_of_int user_id ^ "/posts") in
   match result with
   | Ok json -> Lwt.return_ok (parse_posts json)
   | Error e -> Lwt.return_error e
@@ -97,11 +152,15 @@ let fetch_comments post_id =
 
 (** Page layout with navigation *)
 let layout ~title:page_title ~current_path ~children () =
+  let is_active path =
+    if path = "/" then current_path = "/"
+    else String.length current_path >= String.length path && 
+         String.sub current_path 0 (String.length path) = path
+  in
   let nav_link href link_text =
-    let is_active = current_path = href in
     Html.(
       a ~href 
-        ~class_:(if is_active then "nav-link active" else "nav-link")
+        ~class_:(if is_active href then "nav-link active" else "nav-link")
         ~children:[text link_text] ()
     )
   in
@@ -129,8 +188,9 @@ let layout ~title:page_title ~current_path ~children () =
             margin-bottom: 20px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
           }
-          header h1 { margin: 0 0 16px 0; color: #2563eb; }
-          nav { display: flex; gap: 8px; }
+          header h1 { margin: 0 0 8px 0; color: #2563eb; }
+          header .subtitle { margin: 0 0 16px 0; color: #6b7280; }
+          nav { display: flex; gap: 8px; flex-wrap: wrap; }
           .nav-link {
             padding: 8px 16px;
             text-decoration: none;
@@ -146,46 +206,92 @@ let layout ~title:page_title ~current_path ~children () =
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
           }
-          .post-card {
+          .card {
             border: 1px solid #e5e7eb;
             border-radius: 8px;
             padding: 16px;
             margin-bottom: 12px;
             transition: all 0.2s;
           }
-          .post-card:hover { 
+          .card:hover { 
             border-color: #2563eb;
             box-shadow: 0 2px 8px rgba(37,99,235,0.1);
           }
-          .post-card h3 { margin: 0 0 8px 0; }
-          .post-card h3 a { 
+          .card h3 { margin: 0 0 8px 0; }
+          .card h3 a { 
             color: #1f2937; 
             text-decoration: none;
           }
-          .post-card h3 a:hover { color: #2563eb; }
-          .post-card p { 
+          .card h3 a:hover { color: #2563eb; }
+          .card p { 
             color: #6b7280; 
             margin: 0;
             line-height: 1.5;
           }
-          .post-card .meta { 
+          .card .meta { 
             font-size: 12px; 
             color: #9ca3af;
             margin-top: 8px;
           }
-          .post-detail h2 { margin-top: 0; color: #1f2937; }
-          .post-detail .body { 
+          .card .meta a { color: #2563eb; text-decoration: none; }
+          .card .meta a:hover { text-decoration: underline; }
+          .user-card { display: flex; gap: 16px; align-items: flex-start; }
+          .user-card .avatar {
+            width: 48px;
+            height: 48px;
+            background: #e5e7eb;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #6b7280;
+            flex-shrink: 0;
+          }
+          .user-card .info { flex: 1; }
+          .user-card .info h3 { margin: 0 0 4px 0; }
+          .user-card .info .username { color: #6b7280; margin: 0 0 8px 0; }
+          .user-card .info .details { font-size: 13px; color: #9ca3af; }
+          .detail-section { margin-top: 24px; }
+          .detail-section h2 { margin-top: 0; color: #1f2937; }
+          .detail-section .body { 
             line-height: 1.7; 
             color: #4b5563;
             white-space: pre-wrap;
           }
-          .post-detail .meta {
+          .detail-section .meta {
             font-size: 14px;
             color: #9ca3af;
+            margin-bottom: 16px;
+          }
+          .detail-section .meta a { color: #2563eb; text-decoration: none; }
+          .detail-section .meta a:hover { text-decoration: underline; }
+          .user-profile {
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
             margin-bottom: 24px;
           }
-          .comments { margin-top: 32px; }
-          .comments h3 { 
+          .user-profile .avatar {
+            width: 80px;
+            height: 80px;
+            background: #e5e7eb;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 24px;
+            color: #6b7280;
+            flex-shrink: 0;
+          }
+          .user-profile .info h2 { margin: 0 0 4px 0; }
+          .user-profile .info .username { color: #6b7280; margin: 0 0 12px 0; font-size: 16px; }
+          .user-profile .info .details { display: grid; gap: 4px; font-size: 14px; color: #4b5563; }
+          .user-profile .info .details a { color: #2563eb; text-decoration: none; }
+          .user-profile .info .details a:hover { text-decoration: underline; }
+          .comments-section { margin-top: 32px; }
+          .comments-section h3 { 
             color: #1f2937;
             border-bottom: 2px solid #e5e7eb;
             padding-bottom: 8px;
@@ -210,13 +316,20 @@ let layout ~title:page_title ~current_path ~children () =
             color: #4b5563;
             line-height: 1.5;
           }
-          .back-link {
-            display: inline-block;
+          .breadcrumb {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 16px;
+            font-size: 14px;
+          }
+          .breadcrumb a {
             color: #2563eb;
             text-decoration: none;
-            margin-bottom: 16px;
           }
-          .back-link:hover { text-decoration: underline; }
+          .breadcrumb a:hover { text-decoration: underline; }
+          .breadcrumb .separator { color: #9ca3af; }
+          .breadcrumb .current { color: #6b7280; }
           .loading {
             text-align: center;
             padding: 40px;
@@ -246,16 +359,25 @@ let layout ~title:page_title ~current_path ~children () =
             font-size: 14px;
           }
           .hydration-status.active { display: block; }
+          .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+          }
+          .section-title h2 { margin: 0; }
+          .section-title .count { color: #9ca3af; font-size: 14px; }
         </style>|};
       ] ();
       body ~children:[
         header ~children:[
-          h1 ~children:[text "Posts Viewer"] ();
+          h1 ~children:[text "API Explorer"] ();
           p ~class_:"subtitle" ~children:[
-            text "SSR + API fetching demo"
+            text "SSR + client-side navigation demo"
           ] ();
           nav ~children:[
-            nav_link "/" "All Posts";
+            nav_link "/" "Posts";
+            nav_link "/users" "Users";
           ] ();
         ] ();
         main ~id:"app" ~children ();
@@ -275,10 +397,27 @@ let layout ~title:page_title ~current_path ~children () =
     ] ()
   )
 
+(** Breadcrumb navigation *)
+let breadcrumb items =
+  let rec render = function
+    | [] -> []
+    | [(label, None)] -> 
+      [Html.span ~class_:"current" ~children:[Html.text label] ()]
+    | (label, Some href) :: rest ->
+      Html.a ~href ~children:[Html.text label] () ::
+      Html.span ~class_:"separator" ~children:[Html.text " / "] () ::
+      render rest
+    | (label, None) :: rest ->
+      Html.span ~class_:"current" ~children:[Html.text label] () ::
+      Html.span ~class_:"separator" ~children:[Html.text " / "] () ::
+      render rest
+  in
+  Html.div ~class_:"breadcrumb" ~children:(render items) ()
+
 (** Render a post card for the list view *)
-let post_card (post : post) =
+let post_card ?(show_user=true) (post : post) =
   Html.(
-    div ~class_:"post-card" ~children:[
+    div ~class_:"card" ~children:[
       h3 ~children:[
         a ~href:("/posts/" ^ string_of_int post.id) ~children:[
           text post.title
@@ -287,8 +426,37 @@ let post_card (post : post) =
       p ~children:[
         text (String.sub post.body 0 (min 120 (String.length post.body)) ^ "...")
       ] ();
-      div ~class_:"meta" ~children:[
-        text ("Post #" ^ string_of_int post.id ^ " by User #" ^ string_of_int post.user_id)
+      div ~class_:"meta" ~children:(
+        if show_user then [
+          text "Post #";
+          text (string_of_int post.id);
+          text " by ";
+          a ~href:("/users/" ^ string_of_int post.user_id) ~children:[
+            text ("User #" ^ string_of_int post.user_id)
+          ] ()
+        ] else [
+          text ("Post #" ^ string_of_int post.id)
+        ]
+      ) ();
+    ] ()
+  )
+
+(** Render a user card for the list view *)
+let user_card (user : user) =
+  let initial = String.sub user.name 0 1 in
+  Html.(
+    div ~class_:"card user-card" ~children:[
+      div ~class_:"avatar" ~children:[text initial] ();
+      div ~class_:"info" ~children:[
+        h3 ~children:[
+          a ~href:("/users/" ^ string_of_int user.id) ~children:[
+            text user.name
+          ] ()
+        ] ();
+        p ~class_:"username" ~children:[text ("@" ^ user.username)] ();
+        div ~class_:"details" ~children:[
+          text (user.email ^ " · " ^ user.city)
+        ] ();
       ] ();
     ] ()
   )
@@ -303,42 +471,118 @@ let comment_view (comment : comment) =
     ] ()
   )
 
+(** {1 Page Components} *)
+
 (** Home page - list of posts *)
 let posts_page ~posts () =
-  layout ~title:"Posts - solid-ml SSR API Demo" ~current_path:"/" ~children:(
+  layout ~title:"Posts - API Explorer" ~current_path:"/" ~children:(
     Html.[
-      h2 ~children:[text "Recent Posts"] ();
-      p ~children:[
-        text "Click on a post to view details and comments."
+      div ~class_:"section-title" ~children:[
+        h2 ~children:[text "Recent Posts"] ();
+        span ~class_:"count" ~children:[
+          text (string_of_int (List.length posts) ^ " posts")
+        ] ();
       ] ();
-      div ~id:"posts-list" ~children:(List.map post_card posts) ();
+      p ~children:[
+        text "Click on a post to view details and comments, or click on a user to see their profile."
+      ] ();
+      div ~id:"posts-list" ~children:(List.map (post_card ~show_user:true) posts) ();
       div ~id:"hydration-status" ~class_:"hydration-status" ~children:[
         text "Hydrated! Links now use client-side navigation."
       ] ();
     ]
   ) ()
 
+(** Users list page *)
+let users_page ~users () =
+  layout ~title:"Users - API Explorer" ~current_path:"/users" ~children:(
+    Html.[
+      div ~class_:"section-title" ~children:[
+        h2 ~children:[text "All Users"] ();
+        span ~class_:"count" ~children:[
+          text (string_of_int (List.length users) ^ " users")
+        ] ();
+      ] ();
+      p ~children:[
+        text "Click on a user to view their profile and posts."
+      ] ();
+      div ~id:"users-list" ~children:(List.map user_card users) ();
+      div ~id:"hydration-status" ~class_:"hydration-status" ~children:[
+        text "Hydrated! Links now use client-side navigation."
+      ] ();
+    ]
+  ) ()
+
+(** User detail page *)
+let user_page ~(user : user) ~posts () =
+  let initial = String.sub user.name 0 1 in
+  layout ~title:(user.name ^ " - API Explorer") 
+    ~current_path:("/users/" ^ string_of_int user.id) ~children:(
+    Html.[
+      breadcrumb [("Users", Some "/users"); (user.name, None)];
+      div ~class_:"user-profile" ~children:[
+        div ~class_:"avatar" ~children:[text initial] ();
+        div ~class_:"info" ~children:[
+          h2 ~children:[text user.name] ();
+          p ~class_:"username" ~children:[text ("@" ^ user.username)] ();
+          div ~class_:"details" ~children:[
+            span ~children:[text ("Email: " ^ user.email)] ();
+            span ~children:[text ("Phone: " ^ user.phone)] ();
+            span ~children:[
+              text "Website: ";
+              a ~href:("https://" ^ user.website) ~target:"_blank" ~children:[
+                text user.website
+              ] ()
+            ] ();
+            span ~children:[text ("Location: " ^ user.city)] ();
+            span ~children:[text ("Company: " ^ user.company_name)] ();
+          ] ();
+        ] ();
+      ] ();
+      div ~class_:"detail-section" ~id:"user-posts" ~children:[
+        div ~class_:"section-title" ~children:[
+          h3 ~children:[text "Posts"] ();
+          span ~class_:"count" ~children:[
+            text (string_of_int (List.length posts) ^ " posts")
+          ] ();
+        ] ();
+        div ~id:"posts-list" ~children:(List.map (post_card ~show_user:false) posts) ();
+      ] ();
+      div ~id:"hydration-status" ~class_:"hydration-status" ~children:[
+        text "Hydrated! Navigation is now client-side."
+      ] ();
+    ]
+  ) ()
+
 (** Post detail page *)
-let post_page ~post ~comments () =
-  layout ~title:(post.title ^ " - solid-ml SSR API Demo") 
+let post_page ~(post : post) ~comments ~(author : user) () =
+  layout ~title:(post.title ^ " - API Explorer") 
     ~current_path:("/posts/" ^ string_of_int post.id) ~children:(
     Html.[
-      a ~href:"/" ~class_:"back-link" ~children:[text "← Back to all posts"] ();
-      div ~class_:"post-detail" ~id:"post-detail" ~children:[
+      breadcrumb [
+        ("Posts", Some "/"); 
+        (post.title, None)
+      ];
+      div ~class_:"detail-section" ~id:"post-detail" ~children:[
         h2 ~children:[text post.title] ();
         div ~class_:"meta" ~children:[
-          text ("Post #" ^ string_of_int post.id ^ " by User #" ^ string_of_int post.user_id)
+          text "By ";
+          a ~href:("/users/" ^ string_of_int author.id) ~children:[
+            text author.name
+          ] ();
+          text (" (@" ^ author.username ^ ")");
         ] ();
         div ~class_:"body" ~children:[text post.body] ();
       ] ();
-      div ~class_:"comments" ~id:"comments-section" ~children:[
-        h3 ~children:[
-          text ("Comments (" ^ string_of_int (List.length comments) ^ ")")
+      div ~class_:"comments-section" ~id:"comments-section" ~children:[
+        div ~class_:"section-title" ~children:[
+          h3 ~children:[text "Comments"] ();
+          span ~class_:"count" ~children:[
+            text (string_of_int (List.length comments) ^ " comments")
+          ] ();
         ] ();
         div ~id:"comments-list" ~children:(List.map comment_view comments) ();
       ] ();
-      (* Store post ID for client-side use *)
-      input ~type_:"hidden" ~id:"post-id" ~value:(string_of_int post.id) ();
       div ~id:"hydration-status" ~class_:"hydration-status" ~children:[
         text "Hydrated! Navigation is now client-side."
       ] ();
@@ -347,7 +591,7 @@ let post_page ~post ~comments () =
 
 (** Error page *)
 let error_page ~message () =
-  layout ~title:"Error - solid-ml SSR API Demo" ~current_path:"" ~children:(
+  layout ~title:"Error - API Explorer" ~current_path:"" ~children:(
     Html.[
       div ~class_:"error" ~children:[
         h2 ~children:[text "Error"] ();
@@ -361,7 +605,7 @@ let error_page ~message () =
 
 (** 404 page *)
 let not_found_page ~path () =
-  layout ~title:"Not Found - solid-ml SSR API Demo" ~current_path:path ~children:(
+  layout ~title:"Not Found - API Explorer" ~current_path:path ~children:(
     Html.[
       h2 ~children:[text "404 - Page Not Found"] ();
       p ~children:[
@@ -376,6 +620,68 @@ let not_found_page ~path () =
   ) ()
 
 (** {1 API Endpoints for Client-Side Fetching} *)
+
+let handle_api_users _req =
+  let open Lwt.Syntax in
+  let* result = fetch_users () in
+  match result with
+  | Ok users ->
+    let json = `List (List.map (fun (u : user) ->
+      `Assoc [
+        ("id", `Int u.id);
+        ("name", `String u.name);
+        ("username", `String u.username);
+        ("email", `String u.email);
+        ("phone", `String u.phone);
+        ("website", `String u.website);
+        ("company", `String u.company_name);
+        ("city", `String u.city);
+      ]
+    ) users) in
+    Dream.json (Yojson.Basic.to_string json)
+  | Error e ->
+    Dream.json ~status:`Internal_Server_Error 
+      (Printf.sprintf {|{"error": "%s"}|} e)
+
+let handle_api_user req =
+  let open Lwt.Syntax in
+  let id = Dream.param req "id" |> int_of_string in
+  let* result = fetch_user id in
+  match result with
+  | Ok user ->
+    let json = `Assoc [
+      ("id", `Int user.id);
+      ("name", `String user.name);
+      ("username", `String user.username);
+      ("email", `String user.email);
+      ("phone", `String user.phone);
+      ("website", `String user.website);
+      ("company", `String user.company_name);
+      ("city", `String user.city);
+    ] in
+    Dream.json (Yojson.Basic.to_string json)
+  | Error e ->
+    Dream.json ~status:`Internal_Server_Error 
+      (Printf.sprintf {|{"error": "%s"}|} e)
+
+let handle_api_user_posts req =
+  let open Lwt.Syntax in
+  let user_id = Dream.param req "id" |> int_of_string in
+  let* result = fetch_user_posts user_id in
+  match result with
+  | Ok posts ->
+    let json = `List (List.map (fun (p : post) ->
+      `Assoc [
+        ("id", `Int p.id);
+        ("userId", `Int p.user_id);
+        ("title", `String p.title);
+        ("body", `String p.body);
+      ]
+    ) posts) in
+    Dream.json (Yojson.Basic.to_string json)
+  | Error e ->
+    Dream.json ~status:`Internal_Server_Error 
+      (Printf.sprintf {|{"error": "%s"}|} e)
 
 let handle_api_posts _req =
   let open Lwt.Syntax in
@@ -418,7 +724,7 @@ let handle_api_comments req =
   let* result = fetch_comments post_id in
   match result with
   | Ok comments ->
-    let json = `List (List.map (fun c ->
+    let json = `List (List.map (fun (c : comment) ->
       `Assoc [
         ("id", `Int c.id);
         ("postId", `Int c.post_id);
@@ -445,6 +751,38 @@ let handle_posts _req =
     let html = Render.to_document (fun () -> error_page ~message:e ()) in
     Dream.html ~status:`Internal_Server_Error html
 
+let handle_users _req =
+  let open Lwt.Syntax in
+  let* result = fetch_users () in
+  match result with
+  | Ok users ->
+    let html = Render.to_document (fun () -> users_page ~users ()) in
+    Dream.html html
+  | Error e ->
+    let html = Render.to_document (fun () -> error_page ~message:e ()) in
+    Dream.html ~status:`Internal_Server_Error html
+
+let handle_user req =
+  let open Lwt.Syntax in
+  let id = 
+    try Some (Dream.param req "id" |> int_of_string)
+    with _ -> None
+  in
+  match id with
+  | None ->
+    let html = Render.to_document (fun () -> error_page ~message:"Invalid user ID" ()) in
+    Dream.html ~status:`Bad_Request html
+  | Some id ->
+    let* user_result = fetch_user id in
+    let* posts_result = fetch_user_posts id in
+    match user_result, posts_result with
+    | Ok user, Ok posts ->
+      let html = Render.to_document (fun () -> user_page ~user ~posts ()) in
+      Dream.html html
+    | Error e, _ | _, Error e ->
+      let html = Render.to_document (fun () -> error_page ~message:e ()) in
+      Dream.html ~status:`Internal_Server_Error html
+
 let handle_post req =
   let open Lwt.Syntax in
   let id = 
@@ -457,14 +795,20 @@ let handle_post req =
     Dream.html ~status:`Bad_Request html
   | Some id ->
     let* post_result = fetch_post id in
-    let* comments_result = fetch_comments id in
-    match post_result, comments_result with
-    | Ok post, Ok comments ->
-      let html = Render.to_document (fun () -> post_page ~post ~comments ()) in
-      Dream.html html
-    | Error e, _ | _, Error e ->
+    match post_result with
+    | Error e ->
       let html = Render.to_document (fun () -> error_page ~message:e ()) in
       Dream.html ~status:`Internal_Server_Error html
+    | Ok post ->
+      let* author_result = fetch_user post.user_id in
+      let* comments_result = fetch_comments id in
+      match author_result, comments_result with
+      | Ok author, Ok comments ->
+        let html = Render.to_document (fun () -> post_page ~post ~comments ~author ()) in
+        Dream.html html
+      | Error e, _ | _, Error e ->
+        let html = Render.to_document (fun () -> error_page ~message:e ()) in
+        Dream.html ~status:`Internal_Server_Error html
 
 let handle_not_found req =
   let path = Dream.target req in
@@ -486,11 +830,8 @@ let () =
   Printf.printf "Pages:\n";
   Printf.printf "  http://localhost:%d/           - All posts\n" port;
   Printf.printf "  http://localhost:%d/posts/:id  - Post detail\n" port;
-  Printf.printf "\n";
-  Printf.printf "API Endpoints:\n";
-  Printf.printf "  http://localhost:%d/api/posts        - List posts (JSON)\n" port;
-  Printf.printf "  http://localhost:%d/api/posts/:id    - Get post (JSON)\n" port;
-  Printf.printf "  http://localhost:%d/api/posts/:id/comments - Get comments (JSON)\n" port;
+  Printf.printf "  http://localhost:%d/users      - All users\n" port;
+  Printf.printf "  http://localhost:%d/users/:id  - User profile\n" port;
   Printf.printf "\n";
   Printf.printf "Press Ctrl+C to stop\n";
   flush stdout;
@@ -499,12 +840,17 @@ let () =
   @@ Dream.logger
   @@ Dream.router [
     (* API endpoints for client-side fetching *)
+    Dream.get "/api/users" handle_api_users;
+    Dream.get "/api/users/:id" handle_api_user;
+    Dream.get "/api/users/:id/posts" handle_api_user_posts;
     Dream.get "/api/posts" handle_api_posts;
     Dream.get "/api/posts/:id" handle_api_post;
     Dream.get "/api/posts/:id/comments" handle_api_comments;
     (* HTML pages *)
     Dream.get "/" handle_posts;
     Dream.get "/posts/:id" handle_post;
+    Dream.get "/users" handle_users;
+    Dream.get "/users/:id" handle_user;
     (* Static files *)
     Dream.get "/static/**" (Dream.static "examples/ssr_api_app/static");
     (* 404 fallback *)
