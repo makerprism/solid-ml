@@ -66,8 +66,8 @@ val html : ?lang:string -> children:node list -> unit -> node
 val head : children:node list -> unit -> node
 val body : ?id:string -> ?class_:string -> children:node list -> unit -> node
 val title : children:node list -> unit -> node
-val meta : ?charset:string -> ?name:string -> ?content:string -> unit -> node
-val link : ?rel:string -> ?href:string -> ?type_:string -> unit -> node
+val meta : ?charset:string -> ?name:string -> ?property:string -> ?content:string -> unit -> node
+val link : ?rel:string -> ?href:string -> ?hreflang:string -> ?type_:string -> unit -> node
 val script : ?src:string -> ?type_:string -> ?defer:bool -> ?async:bool -> children:node list -> unit -> node
 
 (** {2 Content Sectioning} *)

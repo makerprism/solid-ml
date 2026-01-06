@@ -111,12 +111,12 @@ let body ?id ?class_ ~children () =
 
 let title ~children () = element "title" [] children
 
-let meta ?charset ?name ?content () =
-  let attrs = [] |> add_opt "charset" charset |> add_opt "name" name |> add_opt "content" content in
+let meta ?charset ?name ?property ?content () =
+  let attrs = [] |> add_opt "charset" charset |> add_opt "name" name |> add_opt "property" property |> add_opt "content" content in
   element "meta" ~self_closing:true attrs []
 
-let link ?rel ?href ?type_ () =
-  let attrs = [] |> add_opt "rel" rel |> add_opt "href" href |> add_opt "type" type_ in
+let link ?rel ?href ?hreflang ?type_ () =
+  let attrs = [] |> add_opt "rel" rel |> add_opt "href" href |> add_opt "hreflang" hreflang |> add_opt "type" type_ in
   element "link" ~self_closing:true attrs []
 
 let script ?src ?type_ ?(defer=false) ?(async=false) ~children () =
