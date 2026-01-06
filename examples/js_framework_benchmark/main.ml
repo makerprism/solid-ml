@@ -165,64 +165,40 @@ let row_template : Dom.element Lazy.t = lazy (
 
 (** {1 Row Rendering with Disposal Tracking} *)
 
-(** Row state includes the DOM element and dispose function for cleanup *)
+(** Row state includes the DOM element and dispose functions for cleanup *)
 type row_state = {
   element : Dom.element;
-  dispose : unit -> unit;
+  label_dispose : unit -> unit;
+  sel_dispose : unit -> unit;
 }
 
-(** Render a single row. Uses:
-    - Template cloning for faster DOM creation
-    - createSelector for O(1) selection updates
-    - Inline event handlers matching SolidJS
-    - Proper cleanup on disposal *)
-let render_row row =
-  let row_id = row.id in
+(** Render a single row. Creates effects in the caller's reactive root
+    rather than creating a new root per row (more efficient, idiomatic). *)
+let create_row_effects ~row ~tr ~td1 ~a =
   let check_selected = match !is_selected with Some f -> f | None -> failwith "selector not initialized" in
   
-  (* Clone the template - much faster than creating elements individually *)
-  let tr = Dom.clone_node (Lazy.force row_template) true in
+  (* TD 1: ID - static content, set once - no reactive binding needed! *)
+  Dom.set_text_content td1 (string_of_int row.id);
   
-  (* Get references to child elements *)
-  let children = Dom.get_children tr in
-  let td1 = children.(0) in
-  let td2 = children.(1) in
-  let td3 = children.(2) in
+  (* TD 2: Label - reactive text content *)
+  (* Initial value set without tracking *)
+  Dom.set_text_content a (Reactive.Signal.peek row.label);
+  (* Effect for updates *)
+  let label_dispose = Reactive.Effect.create
+    ~track:(fun () -> Reactive.Signal.get row.label)
+    ~run:(fun label -> Dom.set_text_content a label)
+  in
   
-  (* Get the anchor elements *)
-  let a = (Dom.get_children td2).(0) in
-  let a_del = (Dom.get_children td3).(0) in
+  (* Reactive class binding using selector - O(1) instead of O(n)! *)
+  let init_sel = Reactive.Effect.untrack (fun () -> check_selected row.id) in
+  if init_sel then Dom.set_class_name tr "danger";
+  (* Effect for updates *)
+  let sel_dispose = Reactive.Effect.create
+    ~track:(fun () -> check_selected row.id)
+    ~run:(fun is_sel -> Dom.set_class_name tr (if is_sel then "danger" else ""))
+  in
   
-  (* Create effects within a root so we can dispose them *)
-  let dispose = Reactive.Owner.create_root (fun () ->
-    (* TD 1: ID - static content, set once *)
-    Dom.set_text_content td1 (string_of_int row_id);
-    
-    (* TD 2: Label - reactive text content *)
-    (* Initial value set without tracking *)
-    Dom.set_text_content a (Reactive.Signal.peek row.label);
-    (* Effect for updates - skips first run since we set initial above *)
-    Reactive.Effect.create_deferred
-      ~track:(fun () -> Reactive.Signal.get row.label)
-      ~run:(fun label -> Dom.set_text_content a label);
-    
-    (* Reactive class binding using selector - O(1) instead of O(n)! *)
-    (* Initial value *)
-    let init_sel = Reactive.Effect.untrack (fun () -> check_selected row_id) in
-    if init_sel then Dom.set_class_name tr "danger";
-    (* Effect for updates - skips first run *)
-    Reactive.Effect.create_deferred
-      ~track:(fun () -> check_selected row_id)
-      ~run:(fun is_sel -> Dom.set_class_name tr (if is_sel then "danger" else ""));
-    
-    (* Inline event handlers - matching SolidJS exactly *)
-    Dom.add_event_listener a "click" (fun _ -> select row_id);
-    Dom.add_event_listener a_del "click" (fun _ -> remove row_id)
-    
-    (* No manual cleanup needed - selector auto-cleans up via Owner.on_cleanup *)
-  ) in
-  
-  { element = tr; dispose }
+  { element = tr; label_dispose; sel_dispose }
 
 (** {1 DOM Reconciliation Algorithm} *)
 
@@ -380,18 +356,22 @@ let render_keyed_list ~(items : row array Reactive.Signal.t) (parent : Dom.eleme
   (* Track previous DOM elements for reconciliation *)
   let prev_nodes : Dom.element array ref = ref [||] in
   
-  Reactive.Effect.create (fun () ->
+  Reactive.Owner.create_root (fun () ->
     let new_items = Reactive.Signal.get items in
     let new_len = Array.length new_items in
     
     (* Build set of new IDs for O(1) lookup *)
     let new_id_set = Hashtbl.create new_len in
-    Array.iter (fun row -> Hashtbl.replace new_id_set row.id ()) new_items;
+    Array.iter (fun row -> Hashtbl.replace new_id_set row.id ()) new_items in
     
-    (* Dispose removed items (but don't remove from DOM yet - reconcile handles that) *)
+    (* Get selector once for this render *)
+    let check_selected = match !is_selected with Some f -> f | None -> failwith "selector not initialized" in
+    
+    (* Dispose removed items (effects only - DOM removal handled by reconcile) *)
     Hashtbl.iter (fun id state ->
       if not (Hashtbl.mem new_id_set id) then begin
-        state.dispose ();
+        (try state.label_dispose () with _ -> ());
+        (try state.sel_dispose () with _ -> ());
         Hashtbl.remove node_map id
       end
     ) node_map;
@@ -401,7 +381,20 @@ let render_keyed_list ~(items : row array Reactive.Signal.t) (parent : Dom.eleme
       match Hashtbl.find_opt node_map row.id with
       | Some state -> state.element
       | None ->
-        let state = render_row row in
+        let tr = Dom.clone_node (Lazy.force row_template) true in
+        let children = Dom.get_children tr in
+        let td1 = children.(0) in
+        let td2 = children.(1) in
+        let td3 = children.(2) in
+        let a = (Dom.get_children td2).(0) in
+        let a_del = (Dom.get_children td3).(0) in
+        
+        (* Event handlers - inline, matching SolidJS *)
+        Dom.add_event_listener a "click" (fun _ -> select row.id);
+        Dom.add_event_listener a_del "click" (fun _ -> remove row.id);
+        
+        (* Create row effects in the shared root *)
+        let state = create_row_effects ~row ~tr ~td1 ~a in
         Hashtbl.replace node_map row.id state;
         state.element
     ) new_items in
@@ -422,14 +415,15 @@ let render_keyed_list ~(items : row array Reactive.Signal.t) (parent : Dom.eleme
     prev_nodes := new_nodes
   );
   
-  (* Cleanup on disposal *)
-  Reactive.Owner.on_cleanup (fun () ->
-    Hashtbl.iter (fun _ state ->
-      state.dispose ();
-      Dom.remove_child parent (Dom.node_of_element state.element)
-    ) node_map;
-    Hashtbl.clear node_map
-  )
+   (* Cleanup on disposal - dispose effects and remove DOM *)
+   Reactive.Owner.on_cleanup (fun () ->
+     Hashtbl.iter (fun _ state ->
+       (try state.label_dispose () with _ -> ());
+       (try state.sel_dispose () with _ -> ());
+       Dom.remove_child parent (Dom.node_of_element state.element)
+     ) node_map;
+     Hashtbl.clear node_map
+   )
 
 (** {1 Main App} *)
 
