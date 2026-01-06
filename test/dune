@@ -5,3 +5,7 @@
 (test
  (name test_html)
  (libraries solid-ml solid-ml-html))
+
+(test
+ (name test_solidjs_compat)
+ (libraries solid-ml))

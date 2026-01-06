@@ -1,0 +1,355 @@
+(** Low-level DOM API bindings for Melange.
+    
+    These bindings provide direct access to browser DOM APIs using Melange's
+    FFI mechanism. The [@mel.*] attributes tell Melange how to translate
+    OCaml calls to JavaScript.
+*)
+
+(** {1 DOM Node Types} *)
+
+type node
+type element
+type text_node
+type comment_node
+type document
+type document_fragment
+type event
+type event_target
+
+(** {1 Type Conversions} *)
+
+external node_of_element : element -> node = "%identity"
+external node_of_text : text_node -> node = "%identity"
+external node_of_comment : comment_node -> node = "%identity"
+external node_of_fragment : document_fragment -> node = "%identity"
+external element_of_node : node -> element = "%identity"
+external text_of_node : node -> text_node = "%identity"
+external comment_of_node : node -> comment_node = "%identity"
+external element_of_event_target : event_target -> element = "%identity"
+
+(** {1 Global Objects} *)
+
+let document : document = [%mel.raw "document"]
+
+(** {1 Document Methods} *)
+
+external create_element : document -> string -> element = "createElement"
+  [@@mel.send]
+
+external create_text_node : document -> string -> text_node = "createTextNode"
+  [@@mel.send]
+
+external create_comment : document -> string -> comment_node = "createComment"
+  [@@mel.send]
+
+external create_document_fragment : document -> document_fragment = "createDocumentFragment"
+  [@@mel.send]
+
+external get_element_by_id : document -> string -> element option = "getElementById"
+  [@@mel.send] [@@mel.return nullable]
+
+external query_selector : document -> string -> element option = "querySelector"
+  [@@mel.send] [@@mel.return nullable]
+
+external query_selector_all : document -> string -> element array = "querySelectorAll"
+  [@@mel.send]
+
+(** {1 Node Methods} *)
+
+external node_parent_node : node -> node option = "parentNode"
+  [@@mel.get] [@@mel.return nullable]
+
+external node_first_child : node -> node option = "firstChild"
+  [@@mel.get] [@@mel.return nullable]
+
+external node_next_sibling : node -> node option = "nextSibling"
+  [@@mel.get] [@@mel.return nullable]
+
+external node_child_nodes : node -> node array = "childNodes"
+  [@@mel.get]
+
+external node_type : node -> int = "nodeType"
+  [@@mel.get]
+
+external node_text_content : node -> string option = "textContent"
+  [@@mel.get] [@@mel.return nullable]
+
+external node_set_text_content : node -> string -> unit = "textContent"
+  [@@mel.set]
+
+(** {1 Element Methods} *)
+
+external append_child : element -> node -> unit = "appendChild"
+  [@@mel.send]
+
+external remove_child : element -> node -> unit = "removeChild"
+  [@@mel.send]
+
+external insert_before : element -> node -> node option -> unit = "insertBefore"
+  [@@mel.send]
+
+external replace_child : element -> node -> node -> unit = "replaceChild"
+  [@@mel.send]
+
+external set_attribute : element -> string -> string -> unit = "setAttribute"
+  [@@mel.send]
+
+external get_attribute : element -> string -> string option = "getAttribute"
+  [@@mel.send] [@@mel.return nullable]
+
+external remove_attribute : element -> string -> unit = "removeAttribute"
+  [@@mel.send]
+
+external has_attribute : element -> string -> bool = "hasAttribute"
+  [@@mel.send]
+
+external set_inner_html : element -> string -> unit = "innerHTML"
+  [@@mel.set]
+
+external get_inner_html : element -> string = "innerHTML"
+  [@@mel.get]
+
+external get_tag_name : element -> string = "tagName"
+  [@@mel.get]
+
+external get_parent_element : element -> element option = "parentElement"
+  [@@mel.get] [@@mel.return nullable]
+
+external get_first_child : element -> node option = "firstChild"
+  [@@mel.get] [@@mel.return nullable]
+
+external get_next_sibling : element -> node option = "nextSibling"
+  [@@mel.get] [@@mel.return nullable]
+
+external get_children : element -> element array = "children"
+  [@@mel.get]
+
+external get_child_nodes : element -> node array = "childNodes"
+  [@@mel.get]
+
+external matches : element -> string -> bool = "matches"
+  [@@mel.send]
+
+(** {1 DocumentFragment Methods} *)
+
+external fragment_append_child : document_fragment -> node -> unit = "appendChild"
+  [@@mel.send]
+
+external fragment_child_nodes : document_fragment -> node array = "childNodes"
+  [@@mel.get]
+
+(** {1 Text Node Methods} *)
+
+external text_data : text_node -> string = "data"
+  [@@mel.get]
+
+external text_set_data : text_node -> string -> unit = "data"
+  [@@mel.set]
+
+external text_parent_node : text_node -> node option = "parentNode"
+  [@@mel.get] [@@mel.return nullable]
+
+(** {1 Comment Node Methods} *)
+
+external comment_data : comment_node -> string = "data"
+  [@@mel.get]
+
+external comment_set_data : comment_node -> string -> unit = "data"
+  [@@mel.set]
+
+(** {1 Node Type Checking} *)
+
+let is_element node = node_type node = 1
+let is_text node = node_type node = 3
+let is_comment node = node_type node = 8
+let is_document_fragment node = node_type node = 11
+
+(** {1 Style Manipulation} *)
+
+type style
+
+external get_style : element -> style = "style"
+  [@@mel.get]
+
+external style_set_property : style -> string -> string -> unit = "setProperty"
+  [@@mel.send]
+
+external style_remove_property : style -> string -> unit = "removeProperty"
+  [@@mel.send]
+
+let set_style element property value =
+  style_set_property (get_style element) property value
+
+let remove_style element property =
+  style_remove_property (get_style element) property
+
+(** {1 Class Manipulation} *)
+
+type class_list
+
+external get_class_list : element -> class_list = "classList"
+  [@@mel.get]
+
+external class_list_add : class_list -> string -> unit = "add"
+  [@@mel.send]
+
+external class_list_remove : class_list -> string -> unit = "remove"
+  [@@mel.send]
+
+external class_list_toggle : class_list -> string -> bool = "toggle"
+  [@@mel.send]
+
+external class_list_contains : class_list -> string -> bool = "contains"
+  [@@mel.send]
+
+let add_class element cls =
+  class_list_add (get_class_list element) cls
+
+let remove_class element cls =
+  class_list_remove (get_class_list element) cls
+
+let toggle_class element cls =
+  class_list_toggle (get_class_list element) cls
+
+let has_class element cls =
+  class_list_contains (get_class_list element) cls
+
+(** {1 Event Handling} *)
+
+external add_event_listener : element -> string -> (event -> unit) -> unit = "addEventListener"
+  [@@mel.send]
+
+external remove_event_listener : element -> string -> (event -> unit) -> unit = "removeEventListener"
+  [@@mel.send]
+
+external event_target : event -> event_target = "target"
+  [@@mel.get]
+
+external event_current_target : event -> event_target = "currentTarget"
+  [@@mel.get]
+
+external prevent_default : event -> unit = "preventDefault"
+  [@@mel.send]
+
+external stop_propagation : event -> unit = "stopPropagation"
+  [@@mel.send]
+
+external event_type : event -> string = "type"
+  [@@mel.get]
+
+(** {1 Mouse Event Properties} *)
+
+external mouse_client_x : event -> int = "clientX"
+  [@@mel.get]
+
+external mouse_client_y : event -> int = "clientY"
+  [@@mel.get]
+
+external mouse_button : event -> int = "button"
+  [@@mel.get]
+
+(** {1 Keyboard Event Properties} *)
+
+external keyboard_key : event -> string = "key"
+  [@@mel.get]
+
+external keyboard_code : event -> string = "code"
+  [@@mel.get]
+
+external keyboard_ctrl_key : event -> bool = "ctrlKey"
+  [@@mel.get]
+
+external keyboard_shift_key : event -> bool = "shiftKey"
+  [@@mel.get]
+
+external keyboard_alt_key : event -> bool = "altKey"
+  [@@mel.get]
+
+external keyboard_meta_key : event -> bool = "metaKey"
+  [@@mel.get]
+
+(** {1 Input/Form Properties} *)
+
+(* Get value from input element *)
+external element_value : element -> string = "value"
+  [@@mel.get]
+
+external element_set_value : element -> string -> unit = "value"
+  [@@mel.set]
+
+external element_checked : element -> bool = "checked"
+  [@@mel.get]
+
+external element_set_checked : element -> bool -> unit = "checked"
+  [@@mel.set]
+
+(* Get target element's value from event *)
+let input_value evt =
+  let target = element_of_event_target (event_target evt) in
+  element_value target
+
+let input_checked evt =
+  let target = element_of_event_target (event_target evt) in
+  element_checked target
+
+(** {1 Focus} *)
+
+external focus : element -> unit = "focus"
+  [@@mel.send]
+
+external blur : element -> unit = "blur"
+  [@@mel.send]
+
+(** {1 Timers} *)
+
+external set_timeout : (unit -> unit) -> int -> int = "setTimeout"
+  [@@mel.scope "window"]
+
+external clear_timeout : int -> unit = "clearTimeout"
+  [@@mel.scope "window"]
+
+external set_interval : (unit -> unit) -> int -> int = "setInterval"
+  [@@mel.scope "window"]
+
+external clear_interval : int -> unit = "clearInterval"
+  [@@mel.scope "window"]
+
+external request_animation_frame : (float -> unit) -> int = "requestAnimationFrame"
+  [@@mel.scope "window"]
+
+external cancel_animation_frame : int -> unit = "cancelAnimationFrame"
+  [@@mel.scope "window"]
+
+(** {1 Console} *)
+
+external log : 'a -> unit = "log"
+  [@@mel.scope "console"]
+
+external error : 'a -> unit = "error"
+  [@@mel.scope "console"]
+
+external warn : 'a -> unit = "warn"
+  [@@mel.scope "console"]
+
+(** {1 JSON/Hydration Data} *)
+
+let get_hydration_data () : Js.Json.t Js.Nullable.t =
+  [%mel.raw {| window.__SOLID_ML_DATA__ || null |}]
+
+(** {1 Helpers} *)
+
+(** Remove a node from its parent *)
+let remove_node node =
+  match node_parent_node node with
+  | Some parent_node ->
+    let parent = element_of_node parent_node in
+    remove_child parent node
+  | None -> ()
+
+(** Remove a text node from its parent *)
+let remove_text_node txt =
+  remove_node (node_of_text txt)
+
+(** Remove an element from its parent *)
+let remove_element el =
+  remove_node (node_of_element el)

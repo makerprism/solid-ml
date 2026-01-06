@@ -1,21 +1,21 @@
 (** Reactive signals with automatic dependency tracking.
-
+    
     Signals are the core primitive of solid-ml's reactivity system.
     When you read a signal inside an effect or memo, that computation
     automatically subscribes to the signal and re-runs when it changes.
-
+    
     {[
       let count, set_count = Signal.create 0
-
+      
       (* Reading tracks dependency *)
       Effect.create (fun () ->
         print_endline ("Count: " ^ string_of_int (Signal.get count))
       )
-
+      
       (* Writing notifies all subscribers *)
       set_count 1  (* prints "Count: 1" *)
     ]}
-
+    
     {b Important}: Signals should not be shared across runtimes or domains.
     Each signal belongs to the runtime in which it was created. Sharing
     signals leads to undefined behavior as subscribers from one runtime
@@ -23,14 +23,14 @@
 *)
 
 (** A reactive value that tracks its dependents. *)
-type 'a t
+type 'a t = 'a Reactive.signal_state
 
 (** Create a new signal with an initial value.
     Returns a tuple of (signal, setter function).
     
     By default, uses structural equality [(=)] to skip updates when
     the new value equals the current value.
-
+    
     {[
       let count, set_count = Signal.create 0
       set_count 0  (* No update - same value *)
@@ -64,7 +64,7 @@ val create_physical : 'a -> 'a t * ('a -> unit)
 
 (** Read the current value of a signal.
     If called inside an effect or memo, registers a dependency.
-
+    
     {[
       let value = Signal.get count
     ]}
@@ -73,7 +73,7 @@ val get : 'a t -> 'a
 
 (** Read the current value without tracking dependency.
     Useful when you need the value but don't want to subscribe.
-
+    
     {[
       let value = Signal.peek count  (* no subscription *)
     ]}
@@ -82,7 +82,7 @@ val peek : 'a t -> 'a
 
 (** Set a new value for the signal.
     Notifies all dependents if the value changed (according to equals).
-
+    
     {[
       Signal.set count 42
     ]}
@@ -90,7 +90,7 @@ val peek : 'a t -> 'a
 val set : 'a t -> 'a -> unit
 
 (** Update the signal based on its current value.
-
+    
     {[
       Signal.update count (fun n -> n + 1)
     ]}

@@ -2,7 +2,7 @@
 
 An OCaml framework for building reactive web applications with server-side rendering (SSR), inspired by [SolidJS](https://www.solidjs.com/).
 
-> **Status:** Phase 2 (SSR) complete. Phase 3 (Client Runtime) not started.
+> **Status:** Phase 2 (SSR) complete. Phase 3 (Client Runtime) in progress - code written, needs Melange to test.
 
 ## Features
 
@@ -182,8 +182,29 @@ let results = Array.init 4 (fun _ ->
 |---------|-------------|--------|
 | `solid-ml` | Core reactive primitives (signals, effects, memos) | Ready |
 | `solid-ml-html` | Server-side rendering to HTML strings | Ready |
-| `solid-ml-dom` | Client-side rendering and hydration (Melange) | Planned |
+| `solid-ml-dom` | Client-side rendering and hydration (Melange) | Code Written* |
 | `solid-ml-router` | SSR-aware routing with data loaders | Planned |
+
+*solid-ml-dom requires Melange (`opam install melange`). The code is complete but untested.
+
+## Examples
+
+```bash
+# Counter - reactive primitives demo
+dune exec examples/counter/counter.exe
+
+# Todo list - list operations and SSR
+dune exec examples/todo/todo.exe
+
+# Parallel rendering - OCaml 5 domain safety
+dune exec examples/parallel/parallel.exe
+
+# SSR server (requires dream: opam install dream)
+dune exec examples/ssr_server/server.exe
+
+# Browser counter (requires melange: opam install melange)
+# See examples/browser_counter/README.md
+```
 
 ## Building
 
@@ -193,23 +214,40 @@ dune build
 
 # Run tests
 dune runtest
-
-# Run counter example
-dune exec examples/counter/counter.exe
 ```
 
 ## Requirements
 
 - OCaml 5.0 or later (uses Domain-local storage)
-- dune 3.0 or later
+- dune 3.16 or later
+- For client-side: Melange 3.0+ (`opam install melange`)
 
 ## Installation
 
 > Coming soon to opam
 
+## Current Limitations
+
+solid-ml is in early development. Key limitations to be aware of:
+
+| Limitation | Status | Notes |
+|------------|--------|-------|
+| **Client runtime needs Melange** | Phase 3 | Code written, requires `opam install melange` |
+| **Hydration is basic** | Phase 3 | Marker parsing done, DOM walking needs work |
+| **No routing** | Phase 4 | Use Dream/other router for now |
+| **No async in effects** | Planned | Fetch data before entering reactive context |
+
+**Critical constraints:**
+- Signals cannot be shared across runtimes/domains (by design for thread safety)
+- Always dispose `Owner.create_root` to prevent memory leaks
+- `Render.to_string` handles disposal automatically
+
+For comprehensive details, see [LIMITATIONS.md](LIMITATIONS.md).
+
 ## Documentation
 
-See [docs/A-01-architecture.md](docs/A-01-architecture.md) for the full architecture document.
+- [LIMITATIONS.md](LIMITATIONS.md) - Known limitations and workarounds
+- [docs/A-01-architecture.md](docs/A-01-architecture.md) - Full architecture document
 
 ## License
 

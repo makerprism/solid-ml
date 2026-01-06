@@ -1,14 +1,14 @@
 (** Ownership and disposal tracking.
-
+    
     The ownership system tracks which reactive computations (effects, memos)
     are "owned" by which parent computation. When a parent is disposed,
     all its children are automatically cleaned up.
-
+    
     This enables:
     - Automatic cleanup of effects when components unmount
     - Nested effect scopes
     - Resource management without manual cleanup
-
+    
     {[
       (* Create a root that owns everything inside *)
       let dispose = Owner.create_root (fun () ->
@@ -26,8 +26,8 @@
     ]}
 *)
 
-(** An ownership scope that tracks child computations. *)
-type t = Runtime.owner
+(** An ownership scope that tracks child computations (opaque) *)
+type t = Reactive.owner
 
 (** Create a new root ownership scope.
     Returns a dispose function that cleans up all owned computations.
@@ -42,7 +42,7 @@ type t = Runtime.owner
       dispose ()  (* Cleans up everything *)
     ]}
 *)
-val create_root : (unit -> 'a) -> (unit -> unit)
+val create_root : (unit -> unit) -> (unit -> unit)
 
 (** Run a function within a new ownership scope.
     The scope is a child of the current owner (if any).
@@ -66,8 +66,3 @@ val get_owner : unit -> t option
     ]}
 *)
 val on_cleanup : (unit -> unit) -> unit
-
-(** Dispose an owner and all its children.
-    Runs all registered cleanup functions.
-*)
-val dispose : t -> unit

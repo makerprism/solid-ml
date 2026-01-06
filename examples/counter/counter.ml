@@ -35,13 +35,13 @@ let counter_example () =
     (* Create a memo for a formatted message *)
     let message = Memo.create (fun () ->
       let c = Signal.get count in
-      let d = Signal.get doubled in
+      let d = Memo.get doubled in
       Printf.sprintf "Count: %d, Doubled: %d" c d
     ) in
     
     (* Effect that prints whenever the message changes *)
     Effect.create (fun () ->
-      print_endline (Signal.get message)
+      print_endline (Memo.get message)
     );
     
     (* Increment the counter *)
@@ -168,7 +168,7 @@ let batch_example () =
     
     Effect.create (fun () ->
       incr effect_count;
-      print_endline (Printf.sprintf "[Run %d] Full name: %s" !effect_count (Signal.get full_name))
+      print_endline (Printf.sprintf "[Run %d] Full name: %s" !effect_count (Memo.get full_name))
     );
     
     print_endline "\n[Without batch - two separate updates:]";

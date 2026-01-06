@@ -1,14 +1,16 @@
 (** Batch multiple signal updates.
-
-    By default, each signal update immediately notifies subscribers.
-    Use [batch] to group multiple updates and only notify once at the end.
-
+    
+    In the new reactive system, updates are automatically batched
+    within a single synchronous execution context. This module provides
+    explicit batching for cases where you want to ensure updates are
+    grouped together.
+    
     {[
-      (* Without batch: two separate notifications *)
+      (* Without batch: updates may trigger multiple effect runs *)
       Signal.set first_name "John";
       Signal.set last_name "Doe";
-
-      (* With batch: single notification after both updates *)
+      
+      (* With batch: single update cycle after both changes *)
       Batch.run (fun () ->
         Signal.set first_name "John";
         Signal.set last_name "Doe"
@@ -19,14 +21,9 @@
 (** Run a function with batched updates.
     Signal updates inside [fn] are collected and subscribers
     are notified only once after [fn] completes.
-*)
+    
+    Batches can be nested - inner batches are merged with outer ones. *)
 val run : (unit -> 'a) -> 'a
 
-(** Check if we're currently inside a batch. *)
+(** Check if we're currently inside a batch/update cycle. *)
 val is_batching : unit -> bool
-
-(** Queue a notification to run after batch completes.
-    If not batching, runs immediately.
-    Used internally by Signal module.
-*)
-val queue_notification : (unit -> unit) -> unit

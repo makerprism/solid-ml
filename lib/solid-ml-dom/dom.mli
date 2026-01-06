@@ -1,0 +1,204 @@
+(** Low-level DOM API bindings for Melange.
+    
+    These bindings provide direct access to browser DOM APIs.
+*)
+
+(** {1 Types} *)
+
+type node
+(** Abstract DOM node *)
+
+type element
+(** DOM Element *)
+
+type text_node
+(** DOM Text node *)
+
+type comment_node
+(** DOM Comment node *)
+
+type document
+(** DOM Document *)
+
+type document_fragment
+(** DOM DocumentFragment *)
+
+type event
+(** DOM Event *)
+
+type event_target
+(** Event target *)
+
+type style
+(** CSSStyleDeclaration *)
+
+type class_list
+(** DOMTokenList for classes *)
+
+(** {1 Type Conversions} *)
+
+val node_of_element : element -> node
+val node_of_text : text_node -> node
+val node_of_comment : comment_node -> node
+val node_of_fragment : document_fragment -> node
+val element_of_node : node -> element
+val text_of_node : node -> text_node
+val comment_of_node : node -> comment_node
+val element_of_event_target : event_target -> element
+
+(** {1 Global Objects} *)
+
+val document : document
+(** The global document object *)
+
+(** {1 Document Methods} *)
+
+val create_element : document -> string -> element
+val create_text_node : document -> string -> text_node
+val create_comment : document -> string -> comment_node
+val create_document_fragment : document -> document_fragment
+val get_element_by_id : document -> string -> element option
+val query_selector : document -> string -> element option
+val query_selector_all : document -> string -> element array
+
+(** {1 Node Methods} *)
+
+val node_parent_node : node -> node option
+val node_first_child : node -> node option
+val node_next_sibling : node -> node option
+val node_child_nodes : node -> node array
+val node_type : node -> int
+val node_text_content : node -> string option
+val node_set_text_content : node -> string -> unit
+
+(** {1 Element Methods} *)
+
+val append_child : element -> node -> unit
+val remove_child : element -> node -> unit
+val insert_before : element -> node -> node option -> unit
+val replace_child : element -> node -> node -> unit
+val set_attribute : element -> string -> string -> unit
+val get_attribute : element -> string -> string option
+val remove_attribute : element -> string -> unit
+val has_attribute : element -> string -> bool
+val set_inner_html : element -> string -> unit
+val get_inner_html : element -> string
+val get_tag_name : element -> string
+val get_parent_element : element -> element option
+val get_first_child : element -> node option
+val get_next_sibling : element -> node option
+val get_children : element -> element array
+val get_child_nodes : element -> node array
+val matches : element -> string -> bool
+
+(** {1 DocumentFragment Methods} *)
+
+val fragment_append_child : document_fragment -> node -> unit
+val fragment_child_nodes : document_fragment -> node array
+
+(** {1 Text Node Methods} *)
+
+val text_data : text_node -> string
+val text_set_data : text_node -> string -> unit
+val text_parent_node : text_node -> node option
+
+(** {1 Comment Node Methods} *)
+
+val comment_data : comment_node -> string
+val comment_set_data : comment_node -> string -> unit
+
+(** {1 Node Type Checking} *)
+
+val is_element : node -> bool
+val is_text : node -> bool
+val is_comment : node -> bool
+val is_document_fragment : node -> bool
+
+(** {1 Style Manipulation} *)
+
+val get_style : element -> style
+val style_set_property : style -> string -> string -> unit
+val style_remove_property : style -> string -> unit
+val set_style : element -> string -> string -> unit
+val remove_style : element -> string -> unit
+
+(** {1 Class Manipulation} *)
+
+val get_class_list : element -> class_list
+val class_list_add : class_list -> string -> unit
+val class_list_remove : class_list -> string -> unit
+val class_list_toggle : class_list -> string -> bool
+val class_list_contains : class_list -> string -> bool
+val add_class : element -> string -> unit
+val remove_class : element -> string -> unit
+val toggle_class : element -> string -> bool
+val has_class : element -> string -> bool
+
+(** {1 Event Handling} *)
+
+val add_event_listener : element -> string -> (event -> unit) -> unit
+val remove_event_listener : element -> string -> (event -> unit) -> unit
+val event_target : event -> event_target
+val event_current_target : event -> event_target
+val prevent_default : event -> unit
+val stop_propagation : event -> unit
+val event_type : event -> string
+
+(** {1 Mouse Events} *)
+
+val mouse_client_x : event -> int
+val mouse_client_y : event -> int
+val mouse_button : event -> int
+
+(** {1 Keyboard Events} *)
+
+val keyboard_key : event -> string
+val keyboard_code : event -> string
+val keyboard_ctrl_key : event -> bool
+val keyboard_shift_key : event -> bool
+val keyboard_alt_key : event -> bool
+val keyboard_meta_key : event -> bool
+
+(** {1 Input/Form} *)
+
+val element_value : element -> string
+val element_set_value : element -> string -> unit
+val element_checked : element -> bool
+val element_set_checked : element -> bool -> unit
+val input_value : event -> string
+val input_checked : event -> bool
+
+(** {1 Focus} *)
+
+val focus : element -> unit
+val blur : element -> unit
+
+(** {1 Timers} *)
+
+val set_timeout : (unit -> unit) -> int -> int
+val clear_timeout : int -> unit
+val set_interval : (unit -> unit) -> int -> int
+val clear_interval : int -> unit
+val request_animation_frame : (float -> unit) -> int
+val cancel_animation_frame : int -> unit
+
+(** {1 Console} *)
+
+val log : 'a -> unit
+val error : 'a -> unit
+val warn : 'a -> unit
+
+(** {1 Hydration} *)
+
+val get_hydration_data : unit -> Js.Json.t Js.Nullable.t
+
+(** {1 Helpers} *)
+
+val remove_node : node -> unit
+(** Remove a node from its parent *)
+
+val remove_text_node : text_node -> unit
+(** Remove a text node from its parent *)
+
+val remove_element : element -> unit
+(** Remove an element from its parent *)

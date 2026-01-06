@@ -1,0 +1,11 @@
+; Browser counter example - compiles to JavaScript via Melange
+;
+; To build and run:
+; 1. Install Melange: opam install melange
+; 2. Build: dune build @melange
+; 3. Open examples/browser_counter/index.html in a browser
+
+(melange.emit
+ (target output)
+ (libraries solid-ml-dom)
+ (module_systems es6))

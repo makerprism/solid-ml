@@ -1,0 +1,3 @@
+(executable
+ (name parallel)
+ (libraries solid-ml solid-ml-html unix))

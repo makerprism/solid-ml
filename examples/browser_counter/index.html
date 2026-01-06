@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>solid-ml Browser Example</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+    
+    /* Counter styles */
+    .counter-app {
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    
+    .counter-app .display {
+      font-size: 24px;
+      margin: 20px 0;
+    }
+    
+    .counter-app .display p {
+      margin: 8px 0;
+    }
+    
+    .buttons {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .btn {
+      padding: 12px 24px;
+      font-size: 18px;
+      border: none;
+      border-radius: 4px;
+      background: #4a90d9;
+      color: white;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .btn:hover {
+      background: #357abd;
+    }
+    
+    .btn-reset {
+      background: #888;
+    }
+    
+    .btn-reset:hover {
+      background: #666;
+    }
+    
+    hr {
+      border: none;
+      border-top: 1px solid #ddd;
+      margin: 30px 0;
+    }
+    
+    /* Todo styles */
+    .todo-app {
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .add-todo {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    
+    .add-todo input {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    
+    .add-todo button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #4a90d9;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    .status {
+      color: #666;
+      margin-bottom: 16px;
+    }
+    
+    .todo-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .todo-item {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+      gap: 12px;
+    }
+    
+    .todo-item.completed span {
+      text-decoration: line-through;
+      color: #999;
+    }
+    
+    .todo-item span {
+      flex: 1;
+    }
+    
+    .todo-item .delete {
+      padding: 4px 8px;
+      background: #e74c3c;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      opacity: 0.7;
+    }
+    
+    .todo-item:hover .delete {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- solid-ml will render here -->
+    <noscript>
+      <p>This example requires JavaScript to run.</p>
+      <p>Build with: <code>dune build @melange</code></p>
+    </noscript>
+  </div>
+  
+  <!-- 
+    The compiled JavaScript will be at:
+    _build/default/examples/browser_counter/output/examples/browser_counter/counter.js
+    
+    After building with `dune build @melange`, update this path or copy the file.
+  -->
+  <script type="module" src="./_build/default/examples/browser_counter/output/examples/browser_counter/counter.js"></script>
+</body>
+</html>

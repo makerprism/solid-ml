@@ -1,0 +1,16 @@
+; solid-ml-dom: Client-side rendering for Melange
+; 
+; This library compiles to JavaScript via Melange and provides:
+; - DOM element creation and manipulation
+; - Event handling
+; - Hydration of server-rendered HTML
+; - Browser-optimized reactive core (single-threaded, no Domain-local storage)
+;
+; To build: ensure melange is installed (opam install melange)
+
+(library
+ (name solid_ml_dom)
+ (public_name solid-ml-dom)
+ (modes melange)
+ (preprocess (pps melange.ppx))
+ (libraries melange.js))

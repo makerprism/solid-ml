@@ -1,74 +1,89 @@
-(** Reactive effects that auto-track dependencies. *)
+(** Reactive effects with automatic dependency tracking.
+    
+    Effects are computations that re-run when their dependencies change.
+    They are used for side effects like DOM updates, logging, etc.
+    
+    This implementation matches SolidJS's effect architecture with
+    proper cleanup and the STALE/PENDING state machine.
+*)
 
-type t = {
-  mutable disposed : bool;
-  mutable cleanup : unit -> unit;
-  mutable unsubscribes : (unit -> unit) list;
-}
-
-let create_internal ~with_cleanup fn =
-  let effect = { disposed = false; cleanup = (fun () -> ()); unsubscribes = [] } in
-  let rt = Runtime.get_current () in
-  
-  (* Re-run function that will be registered as subscriber *)
-  let rec run () =
-    if not effect.disposed then begin
-      (* Run previous cleanup *)
-      effect.cleanup ();
-      effect.cleanup <- (fun () -> ());
-      (* Unsubscribe from previous dependencies *)
-      List.iter (fun unsub -> unsub ()) effect.unsubscribes;
-      effect.unsubscribes <- [];
-      (* Set up to collect new unsubscribes *)
-      let prev_unsubscribes = rt.pending_unsubscribes in
-      rt.pending_unsubscribes <- [];
-      (* Set tracking context so Signal.get registers us *)
-      let prev_tracking = rt.tracking_context in
-      rt.tracking_context <- Some run;
-      (* Run the effect *)
-      let new_cleanup = 
-        try fn ()
-        with e ->
-          rt.tracking_context <- prev_tracking;
-          effect.unsubscribes <- rt.pending_unsubscribes;
-          rt.pending_unsubscribes <- prev_unsubscribes;
-          raise e
-      in
-      if with_cleanup then
-        effect.cleanup <- new_cleanup;
-      (* Clear tracking context *)
-      rt.tracking_context <- prev_tracking;
-      (* Store unsubscribes for next run *)
-      effect.unsubscribes <- rt.pending_unsubscribes;
-      rt.pending_unsubscribes <- prev_unsubscribes
-    end
-  in
-  (* Register for cleanup with current owner *)
-  Owner.on_cleanup (fun () ->
-    effect.disposed <- true;
-    effect.cleanup ();
-    List.iter (fun unsub -> unsub ()) effect.unsubscribes;
-    effect.unsubscribes <- []
-  );
-  (* Run immediately *)
-  run ();
-  effect
-
+(** Create an effect that runs when dependencies change.
+    
+    The effect function is called immediately, and then re-called
+    whenever any signal read during execution changes.
+    
+    Effects are automatically disposed when their owner is disposed. *)
 let create fn =
-  let _ = create_internal ~with_cleanup:false (fun () -> fn (); (fun () -> ())) in
-  ()
+  let comp = Reactive.create_computation
+    ~fn:(fun _ -> fn (); Obj.repr ())
+    ~init:(Obj.repr ())
+    ~pure:false
+    ~initial_state:Reactive.Stale
+  in
+  comp.user <- true;
+  
+  (* Run immediately or queue *)
+  let rt = Reactive.get_runtime () in
+  if rt.in_update then
+    rt.effects <- comp :: rt.effects
+  else
+    Reactive.run_updates (fun () ->
+      Reactive.run_top comp
+    ) true
 
+(** Create an effect with a cleanup function.
+    
+    The effect function should return a cleanup function that will
+    be called before the next execution and when the effect is disposed.
+    
+    Example:
+    {[
+      Effect.create_with_cleanup (fun () ->
+        let subscription = subscribe_to_something () in
+        fun () -> unsubscribe subscription
+      )
+    ]} *)
 let create_with_cleanup fn =
-  let _ = create_internal ~with_cleanup:true fn in
-  ()
+  let cleanup_ref = ref (fun () -> ()) in
+  
+  let comp = Reactive.create_computation
+    ~fn:(fun _ ->
+      (* Run previous cleanup *)
+      !cleanup_ref ();
+      (* Run effect and store new cleanup *)
+      let new_cleanup = fn () in
+      cleanup_ref := new_cleanup;
+      Obj.repr ()
+    )
+    ~init:(Obj.repr ())
+    ~pure:false
+    ~initial_state:Reactive.Stale
+  in
+  comp.user <- true;
+  
+  (* Register final cleanup *)
+  Reactive.on_cleanup (fun () -> !cleanup_ref ());
+  
+  (* Run immediately or queue *)
+  let rt = Reactive.get_runtime () in
+  if rt.in_update then
+    rt.effects <- comp :: rt.effects
+  else
+    Reactive.run_updates (fun () ->
+      Reactive.run_top comp
+    ) true
 
-let untrack fn =
-  match Runtime.get_current_opt () with
-  | Some rt ->
-    let prev_context = rt.tracking_context in
-    rt.tracking_context <- None;
-    let result = fn () in
-    rt.tracking_context <- prev_context;
-    result
-  | None ->
-    fn ()
+(** Execute a function without tracking dependencies.
+    
+    Any signals read inside [fn] will not be registered as
+    dependencies of the current computation.
+    
+    Example:
+    {[
+      Effect.create (fun () ->
+        let tracked = Signal.get some_signal in
+        let untracked = Effect.untrack (fun () -> Signal.get other_signal) in
+        (* Effect only re-runs when some_signal changes *)
+      )
+    ]} *)
+let untrack = Reactive.untrack
