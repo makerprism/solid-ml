@@ -28,7 +28,7 @@ test:
 # Clean all build artifacts
 clean:
 	dune clean
-	rm -rf examples/browser_counter/dist
+	rm -rf examples/browser_counter/dist examples/browser_router/dist
 
 # ==============================================================================
 # Native Examples - just run these!
@@ -69,7 +69,7 @@ setup: check-esy
 
 # Build browser counter example
 example-browser: check-esy
-	@echo "Building browser example..."
+	@echo "Building browser counter example..."
 	@esy dune build examples/browser_counter/output/examples/browser_counter/counter.js 2>/dev/null || \
 		(echo "Error: Run 'make setup' first to install dependencies" && exit 1)
 	@mkdir -p examples/browser_counter/dist
@@ -80,9 +80,32 @@ example-browser: check-esy
 	@echo ""
 	@echo "Build complete! Open in browser:"
 	@echo "  file://$(PWD)/examples/browser_counter/index.html"
+
+# Build browser router example
+example-browser-router: check-esy
+	@echo "Building browser router example..."
+	@esy dune build examples/browser_router/output/examples/browser_router/router_demo.js 2>/dev/null || \
+		(echo "Error: Run 'make setup' first to install dependencies" && exit 1)
+	@mkdir -p examples/browser_router/dist
+	@rm -f examples/browser_router/dist/router_demo.js
+	@echo "Bundling with esbuild..."
+	@cd $$(esy echo '#{self.target_dir}')/default/examples/browser_router/output && \
+		npx esbuild examples/browser_router/router_demo.js --bundle --outfile=$(PWD)/examples/browser_router/dist/router_demo.js --format=esm 2>/dev/null
 	@echo ""
-	@echo "Or start a local server:"
-	@echo "  python3 -m http.server 8000 -d examples/browser_counter"
+	@echo "Build complete! Open in browser:"
+	@echo "  file://$(PWD)/examples/browser_router/index.html"
+	@echo ""
+	@echo "NOTE: For routing to work properly, use a local server:"
+	@echo "  python3 -m http.server 8001 -d examples/browser_router"
+	@echo "  Then open: http://localhost:8001"
+
+# Build all browser examples
+browser-examples: example-browser example-browser-router
+	@echo ""
+	@echo "All browser examples built!"
+	@echo ""
+	@echo "Start a server to view all examples:"
+	@echo "  python3 -m http.server 8000 -d examples"
 	@echo "  Then open: http://localhost:8000"
 
 # Run browser tests (requires Node.js)
@@ -107,9 +130,11 @@ help:
 	@echo "  make examples        - Run all native examples"
 	@echo ""
 	@echo "Browser development (requires: npm install -g esy):"
-	@echo "  make setup           - Install esy dependencies (one-time)"
-	@echo "  make example-browser - Build browser example"
-	@echo "  make browser-tests   - Run browser tests"
+	@echo "  make setup               - Install esy dependencies (one-time)"
+	@echo "  make example-browser     - Build counter+todo browser example"
+	@echo "  make example-browser-router - Build router browser example"
+	@echo "  make browser-examples    - Build all browser examples"
+	@echo "  make browser-tests       - Run browser tests"
 	@echo ""
 	@echo "Other:"
 	@echo "  make clean           - Remove build artifacts"

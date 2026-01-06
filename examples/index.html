@@ -52,6 +52,7 @@
     .example .tags {
       display: flex;
       gap: 8px;
+      flex-wrap: wrap;
       margin-bottom: 16px;
     }
     
@@ -117,6 +118,19 @@
       border-bottom: 2px solid #ddd;
     }
     
+    .build-note {
+      background: #fffde7;
+      border: 1px solid #fff59d;
+      border-radius: 4px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 0.875rem;
+    }
+    
+    .build-note code {
+      background: #fff9c4;
+    }
+    
     footer {
       margin-top: 40px;
       padding-top: 20px;
@@ -134,15 +148,21 @@
   <h1>solid-ml Examples</h1>
   <p class="subtitle">Reactive web applications in OCaml</p>
   
-  <h2 class="section-title">Browser Examples</h2>
+  <h2 class="section-title">Interactive Demos</h2>
+  <div class="build-note">
+    Build all browser demos with: <code>make browser-examples</code><br>
+    Then serve this directory: <code>python3 -m http.server 8000 -d examples</code>
+  </div>
+  
   <div class="examples">
     <div class="example">
       <h2>Counter + Todo List</h2>
       <p>Interactive counter with reactive updates and a todo list with add/toggle/delete functionality. Demonstrates signals, memos, effects, and event handling.</p>
       <div class="tags">
         <span class="tag browser">Browser</span>
-        <span class="tag">Melange</span>
         <span class="tag">Signals</span>
+        <span class="tag">Memos</span>
+        <span class="tag">Effects</span>
         <span class="tag">Events</span>
       </div>
       <div class="actions">
@@ -150,20 +170,37 @@
         <a href="./browser_counter/counter.ml" class="btn secondary">View Source</a>
       </div>
     </div>
+    
+    <div class="example">
+      <h2>Router Demo</h2>
+      <p>Client-side routing with navigation, dynamic route parameters, wildcards, and NavLink with active styling. No page reloads!</p>
+      <div class="tags">
+        <span class="tag browser">Browser</span>
+        <span class="tag">Router</span>
+        <span class="tag">Params</span>
+        <span class="tag">NavLink</span>
+        <span class="tag">History API</span>
+      </div>
+      <div class="actions">
+        <a href="./browser_router/index.html" class="btn">Open Demo</a>
+        <a href="./browser_router/router_demo.ml" class="btn secondary">View Source</a>
+      </div>
+    </div>
   </div>
   
-  <h2 class="section-title">Native Examples</h2>
-  <p style="color: #666; margin-bottom: 20px;">These examples run on the server and output to the terminal. Build and run with the commands shown.</p>
+  <h2 class="section-title">Server-Side Examples</h2>
+  <p style="color: #666; margin-bottom: 20px;">These examples run natively and output to the terminal. They demonstrate the same reactive primitives used in browser demos, but for server-side rendering.</p>
   
   <div class="examples">
     <div class="example">
-      <h2>Counter</h2>
-      <p>Simple counter demonstrating signals, memos, effects, and batch updates. Shows the reactive primitives in action.</p>
+      <h2>Counter (Native)</h2>
+      <p>Demonstrates signals, memos, effects, cleanup, conditional dependencies, context, and batch updates in native OCaml.</p>
       <div class="tags">
         <span class="tag native">Native</span>
         <span class="tag">Signals</span>
         <span class="tag">Memos</span>
         <span class="tag">Effects</span>
+        <span class="tag">Context</span>
       </div>
       <div class="actions">
         <a href="./counter/counter.ml" class="btn secondary">View Source</a>
@@ -172,12 +209,13 @@
     </div>
     
     <div class="example">
-      <h2>Todo List</h2>
-      <p>Server-side rendered todo list with HTML output. Demonstrates SSR with solid-ml-html.</p>
+      <h2>Todo List (SSR)</h2>
+      <p>Server-side rendered todo list showing reactive state management and HTML generation with solid-ml-html.</p>
       <div class="tags">
         <span class="tag native">Native</span>
         <span class="tag">SSR</span>
         <span class="tag">HTML</span>
+        <span class="tag">Filtering</span>
       </div>
       <div class="actions">
         <a href="./todo/todo.ml" class="btn secondary">View Source</a>
@@ -186,13 +224,13 @@
     </div>
     
     <div class="example">
-      <h2>Router</h2>
-      <p>Routing example with static routes, dynamic parameters, wildcards, NavLink with active states, and nested outlets.</p>
+      <h2>Router (SSR)</h2>
+      <p>Server-side routing with route matching, params extraction, URL parsing, and HTML rendering for different routes.</p>
       <div class="tags">
         <span class="tag native">Native</span>
         <span class="tag">Router</span>
+        <span class="tag">SSR</span>
         <span class="tag">Params</span>
-        <span class="tag">NavLink</span>
       </div>
       <div class="actions">
         <a href="./router/router.ml" class="btn secondary">View Source</a>
@@ -202,7 +240,7 @@
     
     <div class="example">
       <h2>Parallel Domains</h2>
-      <p>Demonstrates OCaml 5 parallelism with multiple domains, each running isolated reactive runtimes via Domain-Local Storage.</p>
+      <p>OCaml 5 parallelism demo with multiple domains running isolated reactive runtimes via Domain-Local Storage.</p>
       <div class="tags">
         <span class="tag native">Native</span>
         <span class="tag">OCaml 5</span>
@@ -217,7 +255,7 @@
     
     <div class="example">
       <h2>SSR Server</h2>
-      <p>Full server-side rendering example using Dream web framework. Renders components to HTML strings and serves them.</p>
+      <p>Full server-side rendering with Dream web framework. Serves HTML pages rendered from solid-ml components.</p>
       <div class="tags">
         <span class="tag native">Native</span>
         <span class="tag">SSR</span>

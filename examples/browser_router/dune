@@ -1,0 +1,6 @@
+; Browser router example - compiles to JavaScript via Melange
+
+(melange.emit
+ (target output)
+ (libraries solid-ml-browser)
+ (module_systems es6))
