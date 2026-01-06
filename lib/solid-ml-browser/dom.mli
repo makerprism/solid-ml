@@ -277,6 +277,12 @@ val remove_element : element -> unit
 val get_inner_text : element -> string
 (** Get inner text of an element *)
 
+val get_text_content : element -> string
+(** Get text content of an element *)
+
+val set_text_content : element -> string -> unit
+(** Set text content of an element (faster than creating text nodes) *)
+
 val get_data_attribute : element -> string -> string option
 (** Get a data attribute value *)
 

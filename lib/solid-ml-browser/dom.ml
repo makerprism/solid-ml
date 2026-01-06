@@ -458,6 +458,12 @@ let remove_element el =
 external get_inner_text : element -> string = "innerText"
   [@@mel.get]
 
+external get_text_content : element -> string = "textContent"
+  [@@mel.get]
+
+external set_text_content : element -> string -> unit = "textContent"
+  [@@mel.set]
+
 (** Get data attribute *)
 let get_data_attribute el name =
   get_attribute el ("data-" ^ name)

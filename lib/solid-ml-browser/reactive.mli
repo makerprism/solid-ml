@@ -41,6 +41,34 @@ module Batch : sig
   val run : (unit -> 'a) -> 'a
 end
 
+(** {1 Selector} *)
+
+val create_selector : ?equals:('a -> 'a -> bool) -> 'a Signal.t -> ('a -> bool)
+(** [create_selector source] creates an optimized selection checker.
+    
+    Unlike directly comparing [Signal.get source = key] (which subscribes every
+    reader to all selection changes), a selector only notifies when a specific
+    key's selected state changes.
+    
+    This is critical for large list performance:
+    - Without selector: O(n) effect updates when selection changes
+    - With selector: O(1) updates (only previous and new selected item)
+    
+    {[
+      let selected, set_selected = Signal.create (-1) in
+      let is_selected = create_selector selected in
+      
+      (* In each row - only re-runs when THIS row's selection state changes *)
+      Effect.create (fun () ->
+        let selected = is_selected row_id in
+        set_class tr (if selected then "danger" else "")
+      )
+    ]}
+    
+    @param equals Optional equality function (default: structural equality)
+    @param source Signal containing the currently selected value
+    @return Function that reactively checks if a given key is selected *)
+
 module Context : sig
   type 'a t
   val create : 'a -> 'a t

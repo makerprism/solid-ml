@@ -1,7 +1,7 @@
 (** js-framework-benchmark implementation for solid-ml
     
     This implements the standard benchmark operations using solid-ml's
-    reactive primitives (signals, effects, batch) similar to SolidJS.
+    reactive primitives (signals, effects, batch, selector) matching SolidJS.
     
     - Create 1,000 rows
     - Create 10,000 rows  
@@ -34,6 +34,10 @@ let nouns = [|
   "sandwich"; "burger"; "pizza"; "mouse"; "keyboard"
 |]
 
+(* Match SolidJS random exactly for benchmark parity *)
+let random max = 
+  (int_of_float ((Random.float 1.0) *. 1000.0 +. 0.5)) mod max
+
 let next_id = ref 1
 
 (** Row data with a signal for the label (like SolidJS) *)
@@ -46,9 +50,9 @@ type row = {
 let build_data count =
   Array.init count (fun _ ->
     let initial_label = 
-      adjectives.(Random.int (Array.length adjectives)) ^ " " ^
-      colors.(Random.int (Array.length colors)) ^ " " ^
-      nouns.(Random.int (Array.length nouns))
+      adjectives.(random (Array.length adjectives)) ^ " " ^
+      colors.(random (Array.length colors)) ^ " " ^
+      nouns.(random (Array.length nouns))
     in
     let label, set_label = Reactive.Signal.create initial_label in
     let id = !next_id in
@@ -61,8 +65,11 @@ let build_data count =
 (* Main data signal - array of rows *)
 let data, set_data = Reactive.Signal.create [||]
 
-(* Selected row ID signal *)
+(* Selected row ID signal - use -1 for "no selection" like null in JS *)
 let selected, set_selected = Reactive.Signal.create (-1)
+
+(* Create selector for O(1) selection checks instead of O(n) *)
+let is_selected = Reactive.create_selector selected
 
 (** {1 Benchmark Operations} *)
 
@@ -128,7 +135,10 @@ type row_state = {
   dispose : unit -> unit;
 }
 
-(** Render a single row. Returns element and dispose function for cleanup. *)
+(** Render a single row. Uses:
+    - createSelector for O(1) selection updates
+    - textContent for faster text updates
+    - Owner.create_root for proper disposal *)
 let render_row row =
   let row_id = row.id in
   let tr = Dom.create_element Dom.document "tr" in
@@ -136,28 +146,28 @@ let render_row row =
   
   (* Create effects within a root so we can dispose them *)
   let dispose = Reactive.Owner.create_root (fun () ->
-    (* Reactive class binding for selection *)
+    (* Reactive class binding using selector - O(1) instead of O(n)! *)
     Reactive.Effect.create (fun () ->
-      let sel = Reactive.Signal.get selected in
-      Dom.set_class_name tr (if sel = row_id then "danger" else "")
+      let sel = is_selected row_id in
+      Dom.set_class_name tr (if sel then "danger" else "")
     );
     
-    (* TD 1: ID *)
+    (* TD 1: ID - static, use textContent directly *)
     let td1 = Dom.create_element Dom.document "td" in
     Dom.set_class_name td1 "col-md-1";
-    Dom.node_set_text_content (Dom.node_of_element td1) (string_of_int row_id);
+    Dom.set_text_content td1 (string_of_int row_id);
     Dom.append_child tr (Dom.node_of_element td1);
     
-    (* TD 2: Label with reactive text *)
+    (* TD 2: Label - reactive via signal, use textContent *)
     let td2 = Dom.create_element Dom.document "td" in
     Dom.set_class_name td2 "col-md-4";
     let a = Dom.create_element Dom.document "a" in
-    (* Reactive text content *)
-    let text_node = Dom.create_text_node Dom.document (Reactive.Signal.peek row.label) in
+    (* Set initial value *)
+    Dom.set_text_content a (Reactive.Signal.peek row.label);
+    (* Update reactively *)
     Reactive.Effect.create (fun () ->
-      Dom.text_set_data text_node (Reactive.Signal.get row.label)
+      Dom.set_text_content a (Reactive.Signal.get row.label)
     );
-    Dom.append_child a (Dom.node_of_text text_node);
     Dom.append_child td2 (Dom.node_of_element a);
     Dom.append_child tr (Dom.node_of_element td2);
     
@@ -233,11 +243,6 @@ let render_keyed_list ~(items : row array Reactive.Signal.t) (parent : Dom.eleme
       (* Build position map for previous order *)
       let prev_pos = Hashtbl.create prev_len in
       Array.iteri (fun i id -> Hashtbl.replace prev_pos id i) prev;
-      
-      (* Find longest increasing subsequence of positions to minimize moves *)
-      (* For simplicity, use a forward scan approach: 
-         - Track which nodes are already in correct relative order
-         - Only move nodes that break the order *)
       
       (* Get the position each new item had in prev (or -1 if new) *)
       let positions = Array.map (fun row ->
