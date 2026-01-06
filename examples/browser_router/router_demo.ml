@@ -230,7 +230,12 @@ let app () =
 let () =
   match Dom.get_element_by_id Dom.document "app" with
   | Some root ->
-    let config = Router.{ routes = config_routes; scroll_restoration = true } in
+    (* Set base to /browser_router since we're served from that subdirectory *)
+    let config = Router.{ 
+      routes = config_routes; 
+      base = "/browser_router";
+      scroll_restoration = true 
+    } in
     let (_result, _dispose) = Router.init ~config (fun () ->
       let _render_dispose = Render.render root (fun () -> app ()) in
       ()

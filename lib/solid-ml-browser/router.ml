@@ -30,6 +30,9 @@
     ]}
 *)
 
+(** Debug logging *)
+external console_log : string -> unit = "log" [@@mel.scope "console"]
+
 (** {1 Route Module} *)
 
 (** Route pattern matching - mirrors solid-ml-router for browser use *)
@@ -153,11 +156,13 @@ type router_context = {
 (** Router configuration *)
 type config = {
   routes : unit Route.t list;
+  base : string;  (** Base path to strip from URLs (e.g., "/app" or "/browser_router") *)
   scroll_restoration : bool;
 }
 
 let default_config = {
   routes = [];
+  base = "";
   scroll_restoration = true;
 }
 
@@ -208,6 +213,26 @@ let get_current_url () =
   let hash = Dom.get_hash () in
   path ^ search ^ hash
 
+(** Strip base path from a URL path *)
+let strip_base base path =
+  if base = "" then path
+  else if String.length path >= String.length base && 
+          String.sub path 0 (String.length base) = base then
+    let rest = String.sub path (String.length base) (String.length path - String.length base) in
+    if rest = "" then "/" else rest
+  else path
+
+(** Get path with base stripped *)
+let get_app_path () =
+  let path = Dom.get_pathname () in
+  let app_path = strip_base !current_config.base path in
+  (* Also strip index.html if present *)
+  if String.length app_path > 11 && 
+     String.sub app_path (String.length app_path - 11) 11 = "/index.html" then
+    String.sub app_path 0 (String.length app_path - 11)
+  else if app_path = "/index.html" then "/"
+  else app_path
+
 (** {1 Accessing Router State} *)
 
 let use_location () =
@@ -238,13 +263,17 @@ let navigate ?(replace=false) url =
     Hashtbl.replace scroll_positions current_url (scroll_x, scroll_y)
   end;
   
+  (* The url is an app-relative path like "/users" *)
+  (* We need to prepend the base for the browser history *)
+  let browser_url = !current_config.base ^ url in
+  
   (* Update history *)
   if replace then
-    Dom.replace_state url
+    Dom.replace_state browser_url
   else
-    Dom.push_state url;
+    Dom.push_state browser_url;
   
-  (* Update router state *)
+  (* Update router state with the app-relative path *)
   let path, query, hash = parse_url url in
   let params = 
     match Route.match_routes !current_config.routes path with
@@ -269,10 +298,11 @@ let go delta = Dom.history_go delta
 (** {1 Popstate Handler} *)
 
 let handle_popstate _evt =
-  let url = get_current_url () in
-  let path, query, hash = parse_url url in
+  let full_url = get_current_url () in
+  let app_path = get_app_path () in
+  let _, query, hash = parse_url full_url in
   let params = 
-    match Route.match_routes !current_config.routes path with
+    match Route.match_routes !current_config.routes app_path with
     | Some (_, result) -> result.params
     | None -> Route.Params.empty
   in
@@ -280,11 +310,11 @@ let handle_popstate _evt =
   (try
     let ctx = Reactive_core.use_context context in
     if ctx.set_current != uninitialized_setter then begin
-      ctx.set_current { path; params; query; hash };
+      ctx.set_current { path = app_path; params; query; hash };
       
       (* Restore scroll position *)
       if !current_config.scroll_restoration then begin
-        match Hashtbl.find_opt scroll_positions url with
+        match Hashtbl.find_opt scroll_positions full_url with
         | Some (x, y) -> 
           let _ = Dom.set_timeout (fun () -> Dom.scroll_to x y) 0 in ()
         | None -> ()
@@ -317,12 +347,12 @@ let init ?(config=default_config) f =
   Dom.on_popstate handler;
   popstate_handler := Some handler;
   
-  (* Get initial URL *)
-  let initial_url = get_current_url () in
+  (* Get initial app-relative path (with base stripped) *)
+  let initial_path = get_app_path () in
   
   (* Run with router context *)
   let (result, root_dispose) = Reactive_core.create_root (fun () ->
-    provide ~initial_path:initial_url ~routes:config.routes f
+    provide ~initial_path ~routes:config.routes f
   ) in
   
   (* Return dispose function *)
@@ -340,6 +370,10 @@ let init ?(config=default_config) f =
 (** {1 Link Components} *)
 
 let link ?(class_="") ~href ~children () =
+  (* href is app-relative, but we show the full URL in the DOM *)
+  let browser_href = !current_config.base ^ href in
+  (* Capture the context now, while we're inside the reactive root *)
+  let ctx = Reactive_core.use_context context in
   let onclick = fun evt ->
     if Dom.mouse_button evt = 0 
        && not (Dom.keyboard_ctrl_key evt)
@@ -347,13 +381,29 @@ let link ?(class_="") ~href ~children () =
        && not (Dom.keyboard_alt_key evt)
        && not (Dom.keyboard_meta_key evt) then begin
       Dom.prevent_default evt;
-      navigate href
+      (* Use the captured context directly instead of looking it up *)
+      if ctx.set_current != uninitialized_setter then begin
+        let path, query, hash = parse_url href in
+        let params = 
+          match Route.match_routes !current_config.routes path with
+          | Some (_, result) -> result.params
+          | None -> Route.Params.empty
+        in
+        (* Update history *)
+        Dom.push_state browser_href;
+        (* Update router state *)
+        ctx.set_current { path; params; query; hash };
+        if !current_config.scroll_restoration then
+          Dom.scroll_to_top ()
+      end
     end
   in
-  Html.a ~href ?class_:(if class_ = "" then None else Some class_) ~onclick ~children ()
+  Html.a ~href:browser_href ?class_:(if class_ = "" then None else Some class_) ~onclick ~children ()
 
 let nav_link ?(class_="") ?(active_class="active") ?(exact=false) ~href ~children () =
   let current_path = use_path () in
+  (* Capture the context now, while we're inside the reactive root *)
+  let ctx = Reactive_core.use_context context in
   
   let is_active = 
     if exact then
@@ -372,6 +422,8 @@ let nav_link ?(class_="") ?(active_class="active") ?(exact=false) ~href ~childre
       class_
   in
   
+  (* href is app-relative, but we show the full URL in the DOM *)
+  let browser_href = !current_config.base ^ href in
   let onclick = fun evt ->
     if Dom.mouse_button evt = 0 
        && not (Dom.keyboard_ctrl_key evt)
@@ -379,22 +431,52 @@ let nav_link ?(class_="") ?(active_class="active") ?(exact=false) ~href ~childre
        && not (Dom.keyboard_alt_key evt)
        && not (Dom.keyboard_meta_key evt) then begin
       Dom.prevent_default evt;
-      navigate href
+      (* Use the captured context directly instead of looking it up *)
+      if ctx.set_current != uninitialized_setter then begin
+        let path, query, hash = parse_url href in
+        let params = 
+          match Route.match_routes !current_config.routes path with
+          | Some (_, result) -> result.params
+          | None -> Route.Params.empty
+        in
+        (* Update history *)
+        Dom.push_state browser_href;
+        (* Update router state *)
+        ctx.set_current { path; params; query; hash };
+        if !current_config.scroll_restoration then
+          Dom.scroll_to_top ()
+      end
     end
   in
   
-  Html.a ~href ?class_:(if final_class = "" then None else Some final_class) ~onclick ~children ()
+  Html.a ~href:browser_href ?class_:(if final_class = "" then None else Some final_class) ~onclick ~children ()
 
 (** {1 Outlet Component} *)
 
 let outlet ~(routes : (unit -> Html.node) Route.t list) ?not_found () =
-  let path = use_path () in
+  (* Create a container element that will be updated reactively *)
+  let container = Dom.create_element Dom.document "div" in
   
-  match Route.match_routes routes path with
-  | Some (route, _result) ->
-    let component = Route.data route in
-    component ()
-  | None ->
-    match not_found with
-    | Some render_404 -> render_404 ()
-    | None -> Html.empty
+  (* Effect that re-renders the outlet when the path changes *)
+  Reactive_core.create_effect (fun () ->
+    let path = use_path () in
+    
+    (* Clear existing content *)
+    Dom.set_inner_html container "";
+    
+    (* Render the matched route *)
+    let node = match Route.match_routes routes path with
+      | Some (route, _result) ->
+        let component = Route.data route in
+        component ()
+      | None ->
+        match not_found with
+        | Some render_404 -> render_404 ()
+        | None -> Html.empty
+    in
+    
+    (* Append the new content *)
+    Html.append_to_element container node
+  );
+  
+  Html.Element container
