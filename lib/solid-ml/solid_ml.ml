@@ -66,3 +66,12 @@ module Owner = Owner
 
 (** Component context for passing values down the tree *)
 module Context = Context
+
+(** Suspense boundaries for async loading states *)
+module Suspense = Suspense
+
+(** Error boundaries for catching errors *)
+module ErrorBoundary = Error_boundary
+
+(** Generate unique IDs for SSR hydration *)
+module Unique_id = Unique_id

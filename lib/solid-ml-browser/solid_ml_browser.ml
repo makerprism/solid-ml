@@ -60,3 +60,12 @@ module Router = Router
 
 (** Async resource with loading/error/ready states *)
 module Resource = Resource
+
+(** Suspense boundaries for async loading states *)
+module Suspense = Suspense
+
+(** Error boundaries for catching errors *)
+module ErrorBoundary = Error_boundary
+
+(** Generate unique IDs for hydration *)
+module Unique_id = Unique_id

@@ -164,7 +164,18 @@ let read_typed_signal (type a) (s : a signal) : a =
 - [x] Scroll restoration
 - [x] Loading/error states (Resource module)
 
-**Test Summary:** 195 tests total (31 reactive + 23 HTML + 36 SolidJS compat + 91 router + 14 browser)
+**Phase 5: Suspense & Error Handling** (complete)
+
+- [x] Suspense.boundary for async loading states
+- [x] ErrorBoundary.make for catching errors with reset
+- [x] Resource.read_suspense with ~default parameter
+- [x] Counter-based Suspense (matches SolidJS)
+- [x] Nested Suspense boundaries
+- [x] Multiple concurrent resources
+- [x] Unique_id.create for SSR hydration
+- [x] Comprehensive test suite (13 tests)
+
+**Test Summary:** 208 tests total (31 reactive + 23 HTML + 36 SolidJS compat + 91 router + 14 browser + 13 suspense)
 
 ## Code Style
 
@@ -199,10 +210,16 @@ let read_typed_signal (type a) (s : a signal) : a =
 | `lib/solid-ml-router/route.ml` | Route pattern matching and params |
 | `lib/solid-ml-router/router.ml` | Router state and navigation |
 | `lib/solid-ml-router/components.ml` | Link, NavLink, Outlet components |
+| `lib/solid-ml/suspense.ml` | Suspense boundaries for async loading |
+| `lib/solid-ml/error_boundary.ml` | Error boundaries with reset |
+| `lib/solid-ml/unique_id.ml` | Generate unique IDs for hydration |
+| `lib/solid-ml-browser/suspense.ml` | Browser Suspense implementation |
+| `lib/solid-ml-browser/error_boundary.ml` | Browser ErrorBoundary |
 | `test/test_reactive.ml` | Test suite for reactive primitives (31 tests) |
 | `test/test_html.ml` | Test suite for HTML rendering (23 tests) |
 | `test/test_solidjs_compat.ml` | SolidJS compatibility tests (36 tests) |
 | `test/test_router.ml` | Router tests (91 tests) |
+| `test/test_suspense.ml` | Suspense and ErrorBoundary tests (13 tests) |
 | `test_browser/test_reactive.ml` | Browser reactive core tests (14 tests) |
 | `examples/counter/counter.ml` | Counter example demonstrating reactive features |
 | `examples/todo/todo.ml` | Todo list with SSR rendering |
@@ -242,6 +259,9 @@ solid-ml aims to match SolidJS semantics closely. Here are the known differences
 | catchError | `Owner.catch_error` | `catchError` | Sync error handling (no setter reset) |
 | Batch | `Batch.run` | `batch` | Groups updates, defers effects |
 | Context | `Context.create/provide/use` | `createContext/useContext` | Owner-tree based lookup |
+| Suspense | `Suspense.boundary` | `<Suspense>` | Counter-based, shows fallback while loading |
+| ErrorBoundary | `ErrorBoundary.make` | `<ErrorBoundary>` | Catches errors with reset capability |
+| createUniqueId | `Unique_id.create` | `createUniqueId` | SSR-safe unique ID generation |
 
 ### Features NOT Implemented (Intentionally Omitted)
 
@@ -252,12 +272,11 @@ solid-ml aims to match SolidJS semantics closely. Here are the known differences
 | `createReaction` | Use `Effect.on` for explicit tracking |
 | `createRenderEffect` | Effects run synchronously already |
 | Transitions API | Requires concurrent rendering not available in OCaml |
-| Suspense | Would require effect-based async (use Resource instead) |
 | `startTransition` | No concurrent mode |
 | `useTransition` | No concurrent mode |
+| `SuspenseList` | Experimental in SolidJS, doesn't fully support SSR |
 | `children` helper | Use direct children access |
 | `lazy` | Use OCaml's native `lazy` |
-| `createUniqueId` | Use a counter or UUID library |
 | Event delegation | Uses inline handlers (simpler, same perf) |
 
 ### Semantic Differences

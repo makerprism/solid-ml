@@ -169,9 +169,10 @@ let create_selector (type k) ?(equals : k -> k -> bool = (=)) (source : k Signal
        in
        
        (* Create a trigger function that will re-run the current computation.
-          We do this by creating a signal that we update when this key's state changes. *)
-       let trigger_signal, set_trigger = Signal.create () in
-       let trigger () = set_trigger () in
+          We do this by creating a signal that we update when this key's state changes.
+          Use a bool that toggles so each trigger actually changes the value. *)
+       let trigger_signal, set_trigger = Signal.create false in
+       let trigger () = set_trigger (not (Signal.peek trigger_signal)) in
        
        (* Add trigger to listeners *)
        listeners := trigger :: !listeners;

@@ -31,11 +31,15 @@ type 'a state =
   | Error of string
   | Ready of 'a
 
+(** Generate unique IDs for resources (for Suspense tracking) *)
+let next_resource_id = ref 0
+
 (** A resource that tracks async data loading *)
 type 'a t = {
   state : 'a state Reactive_core.signal;
   set_state : 'a state -> unit;
   refetch : unit -> unit;
+  id : int;  (** Unique ID for Suspense registration tracking *)
 }
 
 (** {1 Creation} *)
@@ -48,6 +52,8 @@ type 'a t = {
 let create_async fetcher =
   let state = Reactive_core.create_signal Loading in
   let set_state s = Reactive_core.set_signal state s in
+  let id = !next_resource_id in
+  incr next_resource_id;
   
   let do_fetch () =
     set_state Loading;
@@ -60,7 +66,7 @@ let create_async fetcher =
   (* Fetch immediately *)
   do_fetch ();
   
-  { state; set_state; refetch = do_fetch }
+  { state; set_state; refetch = do_fetch; id }
 
 (** Create a resource with a synchronous fetcher.
     
@@ -68,6 +74,8 @@ let create_async fetcher =
 let create fetcher =
   let state = Reactive_core.create_signal Loading in
   let set_state s = Reactive_core.set_signal state s in
+  let id = !next_resource_id in
+  incr next_resource_id;
   
   let do_fetch () =
     set_state Loading;
@@ -79,22 +87,28 @@ let create fetcher =
   in
   
   do_fetch ();
-  { state; set_state; refetch = do_fetch }
+  { state; set_state; refetch = do_fetch; id }
 
 (** Create a resource with an initial value (already ready). *)
 let of_value value =
   let state = Reactive_core.create_signal (Ready value) in
-  { state; set_state = Reactive_core.set_signal state; refetch = (fun () -> ()) }
+  let id = !next_resource_id in
+  incr next_resource_id;
+  { state; set_state = Reactive_core.set_signal state; refetch = (fun () -> ()); id }
 
 (** Create a resource in loading state. *)
 let create_loading () =
   let state = Reactive_core.create_signal Loading in
-  { state; set_state = Reactive_core.set_signal state; refetch = (fun () -> ()) }
+  let id = !next_resource_id in
+  incr next_resource_id;
+  { state; set_state = Reactive_core.set_signal state; refetch = (fun () -> ()); id }
 
 (** Create a resource in error state. *)
 let of_error message =
   let state = Reactive_core.create_signal (Error message) in
-  { state; set_state = Reactive_core.set_signal state; refetch = (fun () -> ()) }
+  let id = !next_resource_id in
+  incr next_resource_id;
+  { state; set_state = Reactive_core.set_signal state; refetch = (fun () -> ()); id }
 
 (** {1 Reading} *)
 
@@ -175,6 +189,37 @@ let combine_all resources =
       | Loading -> Loading
   in
   check [] resources
+
+(** {1 Suspense Integration} *)
+
+(** Read resource value with Suspense integration.
+    
+    - If Ready: returns the data
+    - If Loading: registers with nearest Suspense boundary, returns [default]
+    - If Error: raises an exception (to be caught by ErrorBoundary)
+    
+    @param default Value to return while loading
+    @param resource The resource to read
+    @raise Failure if resource is in Error state *)
+let read_suspense ~default resource =
+  (* Always read the signal to create a dependency - this ensures the
+     containing effect/memo re-runs when the resource state changes *)
+  let current_state = Reactive_core.get_signal resource.state in
+  
+  match current_state with
+  | Ready data -> data
+  | Error msg -> failwith msg
+  | Loading ->
+    (* Try to register with Suspense context *)
+    (match Suspense.get_state () with
+     | None -> 
+       (* No Suspense boundary - just return default *)
+       default
+     | Some suspense_state ->
+       (* Increment counter for this loading resource *)
+       Suspense.increment suspense_state;
+       default
+    )
 
 (** {1 Rendering Helpers} *)
 
