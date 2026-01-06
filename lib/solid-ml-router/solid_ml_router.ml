@@ -51,3 +51,6 @@ module Router = Router
 
 (** Router components (Link, Outlet, provide) *)
 module Components = Components
+
+(** Async resource with loading/error/ready states *)
+module Resource = Resource

@@ -613,6 +613,182 @@ let test_outlet_component () =
     )
   )
 
+(* ========== Resource ========== *)
+
+let test_resource () =
+  print_endline "\n=== Resource ===";
+  
+  test "resource starts loading then ready" (fun () ->
+    Runtime.run (fun () ->
+      let r = Resource.create (fun () -> 42) in
+      match Resource.read r with
+      | Resource.Ready v -> assert_equal v 42
+      | _ -> failwith "expected Ready"
+    )
+  );
+  
+  test "resource of_value is ready" (fun () ->
+    Runtime.run (fun () ->
+      let r = Resource.of_value "hello" in
+      match Resource.read r with
+      | Resource.Ready v -> assert_equal v "hello"
+      | _ -> failwith "expected Ready"
+    )
+  );
+  
+  test "resource of_error is error" (fun () ->
+    Runtime.run (fun () ->
+      let r = Resource.of_error "something went wrong" in
+      match Resource.read r with
+      | Resource.Error msg -> assert_equal msg "something went wrong"
+      | _ -> failwith "expected Error"
+    )
+  );
+  
+  test "resource create_loading is loading" (fun () ->
+    Runtime.run (fun () ->
+      let r = Resource.create_loading () in
+      match Resource.read r with
+      | Resource.Loading -> ()
+      | _ -> failwith "expected Loading"
+    )
+  );
+  
+  test "resource set transitions to ready" (fun () ->
+    Runtime.run (fun () ->
+      let r = Resource.create_loading () in
+      Resource.set r 99;
+      match Resource.read r with
+      | Resource.Ready v -> assert_equal v 99
+      | _ -> failwith "expected Ready"
+    )
+  );
+  
+  test "resource set_error transitions to error" (fun () ->
+    Runtime.run (fun () ->
+      let r = Resource.of_value 1 in
+      Resource.set_error r "failed";
+      match Resource.read r with
+      | Resource.Error msg -> assert_equal msg "failed"
+      | _ -> failwith "expected Error"
+    )
+  );
+  
+  test "resource is_loading" (fun () ->
+    Runtime.run (fun () ->
+      let r = Resource.create_loading () in
+      assert (Resource.is_loading r);
+      assert (not (Resource.is_ready r));
+      assert (not (Resource.is_error r))
+    )
+  );
+  
+  test "resource is_ready" (fun () ->
+    Runtime.run (fun () ->
+      let r = Resource.of_value 1 in
+      assert (Resource.is_ready r);
+      assert (not (Resource.is_loading r));
+      assert (not (Resource.is_error r))
+    )
+  );
+  
+  test "resource is_error" (fun () ->
+    Runtime.run (fun () ->
+      let r = Resource.of_error "err" in
+      assert (Resource.is_error r);
+      assert (not (Resource.is_loading r));
+      assert (not (Resource.is_ready r))
+    )
+  );
+  
+  test "resource get_data" (fun () ->
+    Runtime.run (fun () ->
+      let r = Resource.of_value 123 in
+      assert_equal (Resource.get_data r) (Some 123);
+      let r2 = Resource.create_loading () in
+      assert_none (Resource.get_data r2)
+    )
+  );
+  
+  test "resource get_error" (fun () ->
+    Runtime.run (fun () ->
+      let r = Resource.of_error "oops" in
+      assert_equal (Resource.get_error r) (Some "oops");
+      let r2 = Resource.of_value 1 in
+      assert_none (Resource.get_error r2)
+    )
+  );
+  
+  test "resource map on ready" (fun () ->
+    Runtime.run (fun () ->
+      let r = Resource.of_value 10 in
+      match Resource.map (fun x -> x * 2) r with
+      | Resource.Ready v -> assert_equal v 20
+      | _ -> failwith "expected Ready"
+    )
+  );
+  
+  test "resource map on loading" (fun () ->
+    Runtime.run (fun () ->
+      let r = Resource.create_loading () in
+      match Resource.map (fun x -> x * 2) r with
+      | Resource.Loading -> ()
+      | _ -> failwith "expected Loading"
+    )
+  );
+  
+  test "resource combine both ready" (fun () ->
+    Runtime.run (fun () ->
+      let r1 = Resource.of_value 1 in
+      let r2 = Resource.of_value 2 in
+      match Resource.combine r1 r2 with
+      | Resource.Ready (a, b) -> 
+        assert_equal a 1;
+        assert_equal b 2
+      | _ -> failwith "expected Ready"
+    )
+  );
+  
+  test "resource combine one loading" (fun () ->
+    Runtime.run (fun () ->
+      let r1 = Resource.of_value 1 in
+      let r2 = Resource.create_loading () in
+      match Resource.combine r1 r2 with
+      | Resource.Loading -> ()
+      | _ -> failwith "expected Loading"
+    )
+  );
+  
+  test "resource combine one error" (fun () ->
+    Runtime.run (fun () ->
+      let r1 = Resource.of_value 1 in
+      let r2 = Resource.of_error "fail" in
+      match Resource.combine r1 r2 with
+      | Resource.Error msg -> assert_equal msg "fail"
+      | _ -> failwith "expected Error"
+    )
+  );
+  
+  test "resource combine_all" (fun () ->
+    Runtime.run (fun () ->
+      let r1 = Resource.of_value 1 in
+      let r2 = Resource.of_value 2 in
+      let r3 = Resource.of_value 3 in
+      match Resource.combine_all [r1; r2; r3] with
+      | Resource.Ready lst -> assert_equal lst [1; 2; 3]
+      | _ -> failwith "expected Ready"
+    )
+  );
+  
+  test "resource fetcher exception becomes error" (fun () ->
+    Runtime.run (fun () ->
+      let r = Resource.create (fun () -> failwith "boom") in
+      match Resource.read r with
+      | Resource.Error _ -> ()
+      | _ -> failwith "expected Error"
+    )
+  )
+
 (* ========== Run All Tests ========== *)
 
 let () =
@@ -634,6 +810,7 @@ let () =
   test_router_provider ();
   test_link_component ();
   test_outlet_component ();
+  test_resource ();
   
   print_endline "\n==============================";
   Printf.printf "  Results: %d passed, %d failed\n" !passed !failed;

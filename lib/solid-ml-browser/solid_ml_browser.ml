@@ -57,3 +57,6 @@ module Reactive_core = Reactive_core
 
 (** Browser router with History API integration *)
 module Router = Router
+
+(** Async resource with loading/error/ready states *)
+module Resource = Resource

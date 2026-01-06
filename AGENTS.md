@@ -146,7 +146,7 @@ let read_typed_signal (type a) (s : a signal) : a =
 - [x] Builds successfully with esy
 - [x] Browser reactive tests (14 tests via Node.js)
 
-**Phase 4: Router** (in progress)
+**Phase 4: Router** (complete)
 
 - [x] Route matching (static, params, wildcards)
 - [x] Route pattern parsing
@@ -158,11 +158,11 @@ let read_typed_signal (type a) (s : a signal) : a =
 - [x] NavLink with active class support
 - [x] Outlet component for rendering matched routes
 - [x] RouterProvider for initializing router context
-- [x] Comprehensive test suite (73 tests)
+- [x] Comprehensive test suite (91 tests)
 - [x] History API integration (browser)
 - [x] Client-side navigation without reload (browser)
 - [x] Scroll restoration
-- [ ] Loading/error states
+- [x] Loading/error states (Resource module)
 
 ## Code Style
 
