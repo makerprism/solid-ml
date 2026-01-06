@@ -158,10 +158,10 @@ let read_typed_signal (type a) (s : a signal) : a =
 - [x] NavLink with active class support
 - [x] Outlet component for rendering matched routes
 - [x] RouterProvider for initializing router context
-- [x] Comprehensive test suite (60 tests)
-- [ ] History API integration (browser)
-- [ ] Client-side navigation without reload (browser)
-- [ ] Scroll restoration
+- [x] Comprehensive test suite (73 tests)
+- [x] History API integration (browser)
+- [x] Client-side navigation without reload (browser)
+- [x] Scroll restoration
 - [ ] Loading/error states
 
 ## Code Style

@@ -331,6 +331,75 @@ external error : 'a -> unit = "error"
 external warn : 'a -> unit = "warn"
   [@@mel.scope "console"]
 
+(** {1 History API} *)
+
+(** Get the current URL pathname *)
+let get_pathname () : string =
+  [%mel.raw {| window.location.pathname |}]
+
+(** Get the current URL search string (including ?) *)
+let get_search () : string =
+  [%mel.raw {| window.location.search |}]
+
+(** Get the current URL hash (including #) *)
+let get_hash () : string =
+  [%mel.raw {| window.location.hash |}]
+
+(** Get the full current URL *)
+let get_href () : string =
+  [%mel.raw {| window.location.href |}]
+
+(** Push a new entry to the history stack *)
+let push_state url =
+  let _ = url in
+  [%mel.raw {| window.history.pushState(null, '', url) |}]
+
+(** Replace the current history entry *)
+let replace_state url =
+  let _ = url in
+  [%mel.raw {| window.history.replaceState(null, '', url) |}]
+
+(** Go back one entry in history *)
+let history_back () : unit =
+  [%mel.raw {| window.history.back() |}]
+
+(** Go forward one entry in history *)
+let history_forward () : unit =
+  [%mel.raw {| window.history.forward() |}]
+
+(** Go to a specific point in history (negative = back, positive = forward) *)
+let history_go delta =
+  let _ = delta in
+  [%mel.raw {| window.history.go(delta) |}]
+
+(** Add a popstate event listener (for back/forward navigation) *)
+let on_popstate handler =
+  let _ = handler in
+  [%mel.raw {| window.addEventListener('popstate', handler) |}]
+
+(** Remove a popstate event listener *)
+let off_popstate handler =
+  let _ = handler in
+  [%mel.raw {| window.removeEventListener('popstate', handler) |}]
+
+(** {1 Scroll} *)
+
+(** Get current scroll position *)
+let get_scroll_x () : float =
+  [%mel.raw {| window.scrollX || window.pageXOffset || 0 |}]
+
+let get_scroll_y () : float =
+  [%mel.raw {| window.scrollY || window.pageYOffset || 0 |}]
+
+(** Scroll to a position *)
+let scroll_to x y =
+  let _ = (x, y) in
+  [%mel.raw {| window.scrollTo(x, y) |}]
+
+(** Scroll to top of page *)
+let scroll_to_top () : unit =
+  scroll_to 0.0 0.0
+
 (** {1 JSON/Hydration Data} *)
 
 let get_hydration_data () : Js.Json.t Js.Nullable.t =

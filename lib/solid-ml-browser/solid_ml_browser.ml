@@ -54,3 +54,6 @@ module Hydration = Hydration
 
 (** Browser-optimized reactive core - use Reactive module for higher-level API *)
 module Reactive_core = Reactive_core
+
+(** Browser router with History API integration *)
+module Router = Router

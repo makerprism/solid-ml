@@ -188,6 +188,55 @@ val log : 'a -> unit
 val error : 'a -> unit
 val warn : 'a -> unit
 
+(** {1 History API} *)
+
+val get_pathname : unit -> string
+(** Get the current URL pathname *)
+
+val get_search : unit -> string
+(** Get the current URL search string (including ?) *)
+
+val get_hash : unit -> string
+(** Get the current URL hash (including #) *)
+
+val get_href : unit -> string
+(** Get the full current URL *)
+
+val push_state : string -> unit
+(** Push a new entry to the history stack *)
+
+val replace_state : string -> unit
+(** Replace the current history entry *)
+
+val history_back : unit -> unit
+(** Go back one entry in history *)
+
+val history_forward : unit -> unit
+(** Go forward one entry in history *)
+
+val history_go : int -> unit
+(** Go to a specific point in history *)
+
+val on_popstate : (event -> unit) -> unit
+(** Add a popstate event listener *)
+
+val off_popstate : (event -> unit) -> unit
+(** Remove a popstate event listener *)
+
+(** {1 Scroll} *)
+
+val get_scroll_x : unit -> float
+(** Get current horizontal scroll position *)
+
+val get_scroll_y : unit -> float
+(** Get current vertical scroll position *)
+
+val scroll_to : float -> float -> unit
+(** Scroll to a position *)
+
+val scroll_to_top : unit -> unit
+(** Scroll to top of page *)
+
 (** {1 Hydration} *)
 
 val get_hydration_data : unit -> Js.Json.t Js.Nullable.t
