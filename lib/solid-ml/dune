@@ -1,4 +1,9 @@
+; solid-ml: Server-side reactive framework
+;
+; Uses Domain-local storage for thread-safe isolation.
+; Each domain gets its own independent reactive runtime.
+
 (library
  (name solid_ml)
  (public_name solid-ml)
- (libraries solid-ml-core))
+ (libraries solid-ml-internal))

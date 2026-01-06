@@ -511,9 +511,9 @@ module Make (B : Backend.S) = struct
     rt.listener <- prev;
     result
 
-  (** {1 Signal API} *)
+  (** {1 Low-level Signal API (Obj.t)} *)
   
-  let create_signal ?comparator initial =
+  let create_signal_internal ?comparator initial =
     {
       value = initial;
       observers = [||];
@@ -522,31 +522,151 @@ module Make (B : Backend.S) = struct
       comparator;
     }
 
-  (** {1 Memo API} *)
+  (** {1 Typed Signal API} *)
   
-  let create_memo ~fn ~comparator : computation =
-    let comp = create_computation 
-      ~fn:(fun prev -> 
+  (** Create a typed signal with optional equality function *)
+  let create_typed_signal (type a) ?(equals : (a -> a -> bool) option) (initial : a) : a signal =
+    let comparator = match equals with
+      | Some eq -> Some (fun a b -> eq (Obj.obj a) (Obj.obj b))
+      | None -> None
+    in
+    create_signal_internal ?comparator (Obj.repr initial)
+  
+  (** Read a typed signal with tracking *)
+  let read_typed_signal (type a) (s : a signal) : a =
+    Obj.obj (read_signal s)
+  
+  (** Write to a typed signal *)
+  let write_typed_signal (type a) (s : a signal) (v : a) : unit =
+    write_signal s (Obj.repr v)
+  
+  (** Peek at signal value without tracking *)
+  let peek_typed_signal (type a) (s : a signal) : a =
+    Obj.obj s.value
+
+  (** {1 Typed Memo API} *)
+  
+  (** Create a typed memo *)
+  let create_typed_memo (type a) ?(equals : (a -> a -> bool) = (=)) (fn : unit -> a) : a memo =
+    let memo_ref : a memo option ref = ref None in
+    
+    let comp = create_computation
+      ~fn:(fun _prev ->
         let new_val = fn () in
-        (* Check if value changed *)
-        let changed = match comparator with
-          | Some cmp -> not (cmp prev new_val)
-          | None -> prev <> new_val
-        in
-        if changed then begin
-          (* Will mark downstream when computation completes *)
-          new_val
-        end else
-          prev
+        begin match !memo_ref with
+        | Some m ->
+          if m.has_cached && not (m.equals m.cached new_val) then begin
+            (* Value changed - mark downstream *)
+            m.cached <- new_val;
+            let rt = get_runtime () in
+            begin match m.comp.memo_observers with
+            | Some observers ->
+              for i = 0 to m.comp.memo_observers_len - 1 do
+                let o = Array.get observers i in
+                if o.state = Clean then begin
+                  o.state <- Stale;
+                  if o.pure then rt.updates <- o :: rt.updates
+                  else rt.effects <- o :: rt.effects
+                end else if o.state = Pending then
+                  o.state <- Stale
+              done
+            | None -> ()
+            end
+          end else begin
+            m.cached <- new_val;
+            m.has_cached <- true
+          end
+        | None -> ()
+        end;
+        Obj.repr new_val
       )
       ~init:(Obj.repr ())
       ~pure:true
       ~initial_state:Stale
     in
+    
     comp.memo_observers <- Some [||];
     comp.memo_observer_slots <- Some [||];
-    comp.memo_comparator <- comparator;
-    (* Run immediately (eager evaluation) *)
+    
+    let m : a memo = {
+      comp;
+      cached = Obj.magic ();
+      has_cached = false;
+      equals;
+    } in
+    memo_ref := Some m;
+    
+    (* Eager evaluation *)
     update_computation comp;
-    comp
+    m
+  
+  (** Read a typed memo with tracking *)
+  let read_typed_memo (type a) (m : a memo) : a =
+    let comp = m.comp in
+    
+    (* Recompute if stale *)
+    if comp.state = Stale then begin
+      clean_node comp;
+      run_computation comp;
+      comp.state <- Clean
+    end else if comp.state = Pending then begin
+      look_upstream comp;
+      if comp.state = Stale then begin
+        clean_node comp;
+        run_computation comp;
+        comp.state <- Clean
+      end
+    end;
+    
+    (* Track dependency *)
+    let rt = get_runtime () in
+    begin match rt.listener with
+    | Some listener ->
+      let s_slot = comp.memo_observers_len in
+      
+      (* Add memo to listener's sources *)
+      if listener.sources_len = 0 then begin
+        listener.sources <- Array.make 4 (Obj.repr comp);
+        listener.source_slots <- Array.make 4 s_slot;
+        listener.source_kinds <- Array.make 4 Memo_source;
+        listener.sources_len <- 1
+      end else begin
+        listener.sources <- ensure_capacity listener.sources listener.sources_len 
+          (listener.sources_len + 1) (Obj.repr comp);
+        listener.source_slots <- ensure_capacity listener.source_slots listener.sources_len 
+          (listener.sources_len + 1) 0;
+        listener.source_kinds <- ensure_capacity_kinds listener.source_kinds listener.sources_len 
+          (listener.sources_len + 1);
+        Array.set listener.sources listener.sources_len (Obj.repr comp);
+        Array.set listener.source_slots listener.sources_len s_slot;
+        Array.set listener.source_kinds listener.sources_len Memo_source;
+        listener.sources_len <- listener.sources_len + 1
+      end;
+      
+      (* Add listener to memo's observers *)
+      let observers = match comp.memo_observers with Some o -> o | None -> [||] in
+      let slots = match comp.memo_observer_slots with Some s -> s | None -> [||] in
+      
+      if comp.memo_observers_len = 0 then begin
+        comp.memo_observers <- Some (Array.make 4 listener);
+        comp.memo_observer_slots <- Some (Array.make 4 (listener.sources_len - 1));
+        comp.memo_observers_len <- 1
+      end else begin
+        let new_observers = ensure_capacity observers comp.memo_observers_len 
+          (comp.memo_observers_len + 1) (empty_computation ()) in
+        let new_slots = ensure_capacity slots comp.memo_observers_len 
+          (comp.memo_observers_len + 1) 0 in
+        Array.set new_observers comp.memo_observers_len listener;
+        Array.set new_slots comp.memo_observers_len (listener.sources_len - 1);
+        comp.memo_observers <- Some new_observers;
+        comp.memo_observer_slots <- Some new_slots;
+        comp.memo_observers_len <- comp.memo_observers_len + 1
+      end
+    | None -> ()
+    end;
+    
+    m.cached
+  
+  (** Peek at memo value without tracking *)
+  let peek_typed_memo (type a) (m : a memo) : a = m.cached
 end

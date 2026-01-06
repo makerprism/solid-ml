@@ -17,7 +17,7 @@
 *)
 
 (** A memoized computation that can be read like a signal *)
-type 'a t
+type 'a t = 'a Reactive.memo
 
 (** Create a memoized computation.
     The function is called immediately on creation (eager, like SolidJS),

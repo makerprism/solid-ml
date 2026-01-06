@@ -1,141 +1,91 @@
-(** Core reactive system using the shared functor with DLS backend.
+(** Server-side reactive system.
     
-    This module provides the server-side reactive primitives with
-    thread-safe isolation via Domain-local storage (DLS). Each domain
-    gets its own independent reactive runtime.
+    Uses Domain-local storage (DLS) for thread-safe isolation.
+    Each domain gets its own independent reactive runtime, making
+    this safe for concurrent server requests.
     
-    The implementation delegates to the shared core (solid-ml-core)
-    which contains all the reactive algorithms. This module just:
-    1. Instantiates the functor with the DLS backend
-    2. Provides typed wrappers for the Obj.t-based internal API
+    This module instantiates the shared functor with the DLS backend
+    and re-exports all the reactive primitives.
 *)
+
+(** {1 Internal Module (for advanced use only)} *)
+
+module Internal = Solid_ml_internal
+
+(** {1 DLS Backend (Server-specific)} *)
+
+module Backend_DLS : Internal.Backend.S = struct
+  let runtime_key : Internal.Types.runtime option Domain.DLS.key =
+    Domain.DLS.new_key (fun () -> None)
+  
+  let get_runtime () = Domain.DLS.get runtime_key
+  let set_runtime rt = Domain.DLS.set runtime_key rt
+  
+  (* Server should not swallow errors *)
+  let handle_error exn _context = raise exn
+end
+
+(** {1 Instantiate with DLS Backend} *)
+
+module R = Internal.Reactive_functor.Make(Backend_DLS)
 
 (** {1 Re-export Types} *)
 
-(** State of a computation *)
-type computation_state = Solid_ml_core.Types.computation_state =
+type computation_state = Internal.Types.computation_state =
   | Clean
-  | Stale
+  | Stale  
   | Pending
 
-(** Source kind for dependency tracking *)
-type source_kind = Solid_ml_core.Types.source_kind =
+type source_kind = Internal.Types.source_kind =
   | Signal_source
   | Memo_source
 
-(** A signal holds a reactive value with observers.
-    
-    Note: Internally uses Obj.t for type erasure, but we expose
-    a polymorphic interface for type safety. *)
-type 'a signal_state = {
-  mutable value: 'a;
-  mutable observers: computation array;
-  mutable observer_slots: int array;
-  mutable observers_len: int;
-  comparator: ('a -> 'a -> bool) option;
-}
+type signal_state = Internal.Types.signal_state
+type owner = Internal.Types.owner
+type computation = Internal.Types.computation
+type runtime = Internal.Types.runtime
 
-(** Owner node for cleanup hierarchy *)
-and owner = Solid_ml_core.Types.owner = {
-  mutable owned: computation list;
-  mutable cleanups: (unit -> unit) list;
-  mutable owner: owner option;
-  mutable context: (int * Obj.t) list;
-  mutable child_owners: owner list;
-}
+(** Typed signal - the type parameter provides compile-time safety *)
+type 'a signal = 'a Internal.Types.signal
 
-(** A computation (effect or memo) *)
-and computation = Solid_ml_core.Types.computation = {
-  mutable fn: (Obj.t -> Obj.t) option;
-  mutable state: computation_state;
-  mutable sources: Obj.t array;
-  mutable source_slots: int array;
-  mutable source_kinds: source_kind array;
-  mutable sources_len: int;
-  mutable value: Obj.t;
-  mutable updated_at: int;
-  pure: bool;
-  mutable user: bool;
-  mutable owned: computation list;
-  mutable cleanups: (unit -> unit) list;
-  mutable owner: owner option;
-  mutable context: (int * Obj.t) list;
-  mutable memo_observers: computation array option;
-  mutable memo_observer_slots: int array option;
-  mutable memo_observers_len: int;
-  mutable memo_comparator: (Obj.t -> Obj.t -> bool) option;
-}
+(** Typed memo *)
+type 'a memo = 'a Internal.Types.memo
 
-(** Runtime state for a reactive context *)
-type runtime = Solid_ml_core.Types.runtime = {
-  mutable listener: computation option;
-  mutable owner: owner option;
-  mutable updates: computation list;
-  mutable effects: computation list;
-  mutable exec_count: int;
-  mutable in_update: bool;
-}
+(** {1 Runtime API} *)
 
-(** {1 Instantiate Functor with DLS Backend} *)
-
-module R = Solid_ml_core.Reactive_functor.Make(Solid_ml_core.Backend.DLS)
-
-(** {1 Public API} *)
-
-(** Get current runtime *)
 let get_runtime = R.get_runtime
-
-(** Get current runtime if any *)
 let get_runtime_opt = R.get_runtime_opt
-
-(** Create a new runtime *)
-let create_runtime = Solid_ml_core.Types.create_runtime
-
-(** Run a function within a reactive runtime *)
+let create_runtime = Internal.Types.create_runtime
 let run = R.run
 
-(** Create a root owner for cleanup *)
+(** {1 Owner API} *)
+
 let create_root = R.create_root
-
-(** Register a cleanup function *)
 let on_cleanup = R.on_cleanup
+let get_owner = R.get_owner
 
-(** Read without tracking *)
+(** {1 Tracking API} *)
+
 let untrack = R.untrack
 
-(** {1 Signal Operations (Type-Safe Wrappers)} *)
+(** {1 Typed Signal API} *)
 
-(** Read a signal with tracking.
-    Wraps the Obj.t-based internal function with type safety. *)
-let read_signal : 'a. 'a signal_state -> 'a = fun signal ->
-  (* Cast to internal type and read *)
-  let internal : Solid_ml_core.Types.signal_state = Obj.magic signal in
-  Obj.magic (R.read_signal internal)
+let create_signal = R.create_typed_signal
+let read_signal = R.read_typed_signal
+let write_signal = R.write_typed_signal
+let peek_signal = R.peek_typed_signal
 
-(** Write to a signal, notifying observers *)
-let write_signal : 'a. 'a signal_state -> 'a -> unit = fun signal value ->
-  let internal : Solid_ml_core.Types.signal_state = Obj.magic signal in
-  R.write_signal internal (Obj.repr value)
+(** {1 Typed Memo API} *)
 
-(** {1 Computation Operations} *)
+let create_memo = R.create_typed_memo
+let read_memo = R.read_typed_memo
+let peek_memo = R.peek_typed_memo
 
-(** Create a new computation *)
+(** {1 Computation API (for Effect/Memo implementations)} *)
+
 let create_computation = R.create_computation
-
-(** Clean up a computation *)
 let clean_node = R.clean_node
-
-(** Execute a computation *)
 let run_computation = R.run_computation
-
-(** Process a computation *)
 let run_top = R.run_top
-
-(** Execute within an update cycle *)
 let run_updates = R.run_updates
-
-(** {1 Memo Support} *)
-
-(** Mark downstream nodes as pending (for memo change propagation) *)
-let look_upstream (node: computation) =
-  node.state <- Clean
+let look_upstream = R.look_upstream

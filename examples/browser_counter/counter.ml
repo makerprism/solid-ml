@@ -10,7 +10,7 @@
     Then open index.html in a browser.
 *)
 
-open Solid_ml_dom
+open Solid_ml_browser
 open Reactive
 
 (** Simple counter component *)

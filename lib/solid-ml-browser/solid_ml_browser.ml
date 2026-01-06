@@ -1,15 +1,16 @@
-(** solid-ml-dom: Client-side rendering for solid-ml.
+(** solid-ml-browser: Browser-side reactive framework for solid-ml.
     
     This library provides DOM rendering and hydration for solid-ml components,
     compiled to JavaScript via Melange.
     
-    It includes a browser-optimized reactive core that doesn't require
-    Domain-local storage (since JavaScript is single-threaded).
+    It uses the shared reactive core (solid-ml-internal) with a browser-specific
+    backend that uses global refs (safe in single-threaded JS) and logs errors
+    to the console.
     
     {1 Basic Usage}
     
     {[
-      open Solid_ml_dom
+      open Solid_ml_browser
       open Reactive
       
       let counter () =

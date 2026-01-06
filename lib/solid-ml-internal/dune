@@ -1,0 +1,17 @@
+; solid-ml-internal: Shared reactive internals
+;
+; DO NOT depend on this package directly.
+; Use solid-ml (server) or solid-ml-browser (browser) instead.
+;
+; This package provides:
+; - Internal types with Obj.t for type erasure
+; - Functor-based reactive algorithms
+; - Backend module type for platform-specific storage
+;
+; Built for both native and melange modes.
+
+(library
+ (name solid_ml_internal)
+ (public_name solid-ml-internal)
+ (modes :standard melange)
+ (libraries))

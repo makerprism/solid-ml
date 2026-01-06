@@ -5,12 +5,11 @@
     
     Uses Domain-local storage (OCaml 5) for safe parallel execution
     across domains.
-    
-    Note: This module is a thin wrapper around Reactive for backwards
-    compatibility. The actual implementation is in Reactive.
 *)
 
-(** Runtime type - use opaque to users *)
+module Internal = Solid_ml_internal
+
+(** Runtime type - opaque to users *)
 type t = Reactive.runtime
 
 (** Owner type for cleanup tracking *)
@@ -25,16 +24,5 @@ let get_current_opt () = Reactive.get_runtime_opt ()
 (** Create a new runtime and run function within it.
     
     This is the main entry point for reactive code.
-    Each call creates isolated reactive state.
-    
-    Example:
-    {[
-      Runtime.run (fun () ->
-        let count, set = Signal.create 0 in
-        Effect.create (fun () ->
-          print_int (Signal.get count)
-        );
-        set 1
-      )
-    ]} *)
+    Each call creates isolated reactive state. *)
 let run = Reactive.run

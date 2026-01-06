@@ -7,5 +7,5 @@
 
 (melange.emit
  (target output)
- (libraries solid-ml-dom)
+ (libraries solid-ml-browser)
  (module_systems es6))

@@ -29,23 +29,17 @@ module type S = sig
   val handle_error : exn -> string -> unit
 end
 
-(** Global ref backend - for browser (single-threaded) *)
+(** Global ref backend - works on both server and browser.
+    
+    On server, prefer the DLS backend from solid-ml for thread safety.
+    On browser, this is the correct choice (JS is single-threaded). *)
 module Global : S = struct
   let current_runtime : runtime option ref = ref None
   
   let get_runtime () = !current_runtime
   let set_runtime rt = current_runtime := rt
   
-  let handle_error exn _context = raise exn
-end
-
-(** DLS backend - for server (thread-safe per domain) *)
-module DLS : S = struct
-  let runtime_key : runtime option Domain.DLS.key =
-    Domain.DLS.new_key (fun () -> None)
-  
-  let get_runtime () = Domain.DLS.get runtime_key
-  let set_runtime rt = Domain.DLS.set runtime_key rt
-  
+  (* Default error handling - re-raise. 
+     Browser package can shadow this with console.error *)
   let handle_error exn _context = raise exn
 end

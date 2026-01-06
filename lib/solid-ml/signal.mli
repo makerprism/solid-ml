@@ -23,7 +23,7 @@
 *)
 
 (** A reactive value that tracks its dependents. *)
-type 'a t = 'a Reactive.signal_state
+type 'a t = 'a Reactive.signal
 
 (** Create a new signal with an initial value.
     Returns a tuple of (signal, setter function).
