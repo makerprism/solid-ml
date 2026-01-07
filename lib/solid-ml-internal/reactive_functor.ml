@@ -57,24 +57,30 @@ module Make (B : Backend.S) = struct
 
   (** {1 Queue Helpers} *)
   
-  (** Push a computation onto the updates queue *)
+  (** Push a computation onto the updates queue - optimized *)
   let push_update rt comp =
     let len = rt.updates_len in
     let arr = rt.updates in
     if len >= Array.length arr then begin
-      let new_arr = Array.make (len * 2) dummy_computation in
+      (* Optimized: use same growth factor as arrays *)
+      let growth_factor = if len < 64 then 2.0 else 1.5 in
+      let new_len = int_of_float (float_of_int len *. growth_factor) in
+      let new_arr = Array.make new_len dummy_computation in
       Array.blit arr 0 new_arr 0 len;
       rt.updates <- new_arr
     end;
     Array.unsafe_set rt.updates len comp;
     rt.updates_len <- len + 1
   
-  (** Push a computation onto the effects queue *)
+  (** Push a computation onto the effects queue - optimized *)
   let push_effect rt comp =
     let len = rt.effects_len in
     let arr = rt.effects in
     if len >= Array.length arr then begin
-      let new_arr = Array.make (len * 2) dummy_computation in
+      (* Optimized: use same growth factor as arrays *)
+      let growth_factor = if len < 64 then 2.0 else 1.5 in
+      let new_len = int_of_float (float_of_int len *. growth_factor) in
+      let new_arr = Array.make new_len dummy_computation in
       Array.blit arr 0 new_arr 0 len;
       rt.effects <- new_arr
     end;
@@ -225,8 +231,12 @@ module Make (B : Backend.S) = struct
       if signal.observers_len > 0 then begin
         let rt = get_runtime () in
         !run_updates_ref (fun () ->
-          for i = 0 to signal.observers_len - 1 do
-            let o = Array.get signal.observers i in
+          (* Cache array accesses for performance *)
+          let observers = signal.observers in
+          let observers_len = signal.observers_len in
+          
+          for i = 0 to observers_len - 1 do
+            let o = Array.unsafe_get observers i in
             if o.state = Clean then begin
               if o.pure then
                 push_update rt o
@@ -234,7 +244,7 @@ module Make (B : Backend.S) = struct
                 push_effect rt o;
               if o.memo_observers <> None then
                 mark_downstream o
-            end;
+              end;
             o.state <- Stale
           done
         ) false
