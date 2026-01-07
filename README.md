@@ -10,11 +10,9 @@ An OCaml framework for building reactive web applications with server-side rende
 
 **Maturity:** Experimental - Not battle-tested in production yet.
 
-solid-ml was built rapidly by [Makerprism](https://github.com/makerprism) as a proof-of-concept for fine-grained reactive SSR in OCaml. While all core features are implemented with comprehensive test coverage, this framework has **not been used in production** and may have undiscovered edge cases.
+This framework was built rapidly as a proof-of-concept for fine-grained reactive SSR in OCaml. While all core features are implemented with comprehensive test coverage, solid-ml has **not been used in production** and may have undiscovered edge cases.
 
-**Our commitment:** We (Makerprism) intend to use solid-ml in production applications if we can make it work reliably. We're actively developing and testing it. Expect rapid iteration, breaking changes, and enthusiastic bug fixes.
-
-**Use at your own risk.** If you're adventurous and want to help stabilize it, we'd love your contributions and feedback!
+Expect rapid iteration, breaking changes, and active development. **Use at your own risk.** If you're adventurous and want to help stabilize it, contributions and feedback are welcome!
 
 ## Features
 

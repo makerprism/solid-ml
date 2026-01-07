@@ -6,7 +6,7 @@ This document describes the current limitations, constraints, and known issues w
 
 All 5 development phases are complete. solid-ml has 208 tests passing.
 
-**Maturity:** Experimental (started January 5, 2026). Not battle-tested in production yet. Makerprism intends to use it in production if it proves reliable. Expect rapid iteration and potential breaking changes.
+**Maturity:** Experimental (started January 5, 2026). Not battle-tested in production yet. Expect rapid iteration and potential breaking changes.
 
 | Feature | Status | Notes |
 |---------|--------|-------|
