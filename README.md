@@ -10,7 +10,7 @@ An OCaml framework for building reactive web applications with server-side rende
 
 **Maturity:** Experimental - Not battle-tested in production yet.
 
-This framework was built rapidly as a proof-of-concept for fine-grained reactive SSR in OCaml. While all core features are implemented with comprehensive test coverage, solid-ml has **not been used in production** and may have undiscovered edge cases.
+solid-ml is a mostly faithful port of SolidJS to OCaml, enabling full-stack OCaml web applications where validation logic, types, and business logic can be seamlessly shared between server and client. While all core features are implemented with comprehensive test coverage (208 tests), solid-ml has **not been used in production** and may have undiscovered edge cases.
 
 Expect rapid iteration, breaking changes, and active development. **Use at your own risk.** If you're adventurous and want to help stabilize it, contributions and feedback are welcome!
 
