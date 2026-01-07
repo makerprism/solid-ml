@@ -370,13 +370,16 @@ let render_keyed_list ~(items : row array Reactive.Signal.t) (parent : Dom.eleme
     let check_selected = match !is_selected with Some f -> f | None -> failwith "selector not initialized" in
     
     (* Dispose removed items (effects only - DOM removal handled by reconcile) *)
-    Hashtbl.iter (fun id state ->
-      if not (Hashtbl.mem new_id_set id) then begin
-        (try state.label_dispose () with _ -> ());
-        (try state.sel_dispose () with _ -> ());
-        Hashtbl.remove node_map id
-      end
-    ) node_map;
+    (* Optimization: if clearing all (new_len = 0), skip iteration *)
+    if new_len = 0 then
+      Hashtbl.clear node_map
+    else
+      Hashtbl.iter (fun id _state ->
+        if not (Hashtbl.mem new_id_set id) then begin
+          (* Note: disposal functions are no-ops since effects are owned by parent *)
+          Hashtbl.remove node_map id
+        end
+      ) node_map;
     
     (* Build array of nodes, creating new ones as needed *)
     let new_nodes = Array.map (fun row ->
@@ -408,6 +411,11 @@ let render_keyed_list ~(items : row array Reactive.Signal.t) (parent : Dom.eleme
       Array.iter (fun node ->
         Dom.append_child parent (Dom.node_of_element node)
       ) new_nodes
+    end else if new_len = 0 && Array.length prev > 0 then begin
+      (* Fast path: clearing all rows - just remove all children *)
+      Array.iter (fun node ->
+        Dom.remove_child parent (Dom.node_of_element node)
+      ) prev
     end else if new_len > 0 || Array.length prev > 0 then begin
       (* Use reconciliation algorithm *)
       reconcile_arrays parent prev new_nodes
