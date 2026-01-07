@@ -224,7 +224,41 @@ dune runtest
 
 ## Installation
 
-> Coming soon to opam
+### Via Dune Package Management (Git)
+
+Add to your `dune-project`:
+
+```scheme
+(package
+ (name my-app)
+ (depends
+  (solid-ml (>= 0.1.0))
+  (solid-ml-html (>= 0.1.0))
+  (solid-ml-router (>= 0.1.0))))  ; Optional
+
+(source
+ (github makerprism/solid-ml))
+```
+
+Then run:
+```bash
+dune pkg lock
+dune build
+```
+
+### Via OPAM Pin (Development)
+
+```bash
+opam pin add solid-ml.0.1.0 git+https://github.com/makerprism/solid-ml#main
+opam pin add solid-ml-html.0.1.0 git+https://github.com/makerprism/solid-ml#main
+opam pin add solid-ml-router.0.1.0 git+https://github.com/makerprism/solid-ml#main
+```
+
+### Via OPAM (Coming Soon)
+
+```bash
+opam install solid-ml solid-ml-html solid-ml-router
+```
 
 ## Current Limitations
 

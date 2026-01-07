@@ -61,4 +61,5 @@
  (allow_empty)
  (depends
   (ocaml (>= 4.14.0))
-  (solid-ml (= :version))))
+  (solid-ml (= :version))
+  (solid-ml-html (= :version))))
