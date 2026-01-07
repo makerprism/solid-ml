@@ -10,7 +10,7 @@
 *)
 
 open Solid_ml
-open Solid_ml_html
+open Solid_ml_ssr
 
 (** {1 Shared Data Types} *)
 

@@ -8,4 +8,4 @@
 (executable
  (name server)
  (enabled_if (= %{env:ENABLE_DREAM=0} "1"))
- (libraries solid-ml solid-ml-html dream cohttp-lwt-unix yojson))
+ (libraries solid-ml solid-ml-ssr dream cohttp-lwt-unix yojson))

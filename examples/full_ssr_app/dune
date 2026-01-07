@@ -9,4 +9,4 @@
 (executable
  (name server)
  (enabled_if (= %{env:ENABLE_DREAM=0} "1"))
- (libraries solid-ml solid-ml-html dream))
+ (libraries solid-ml solid-ml-ssr dream))

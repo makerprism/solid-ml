@@ -11,7 +11,7 @@
       dune exec examples/router/router.exe
 *)
 
-open Solid_ml_html
+open Solid_ml_ssr
 open Solid_ml_router
 
 (** {1 Page Components} *)

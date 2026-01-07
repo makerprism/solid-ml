@@ -68,7 +68,7 @@ solid-ml/
 │   │   └── bindings/
 │   │       └── dom.ml        # DOM API bindings
 │   │
-│   ├── solid-ml-html/        # Server-side rendering (Native OCaml)
+│   ├── solid-ml-ssr/        # Server-side rendering (Native OCaml)
 │   │   ├── render.ml         # Render MLX to HTML string
 │   │   ├── stream.ml         # Streaming render (future)
 │   │   └── hydration_script.ml  # Generate hydration data
@@ -224,7 +224,7 @@ div () ~class_:"container" ~children:[
 
 solid-ml provides two runtime libraries that implement these element functions:
 
-**solid-ml-html (Server):**
+**solid-ml-ssr (Server):**
 ```ocaml
 let div ?class_ ?(children=[]) () =
   let attrs = match class_ with 
@@ -314,10 +314,10 @@ let handler req =
   match Router.match_route routes (Dream.target req) with
   | Some route ->
     let%lwt data = Route.run_loader route req in
-    let html = Solid_ml_html.render_to_string (fun () ->
+    let html = Solid_ml_ssr.render_to_string (fun () ->
       route.component ~data ()
     ) in
-    let hydration = Solid_ml_html.get_hydration_script data in
+    let hydration = Solid_ml_ssr.get_hydration_script data in
     Dream.html (Layout.wrap ~hydration html)
   | None ->
     Dream.empty `Not_Found
@@ -442,7 +442,7 @@ let venues_page ~data () =
 - **New Framework:** Maintenance burden, no existing community
 - **Learning Curve:** Developers must understand fine-grained reactivity
 - **Ecosystem:** Smaller than React/Vue, fewer ready-made components
-- **Two Runtimes:** Must maintain solid-ml-html and solid-ml-dom in sync
+- **Two Runtimes:** Must maintain solid-ml-ssr and solid-ml-dom in sync
 
 ### Risks
 
@@ -486,7 +486,7 @@ let venues_page ~data () =
 - [ ] Dream integration example
 - [x] Test SSR output
 
-**Deliverable:** `solid-ml-html` opam package
+**Deliverable:** `solid-ml-ssr` opam package
 
 ### Phase 3: Client Runtime (3-4 weeks)
 
@@ -578,8 +578,8 @@ let venues_page ~data () =
 | `lib/solid-ml/effect.ml` | Auto-tracking side effects |
 | `lib/solid-ml/memo.ml` | Cached derived values |
 | `lib/solid-ml/owner.ml` | Ownership and disposal |
-| `lib/solid-ml-html/render.ml` | Server render to string |
-| `lib/solid-ml-html/elements.ml` | HTML element functions |
+| `lib/solid-ml-ssr/render.ml` | Server render to string |
+| `lib/solid-ml-ssr/elements.ml` | HTML element functions |
 | `lib/solid-ml-dom/hydrate.ml` | Client-side hydration |
 | `lib/solid-ml-dom/elements.ml` | DOM element functions |
 | `lib/solid-ml-dom/bindings/dom.ml` | Melange DOM bindings |

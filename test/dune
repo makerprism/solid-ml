@@ -4,7 +4,7 @@
 
 (test
   (name test_html)
-  (libraries solid-ml solid-ml-html))
+  (libraries solid-ml solid-ml-ssr))
 
 (test
   (name test_solidjs_compat)
@@ -12,7 +12,7 @@
 
 (test
   (name test_router)
-  (libraries solid-ml solid-ml-html solid-ml-router))
+  (libraries solid-ml solid-ml-ssr solid-ml-router))
 
 (test
   (name test_suspense)

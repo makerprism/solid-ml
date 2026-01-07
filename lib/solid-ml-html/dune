@@ -1,4 +1,0 @@
-(library
- (name solid_ml_html)
- (public_name solid-ml-html)
- (libraries solid-ml))

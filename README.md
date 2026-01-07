@@ -69,7 +69,7 @@ Runtime.run (fun () ->
 
 (* For Dream/web servers - each request gets its own runtime *)
 let handler _req =
-  let html = Solid_ml_html.Render.to_string my_component in
+  let html = Solid_ml_ssr.Render.to_string my_component in
   Dream.html html
 ```
 
@@ -241,7 +241,7 @@ let results = Array.init 4 (fun _ ->
 |---------|-------------|--------|
 | `solid-ml-internal` | Shared functor-based reactive core | ✅ Complete |
 | `solid-ml` | Server-side reactive framework (OCaml 5 + DLS) | ✅ Complete |
-| `solid-ml-html` | Server-side rendering to HTML strings | ✅ Complete |
+| `solid-ml-ssr` | Server-side rendering to HTML strings | ✅ Complete |
 | `solid-ml-browser` | Client-side rendering and hydration (Melange) | ✅ Complete |
 | `solid-ml-router` | SSR-aware routing with data loaders | ✅ Complete |
 
@@ -319,7 +319,7 @@ Add to your `dune-project`:
  (name my-app)
  (depends
   (solid-ml (>= 0.1.0))
-  (solid-ml-html (>= 0.1.0))
+  (solid-ml-ssr (>= 0.1.0))
   (solid-ml-router (>= 0.1.0))))  ; Optional
 
 (source
@@ -336,14 +336,14 @@ dune build
 
 ```bash
 opam pin add solid-ml.0.1.0 git+https://github.com/makerprism/solid-ml#main
-opam pin add solid-ml-html.0.1.0 git+https://github.com/makerprism/solid-ml#main
+opam pin add solid-ml-ssr.0.1.0 git+https://github.com/makerprism/solid-ml#main
 opam pin add solid-ml-router.0.1.0 git+https://github.com/makerprism/solid-ml#main
 ```
 
 ### Via OPAM (Coming Soon)
 
 ```bash
-opam install solid-ml solid-ml-html solid-ml-router
+opam install solid-ml solid-ml-ssr solid-ml-router
 ```
 
 ## Architecture & Design

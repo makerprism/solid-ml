@@ -15,7 +15,7 @@
     Then visit: http://localhost:8080
 *)
 
-open Solid_ml_html
+open Solid_ml_ssr
 
 (** {1 Data Types} *)
 

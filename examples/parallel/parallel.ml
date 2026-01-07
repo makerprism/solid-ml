@@ -12,7 +12,7 @@
 *)
 
 open Solid_ml
-open Solid_ml_html
+open Solid_ml_ssr
 
 (** Simulate a component that uses signals and memos *)
 let render_component ~id ~delay_ms () =

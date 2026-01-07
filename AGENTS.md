@@ -17,7 +17,7 @@ solid-ml is an OCaml framework for building reactive web applications with SSR, 
 |---------|---------|--------|
 | `solid-ml-internal` | Shared reactive core (functor-based, DO NOT use directly) | Complete |
 | `solid-ml` | Server-side reactive framework (OCaml 5 with DLS) | Complete |
-| `solid-ml-html` | Server-side rendering to HTML strings | Complete |
+| `solid-ml-ssr` | Server-side rendering to HTML strings | Complete |
 | `solid-ml-browser` | Browser-side reactive framework (Melange) | Complete |
 | `solid-ml-router` | SSR-aware routing with data loaders | Complete |
 
@@ -136,7 +136,7 @@ let read_typed_signal (type a) (s : a signal) : a =
 
 - [x] Set up Melange build configuration (dune 3.16+, melange 0.1)
 - [x] DOM API bindings (`lib/solid-ml-browser/dom.ml`)
-- [x] HTML element functions mirroring solid-ml-html
+- [x] HTML element functions mirroring solid-ml-ssr
 - [x] Reactive DOM primitives
 - [x] Browser reactive core using shared functor
 - [x] Event handling system
@@ -198,8 +198,8 @@ let read_typed_signal (type a) (s : a signal) : a =
 | `lib/solid-ml/batch.ml` | Batched updates |
 | `lib/solid-ml/owner.ml` | Ownership and disposal tracking |
 | `lib/solid-ml/context.ml` | Component context |
-| `lib/solid-ml-html/html.ml` | HTML element functions for SSR |
-| `lib/solid-ml-html/render.ml` | Render components to HTML strings |
+| `lib/solid-ml-ssr/html.ml` | HTML element functions for SSR |
+| `lib/solid-ml-ssr/render.ml` | Render components to HTML strings |
 | `lib/solid-ml-browser/reactive_core.ml` | Browser instantiation with global ref backend |
 | `lib/solid-ml-browser/dom.ml` | Melange FFI bindings for browser DOM |
 | `lib/solid-ml-browser/html.ml` | DOM element functions |

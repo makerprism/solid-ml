@@ -1,3 +1,3 @@
 (executable
  (name router)
- (libraries solid-ml solid-ml-html solid-ml-router))
+ (libraries solid-ml solid-ml-ssr solid-ml-router))

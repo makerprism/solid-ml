@@ -1,6 +1,6 @@
 (** Tests for solid-ml-html server-side rendering *)
 
-open Solid_ml_html
+open Solid_ml_ssr
 
 (** Helper to check if string contains substring *)
 let contains s sub =

@@ -289,9 +289,9 @@ let render ~loading ~error ~ready resource =
     @param resource The resource to render *)
 let render_simple ~ready resource =
   render
-    ~loading:(fun () -> Solid_ml_html.Html.text "Loading...")
-    ~error:(fun msg -> Solid_ml_html.Html.p ~children:[
-      Solid_ml_html.Html.text ("Error: " ^ msg)
+    ~loading:(fun () -> Solid_ml_ssr.Html.text "Loading...")
+    ~error:(fun msg -> Solid_ml_ssr.Html.p ~children:[
+      Solid_ml_ssr.Html.text ("Error: " ^ msg)
     ] ())
     ~ready
     resource

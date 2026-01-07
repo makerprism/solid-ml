@@ -32,10 +32,10 @@
   (ocaml (>= 5.0.0))
   (solid-ml-internal (= :version))))
 
-; Server-side HTML rendering
+; Server-side rendering
 (package
- (name solid-ml-html)
- (synopsis "Server-side HTML rendering for solid-ml")
+ (name solid-ml-ssr)
+ (synopsis "Server-side rendering for solid-ml")
  (description "Render solid-ml components to HTML strings for SSR.")
  (allow_empty)
  (depends
@@ -62,4 +62,4 @@
  (depends
   (ocaml (>= 4.14.0))
   (solid-ml (= :version))
-  (solid-ml-html (= :version))))
+  (solid-ml-ssr (= :version))))

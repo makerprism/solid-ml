@@ -76,9 +76,9 @@ let provide ~initial_path ?(routes=[]) f =
     @param children Child nodes *)
 let link ?(class_="") ~href ~children () =
   if class_ = "" then
-    Solid_ml_html.Html.a ~href ~children ()
+    Solid_ml_ssr.Html.a ~href ~children ()
   else
-    Solid_ml_html.Html.a ~class_ ~href ~children ()
+    Solid_ml_ssr.Html.a ~class_ ~href ~children ()
 
 (** Create a NavLink that adds an active class when matching.
     
@@ -113,9 +113,9 @@ let nav_link ?(class_="") ?(active_class="active") ?(exact=false) ~href ~childre
   in
   
   if final_class = "" then
-    Solid_ml_html.Html.a ~href ~children ()
+    Solid_ml_ssr.Html.a ~href ~children ()
   else
-    Solid_ml_html.Html.a ~class_:final_class ~href ~children ()
+    Solid_ml_ssr.Html.a ~class_:final_class ~href ~children ()
 
 (** {1 Outlet Component} *)
 
@@ -126,7 +126,7 @@ let nav_link ?(class_="") ?(active_class="active") ?(exact=false) ~href ~childre
     
     @param routes List of routes where data is a component function
     @param not_found Optional component to render when no route matches *)
-let outlet ~(routes : (unit -> Solid_ml_html.Html.node) Route.t list) ?not_found () =
+let outlet ~(routes : (unit -> Solid_ml_ssr.Html.node) Route.t list) ?not_found () =
   let path = Router.use_path () in
   
   match Route.match_routes routes path with
@@ -137,4 +137,4 @@ let outlet ~(routes : (unit -> Solid_ml_html.Html.node) Route.t list) ?not_found
   | None ->
     match not_found with
     | Some render_404 -> render_404 ()
-    | None -> Solid_ml_html.Html.fragment []
+    | None -> Solid_ml_ssr.Html.fragment []

@@ -513,8 +513,8 @@ let test_link_component () =
   test "link renders anchor tag" (fun () ->
     Runtime.run (fun () ->
       Components.provide ~initial_path:"/" (fun () ->
-        let node = Components.link ~href:"/about" ~children:[Solid_ml_html.Html.text "About"] () in
-        let html = Solid_ml_html.Html.to_string node in
+        let node = Components.link ~href:"/about" ~children:[Solid_ml_ssr.Html.text "About"] () in
+        let html = Solid_ml_ssr.Html.to_string node in
         assert (String.length html > 0);
         assert (String.sub html 0 9 = "<a href=\"")
       )
@@ -524,8 +524,8 @@ let test_link_component () =
   test "link with class" (fun () ->
     Runtime.run (fun () ->
       Components.provide ~initial_path:"/" (fun () ->
-        let node = Components.link ~class_:"nav-link" ~href:"/about" ~children:[Solid_ml_html.Html.text "About"] () in
-        let html = Solid_ml_html.Html.to_string node in
+        let node = Components.link ~class_:"nav-link" ~href:"/about" ~children:[Solid_ml_ssr.Html.text "About"] () in
+        let html = Solid_ml_ssr.Html.to_string node in
         assert (String.length html > 0)
       )
     )
@@ -534,8 +534,8 @@ let test_link_component () =
   test "nav_link adds active class when exact match" (fun () ->
     Runtime.run (fun () ->
       Components.provide ~initial_path:"/about" (fun () ->
-        let node = Components.nav_link ~exact:true ~href:"/about" ~children:[Solid_ml_html.Html.text "About"] () in
-        let html = Solid_ml_html.Html.to_string node in
+        let node = Components.nav_link ~exact:true ~href:"/about" ~children:[Solid_ml_ssr.Html.text "About"] () in
+        let html = Solid_ml_ssr.Html.to_string node in
         (* Should contain class="active" - class comes before href *)
         assert (String.length html > 0);
         (* Check that "active" appears in the output *)
@@ -553,8 +553,8 @@ let test_link_component () =
     Runtime.run (fun () ->
       Components.provide ~initial_path:"/users/123" (fun () ->
         (* /users should be active when viewing /users/123 *)
-        let node = Components.nav_link ~href:"/users" ~children:[Solid_ml_html.Html.text "Users"] () in
-        let html = Solid_ml_html.Html.to_string node in
+        let node = Components.nav_link ~href:"/users" ~children:[Solid_ml_ssr.Html.text "Users"] () in
+        let html = Solid_ml_ssr.Html.to_string node in
         (* Check that "active" appears in the output *)
         let has_active = ref false in
         for i = 0 to String.length html - 6 do
@@ -569,8 +569,8 @@ let test_link_component () =
     Runtime.run (fun () ->
       Components.provide ~initial_path:"/users/123" (fun () ->
         (* With exact=true, /users should NOT be active when viewing /users/123 *)
-        let node = Components.nav_link ~exact:true ~href:"/users" ~children:[Solid_ml_html.Html.text "Users"] () in
-        let html = Solid_ml_html.Html.to_string node in
+        let node = Components.nav_link ~exact:true ~href:"/users" ~children:[Solid_ml_ssr.Html.text "Users"] () in
+        let html = Solid_ml_ssr.Html.to_string node in
         (* Should NOT have active class *)
         assert (String.sub html 0 9 = "<a href=\"")
       )
@@ -583,8 +583,8 @@ let test_outlet_component () =
   print_endline "\n=== Outlet Component ===";
   
   test "outlet renders matched route" (fun () ->
-    let home_component () = Solid_ml_html.Html.text "Home Page" in
-    let about_component () = Solid_ml_html.Html.text "About Page" in
+    let home_component () = Solid_ml_ssr.Html.text "Home Page" in
+    let about_component () = Solid_ml_ssr.Html.text "About Page" in
     
     let routes = [
       Route.create ~path:"/" ~data:home_component;
@@ -593,7 +593,7 @@ let test_outlet_component () =
     Runtime.run (fun () ->
       Components.provide ~initial_path:"/" (fun () ->
         let node = Components.outlet ~routes () in
-        let html = Solid_ml_html.Html.to_string node in
+        let html = Solid_ml_ssr.Html.to_string node in
         assert_equal html "Home Page"
       )
     )
@@ -601,13 +601,13 @@ let test_outlet_component () =
   
   test "outlet renders not_found when no match" (fun () ->
     let routes = [
-      Route.create ~path:"/" ~data:(fun () -> Solid_ml_html.Html.text "Home");
+      Route.create ~path:"/" ~data:(fun () -> Solid_ml_ssr.Html.text "Home");
     ] in
     Runtime.run (fun () ->
       Components.provide ~initial_path:"/unknown" (fun () ->
-        let not_found () = Solid_ml_html.Html.text "404 Not Found" in
+        let not_found () = Solid_ml_ssr.Html.text "404 Not Found" in
         let node = Components.outlet ~routes ~not_found () in
-        let html = Solid_ml_html.Html.to_string node in
+        let html = Solid_ml_ssr.Html.to_string node in
         assert_equal html "404 Not Found"
       )
     )

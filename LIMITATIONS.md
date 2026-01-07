@@ -26,7 +26,7 @@ All 5 development phases are complete. solid-ml has 208 tests passing.
 **Issue:** The `solid-ml-browser` package compiles to JavaScript via Melange and cannot be built with standard OCaml toolchains.
 
 **Impact:** 
-- Server-side packages (`solid-ml`, `solid-ml-html`, `solid-ml-router`) work with standard OCaml
+- Server-side packages (`solid-ml`, `solid-ml-ssr`, `solid-ml-router`) work with standard OCaml
 - Browser package requires Melange 3.0+ installed via `esy` or opam
 
 **Solution:** Use esy for browser builds:
@@ -235,7 +235,7 @@ let safe_render component =
 
 **Event handlers:**
 - Available in `solid-ml-browser` via `Html.on_*` attributes
-- Not available in `solid-ml-html` (server-side only generates HTML strings)
+- Not available in `solid-ml-ssr` (server-side only generates HTML strings)
 
 **Custom attributes:**
 - `data-*` attributes require manual construction via generic attribute functions

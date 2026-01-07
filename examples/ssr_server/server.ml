@@ -16,7 +16,7 @@
 *)
 
 open Solid_ml
-open Solid_ml_html
+open Solid_ml_ssr
 
 (** Page layout component *)
 let layout ~title:page_title ~children () =
