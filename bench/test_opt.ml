@@ -1,5 +1,7 @@
 (** Simple single optimization test: Fast equality for signals *)
 
+open Printf
+
 (* Test fast equality optimization in Signal.create *)
 let benchmark_optimization () =
   printf "\n=== Testing Fast Equality Optimization ===\n";
@@ -7,7 +9,7 @@ let benchmark_optimization () =
   (* Original: slow updates with structural equality *)
   let run_slow () =
     Solid_ml.Runtime.run (fun () ->
-      let signal, set_signal = Solid_ml.Signal.create 0 in
+      let _, set_signal = Solid_ml.Signal.create "" in
       for i = 1 to 100000 do
         set_signal (string_of_int i)
       done
@@ -17,7 +19,7 @@ let benchmark_optimization () =
   (* Optimized: physical equality for strings *)
   let run_fast () =
     Solid_ml.Runtime.run (fun () ->
-      let signal, set_signal = Solid_ml.Signal.create_physical 0 in
+      let _, set_signal = Solid_ml.Signal.create_physical "" in
       for i = 1 to 100000 do
         set_signal (string_of_int i)
       done

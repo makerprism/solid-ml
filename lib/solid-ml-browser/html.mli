@@ -126,6 +126,56 @@ val button : ?id:string -> ?class_:string -> ?type_:string -> ?disabled:bool ->
 val img : ?id:string -> ?class_:string -> ?src:string -> ?alt:string ->
   ?width:int -> ?height:int -> unit -> node
 
+(** {1 SVG Elements} *)
+
+module Svg : sig
+  (** Browser SVG helpers using namespaced DOM creation. *)
+  val svg : ?id:string -> ?class_:string -> ?style:string -> ?viewBox:string ->
+    ?width:string -> ?height:string -> ?onclick:(Dom.event -> unit) ->
+    children:node list -> unit -> node
+  val g : ?id:string -> ?class_:string -> ?style:string -> ?transform:string ->
+    ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+  val circle : ?id:string -> ?class_:string -> ?style:string -> ?cx:string ->
+    ?cy:string -> ?r:string -> ?fill:string -> ?stroke:string ->
+    ?stroke_width:string -> ?onclick:(Dom.event -> unit) ->
+    children:node list -> unit -> node
+  val rect : ?id:string -> ?class_:string -> ?style:string -> ?x:string ->
+    ?y:string -> ?width:string -> ?height:string -> ?rx:string -> ?ry:string ->
+    ?fill:string -> ?stroke:string -> ?stroke_width:string ->
+    ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+  val line : ?id:string -> ?class_:string -> ?style:string -> ?x1:string ->
+    ?y1:string -> ?x2:string -> ?y2:string -> ?stroke:string ->
+    ?stroke_width:string -> ?onclick:(Dom.event -> unit) ->
+    children:node list -> unit -> node
+  val path : ?id:string -> ?class_:string -> ?style:string -> ?d:string ->
+    ?fill:string -> ?stroke:string -> ?stroke_width:string ->
+    ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+  val text_ : ?id:string -> ?class_:string -> ?style:string -> ?x:string ->
+    ?y:string -> ?fill:string -> ?stroke:string -> ?stroke_width:string ->
+    ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+end
+
+val svg : ?id:string -> ?class_:string -> ?style:string -> ?viewBox:string ->
+  ?width:string -> ?height:string -> ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+val g : ?id:string -> ?class_:string -> ?style:string -> ?transform:string ->
+  ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+val circle : ?id:string -> ?class_:string -> ?style:string -> ?cx:string ->
+  ?cy:string -> ?r:string -> ?fill:string -> ?stroke:string -> ?stroke_width:string ->
+  ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+val rect : ?id:string -> ?class_:string -> ?style:string -> ?x:string ->
+  ?y:string -> ?width:string -> ?height:string -> ?rx:string -> ?ry:string ->
+  ?fill:string -> ?stroke:string -> ?stroke_width:string -> ?onclick:(Dom.event -> unit) ->
+  children:node list -> unit -> node
+val line : ?id:string -> ?class_:string -> ?style:string -> ?x1:string ->
+  ?y1:string -> ?x2:string -> ?y2:string -> ?stroke:string -> ?stroke_width:string ->
+  ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+val path : ?id:string -> ?class_:string -> ?style:string -> ?d:string ->
+  ?fill:string -> ?stroke:string -> ?stroke_width:string -> ?onclick:(Dom.event -> unit) ->
+  children:node list -> unit -> node
+val text_ : ?id:string -> ?class_:string -> ?style:string -> ?x:string ->
+  ?y:string -> ?fill:string -> ?stroke:string -> ?stroke_width:string ->
+  ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+
 (** {1 Node Access} *)
 
 val get_element : node -> Dom.element option

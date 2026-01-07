@@ -54,6 +54,7 @@ val document : document
 (** {1 Document Methods} *)
 
 val create_element : document -> string -> element
+val create_element_ns : document -> string -> string -> element
 val create_text_node : document -> string -> text_node
 val create_comment : document -> string -> comment_node
 val create_document_fragment : document -> document_fragment

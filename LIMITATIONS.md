@@ -258,6 +258,12 @@ setCount(c => c + 1);
 Signal.update count (fun c -> c + 1)
 ```
 
+### SVG
+
+- Server helpers add `xmlns="http://www.w3.org/2000/svg"` automatically to the root `<svg>`.
+  Pass `~xmlns:false` to `Html.Svg.svg` (or `Html.svg`) when rendering nested SVG elements
+  to avoid duplicate namespace attributes.
+
 **Explicit dependency tracking uses Effect.on:**
 ```ocaml
 (* SolidJS *)

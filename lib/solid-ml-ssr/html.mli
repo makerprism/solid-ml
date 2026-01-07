@@ -142,6 +142,55 @@ val audio : ?id:string -> ?class_:string -> ?src:string -> ?controls:bool -> ?au
 val source : ?src:string -> ?type_:string -> unit -> node
 val iframe : ?id:string -> ?class_:string -> ?src:string -> ?width:string -> ?height:string -> ?title:string -> unit -> node
 
+(** {2 SVG Elements} *)
+
+module Svg : sig
+  (** Server-side SVG helpers.
+      The [~xmlns] flag defaults to [true]. Set [~xmlns:false] when rendering
+      nested SVGs to avoid duplicate namespace attributes. *)
+  val svg : ?xmlns:bool -> ?id:string -> ?class_:string -> ?style:string ->
+    ?viewBox:string -> ?width:string -> ?height:string ->
+    children:node list -> unit -> node
+  val g : ?id:string -> ?class_:string -> ?style:string -> ?transform:string ->
+    children:node list -> unit -> node
+  val circle : ?id:string -> ?class_:string -> ?style:string -> ?cx:string ->
+    ?cy:string -> ?r:string -> ?fill:string -> ?stroke:string ->
+    ?stroke_width:string -> children:node list -> unit -> node
+  val rect : ?id:string -> ?class_:string -> ?style:string -> ?x:string ->
+    ?y:string -> ?width:string -> ?height:string -> ?rx:string -> ?ry:string ->
+    ?fill:string -> ?stroke:string -> ?stroke_width:string ->
+    children:node list -> unit -> node
+  val line : ?id:string -> ?class_:string -> ?style:string -> ?x1:string ->
+    ?y1:string -> ?x2:string -> ?y2:string -> ?stroke:string ->
+    ?stroke_width:string -> children:node list -> unit -> node
+  val path : ?id:string -> ?class_:string -> ?style:string -> ?d:string ->
+    ?fill:string -> ?stroke:string -> ?stroke_width:string ->
+    children:node list -> unit -> node
+  val text_ : ?id:string -> ?class_:string -> ?style:string -> ?x:string ->
+    ?y:string -> ?fill:string -> ?stroke:string -> ?stroke_width:string ->
+    children:node list -> unit -> node
+end
+
+val svg : ?xmlns:bool -> ?id:string -> ?class_:string -> ?style:string ->
+  ?viewBox:string -> ?width:string -> ?height:string ->
+  children:node list -> unit -> node
+val g : ?id:string -> ?class_:string -> ?style:string -> ?transform:string ->
+  children:node list -> unit -> node
+val circle : ?id:string -> ?class_:string -> ?style:string -> ?cx:string ->
+  ?cy:string -> ?r:string -> ?fill:string -> ?stroke:string ->
+  ?stroke_width:string -> children:node list -> unit -> node
+val rect : ?id:string -> ?class_:string -> ?style:string -> ?x:string ->
+  ?y:string -> ?width:string -> ?height:string -> ?rx:string -> ?ry:string ->
+  ?fill:string -> ?stroke:string -> ?stroke_width:string -> children:node list -> unit -> node
+val line : ?id:string -> ?class_:string -> ?style:string -> ?x1:string ->
+  ?y1:string -> ?x2:string -> ?y2:string -> ?stroke:string ->
+  ?stroke_width:string -> children:node list -> unit -> node
+val path : ?id:string -> ?class_:string -> ?style:string -> ?d:string ->
+  ?fill:string -> ?stroke:string -> ?stroke_width:string -> children:node list -> unit -> node
+val text_ : ?id:string -> ?class_:string -> ?style:string -> ?x:string ->
+  ?y:string -> ?fill:string -> ?stroke:string -> ?stroke_width:string ->
+  children:node list -> unit -> node
+
 (** {2 Other} *)
 
 val fragment : node list -> node

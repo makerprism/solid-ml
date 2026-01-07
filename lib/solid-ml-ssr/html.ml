@@ -3,6 +3,8 @@
 (** Hydration key counter for marking reactive elements *)
 let hydration_key = ref 0
 
+let svg_namespace = "http://www.w3.org/2000/svg"
+
 let next_hydration_key () =
   let key = !hydration_key in
   incr hydration_key;
@@ -415,6 +417,122 @@ let iframe ?id ?class_ ?src ?width ?height ?title () =
     |> add_opt "title" title
   in
   element "iframe" attrs []
+
+(** {1 SVG Elements} *)
+
+module Svg = struct
+  let svg ?(xmlns=true) ?id ?class_ ?style ?viewBox ?width ?height ~children () =
+    let attrs = []
+      |> add_opt "id" id
+      |> add_opt "class" class_
+      |> add_opt "style" style
+      |> add_opt "viewBox" viewBox
+      |> add_opt "width" width
+      |> add_opt "height" height
+    in
+    let attrs = if xmlns then ("xmlns", svg_namespace) :: attrs else attrs in
+    element "svg" attrs children
+
+  let g ?id ?class_ ?style ?transform ~children () =
+    let attrs = []
+      |> add_opt "id" id
+      |> add_opt "class" class_
+      |> add_opt "style" style
+      |> add_opt "transform" transform
+    in
+    element "g" attrs children
+
+  let circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ~children () =
+    let attrs = []
+      |> add_opt "id" id
+      |> add_opt "class" class_
+      |> add_opt "style" style
+      |> add_opt "cx" cx
+      |> add_opt "cy" cy
+      |> add_opt "r" r
+      |> add_opt "fill" fill
+      |> add_opt "stroke" stroke
+      |> add_opt "stroke-width" stroke_width
+    in
+    element "circle" attrs children
+
+  let rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ~children () =
+    let attrs = []
+      |> add_opt "id" id
+      |> add_opt "class" class_
+      |> add_opt "style" style
+      |> add_opt "x" x
+      |> add_opt "y" y
+      |> add_opt "width" width
+      |> add_opt "height" height
+      |> add_opt "rx" rx
+      |> add_opt "ry" ry
+      |> add_opt "fill" fill
+      |> add_opt "stroke" stroke
+      |> add_opt "stroke-width" stroke_width
+    in
+    element "rect" attrs children
+
+  let line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ~children () =
+    let attrs = []
+      |> add_opt "id" id
+      |> add_opt "class" class_
+      |> add_opt "style" style
+      |> add_opt "x1" x1
+      |> add_opt "y1" y1
+      |> add_opt "x2" x2
+      |> add_opt "y2" y2
+      |> add_opt "stroke" stroke
+      |> add_opt "stroke-width" stroke_width
+    in
+    element "line" attrs children
+
+  let path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ~children () =
+    let attrs = []
+      |> add_opt "id" id
+      |> add_opt "class" class_
+      |> add_opt "style" style
+      |> add_opt "d" d
+      |> add_opt "fill" fill
+      |> add_opt "stroke" stroke
+      |> add_opt "stroke-width" stroke_width
+    in
+    element "path" attrs children
+
+  let text_ ?id ?class_ ?style ?x ?y ?fill ?stroke ?stroke_width ~children () =
+    let attrs = []
+      |> add_opt "id" id
+      |> add_opt "class" class_
+      |> add_opt "style" style
+      |> add_opt "x" x
+      |> add_opt "y" y
+      |> add_opt "fill" fill
+      |> add_opt "stroke" stroke
+      |> add_opt "stroke-width" stroke_width
+    in
+    element "text" attrs children
+end
+
+let svg ?xmlns ?id ?class_ ?style ?viewBox ?width ?height ~children () =
+  Svg.svg ?xmlns ?id ?class_ ?style ?viewBox ?width ?height ~children ()
+
+let g ?id ?class_ ?style ?transform ~children () =
+  Svg.g ?id ?class_ ?style ?transform ~children ()
+
+let circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ~children () =
+  Svg.circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ~children ()
+
+let rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ~children () =
+  Svg.rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ~children ()
+
+let line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ~children () =
+  Svg.line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ~children ()
+
+let path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ~children () =
+  Svg.path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ~children ()
+
+let text_ ?id ?class_ ?style ?x ?y ?fill ?stroke ?stroke_width ~children () =
+  Svg.text_ ?id ?class_ ?style ?x ?y ?fill ?stroke ?stroke_width ~children ()
 
 (** Fragment *)
 let fragment nodes = Fragment nodes

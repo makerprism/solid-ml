@@ -36,6 +36,9 @@ let document : document = [%mel.raw "document"]
 external create_element : document -> string -> element = "createElement"
   [@@mel.send]
 
+external create_element_ns : document -> string -> string -> element = "createElementNS"
+  [@@mel.send]
+
 external create_text_node : document -> string -> text_node = "createTextNode"
   [@@mel.send]
 

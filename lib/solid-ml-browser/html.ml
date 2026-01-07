@@ -9,6 +9,8 @@
 
 open Dom
 
+let svg_namespace = "http://www.w3.org/2000/svg"
+
 (** {1 Node Types} *)
 
 (** A node that can be rendered to the DOM *)
@@ -329,6 +331,128 @@ let portal ?target ?(is_svg=false) ~(children : node) () : node =
   );
   
   Text (create_text_node document "")
+
+(** {1 SVG Elements} *)
+
+module Svg = struct
+  let svg ?id ?class_ ?style ?viewBox ?width ?height ?onclick ~children () =
+    let el = create_element_ns document svg_namespace "svg" in
+    set_opt_attr el "id" id;
+    set_opt_attr el "class" class_;
+    set_opt_attr el "style" style;
+    set_opt_attr el "viewBox" viewBox;
+    set_opt_attr el "width" width;
+    set_opt_attr el "height" height;
+    (match onclick with Some h -> add_event_listener el "click" h | None -> ());
+    List.iter (append_to_element el) children;
+    Element el
+
+  let g ?id ?class_ ?style ?transform ?onclick ~children () =
+    let el = create_element_ns document svg_namespace "g" in
+    set_opt_attr el "id" id;
+    set_opt_attr el "class" class_;
+    set_opt_attr el "style" style;
+    set_opt_attr el "transform" transform;
+    (match onclick with Some h -> add_event_listener el "click" h | None -> ());
+    List.iter (append_to_element el) children;
+    Element el
+
+  let circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?onclick ~children () =
+    let el = create_element_ns document svg_namespace "circle" in
+    set_opt_attr el "id" id;
+    set_opt_attr el "class" class_;
+    set_opt_attr el "style" style;
+    set_opt_attr el "cx" cx;
+    set_opt_attr el "cy" cy;
+    set_opt_attr el "r" r;
+    set_opt_attr el "fill" fill;
+    set_opt_attr el "stroke" stroke;
+    set_opt_attr el "stroke-width" stroke_width;
+    (match onclick with Some h -> add_event_listener el "click" h | None -> ());
+    List.iter (append_to_element el) children;
+    Element el
+
+  let rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?onclick ~children () =
+    let el = create_element_ns document svg_namespace "rect" in
+    set_opt_attr el "id" id;
+    set_opt_attr el "class" class_;
+    set_opt_attr el "style" style;
+    set_opt_attr el "x" x;
+    set_opt_attr el "y" y;
+    set_opt_attr el "width" width;
+    set_opt_attr el "height" height;
+    set_opt_attr el "rx" rx;
+    set_opt_attr el "ry" ry;
+    set_opt_attr el "fill" fill;
+    set_opt_attr el "stroke" stroke;
+    set_opt_attr el "stroke-width" stroke_width;
+    (match onclick with Some h -> add_event_listener el "click" h | None -> ());
+    List.iter (append_to_element el) children;
+    Element el
+
+  let line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?onclick ~children () =
+    let el = create_element_ns document svg_namespace "line" in
+    set_opt_attr el "id" id;
+    set_opt_attr el "class" class_;
+    set_opt_attr el "style" style;
+    set_opt_attr el "x1" x1;
+    set_opt_attr el "y1" y1;
+    set_opt_attr el "x2" x2;
+    set_opt_attr el "y2" y2;
+    set_opt_attr el "stroke" stroke;
+    set_opt_attr el "stroke-width" stroke_width;
+    (match onclick with Some h -> add_event_listener el "click" h | None -> ());
+    List.iter (append_to_element el) children;
+    Element el
+
+  let path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?onclick ~children () =
+    let el = create_element_ns document svg_namespace "path" in
+    set_opt_attr el "id" id;
+    set_opt_attr el "class" class_;
+    set_opt_attr el "style" style;
+    set_opt_attr el "d" d;
+    set_opt_attr el "fill" fill;
+    set_opt_attr el "stroke" stroke;
+    set_opt_attr el "stroke-width" stroke_width;
+    (match onclick with Some h -> add_event_listener el "click" h | None -> ());
+    List.iter (append_to_element el) children;
+    Element el
+
+  let text_ ?id ?class_ ?style ?x ?y ?fill ?stroke ?stroke_width ?onclick ~children () =
+    let el = create_element_ns document svg_namespace "text" in
+    set_opt_attr el "id" id;
+    set_opt_attr el "class" class_;
+    set_opt_attr el "style" style;
+    set_opt_attr el "x" x;
+    set_opt_attr el "y" y;
+    set_opt_attr el "fill" fill;
+    set_opt_attr el "stroke" stroke;
+    set_opt_attr el "stroke-width" stroke_width;
+    (match onclick with Some h -> add_event_listener el "click" h | None -> ());
+    List.iter (append_to_element el) children;
+    Element el
+end
+
+let svg ?id ?class_ ?style ?viewBox ?width ?height ?onclick ~children () =
+  Svg.svg ?id ?class_ ?style ?viewBox ?width ?height ?onclick ~children ()
+
+let g ?id ?class_ ?style ?transform ?onclick ~children () =
+  Svg.g ?id ?class_ ?style ?transform ?onclick ~children ()
+
+let circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?onclick ~children () =
+  Svg.circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?onclick ~children ()
+
+let rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?onclick ~children () =
+  Svg.rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?onclick ~children ()
+
+let line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?onclick ~children () =
+  Svg.line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?onclick ~children ()
+
+let path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?onclick ~children () =
+  Svg.path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?onclick ~children ()
+
+let text_ ?id ?class_ ?style ?x ?y ?fill ?stroke ?stroke_width ?onclick ~children () =
+  Svg.text_ ?id ?class_ ?style ?x ?y ?fill ?stroke ?stroke_width ?onclick ~children ()
 
 (** {1 Node Access} *)
 
