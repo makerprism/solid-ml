@@ -19,8 +19,14 @@
         )
  *)
 
+[@@@warning "-33-26"]
+
 open Html
 open Dom
+
+module Signal = Reactive.Signal
+module Effect = Reactive.Effect
+module Owner = Reactive.Owner
 
 (** {1 Types} *)
 

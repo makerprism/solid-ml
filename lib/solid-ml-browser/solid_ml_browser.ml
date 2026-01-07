@@ -70,9 +70,6 @@ module ErrorBoundary = Error_boundary
 (** Generate unique IDs for hydration *)
 module Unique_id = Unique_id
 
-(** Portal - renders children into a different DOM node *)
-module Portal = Portal
-
 (** For component - keyed list rendering by item identity *)
 module For = For
 

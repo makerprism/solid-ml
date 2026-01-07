@@ -24,8 +24,14 @@
     - Primitive values (strings, numbers) at stable positions
  *)
 
+[@@@warning "-33-27"]
+
 open Html
 open Dom
+
+module Signal = Reactive.Signal
+module Effect = Reactive.Effect
+module Owner = Reactive.Owner
 
 (** {1 Types} *)
 

@@ -13,6 +13,8 @@
     - Remove row
 *)
 
+[@@@warning "-26"]
+
 open Solid_ml_browser
 
 (** {1 Data Generation} *)
@@ -184,19 +186,19 @@ let create_row_effects ~row ~tr ~td1 ~a =
   (* Initial value set without tracking *)
   Dom.set_text_content a (Reactive.Signal.peek row.label);
   (* Effect for updates *)
-  let label_dispose = Reactive.Effect.create
+  Reactive.Effect.create_deferred
     ~track:(fun () -> Reactive.Signal.get row.label)
-    ~run:(fun label -> Dom.set_text_content a label)
-  in
+    ~run:(fun label -> Dom.set_text_content a label);
+  let label_dispose () = () in (* No explicit disposal needed - handled by owner *)
   
   (* Reactive class binding using selector - O(1) instead of O(n)! *)
   let init_sel = Reactive.Effect.untrack (fun () -> check_selected row.id) in
   if init_sel then Dom.set_class_name tr "danger";
   (* Effect for updates *)
-  let sel_dispose = Reactive.Effect.create
+  Reactive.Effect.create_deferred
     ~track:(fun () -> check_selected row.id)
-    ~run:(fun is_sel -> Dom.set_class_name tr (if is_sel then "danger" else ""))
-  in
+    ~run:(fun is_sel -> Dom.set_class_name tr (if is_sel then "danger" else ""));
+  let sel_dispose () = () in (* No explicit disposal needed - handled by owner *)
   
   { element = tr; label_dispose; sel_dispose }
 
@@ -356,13 +358,13 @@ let render_keyed_list ~(items : row array Reactive.Signal.t) (parent : Dom.eleme
   (* Track previous DOM elements for reconciliation *)
   let prev_nodes : Dom.element array ref = ref [||] in
   
-  Reactive.Owner.create_root (fun () ->
+  Reactive.Effect.create (fun () ->
     let new_items = Reactive.Signal.get items in
     let new_len = Array.length new_items in
     
     (* Build set of new IDs for O(1) lookup *)
     let new_id_set = Hashtbl.create new_len in
-    Array.iter (fun row -> Hashtbl.replace new_id_set row.id ()) new_items in
+    Array.iter (fun row -> Hashtbl.replace new_id_set row.id true) new_items;
     
     (* Get selector once for this render *)
     let check_selected = match !is_selected with Some f -> f | None -> failwith "selector not initialized" in

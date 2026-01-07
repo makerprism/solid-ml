@@ -3,7 +3,9 @@
     These functions mirror the solid-ml-html API but create actual DOM nodes
     instead of HTML strings. This allows the same component code to work on
     both server (generating HTML) and client (creating DOM).
-*)
+ *)
+
+[@@@warning "-32"] (* Allow unused portal function *)
 
 open Dom
 
@@ -273,34 +275,60 @@ let img ?id ?class_ ?src ?alt ?width ?height () =
 
 (** {1 Portal} *)
 
-(** Portal type for the browser module *)
-type portal_props = {
-  target : Dom.element option;
-  use_shadow : bool;
-  is_svg : bool;
-  children : node;
-}
-
-(** Create a portal (client-side only) *)
-external portal : portal_props -> node = "undefined" [@@mel.scope "window"]
-
-(** Shorthand portal functions *)
-let portal ?target ?(use_shadow=false) ?(is_svg=false) ~children () =
-  portal { target; use_shadow; is_svg; children }
-
 (** {1 Portal} *)
+
+(** Internal reference to document.body for portal mounting *)
+let document_body : element option ref = ref None
+
+let get_document_body () =
+  match !document_body with
+  | Some body -> body
+  | None ->
+    let body = Option.get (get_element_by_id document "body") in
+    document_body := Some body;
+    body
 
 (** Create a portal that mounts children into a different DOM node.
     - target: DOM element to mount into (None = document.body)
     - is_svg: Use <g> wrapper instead of <div> for SVG context
     - children: Content to render in the portal *)
 let portal ?target ?(is_svg=false) ~(children : node) () : node =
-  Portal.create {
-    target;
-    use_shadow = false;
-    is_svg;
-    children;
-  }
+  let _placeholder = create_comment document "portal" in
+  
+  let mounted_node : Dom.node option ref = ref None in
+  
+  let cleanup () =
+    match !mounted_node with
+    | Some node -> remove_node node
+    | None -> ()
+  in
+  
+  Reactive_core.create_effect (fun () ->
+    let target = match target with
+      | Some el -> el
+      | None -> get_document_body ()
+    in
+    
+    let children_node = to_dom_node children in
+    
+    let content = if is_svg then
+      children_node
+    else if get_tag_name target = "HEAD" then
+      children_node
+    else
+      let wrapper = create_element document "div" in
+      set_attribute wrapper "data-solid-ml-portal" "";
+      append_child wrapper children_node;
+      node_of_element wrapper
+    in
+    
+    append_child target content;
+    mounted_node := Some content;
+    
+    Reactive_core.on_cleanup cleanup
+  );
+  
+  Text (create_text_node document "")
 
 (** {1 Node Access} *)
 
