@@ -4,49 +4,57 @@ This document describes the current limitations, constraints, and known issues w
 
 ## Current Status
 
-solid-ml is in early development. Phases 1-2 are complete, Phase 3 code is written but needs Melange to test.
+All 5 development phases are complete. solid-ml has 208 tests passing.
+
+**Maturity:** Experimental (started January 5, 2026). Not battle-tested in production yet. Makerprism intends to use it in production if it proves reliable. Expect rapid iteration and potential breaking changes.
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Reactive primitives | Complete | Signals, effects, memos, batch, owner, context |
-| Server-side rendering | Complete | HTML generation with hydration markers |
-| Client-side rendering | Code Written | Requires Melange (`opam install melange`) |
-| Hydration | Basic | Marker parsing done, DOM walking needs improvement |
-| Router | Not Started | Phase 4: SSR-aware routing |
+| Reactive primitives | ✅ Complete | Signals, effects, memos, batch, owner, context |
+| Server-side rendering | ✅ Complete | HTML generation with hydration markers |
+| Client-side rendering | ✅ Complete | Full DOM bindings via Melange |
+| Hydration | ✅ Complete | Marker-based hydration with reactive updates |
+| Router | ✅ Complete | SSR-aware routing with data loaders |
+| Suspense/ErrorBoundary | ✅ Complete | Async boundaries and error handling |
 
 ---
 
 ## Critical Limitations
 
-### 1. Client-Side Requires Melange
+### 1. Browser Package Requires Melange
 
-**Issue:** The solid-ml-dom package provides client-side rendering but requires Melange to be installed.
+**Issue:** The `solid-ml-browser` package compiles to JavaScript via Melange and cannot be built with standard OCaml toolchains.
 
 **Impact:** 
-- Without Melange, only server-side rendering works
-- The solid-ml-dom package is marked as `(optional)` and won't build without Melange
+- Server-side packages (`solid-ml`, `solid-ml-html`, `solid-ml-router`) work with standard OCaml
+- Browser package requires Melange 3.0+ installed via `esy` or opam
 
-**Solution:** Install Melange to enable client-side:
+**Solution:** Use esy for browser builds:
 ```bash
-opam install melange
-dune build @melange
+esy install
+esy build
 ```
 
-**Example of client-side code (requires Melange):**
+Or install Melange via opam:
+```bash
+opam install melange
+dune build
+```
+
+**Example browser code:**
 ```ocaml
-open Solid_ml_dom
+open Solid_ml_browser
 
 let counter () =
-  let count, set_count = Signal.create 0 in
-  Html.(
-    div ~children:[
-      p ~children:[Reactive.text count] ();
-      (let btn = button ~children:[text "+"] () in
-       match Html.get_element btn with
-       | Some el -> Event.on_click el (fun _ -> Signal.update count succ)
-       | None -> ();
-       btn)
-    ] ()
+  Runtime.run (fun () ->
+    let count, set_count = Signal.create 0 in
+    let root = Html.div [] [
+      Html.p [] [Reactive.text (fun () -> string_of_int (Signal.get count))];
+      Html.button 
+        [Html.on_click (fun _ -> Signal.update count succ)] 
+        [Html.text "+"]
+    ] in
+    Render.hydrate root (Dom.get_element_by_id "app")
   )
 ```
 
@@ -89,13 +97,15 @@ let handler () =
 
 ### 3. No Async/Lwt Support in Reactive Primitives
 
-**Issue:** Effects and memos are synchronous. There's no built-in support for async operations like data fetching.
+**Issue:** Effects and memos are synchronous. There's no built-in support for async operations like data fetching within reactive code.
 
 **Impact:**
 - Cannot use `Lwt.t` or `Async.t` inside effects
-- Data loading must happen before entering the reactive context
+- Data loading must happen before entering the reactive context or via Router Resources
 
-**Workaround:** Fetch data before rendering, pass it as props:
+**Solutions:**
+
+**Server-side - Fetch before rendering:**
 ```ocaml
 let handler req =
   let%lwt data = Database.fetch_todos () in  (* Async happens here *)
@@ -103,6 +113,23 @@ let handler req =
     todo_page ~todos:data ()  (* Sync rendering with data *)
   ) in
   Dream.html html
+```
+
+**Client-side - Use Router Resources with Suspense:**
+```ocaml
+open Solid_ml_router
+
+let user_resource = Resource.create (fun id ->
+  fetch_user_data id  (* Returns promise/data *)
+)
+
+let user_page () =
+  Suspense.boundary
+    ~fallback:(fun () -> [Html.div [] [Html.text "Loading..."]])
+    ~children:(fun () ->
+      let user = Resource.read_suspense user_resource ~default:None in
+      [Html.div [] [Html.text user.name]]
+    )
 ```
 
 ---
@@ -126,36 +153,62 @@ dispose ()
 
 ---
 
-### 5. No Conditional Rendering Helpers
+### 5. No Built-in Conditional Rendering Helpers
 
 **Issue:** There are no `Show`, `Switch`, `For`, or `Index` components like in SolidJS.
 
-**Impact:** Conditional and list rendering requires manual pattern matching.
+**Impact:** Conditional and list rendering requires manual pattern matching and list functions.
 
 **Current approach:**
 ```ocaml
-(* Conditional rendering *)
+(* Conditional rendering - use if/match *)
 let content = 
   if Signal.get is_loading then
-    Html.p ~children:[Html.text "Loading..."] ()
+    Html.p [] [Html.text "Loading..."]
   else
-    Html.div ~children:[...] ()
+    Html.div [] [actual_content ()]
 
-(* List rendering *)
+(* List rendering - use List.map *)
 let items = List.map (fun item ->
-  Html.li ~children:[Html.text item.name] ()
+  Html.li [] [Html.text item.name]
 ) (Signal.get items_signal)
+
+(* Switch-like rendering *)
+match Signal.get state with
+| Loading -> Html.div [] [Html.text "Loading..."]
+| Error e -> Html.div [] [Html.text ("Error: " ^ e)]
+| Success data -> render_data data
 ```
+
+**Note:** This is idiomatic OCaml and works well. Control flow helpers may be added in future versions for convenience.
 
 ---
 
-### 6. No Error Boundaries
+### 6. Error Boundaries Require Manual Setup
 
-**Issue:** There's no way to catch and handle errors within the component tree.
+**Issue:** Error boundaries are available but must be explicitly wrapped around components.
 
-**Impact:** An exception in any component will crash the entire render.
+**Impact:** Exceptions in components will propagate unless caught by an ErrorBoundary.
 
-**Workaround:** Wrap rendering in try-catch:
+**Solution:** Use ErrorBoundary.make:
+```ocaml
+open Solid_ml
+
+let safe_component () =
+  ErrorBoundary.make
+    ~fallback:(fun error reset ->
+      [Html.div [] [
+        Html.text ("Error: " ^ error);
+        Html.button [Html.on_click (fun _ -> reset ())] [Html.text "Retry"]
+      ]]
+    )
+    ~children:(fun () ->
+      (* Component code that might throw *)
+      risky_component ()
+    )
+```
+
+**Server-side fallback:**
 ```ocaml
 let safe_render component =
   try Render.to_string component
@@ -180,39 +233,43 @@ let safe_render component =
 
 ### HTML Elements
 
-**Missing attributes:**
-- Event handlers (`onclick`, `onchange`, etc.) - no client-side yet
-- `data-*` attributes require manual construction
-- ARIA attributes are limited
-- SVG elements not implemented
+**Event handlers:**
+- Available in `solid-ml-browser` via `Html.on_*` attributes
+- Not available in `solid-ml-html` (server-side only generates HTML strings)
+
+**Custom attributes:**
+- `data-*` attributes require manual construction via generic attribute functions
+- Some ARIA attributes may need manual construction
 
 **Missing elements:**
-- `<canvas>`, `<svg>`, `<path>`, etc.
+- `<svg>` and SVG elements (`<path>`, `<circle>`, etc.)
+- `<canvas>` (available but limited API)
 - `<dialog>`, `<details>`, `<summary>`
-- `<template>`, `<slot>`
+- `<template>`, `<slot>` (web components)
 
 ### Signals
 
-**No derived setters:**
+**Functional updates use Signal.update:**
 ```ocaml
-(* SolidJS has this, solid-ml doesn't *)
-let [count, setCount] = createSignal(0);
-setCount(c => c + 1);  (* Functional update *)
+(* SolidJS *)
+setCount(c => c + 1);
 
-(* solid-ml requires Signal.update *)
+(* solid-ml *)
 Signal.update count (fun c -> c + 1)
 ```
 
-**No `on` helper for explicit subscriptions:**
+**Explicit dependency tracking uses Effect.on:**
 ```ocaml
 (* SolidJS *)
 on(count, (value) => console.log(value));
 
-(* solid-ml - use Effect.create instead *)
-Effect.create (fun () ->
+(* solid-ml *)
+Effect.on [count] (fun () ->
   print_endline (string_of_int (Signal.get count))
-)
+) ()
 ```
+
+These are design differences, not missing features. See [SolidJS compatibility in AGENTS.md](AGENTS.md#differences-from-solidjs) for details.
 
 ### Context
 
@@ -260,16 +317,19 @@ Batch.run (fun () ->
 
 ---
 
-## Roadmap to Address Limitations
+## Future Enhancements
 
-| Limitation | Planned Resolution | Phase |
-|------------|-------------------|-------|
-| No client-side | Melange DOM bindings | Phase 3 |
-| No hydration | `hydrate` function | Phase 3 |
-| No event handlers | Event delegation system | Phase 3 |
-| No routing | solid-ml-router package | Phase 4 |
-| No streaming SSR | `render_to_stream` | Future |
-| No Suspense/async | Resource primitive | Future |
+The following features are not currently planned but could be added based on community feedback:
+
+| Enhancement | Description | Priority |
+|-------------|-------------|----------|
+| Streaming SSR | `render_to_stream` for chunked responses | Medium |
+| SVG support | Full SVG element library | Medium |
+| Control flow helpers | `Show`, `For`, `Switch` components | Low |
+| Async effects | Direct Promise/Lwt support in effects | Low |
+| Event delegation | Global event handling (currently inline) | Low |
+| Portal support | Render outside component hierarchy | Low |
+| Custom directives | Extensible attribute system | Low |
 
 ---
 

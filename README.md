@@ -4,6 +4,18 @@ An OCaml framework for building reactive web applications with server-side rende
 
 > **Status:** All phases complete! ✅ Reactive core, SSR, client runtime, router, and Suspense/ErrorBoundary are ready. 124 tests passing.
 
+## ⚠️ Development Status
+
+**Started:** January 5, 2026 (2 days of intensive development)
+
+**Maturity:** Experimental - Not battle-tested in production yet.
+
+solid-ml was built rapidly by [Makerprism](https://github.com/makerprism) as a proof-of-concept for fine-grained reactive SSR in OCaml. While all core features are implemented with comprehensive test coverage, this framework has **not been used in production** and may have undiscovered edge cases.
+
+**Our commitment:** We (Makerprism) intend to use solid-ml in production applications if we can make it work reliably. We're actively developing and testing it. Expect rapid iteration, breaking changes, and enthusiastic bug fixes.
+
+**Use at your own risk.** If you're adventurous and want to help stabilize it, we'd love your contributions and feedback!
+
 ## Features
 
 - **Fine-grained reactivity** - Signals, effects, and memos with automatic dependency tracking
@@ -392,7 +404,7 @@ esy dune runtest      # Including Melange/browser tests
 | Phase 4: Router | ✅ Complete | Route matching, navigation, data loaders, SSR support |
 | Phase 5: Suspense | ✅ Complete | Async boundaries, error handling, unique IDs |
 
-All core features are implemented and tested. The framework is ready for production use.
+All core features are implemented and tested. **Ready for experimental use** - waiting for real-world validation.
 
 ## Documentation
 
