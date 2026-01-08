@@ -1,0 +1,5 @@
+(executable
+ (name main)
+ (public_name dune-package-demo)
+ (package dune-package-demo)
+ (libraries solid-ml solid-ml-ssr))

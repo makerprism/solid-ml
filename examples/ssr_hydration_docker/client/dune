@@ -1,0 +1,4 @@
+(melange.emit
+ (target client_output)
+ (libraries solid-ml-browser)
+ (module_systems es6))

@@ -1,0 +1,11 @@
+(lang dune 3.16)
+(name dune-package-demo)
+(generate_opam_files true)
+
+(package
+ (name dune-package-demo)
+ (synopsis "Solid-ML hello world using dune")
+ (description "Minimal dune project that renders a Solid-ML component on the server.")
+ (depends
+  (solid-ml (>= 0.1.0))
+  (solid-ml-ssr (>= 0.1.0))))

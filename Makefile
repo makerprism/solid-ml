@@ -13,7 +13,8 @@
         example-counter example-todo example-router example-parallel example-ssr-server \
         example-browser example-browser-router browser-examples browser-tests serve \
         example-full-ssr example-full-ssr-client \
-        example-ssr-api example-ssr-api-client
+        example-ssr-api example-ssr-api-client \
+        example-ssr-hydration-docker
 
 # ==============================================================================
 # Native Development (no extra dependencies needed)
@@ -100,6 +101,17 @@ example-ssr-api: example-ssr-api-client
 	@echo ""
 	@ENABLE_DREAM=1 dune exec examples/ssr_api_app/server.exe || stty sane
 
+# Build and run the Docker-based SSR + hydration demo
+example-ssr-hydration-docker:
+	@echo "=== Building Docker image: solid-ml-ssr-hydration ==="
+	@docker build -t solid-ml-ssr-hydration examples/ssr_hydration_docker
+	@echo ""
+	@echo "=== Running container ==="
+	@echo "Visit http://localhost:8080"
+	@echo "Press Ctrl+C to stop (container will be removed)"
+	@echo ""
+	@docker run --rm -p 8080:8080 solid-ml-ssr-hydration || stty sane
+
 # Run all native examples (except long-running servers)
 examples: example-counter example-todo example-router example-parallel
 
@@ -178,9 +190,10 @@ help:
 	@echo "  make example-router     - Run router example"
 	@echo "  make examples           - Run all native examples"
 	@echo ""
-	@echo "Full SSR (requires: dream + cohttp-lwt-unix + esy):"
-	@echo "  make example-full-ssr   - SSR with counter and todos"
-	@echo "  make example-ssr-api    - SSR with REST API data fetching"
+	@echo "Full SSR (requires: dream + cohttp-lwt-unix + esy, or Docker):"
+	@echo "  make example-full-ssr            - SSR with counter and todos"
+	@echo "  make example-ssr-api             - SSR with REST API data fetching"
+	@echo "  make example-ssr-hydration-docker - Build + run Docker SSR hydration demo"
 	@echo ""
 	@echo "Browser development (requires: npm install -g esy):"
 	@echo "  make setup               - Install esy dependencies (one-time)"
