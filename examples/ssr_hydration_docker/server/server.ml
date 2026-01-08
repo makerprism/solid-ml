@@ -1,8 +1,7 @@
-open Solid_ml
 module Html = Solid_ml_ssr.Html
 module Render = Solid_ml_ssr.Render
 
-let layout ~title ~initial_count content =
+let layout ~page_title ~initial_count content =
   let extra_scripts =
     Html.[
       script ~children:[
@@ -16,7 +15,7 @@ let layout ~title ~initial_count content =
       head ~children:[
         meta ~charset:"utf-8" ();
         meta ~name:"viewport" ~content:"width=device-width, initial-scale=1" ();
-        title ~children:[text title] ();
+        title ~children:[text page_title] ();
         link ~rel:"stylesheet" ~href:"/static/styles.css" ()
       ] ();
       body ~children:(content @ extra_scripts) ()
@@ -66,7 +65,7 @@ let counter_component ~initial =
 
 let page ~initial_count =
   let content = [counter_component ~initial:initial_count] in
-  layout ~title:"solid-ml SSR Hydration Demo" ~initial_count content
+  layout ~page_title:"solid-ml SSR Hydration Demo" ~initial_count content
 
 let render counter = Render.to_document (fun () -> page ~initial_count:counter)
 

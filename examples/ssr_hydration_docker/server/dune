@@ -1,5 +1,4 @@
 (executable
  (name server)
  (modules server)
- (enabled_if (= %{env:ENABLE_DREAM=0} "1"))
  (libraries solid-ml solid-ml-ssr dream))

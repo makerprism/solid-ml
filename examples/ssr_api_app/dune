@@ -1,11 +1,10 @@
 ; SSR API App Example - Server
 ;
-; Build: ENABLE_DREAM=1 dune build examples/ssr_api_app/server.exe
+; Build: dune build examples/ssr_api_app/server.exe
 ; Run:   make example-ssr-api
 ;
-; Requires: opam install dream cohttp-lwt-unix
+; Requires: dream + cohttp-lwt-unix (install via dune pkg or opam)
 
 (executable
  (name server)
- (enabled_if (= %{env:ENABLE_DREAM=0} "1"))
  (libraries solid-ml solid-ml-ssr dream cohttp-lwt-unix yojson))

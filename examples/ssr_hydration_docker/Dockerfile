@@ -34,7 +34,6 @@ RUN curl -L "https://github.com/melange-re/melange/releases/download/v${MELANGE_
     && ln -sf /usr/local/melange/bin/melange /usr/local/bin/melange
 
 ENV PATH="/usr/local/melange/bin:${PATH}"
-ENV ENABLE_DREAM=1
 
 # Build client bundle (Melange) and native server
 RUN dune build examples/ssr_hydration_docker/client
@@ -59,7 +58,6 @@ COPY --from=build /app/examples/ssr_hydration_docker/static ./static
 
 ENV PORT=8080
 ENV STATIC_DIR=/app/static
-ENV ENABLE_DREAM=1
 
 EXPOSE 8080
 

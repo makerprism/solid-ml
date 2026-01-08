@@ -3,10 +3,8 @@
 ; Build: dune build examples/full_ssr_app/server.exe
 ; Run:   make example-full-ssr
 ;
-; Requires: opam install dream
-; Enable with: ENABLE_DREAM=1 dune build
+; Requires: dream (install via dune pkg or opam)
 
 (executable
  (name server)
- (enabled_if (= %{env:ENABLE_DREAM=0} "1"))
  (libraries solid-ml solid-ml-ssr dream))

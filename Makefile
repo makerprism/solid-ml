@@ -58,7 +58,7 @@ example-ssr-server:
 	@echo "Set PORT=XXXX to use a different port (default: 8080)"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	@ENABLE_DREAM=1 dune exec examples/ssr_server/server.exe || stty sane
+	@dune exec examples/ssr_server/server.exe || stty sane
 
 # Build full SSR client
 example-full-ssr-client: check-esy
@@ -78,7 +78,7 @@ example-full-ssr: example-full-ssr-client
 	@echo "Visit http://localhost:8080"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	@ENABLE_DREAM=1 dune exec examples/full_ssr_app/server.exe || stty sane
+	@dune exec examples/full_ssr_app/server.exe || stty sane
 
 # Build SSR API client
 example-ssr-api-client: check-esy
@@ -99,7 +99,7 @@ example-ssr-api: example-ssr-api-client
 	@echo "This app fetches data from JSONPlaceholder API"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	@ENABLE_DREAM=1 dune exec examples/ssr_api_app/server.exe || stty sane
+	@dune exec examples/ssr_api_app/server.exe || stty sane
 
 # Build and run the Docker-based SSR + hydration demo
 example-ssr-hydration-docker:

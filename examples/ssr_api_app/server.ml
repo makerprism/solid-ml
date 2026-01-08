@@ -604,13 +604,13 @@ let error_page ~message () =
   ) ()
 
 (** 404 page *)
-let not_found_page ~path () =
-  layout ~title:"Not Found - API Explorer" ~current_path:path ~children:(
+let not_found_page ~request_path () =
+  layout ~title:"Not Found - API Explorer" ~current_path:request_path ~children:(
     Html.[
       h2 ~children:[text "404 - Page Not Found"] ();
       p ~children:[
         text "The page ";
-        code ~children:[text path] ();
+        code ~children:[text request_path] ();
         text " was not found.";
       ] ();
       p ~children:[
@@ -812,7 +812,7 @@ let handle_post req =
 
 let handle_not_found req =
   let path = Dream.target req in
-  let html = Render.to_document (fun () -> not_found_page ~path ()) in
+  let html = Render.to_document (fun () -> not_found_page ~request_path:path ()) in
   Dream.html ~status:`Not_Found html
 
 (** {1 Main Server} *)
