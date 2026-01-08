@@ -1,0 +1,31 @@
+(version 6.2.1)
+
+(build
+ (progn
+  (when
+   %{pkg-self:dev}
+   (run dune subst))
+  (run dune build -p %{pkg-self:name} -j %{jobs} @install)))
+
+(depends
+ dune
+ ocaml
+ http
+ cohttp
+ cohttp-lwt
+ cmdliner
+ lwt
+ conduit-lwt
+ conduit-lwt-unix
+ fmt
+ base-unix
+ ppx_sexp_conv
+ magic-mime
+ logs)
+
+(source
+ (fetch
+  (url
+   https://github.com/mirage/ocaml-cohttp/releases/download/v6.2.1/cohttp-6.2.1.tbz)
+  (checksum
+   sha256=65080247763442d1dc3cd90678b8233b798772f036ac81cd1eaade1f5d66a65f)))

@@ -63,3 +63,15 @@
   (ocaml (>= 4.14.0))
   (solid-ml (= :version))
   (solid-ml-ssr (= :version))))
+
+; Example bundle package (for dune pkg)
+(package
+ (name solid-ml-examples)
+ (synopsis "Example applications dependencies")
+ (allow_empty)
+ (depends
+  (solid-ml (= :version))
+  (solid-ml-ssr (= :version))
+  dream
+  cohttp-lwt-unix
+  yojson))

@@ -10,6 +10,7 @@ RUN apt-get update \
         git \
         pkg-config \
         libev-dev \
+        libgmp-dev \
         m4 \
         nodejs \
         npm \
@@ -18,22 +19,12 @@ RUN apt-get update \
 # Install dune from official binary script (same approach as feedmansion)
 ENV DUNE_VERSION=3.20.2
 RUN curl -fsSL https://github.com/ocaml-dune/dune-bin-install/releases/download/v3/install.sh \
-    | sh -s -- --install-root /usr --version ${DUNE_VERSION} --no-update-shell-config
+    | sh -s -- ${DUNE_VERSION} --install-root /usr --no-update-shell-config
 
 WORKDIR /app
 COPY . .
 
-# Prepare dependencies using dune's package manager (no opam usage)
-RUN dune pkg lock dream && dune pkg install
-
-# Fetch melange binary release
-ENV MELANGE_VERSION=4.0.0
-RUN curl -L "https://github.com/melange-re/melange/releases/download/v${MELANGE_VERSION}/melange-${MELANGE_VERSION}-linux-x64.tar.gz" \
-    | tar -xz -C /tmp \
-    && mv /tmp/melange-${MELANGE_VERSION}-linux-x64 /usr/local/melange \
-    && ln -sf /usr/local/melange/bin/melange /usr/local/bin/melange
-
-ENV PATH="/usr/local/melange/bin:${PATH}"
+# dune.lock is committed; dependency resolution happens during builds
 
 # Build client bundle (Melange) and native server
 RUN dune build examples/ssr_hydration_docker/client

@@ -104,7 +104,7 @@ example-ssr-api: example-ssr-api-client
 # Build and run the Docker-based SSR + hydration demo
 example-ssr-hydration-docker:
 	@echo "=== Building Docker image: solid-ml-ssr-hydration ==="
-	@docker build -t solid-ml-ssr-hydration examples/ssr_hydration_docker
+	@docker build -t solid-ml-ssr-hydration -f examples/ssr_hydration_docker/Dockerfile .
 	@echo ""
 	@echo "=== Running container ==="
 	@echo "Visit http://localhost:8080"

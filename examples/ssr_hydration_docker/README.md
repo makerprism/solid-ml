@@ -31,12 +31,10 @@ examples/ssr_hydration_docker/
 # Install dune (if not already available)
 export DUNE_VERSION=3.20.2
 curl -fsSL https://github.com/ocaml-dune/dune-bin-install/releases/download/v3/install.sh \
-  | sh -s -- --install-root $HOME/.local --version $DUNE_VERSION --no-update-shell-config
+  | sh -s -- $DUNE_VERSION --install-root $HOME/.local --no-update-shell-config
 export PATH="$HOME/.local/bin:$PATH"
 
-# Install dependencies via dune's package manager (no opam installs)
-dune pkg lock dream
-dune pkg install
+# Dependencies are tracked via dune.lock (no opam installs needed)
 
 # Download a Melange release (matching the version in Dockerfile)
 export MELANGE_VERSION=4.0.0
@@ -55,7 +53,7 @@ cp _build/default/examples/ssr_hydration_docker/client/client_output/examples/ss
 ```
 cd examples/ssr_hydration_docker
 # Build the container image
-docker build -t solid-ml-ssr-hydration .
+docker build -t solid-ml-ssr-hydration -f examples/ssr_hydration_docker/Dockerfile .
 
 # Run the container (exposes port 8080)
 docker run --rm -p 8080:8080 solid-ml-ssr-hydration
