@@ -24,21 +24,24 @@ type source_kind =
 
 (** Internal signal representation - stores value as Obj.t *)
 type signal_state = {
-  mutable value: Obj.t;
+  mutable sig_value: Obj.t;
   mutable observers: computation array;
   mutable observer_slots: int array;
   mutable observers_len: int;
   comparator: (Obj.t -> Obj.t -> bool) option;
 }
 
-(** {1 Owner} *)
+(** {1 Owner}
+
+    Standalone owner for tracking ownership without computation.
+    Field names prefixed with o_ to avoid conflicts with computation fields. *)
 
 and owner = {
-  mutable owned: computation list;
-  mutable cleanups: (unit -> unit) list;
-  mutable owner: owner option;
-  mutable context: (int * Obj.t) list;
-  mutable child_owners: owner list;
+  mutable o_owned: computation list;
+  mutable o_cleanups: (unit -> unit) list;
+  mutable o_parent: owner option;
+  mutable o_context: (int * Obj.t) list;
+  mutable o_child_owners: owner list;
 }
 
 (** {1 Computation} *)
@@ -156,15 +159,15 @@ let create_typed_signal (type a) ?(equals : (a -> a -> bool) option) (initial : 
     | None -> None
   in
   {
-    value = Obj.repr initial;
+    sig_value = Obj.repr initial;
     observers = [||];
     observer_slots = [||];
     observers_len = 0;
     comparator;
   }
 
-let get_signal_value (type a) (s : a signal) : a = Obj.obj s.value
-let set_signal_value (type a) (s : a signal) (v : a) : unit = s.value <- Obj.repr v
+let get_signal_value (type a) (s : a signal) : a = Obj.obj s.sig_value
+let set_signal_value (type a) (s : a signal) (v : a) : unit = s.sig_value <- Obj.repr v
 let signal_to_internal (s : 'a signal) : signal_state = s
 
 (** {1 Typed Memo}

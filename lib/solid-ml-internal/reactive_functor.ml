@@ -138,7 +138,7 @@ module Make (B : Backend.S) = struct
     | None -> ()
     end;
     
-    signal.value
+    signal.sig_value
   
   (** Read a memo, tracking the dependency if there's a listener *)
   let read_memo (memo : computation) : Obj.t =
@@ -221,12 +221,12 @@ module Make (B : Backend.S) = struct
   let write_signal (signal : signal_state) (value : Obj.t) : unit =
     (* Default: use physical inequality (==) like SolidJS's === *)
     let should_update = match signal.comparator with
-      | Some cmp -> not (cmp signal.value value)
-      | None -> signal.value != value  (* Physical inequality, matching SolidJS *)
+      | Some cmp -> not (cmp signal.sig_value value)
+      | None -> signal.sig_value != value  (* Physical inequality, matching SolidJS *)
     in
     
     if should_update then begin
-      signal.value <- value;
+      signal.sig_value <- value;
       
       if signal.observers_len > 0 then begin
         let rt = get_runtime () in
@@ -329,11 +329,11 @@ module Make (B : Backend.S) = struct
       (* Create a temporary owner to collect nested computations/cleanups/child_owners.
          After execution, we copy these back to the node. *)
       let temp_owner = {
-        owned = [];  (* Will collect new nested computations *)
-        cleanups = [];  (* Will collect new cleanups *)
-        owner = node.owner;
-        context = node.context;
-        child_owners = [];  (* Will collect new roots created inside *)
+        o_owned = [];  (* Will collect new nested computations *)
+        o_cleanups = [];  (* Will collect new cleanups *)
+        o_parent = node.owner;
+        o_context = node.context;
+        o_child_owners = [];  (* Will collect new roots created inside *)
       } in
       
       rt.listener <- Some node;
@@ -344,14 +344,14 @@ module Make (B : Backend.S) = struct
         node.value <- next_value;
         node.updated_at <- rt.exec_count;
         (* Copy registered computations, cleanups, and child owners back to node *)
-        node.owned <- temp_owner.owned;
-        node.cleanups <- temp_owner.cleanups;
-        node.child_owners <- temp_owner.child_owners
+        node.owned <- temp_owner.o_owned;
+        node.cleanups <- temp_owner.o_cleanups;
+        node.child_owners <- temp_owner.o_child_owners
       with exn ->
         (* Still copy on exception so cleanup can run *)
-        node.owned <- temp_owner.owned;
-        node.cleanups <- temp_owner.cleanups;
-        node.child_owners <- temp_owner.child_owners;
+        node.owned <- temp_owner.o_owned;
+        node.cleanups <- temp_owner.o_cleanups;
+        node.child_owners <- temp_owner.o_child_owners;
         rt.listener <- prev_listener;
         rt.owner <- prev_owner;
         raise exn
@@ -489,7 +489,7 @@ module Make (B : Backend.S) = struct
       owned = [];
       cleanups = [];
       owner = rt.owner;
-      context = (match rt.owner with Some o -> o.context | None -> []);
+      context = (match rt.owner with Some o -> o.o_context | None -> []);
       child_owners = [];
       memo_observers = None;
       memo_observer_slots = None;
@@ -498,7 +498,7 @@ module Make (B : Backend.S) = struct
     } in
     
     begin match rt.owner with
-    | Some owner -> owner.owned <- comp :: owner.owned
+    | Some owner -> owner.o_owned <- comp :: owner.o_owned
     | None -> ()
     end;
     
@@ -523,24 +523,24 @@ module Make (B : Backend.S) = struct
   (** Dispose an owner and all its children *)
   let rec dispose_owner (owner : owner) =
     (* Dispose child owners first (depth-first, newest first) *)
-    iter_rev dispose_owner owner.child_owners;
-    owner.child_owners <- [];
+    iter_rev dispose_owner owner.o_child_owners;
+    owner.o_child_owners <- [];
     
     (* Clean owned computations *)
     List.iter (fun comp -> 
       comp.fn <- None;
       clean_node comp
-    ) owner.owned;
-    owner.owned <- [];
+    ) owner.o_owned;
+    owner.o_owned <- [];
     
     (* Run cleanups in reverse order (newest first) *)
-    iter_rev (fun cleanup -> cleanup ()) owner.cleanups;
-    owner.cleanups <- [];
+    iter_rev (fun cleanup -> cleanup ()) owner.o_cleanups;
+    owner.o_cleanups <- [];
     
     (* Remove self from parent's child_owners *)
-    begin match owner.owner with
+    begin match owner.o_parent with
     | Some parent ->
-      parent.child_owners <- List.filter (fun c -> c != owner) parent.child_owners
+      parent.o_child_owners <- List.filter (fun c -> c != owner) parent.o_child_owners
     | None -> ()
     end
   
@@ -551,15 +551,15 @@ module Make (B : Backend.S) = struct
     let rt = get_runtime () in
     let prev_owner = rt.owner in
     let root_owner = {
-      owned = [];
-      cleanups = [];
-      owner = prev_owner;
-      context = (match prev_owner with Some o -> o.context | None -> []);
-      child_owners = [];
+      o_owned = [];
+      o_cleanups = [];
+      o_parent = prev_owner;
+      o_context = (match prev_owner with Some o -> o.o_context | None -> []);
+      o_child_owners = [];
     } in
     
     begin match prev_owner with
-    | Some parent -> parent.child_owners <- root_owner :: parent.child_owners
+    | Some parent -> parent.o_child_owners <- root_owner :: parent.o_child_owners
     | None -> ()
     end;
     
@@ -582,7 +582,7 @@ module Make (B : Backend.S) = struct
   let on_cleanup fn =
     let rt = get_runtime () in
     match rt.owner with
-    | Some owner -> owner.cleanups <- fn :: owner.cleanups
+    | Some owner -> owner.o_cleanups <- fn :: owner.o_cleanups
     | None -> ()
 
   (** Get current owner *)
@@ -608,7 +608,7 @@ module Make (B : Backend.S) = struct
   
   let create_signal_internal ?comparator initial =
     {
-      value = initial;
+      sig_value = initial;
       observers = [||];
       observer_slots = [||];
       observers_len = 0;
@@ -635,7 +635,7 @@ module Make (B : Backend.S) = struct
   
   (** Peek at signal value without tracking *)
   let peek_typed_signal (type a) (s : a signal) : a =
-    Obj.obj s.value
+    Obj.obj s.sig_value
 
   (** {1 Typed Memo API} *)
   
@@ -881,10 +881,10 @@ module Make (B : Backend.S) = struct
   
   (** Find a context value by walking up the owner tree *)
   let rec find_context_in_owner ctx_id (owner : owner) : Obj.t option =
-    match List.assoc_opt ctx_id owner.context with
+    match List.assoc_opt ctx_id owner.o_context with
     | Some v -> Some v
     | None ->
-      match owner.owner with
+      match owner.o_parent with
       | Some parent -> find_context_in_owner ctx_id parent
       | None -> None
   
@@ -910,15 +910,15 @@ module Make (B : Backend.S) = struct
     | Some rt ->
       (match rt.owner with
        | Some owner ->
-         let prev = owner.context in
-         owner.context <- (ctx.ctx_id, Obj.repr value) :: prev;
+         let prev = owner.o_context in
+         owner.o_context <- (ctx.ctx_id, Obj.repr value) :: prev;
          let result =
            try fn ()
            with e ->
-             owner.context <- prev;
+             owner.o_context <- prev;
              raise e
          in
-         owner.context <- prev;
+         owner.o_context <- prev;
          result
        | None ->
          (* No owner - create a root to hold the context *)
@@ -926,7 +926,7 @@ module Make (B : Backend.S) = struct
            let rt = get_runtime () in
            match rt.owner with
            | Some owner ->
-             owner.context <- (ctx.ctx_id, Obj.repr value) :: owner.context;
+             owner.o_context <- (ctx.ctx_id, Obj.repr value) :: owner.o_context;
              fn ()
            | None -> fn ()
          ))
@@ -937,7 +937,7 @@ module Make (B : Backend.S) = struct
           let rt = get_runtime () in
           match rt.owner with
           | Some owner ->
-            owner.context <- (ctx.ctx_id, Obj.repr value) :: owner.context;
+            owner.o_context <- (ctx.ctx_id, Obj.repr value) :: owner.o_context;
             fn ()
           | None -> fn ()
         ))
