@@ -4,7 +4,7 @@ This document describes the current limitations, constraints, and known issues w
 
 ## Current Status
 
-All 5 development phases are complete. solid-ml has 208 tests passing.
+All 5 development phases are complete. solid-ml has 217 tests passing.
 
 **Maturity:** Experimental (started January 5, 2026). Not battle-tested in production yet. Expect rapid iteration and potential breaking changes.
 
@@ -153,38 +153,47 @@ dispose ()
 
 ---
 
-### 5. No Built-in Conditional Rendering Helpers
+### 5. No JSX/Template Compiler
 
-**Issue:** There are no `Show`, `Switch`, `For`, or `Index` components like in SolidJS.
+**Issue:** SolidJS ships with `babel-plugin-jsx-dom-expressions`, which compiles JSX into DOM instructions, hoists static markup, and inserts fine-grained subscriptions automatically. solid-ml currently relies on handwritten OCaml (or MLX) without a compilation step.
 
-**Impact:** Conditional and list rendering requires manual pattern matching and list functions.
+**Impact:** Component code is more verbose, and static subtrees are re-created at runtime instead of being cloned. Initialization work is higher than SolidJS because we cannot pre-analyse templates.
 
-**Current approach:**
-```ocaml
-(* Conditional rendering - use if/match *)
-let content = 
-  if Signal.get is_loading then
-    Html.p [] [Html.text "Loading..."]
-  else
-    Html.div [] [actual_content ()]
-
-(* List rendering - use List.map *)
-let items = List.map (fun item ->
-  Html.li [] [Html.text item.name]
-) (Signal.get items_signal)
-
-(* Switch-like rendering *)
-match Signal.get state with
-| Loading -> Html.div [] [Html.text "Loading..."]
-| Error e -> Html.div [] [Html.text ("Error: " ^ e)]
-| Success data -> render_data data
-```
-
-**Note:** This is idiomatic OCaml and works well. Control flow helpers may be added in future versions for convenience.
+**Workaround:** Factor large static subtrees into helper functions or values so they are only constructed once. A future PPX/JSX-style compiler is needed for feature parity.
 
 ---
 
-### 6. Error Boundaries Require Manual Setup
+### 6. No Store-style Nested Reactivity
+
+**Issue:** SolidJS `createStore` tracks nested updates via proxies. solid-ml exposes signals only at the top level.
+
+**Impact:** Updating a field of a record or an element of a list requires replacing the entire signal value, which retriggers every subscriber even if only a small fragment changed.
+
+**Workaround:** Normalize state into multiple signals (one per field/item) or expose setter helpers that update disjoint signals. Exploring a store-like API is future work.
+
+---
+
+### 7. Synchronous Effect Scheduling
+
+**Issue:** SolidJS batches updates and flushes effects on the microtask queue. solid-ml runs effects synchronously as dependencies change.
+
+**Impact:** Without manual batching, a burst of `Signal.set` calls can re-run downstream computations repeatedly, and intermediate states may be visible during the update.
+
+**Workaround:** Wrap related updates in `Batch.run` and design computations to tolerate synchronous execution. Implementing a microtask-style scheduler would close this gap.
+
+---
+
+### 8. No Streaming SSR or Event Replay
+
+**Issue:** SolidJS supports `renderToStream` and ships a hydration script that queues DOM events until hydration completes. solid-ml currently offers `Render.to_string` (buffered output) and drops events that fire before the browser runtime mounts.
+
+**Impact:** Large pages cannot start rendering progressively, and early user interactions are lost.
+
+**Workaround:** Keep initial HTML lightweight and defer interactive controls until the client bundle boots. Streaming plus event replay should be added for full parity.
+
+---
+
+### 9. Error Boundaries Require Manual Setup
 
 **Issue:** Error boundaries are available but must be explicitly wrapped around components.
 
@@ -219,7 +228,7 @@ let safe_render component =
 
 ---
 
-### 7. Hydration and Code Sharing
+### 10. Hydration and Code Sharing
 
 **Status:** Hydration now supports both text nodes AND elements via cursor-based adoption.
 
@@ -249,7 +258,7 @@ end
 
 ---
 
-### 8. Hydration Markers May Cause Layout Issues
+### 11. Hydration Markers May Cause Layout Issues
 
 
 **Issue:** Reactive text nodes are wrapped in HTML comments: `<!--hk:0-->text<!--/hk-->`
@@ -276,6 +285,10 @@ end
 - `<canvas>` (available but limited API)
 - `<dialog>`, `<details>`, `<summary>`
 - `<template>`, `<slot>` (web components)
+
+### Control Flow
+
+solid-ml intentionally relies on OCaml's native `if`, `match`, and higher-order functions instead of providing `<Show>`, `<For>`, or `<Switch>` helpers. Those primitives primarily benefit template-driven syntaxes (e.g., JSX); with plain OCaml syntax the language already offers precise control flow.
 
 ### Signals
 
@@ -363,8 +376,10 @@ The following features are planned or could be added based on community feedback
 | Full element adoption | Hydrate elements, not just text nodes | ✅ Done |
 | Shared component abstraction | Same `.ml` file compiles for both targets | ✅ Done (via functor) |
 | Portal support | Render outside component hierarchy | ✅ Done |
-| Streaming SSR | `render_to_stream` for chunked responses | Medium |
-| Control flow helpers | `Show`, `For`, `Switch` components | Low |
+| Template compiler | JSX/MLX compilation for static hoisting & diffable templates | High |
+| Store API | Fine-grained nested updates (createStore equivalent) | Medium |
+| Microtask scheduler | Deferred effect flushing / automatic batching | Medium |
+| Streaming SSR & event replay | Stream HTML and buffer pre-hydration events | High |
 | Async effects | Direct Promise/Lwt support in effects | Low |
 | Event delegation | Global event handling (currently inline) | Low |
 | Custom directives | Extensible attribute system | Low |
