@@ -13,7 +13,7 @@ All 5 development phases are complete. solid-ml has 208 tests passing.
 | Reactive primitives | ✅ Complete | Signals, effects, memos, batch, owner, context |
 | Server-side rendering | ✅ Complete | HTML generation with hydration markers |
 | Client-side rendering | ✅ Complete | Full DOM bindings via Melange |
-| Hydration | ✅ Complete | Marker-based hydration with reactive updates |
+| Hydration | ✅ Complete | Text nodes via markers, elements via cursor-based adoption |
 | Router | ✅ Complete | SSR-aware routing with data loaders |
 | Suspense/ErrorBoundary | ✅ Complete | Async boundaries and error handling |
 
@@ -219,7 +219,38 @@ let safe_render component =
 
 ---
 
-### 7. Hydration Markers May Cause Layout Issues
+### 7. Hydration and Code Sharing
+
+**Status:** Hydration now supports both text nodes AND elements via cursor-based adoption.
+
+**How it works:**
+- **Text nodes:** Adopted via hydration markers (`<!--hk:N-->text<!--/hk-->`)
+- **Elements:** Adopted by matching tag name and position (cursor-based)
+- **Event handlers:** Attached to adopted elements during hydration
+
+**SSR vs Browser APIs:**
+- **Unified API:** Both SSR and Browser use `Html.reactive_text` (SSR renders markers, Browser adopts them)
+- **Event handlers:** Unified API (SSR ignores handlers, Browser attaches them)
+
+**Code sharing approach:** Use the functor-based `Component.COMPONENT_ENV` module type:
+```ocaml
+(* shared/counter.ml *)
+module Counter (Env : Solid_ml.Component.COMPONENT_ENV) = struct
+  open Env
+  let render ~initial () =
+    let count, _set_count = Signal.create initial in
+    Html.div ~children:[Html.reactive_text count] ()
+end
+```
+
+**Limitations:**
+- Component structure must match exactly between server and client
+- No validation for mismatched structures (fails silently)
+
+---
+
+### 8. Hydration Markers May Cause Layout Issues
+
 
 **Issue:** Reactive text nodes are wrapped in HTML comments: `<!--hk:0-->text<!--/hk-->`
 
@@ -242,7 +273,6 @@ let safe_render component =
 - Some ARIA attributes may need manual construction
 
 **Missing elements:**
-- `<svg>` and SVG elements (`<path>`, `<circle>`, etc.)
 - `<canvas>` (available but limited API)
 - `<dialog>`, `<details>`, `<summary>`
 - `<template>`, `<slot>` (web components)
@@ -325,16 +355,18 @@ Batch.run (fun () ->
 
 ## Future Enhancements
 
-The following features are not currently planned but could be added based on community feedback:
+The following features are planned or could be added based on community feedback:
 
 | Enhancement | Description | Priority |
 |-------------|-------------|----------|
+| Unified Html interface | Single module signature for SSR and browser | ✅ Done |
+| Full element adoption | Hydrate elements, not just text nodes | ✅ Done |
+| Shared component abstraction | Same `.ml` file compiles for both targets | ✅ Done (via functor) |
+| Portal support | Render outside component hierarchy | ✅ Done |
 | Streaming SSR | `render_to_stream` for chunked responses | Medium |
-| SVG support | Full SVG element library | Medium |
 | Control flow helpers | `Show`, `For`, `Switch` components | Low |
 | Async effects | Direct Promise/Lwt support in effects | Low |
 | Event delegation | Global event handling (currently inline) | Low |
-| Portal support | Render outside component hierarchy | Low |
 | Custom directives | Extensible attribute system | Low |
 
 ---

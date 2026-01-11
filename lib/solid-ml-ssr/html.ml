@@ -1,5 +1,9 @@
 (** HTML element functions for server-side rendering. *)
 
+(** Event type stub for unified interface.
+    On SSR, events are never instantiated - handlers are ignored. *)
+type event = unit
+
 (** Hydration key counter for marking reactive elements *)
 let hydration_key = ref 0
 
@@ -70,15 +74,26 @@ let int n = Text (string_of_int n)
 let float f = Text (string_of_float f)
 let raw s = Raw s
 
-let signal_text signal =
+(** Reactive text functions - unified API for SSR/browser *)
+
+let reactive_text signal =
   let key = next_hydration_key () in
   let value = string_of_int (Solid_ml.Signal.peek signal) in
   ReactiveText { key; value }
 
-let signal_text_of fmt signal =
+let reactive_text_of fmt signal =
   let key = next_hydration_key () in
   let value = fmt (Solid_ml.Signal.peek signal) in
   ReactiveText { key; value }
+
+let reactive_text_string signal =
+  let key = next_hydration_key () in
+  let value = Solid_ml.Signal.peek signal in
+  ReactiveText { key; value }
+
+(** Deprecated aliases for backwards compatibility *)
+let signal_text = reactive_text
+let signal_text_of = reactive_text_of
 
 (** Common attributes type *)
 type common_attrs = {
@@ -160,15 +175,15 @@ let aside ?id ?class_ ~children () =
   element "aside" attrs children
 
 (** Text content *)
-let div ?id ?class_ ?style ~children () =
+let div ?id ?class_ ?style ?onclick:_ ~children () =
   let attrs = [] |> add_opt "id" id |> add_opt "class" class_ |> add_opt "style" style in
   element "div" attrs children
 
-let p ?id ?class_ ~children () =
+let p ?id ?class_ ?onclick:_ ~children () =
   let attrs = [] |> add_opt "id" id |> add_opt "class" class_ in
   element "p" attrs children
 
-let span ?id ?class_ ?style ~children () =
+let span ?id ?class_ ?style ?onclick:_ ~children () =
   let attrs = [] |> add_opt "id" id |> add_opt "class" class_ |> add_opt "style" style in
   element "span" attrs children
 
@@ -185,36 +200,36 @@ let blockquote ?id ?class_ ~children () =
   element "blockquote" attrs children
 
 (** Headings *)
-let h1 ?id ?class_ ~children () =
+let h1 ?id ?class_ ?onclick:_ ~children () =
   let attrs = [] |> add_opt "id" id |> add_opt "class" class_ in
   element "h1" attrs children
 
-let h2 ?id ?class_ ~children () =
+let h2 ?id ?class_ ?onclick:_ ~children () =
   let attrs = [] |> add_opt "id" id |> add_opt "class" class_ in
   element "h2" attrs children
 
-let h3 ?id ?class_ ~children () =
+let h3 ?id ?class_ ?onclick:_ ~children () =
   let attrs = [] |> add_opt "id" id |> add_opt "class" class_ in
   element "h3" attrs children
 
-let h4 ?id ?class_ ~children () =
+let h4 ?id ?class_ ?onclick:_ ~children () =
   let attrs = [] |> add_opt "id" id |> add_opt "class" class_ in
   element "h4" attrs children
 
-let h5 ?id ?class_ ~children () =
+let h5 ?id ?class_ ?onclick:_ ~children () =
   let attrs = [] |> add_opt "id" id |> add_opt "class" class_ in
   element "h5" attrs children
 
-let h6 ?id ?class_ ~children () =
+let h6 ?id ?class_ ?onclick:_ ~children () =
   let attrs = [] |> add_opt "id" id |> add_opt "class" class_ in
   element "h6" attrs children
 
 (** Inline text *)
-let a ?id ?class_ ?href ?target ~children () =
-  let attrs = [] 
-    |> add_opt "id" id 
+let a ?id ?class_ ?href ?target ?onclick:_ ~children () =
+  let attrs = []
+    |> add_opt "id" id
     |> add_opt "class" class_
-    |> add_opt "href" href 
+    |> add_opt "href" href
     |> add_opt "target" target
   in
   element "a" attrs children
@@ -246,7 +261,7 @@ let ol ?id ?class_ ?start ~children () =
   in
   element "ol" attrs children
 
-let li ?id ?class_ ~children () =
+let li ?id ?class_ ?onclick:_ ~children () =
   let attrs = [] |> add_opt "id" id |> add_opt "class" class_ in
   element "li" attrs children
 
@@ -281,9 +296,9 @@ let td ?class_ ?colspan ?rowspan ~children () =
   element "td" attrs children
 
 (** Forms *)
-let form ?id ?class_ ?action ?method_ ?enctype ~children () =
-  let attrs = [] 
-    |> add_opt "id" id 
+let form ?id ?class_ ?action ?method_ ?enctype ?onsubmit:_ ~children () =
+  let attrs = []
+    |> add_opt "id" id
     |> add_opt "class" class_
     |> add_opt "action" action
     |> add_opt "method" method_
@@ -291,9 +306,9 @@ let form ?id ?class_ ?action ?method_ ?enctype ~children () =
   in
   element "form" attrs children
 
-let input ?id ?class_ ?type_ ?name ?value ?placeholder ?(required=false) ?(disabled=false) ?(checked=false) ?(autofocus=false) () =
-  let attrs = [] 
-    |> add_opt "id" id 
+let input ?id ?class_ ?type_ ?name ?value ?placeholder ?(required=false) ?(disabled=false) ?(checked=false) ?(autofocus=false) ?oninput:_ ?onchange:_ ?onkeydown:_ () =
+  let attrs = []
+    |> add_opt "id" id
     |> add_opt "class" class_
     |> add_opt "type" type_
     |> add_opt "name" name
@@ -306,9 +321,9 @@ let input ?id ?class_ ?type_ ?name ?value ?placeholder ?(required=false) ?(disab
   in
   element "input" ~self_closing:true attrs []
 
-let textarea ?id ?class_ ?name ?placeholder ?rows ?cols ?(required=false) ?(disabled=false) ~children () =
-  let attrs = [] 
-    |> add_opt "id" id 
+let textarea ?id ?class_ ?name ?placeholder ?rows ?cols ?(required=false) ?(disabled=false) ?oninput:_ ~children () =
+  let attrs = []
+    |> add_opt "id" id
     |> add_opt "class" class_
     |> add_opt "name" name
     |> add_opt "placeholder" placeholder
@@ -319,9 +334,9 @@ let textarea ?id ?class_ ?name ?placeholder ?rows ?cols ?(required=false) ?(disa
   in
   element "textarea" attrs children
 
-let select ?id ?class_ ?name ?(required=false) ?(disabled=false) ?(multiple=false) ~children () =
-  let attrs = [] 
-    |> add_opt "id" id 
+let select ?id ?class_ ?name ?(required=false) ?(disabled=false) ?(multiple=false) ?onchange:_ ~children () =
+  let attrs = []
+    |> add_opt "id" id
     |> add_opt "class" class_
     |> add_opt "name" name
     |> add_bool "required" required
@@ -346,9 +361,9 @@ let label ?id ?class_ ?for_ ~children () =
   in
   element "label" attrs children
 
-let button ?id ?class_ ?type_ ?(disabled=false) ~children () =
-  let attrs = [] 
-    |> add_opt "id" id 
+let button ?id ?class_ ?type_ ?(disabled=false) ?onclick:_ ~children () =
+  let attrs = []
+    |> add_opt "id" id
     |> add_opt "class" class_
     |> add_opt "type" type_
     |> add_bool "disabled" disabled
@@ -421,7 +436,7 @@ let iframe ?id ?class_ ?src ?width ?height ?title () =
 (** {1 SVG Elements} *)
 
 module Svg = struct
-  let svg ?(xmlns=true) ?id ?class_ ?style ?viewBox ?width ?height ~children () =
+  let svg ?(xmlns=true) ?id ?class_ ?style ?viewBox ?width ?height ?onclick:_ ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -433,7 +448,7 @@ module Svg = struct
     let attrs = if xmlns then ("xmlns", svg_namespace) :: attrs else attrs in
     element "svg" attrs children
 
-  let g ?id ?class_ ?style ?transform ~children () =
+  let g ?id ?class_ ?style ?transform ?onclick:_ ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -442,7 +457,7 @@ module Svg = struct
     in
     element "g" attrs children
 
-  let circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ~children () =
+  let circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?onclick:_ ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -456,7 +471,7 @@ module Svg = struct
     in
     element "circle" attrs children
 
-  let rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ~children () =
+  let rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?onclick:_ ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -473,7 +488,7 @@ module Svg = struct
     in
     element "rect" attrs children
 
-  let line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ~children () =
+  let line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?onclick:_ ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -487,7 +502,7 @@ module Svg = struct
     in
     element "line" attrs children
 
-  let path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ~children () =
+  let path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?onclick:_ ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -499,7 +514,7 @@ module Svg = struct
     in
     element "path" attrs children
 
-  let text_ ?id ?class_ ?style ?x ?y ?fill ?stroke ?stroke_width ~children () =
+  let text_ ?id ?class_ ?style ?x ?y ?fill ?stroke ?stroke_width ?onclick:_ ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -513,26 +528,26 @@ module Svg = struct
     element "text" attrs children
 end
 
-let svg ?xmlns ?id ?class_ ?style ?viewBox ?width ?height ~children () =
-  Svg.svg ?xmlns ?id ?class_ ?style ?viewBox ?width ?height ~children ()
+let svg ?xmlns ?id ?class_ ?style ?viewBox ?width ?height ?onclick ~children () =
+  Svg.svg ?xmlns ?id ?class_ ?style ?viewBox ?width ?height ?onclick ~children ()
 
-let g ?id ?class_ ?style ?transform ~children () =
-  Svg.g ?id ?class_ ?style ?transform ~children ()
+let g ?id ?class_ ?style ?transform ?onclick ~children () =
+  Svg.g ?id ?class_ ?style ?transform ?onclick ~children ()
 
-let circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ~children () =
-  Svg.circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ~children ()
+let circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?onclick ~children () =
+  Svg.circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?onclick ~children ()
 
-let rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ~children () =
-  Svg.rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ~children ()
+let rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?onclick ~children () =
+  Svg.rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?onclick ~children ()
 
-let line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ~children () =
-  Svg.line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ~children ()
+let line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?onclick ~children () =
+  Svg.line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?onclick ~children ()
 
-let path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ~children () =
-  Svg.path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ~children ()
+let path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?onclick ~children () =
+  Svg.path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?onclick ~children ()
 
-let text_ ?id ?class_ ?style ?x ?y ?fill ?stroke ?stroke_width ~children () =
-  Svg.text_ ?id ?class_ ?style ?x ?y ?fill ?stroke ?stroke_width ~children ()
+let text_ ?id ?class_ ?style ?x ?y ?fill ?stroke ?stroke_width ?onclick ~children () =
+  Svg.text_ ?id ?class_ ?style ?x ?y ?fill ?stroke ?stroke_width ?onclick ~children ()
 
 (** Fragment *)
 let fragment nodes = Fragment nodes

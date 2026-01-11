@@ -43,63 +43,57 @@ let render_append root component =
 (** {1 Hydration} *)
 
 (** Hydrate server-rendered HTML.
-    
+
     This function "adopts" existing DOM nodes rendered by the server and
     attaches reactive bindings without re-rendering.
-    
+
     How it works:
     1. Parse hydration markers to find existing text nodes
-    2. Enable hydration mode so reactive text functions adopt existing nodes
-    3. Run the component to set up the reactive graph
-    4. Clean up hydration markers from the DOM
-    5. Disable hydration mode
-    
+    2. Enable hydration mode
+    3. Initialize element cursor at the root
+    4. Run the component to set up the reactive graph (adopting elements and text)
+    5. Clean up hydration markers from the DOM
+    6. Disable hydration mode
+
     For hydration to work correctly:
     - The component must produce the same structure as the server render
-    - Reactive text nodes are matched via hydration markers (<!--hk:N-->)
-    - Event handlers are attached to existing elements
-    
-    Limitations:
-    - Only reactive text nodes (signal_text) are hydrated via markers
-    - Element structure must match exactly (elements are not adopted yet)
-    - No support for streaming/progressive hydration
-    
+    - Reactive text nodes are matched via hydration markers
+    - Elements are matched by tag name and position
+    - Event handlers are attached to adopted elements
+
     @param root The DOM element containing server-rendered HTML
     @param component The component function (must match server render) *)
 let hydrate root component =
   (* Reset hydration keys to match server's ordering *)
   Reactive.reset_hydration_keys ();
-  
+
   (* Parse hydration markers and store text node references *)
   Hydration.parse_hydration_markers root;
-  
+
   (* Enable hydration mode *)
   Hydration.start_hydration ();
-  
+
+  (* Initialize element cursor at root for element adoption *)
+  Hydration.start_element_hydration root;
+
   let (_, dispose) = Reactive_core.create_root (fun () ->
     (* Run the component to set up the reactive graph.
-       
+
        During hydration mode:
-       - Reactive text functions (text, text_of, etc.) will adopt
-         existing text nodes via hydration markers instead of creating new ones
-       - Effects are set up to update the adopted nodes when signals change
-       - Event handlers need to be attached to existing elements
-       
-       Note: Element adoption is not yet implemented - the component still
-       creates new elements, but they are not appended to the DOM. Only the
-       reactive text bindings are connected to existing nodes.
-       
-       TODO: Full element adoption by walking DOM tree *)
+       - Elements are adopted from existing DOM by matching tag name and position
+       - Reactive text functions adopt text nodes via hydration markers
+       - Effects are set up to update adopted nodes when signals change
+       - Event handlers are attached to adopted elements *)
     let _node = component () in
     ()
   ) in
-  
+
   (* Clean up hydration markers from the DOM *)
   Hydration.remove_hydration_markers root;
-  
+
   (* Disable hydration mode *)
   Hydration.end_hydration ();
-  
+
   dispose
 
 (** Get hydration data embedded in the page by the server.

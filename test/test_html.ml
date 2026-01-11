@@ -216,7 +216,7 @@ let test_render_with_signals () =
   let html = Render.to_string (fun () ->
     Html.(div ~children:[
       text "Count: ";
-      signal_text count
+      reactive_text count
     ] ())
   ) in
   (* Should contain the hydration marker and value *)
@@ -233,6 +233,91 @@ let test_hydration_script () =
   assert (contains script "</script>");
   print_endline "  PASSED"
 
+(* ============ Reactive Text Tests ============ *)
+
+let test_reactive_text () =
+  print_endline "Test: reactive_text renders int signal with hydration markers";
+  let count, _set_count = Solid_ml.Signal.create 42 in
+  let html = Render.to_string (fun () ->
+    Html.(div ~children:[reactive_text count] ())
+  ) in
+  (* Should contain hydration markers and the value *)
+  assert (contains html "<!--hk:");
+  assert (contains html "42");
+  assert (contains html "<!--/hk-->");
+  print_endline "  PASSED"
+
+let test_reactive_text_of () =
+  print_endline "Test: reactive_text_of with custom formatter";
+  let data, _set_data = Solid_ml.Signal.create {|hello|} in
+  let html = Render.to_string (fun () ->
+    Html.(div ~children:[
+      reactive_text_of String.uppercase_ascii data
+    ] ())
+  ) in
+  assert (contains html "HELLO");
+  assert (contains html "<!--hk:");
+  print_endline "  PASSED"
+
+let test_reactive_text_string () =
+  print_endline "Test: reactive_text_string renders string signal";
+  let msg, _set_msg = Solid_ml.Signal.create "world" in
+  let html = Render.to_string (fun () ->
+    Html.(div ~children:[reactive_text_string msg] ())
+  ) in
+  assert (contains html "world");
+  assert (contains html "<!--hk:");
+  print_endline "  PASSED"
+
+let test_signal_text_alias () =
+  print_endline "Test: signal_text is alias for reactive_text";
+  let count, _set_count = Solid_ml.Signal.create 99 in
+  let html = Render.to_string (fun () ->
+    Html.(div ~children:[signal_text count] ())
+  ) in
+  assert (contains html "99");
+  assert (contains html "<!--hk:");
+  print_endline "  PASSED"
+
+(* ============ Event Handler Tests ============ *)
+
+let test_onclick_ignored () =
+  print_endline "Test: onclick param is accepted and ignored on SSR";
+  let handler : Html.event -> unit = fun _ -> () in
+  let html = Html.to_string (
+    Html.(div ~onclick:handler ~children:[text "Click me"] ())
+  ) in
+  (* Should render div without onclick attribute *)
+  assert (html = "<div>Click me</div>");
+  print_endline "  PASSED"
+
+let test_button_onclick_ignored () =
+  print_endline "Test: button onclick is ignored on SSR";
+  let handler : Html.event -> unit = fun _ -> () in
+  let html = Html.to_string (
+    Html.(button ~onclick:handler ~children:[text "Submit"] ())
+  ) in
+  assert (html = "<button>Submit</button>");
+  print_endline "  PASSED"
+
+let test_form_handlers_ignored () =
+  print_endline "Test: form event handlers ignored on SSR";
+  let submit_handler : Html.event -> unit = fun _ -> () in
+  let input_handler : Html.event -> unit = fun _ -> () in
+  let html = Html.to_string (
+    Html.(form ~onsubmit:submit_handler ~children:[
+      input ~oninput:input_handler ~onchange:input_handler ();
+      button ~children:[text "Go"] ()
+    ] ())
+  ) in
+  assert (contains html "<form>");
+  assert (contains html "<input");
+  (* Should not contain any event handler attributes *)
+  assert (not (contains html "onclick"));
+  assert (not (contains html "onsubmit"));
+  assert (not (contains html "oninput"));
+  print_endline "  PASSED"
+
 (* ============ Complex Examples ============ *)
 
 let test_counter_component () =
@@ -240,7 +325,7 @@ let test_counter_component () =
   let count, _set_count = Solid_ml.Signal.create 0 in
   let html = Render.to_string (fun () ->
     Html.(div ~class_:"counter" ~children:[
-      p ~children:[text "Count: "; signal_text count] ();
+      p ~children:[text "Count: "; reactive_text count] ();
       button ~children:[text "Increment"] ()
     ] ())
   ) in
@@ -310,9 +395,20 @@ let () =
   test_render_to_document ();
   test_render_with_signals ();
   test_hydration_script ();
-  
+
+  print_endline "\n-- Reactive Text Tests --";
+  test_reactive_text ();
+  test_reactive_text_of ();
+  test_reactive_text_string ();
+  test_signal_text_alias ();
+
+  print_endline "\n-- Event Handler Tests --";
+  test_onclick_ignored ();
+  test_button_onclick_ignored ();
+  test_form_handlers_ignored ();
+
   print_endline "\n-- Complex Examples --";
   test_counter_component ();
   test_full_page ();
-  
+
   print_endline "\n=== All tests passed! ===\n"

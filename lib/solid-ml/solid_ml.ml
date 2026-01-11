@@ -81,3 +81,9 @@ module Store = Store
 
 (** Async resource with loading/error/ready states *)
 module Resource = Resource
+
+(** Html interface for unified SSR/browser components *)
+module Html_intf = Html_intf
+
+(** Component abstraction for shared SSR/browser code *)
+module Component = Component

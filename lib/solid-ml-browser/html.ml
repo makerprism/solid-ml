@@ -9,6 +9,9 @@
 
 open Dom
 
+type 'a signal = 'a Reactive_core.signal
+type event = Dom.event
+
 let svg_namespace = "http://www.w3.org/2000/svg"
 
 (** {1 Node Types} *)
@@ -54,6 +57,41 @@ let int n = text (string_of_int n)
 let float f = text (string_of_float f)
 let empty = Empty
 
+(** Helper for hydration *)
+let get_or_create_text_node key initial_value =
+  match Hydration.adopt_text_node key with
+  | Some txt -> txt
+  | None -> create_text_node document initial_value
+
+let reactive_text signal =
+  let key = Hydration.next_hydration_key () in
+  let initial = string_of_int (Reactive_core.read_typed_signal signal) in
+  let txt = get_or_create_text_node key initial in
+  Reactive_core.create_effect (fun () ->
+    text_set_data txt (string_of_int (Reactive_core.read_typed_signal signal))
+  );
+  Text txt
+
+let reactive_text_of fmt signal =
+  let key = Hydration.next_hydration_key () in
+  let initial = fmt (Reactive_core.read_typed_signal signal) in
+  let txt = get_or_create_text_node key initial in
+  Reactive_core.create_effect (fun () ->
+    text_set_data txt (fmt (Reactive_core.read_typed_signal signal))
+  );
+  Text txt
+
+let reactive_text_string signal =
+  let key = Hydration.next_hydration_key () in
+  let initial = Reactive_core.read_typed_signal signal in
+  let txt = get_or_create_text_node key initial in
+  Reactive_core.create_effect (fun () ->
+    text_set_data txt (Reactive_core.read_typed_signal signal)
+  );
+  Text txt
+  
+let signal_text = reactive_text
+
 (** {1 Fragment} *)
 
 (** Create a fragment from a list of nodes.
@@ -65,9 +103,14 @@ let fragment children =
 
 (** {1 Element Creation} *)
 
-(** Low-level element creation with event handler support *)
+(** Low-level element creation with event handler support and hydration adoption *)
 let make_element tag ?id ?class_ ?style ?onclick ?oninput ?onchange ?onkeydown ?onsubmit children =
-  let el = create_element document tag in
+  (* Try to adopt existing element during hydration *)
+  let el, adopted = match Hydration.adopt_element tag with
+    | Some existing -> (existing, true)
+    | None -> (create_element document tag, false)
+  in
+  (* Set attributes (even on adopted elements to ensure consistency) *)
   set_opt_attr el "id" id;
   set_opt_attr el "class" class_;
   set_opt_attr el "style" style;
@@ -77,8 +120,31 @@ let make_element tag ?id ?class_ ?style ?onclick ?oninput ?onchange ?onkeydown ?
   (match onchange with Some h -> add_event_listener el "change" h | None -> ());
   (match onkeydown with Some h -> add_event_listener el "keydown" h | None -> ());
   (match onsubmit with Some h -> add_event_listener el "submit" h | None -> ());
-  List.iter (append_to_element el) children;
+  (* Process children with hydration cursor *)
+  Hydration.enter_children el;
+  if not adopted then
+    (* Only append children to non-adopted elements *)
+    List.iter (append_to_element el) children
+  else
+    (* For adopted elements, still process children to set up reactive bindings *)
+    List.iter (fun child ->
+      match child with
+      | Text _ | Empty -> () (* Text nodes already adopted via hydration markers *)
+      | Element _ | Fragment _ ->
+        (* Child elements will adopt themselves via recursive make_element calls *)
+        ()
+    ) children;
+  Hydration.exit_children ();
   Element el
+
+(** Helper to create element and set extra attributes *)
+let make_element_with_attrs tag ?id ?class_ ?style ?onclick ?oninput ?onchange ?onkeydown ?onsubmit attrs children =
+  let el_node = make_element tag ?id ?class_ ?style ?onclick ?oninput ?onchange ?onkeydown ?onsubmit children in
+  match el_node with
+  | Element el ->
+      attrs el;
+      Element el
+  | _ -> el_node
 
 (** {1 Document Structure} *)
 
@@ -119,36 +185,26 @@ let aside ?id ?class_ ~children () = make_element "aside" ?id ?class_ children
 (** {1 Inline Elements} *)
 
 let a ?id ?class_ ?href ?target ?onclick ~children () =
-  let el = create_element document "a" in
-  set_opt_attr el "id" id;
-  set_opt_attr el "class" class_;
-  set_opt_attr el "href" href;
-  set_opt_attr el "target" target;
-  (match onclick with Some h -> add_event_listener el "click" h | None -> ());
-  List.iter (append_to_element el) children;
-  Element el
+  make_element_with_attrs "a" ?id ?class_ ?onclick (fun el ->
+    set_opt_attr el "href" href;
+    set_opt_attr el "target" target
+  ) children
 
 let strong ?id ?class_ ~children () = make_element "strong" ?id ?class_ children
 let em ?id ?class_ ~children () = make_element "em" ?id ?class_ children
 
-let br () = Element (create_element document "br")
+let br () = make_element "br" []
 
-let hr ?class_ () =
-  let el = create_element document "hr" in
-  set_opt_attr el "class" class_;
-  Element el
+let hr ?class_ () = make_element "hr" ?class_ []
 
 (** {1 Lists} *)
 
 let ul ?id ?class_ ~children () = make_element "ul" ?id ?class_ children
 
 let ol ?id ?class_ ?start ~children () =
-  let el = create_element document "ol" in
-  set_opt_attr el "id" id;
-  set_opt_attr el "class" class_;
-  (match start with Some n -> set_attribute el "start" (string_of_int n) | None -> ());
-  List.iter (append_to_element el) children;
-  Element el
+  make_element_with_attrs "ol" ?id ?class_ (fun el ->
+    (match start with Some n -> set_attribute el "start" (string_of_int n) | None -> ())
+  ) children
 
 let li ?id ?class_ ?onclick ~children () = make_element "li" ?id ?class_ ?onclick children
 
@@ -161,119 +217,89 @@ let tfoot ~children () = make_element "tfoot" children
 let tr ?class_ ~children () = make_element "tr" ?class_ children
 
 let th ?class_ ?scope ?colspan ?rowspan ~children () =
-  let el = create_element document "th" in
-  set_opt_attr el "class" class_;
-  set_opt_attr el "scope" scope;
-  (match colspan with Some n -> set_attribute el "colspan" (string_of_int n) | None -> ());
-  (match rowspan with Some n -> set_attribute el "rowspan" (string_of_int n) | None -> ());
-  List.iter (append_to_element el) children;
-  Element el
+  make_element_with_attrs "th" ?class_ (fun el ->
+    set_opt_attr el "scope" scope;
+    (match colspan with Some n -> set_attribute el "colspan" (string_of_int n) | None -> ());
+    (match rowspan with Some n -> set_attribute el "rowspan" (string_of_int n) | None -> ())
+  ) children
 
 let td ?class_ ?colspan ?rowspan ~children () =
-  let el = create_element document "td" in
-  set_opt_attr el "class" class_;
-  (match colspan with Some n -> set_attribute el "colspan" (string_of_int n) | None -> ());
-  (match rowspan with Some n -> set_attribute el "rowspan" (string_of_int n) | None -> ());
-  List.iter (append_to_element el) children;
-  Element el
+  make_element_with_attrs "td" ?class_ (fun el ->
+    (match colspan with Some n -> set_attribute el "colspan" (string_of_int n) | None -> ());
+    (match rowspan with Some n -> set_attribute el "rowspan" (string_of_int n) | None -> ())
+  ) children
 
 (** {1 Forms} *)
 
-let form ?id ?class_ ?action ?method_ ?onsubmit ~children () =
-  let el = create_element document "form" in
-  set_opt_attr el "id" id;
-  set_opt_attr el "class" class_;
-  set_opt_attr el "action" action;
-  set_opt_attr el "method" method_;
-  (match onsubmit with 
-   | Some h -> add_event_listener el "submit" h 
-   | None -> ());
-  List.iter (append_to_element el) children;
-  Element el
+let form ?id ?class_ ?action ?method_ ?enctype ?onsubmit ~children () =
+  make_element_with_attrs "form" ?id ?class_ ?onsubmit (fun el ->
+    set_opt_attr el "action" action;
+    set_opt_attr el "method" method_;
+    set_opt_attr el "enctype" enctype
+  ) children
 
 let input ?id ?class_ ?type_ ?name ?value ?placeholder 
-    ?(required=false) ?(disabled=false) ?(checked=false) 
+    ?(required=false) ?(disabled=false) ?(checked=false) ?(autofocus=false)
     ?oninput ?onchange ?onkeydown () =
-  let el = create_element document "input" in
-  set_opt_attr el "id" id;
-  set_opt_attr el "class" class_;
-  set_opt_attr el "type" type_;
-  set_opt_attr el "name" name;
-  set_opt_attr el "value" value;
-  set_opt_attr el "placeholder" placeholder;
-  set_bool_attr el "required" required;
-  set_bool_attr el "disabled" disabled;
-  if checked then element_set_checked el true;
-  (match oninput with Some h -> add_event_listener el "input" h | None -> ());
-  (match onchange with Some h -> add_event_listener el "change" h | None -> ());
-  (match onkeydown with Some h -> add_event_listener el "keydown" h | None -> ());
-  Element el
+  make_element_with_attrs "input" ?id ?class_ ?oninput ?onchange ?onkeydown (fun el ->
+    set_opt_attr el "type" type_;
+    set_opt_attr el "name" name;
+    set_opt_attr el "value" value;
+    set_opt_attr el "placeholder" placeholder;
+    set_bool_attr el "required" required;
+    set_bool_attr el "disabled" disabled;
+    set_bool_attr el "autofocus" autofocus;
+    if checked then element_set_checked el true
+  ) []
 
 let textarea ?id ?class_ ?name ?placeholder ?rows ?cols 
     ?(required=false) ?(disabled=false) ?oninput ~children () =
-  let el = create_element document "textarea" in
-  set_opt_attr el "id" id;
-  set_opt_attr el "class" class_;
-  set_opt_attr el "name" name;
-  set_opt_attr el "placeholder" placeholder;
-  (match rows with Some n -> set_attribute el "rows" (string_of_int n) | None -> ());
-  (match cols with Some n -> set_attribute el "cols" (string_of_int n) | None -> ());
-  set_bool_attr el "required" required;
-  set_bool_attr el "disabled" disabled;
-  (match oninput with Some h -> add_event_listener el "input" h | None -> ());
-  List.iter (append_to_element el) children;
-  Element el
+  make_element_with_attrs "textarea" ?id ?class_ ?oninput (fun el ->
+    set_opt_attr el "name" name;
+    set_opt_attr el "placeholder" placeholder;
+    (match rows with Some n -> set_attribute el "rows" (string_of_int n) | None -> ());
+    (match cols with Some n -> set_attribute el "cols" (string_of_int n) | None -> ());
+    set_bool_attr el "required" required;
+    set_bool_attr el "disabled" disabled
+  ) children
 
 let select ?id ?class_ ?name ?(required=false) ?(disabled=false) ?(multiple=false) 
     ?onchange ~children () =
-  let el = create_element document "select" in
-  set_opt_attr el "id" id;
-  set_opt_attr el "class" class_;
-  set_opt_attr el "name" name;
-  set_bool_attr el "required" required;
-  set_bool_attr el "disabled" disabled;
-  set_bool_attr el "multiple" multiple;
-  (match onchange with Some h -> add_event_listener el "change" h | None -> ());
-  List.iter (append_to_element el) children;
-  Element el
+  make_element_with_attrs "select" ?id ?class_ ?onchange (fun el ->
+    set_opt_attr el "name" name;
+    set_bool_attr el "required" required;
+    set_bool_attr el "disabled" disabled;
+    set_bool_attr el "multiple" multiple
+  ) children
 
 let option ?value ?(selected=false) ?(disabled=false) ~children () =
-  let el = create_element document "option" in
-  set_opt_attr el "value" value;
-  set_bool_attr el "selected" selected;
-  set_bool_attr el "disabled" disabled;
-  List.iter (append_to_element el) children;
-  Element el
+  make_element_with_attrs "option" (fun el ->
+    set_opt_attr el "value" value;
+    set_bool_attr el "selected" selected;
+    set_bool_attr el "disabled" disabled
+  ) children
 
 let label ?id ?class_ ?for_ ~children () =
-  let el = create_element document "label" in
-  set_opt_attr el "id" id;
-  set_opt_attr el "class" class_;
-  set_opt_attr el "for" for_;
-  List.iter (append_to_element el) children;
-  Element el
+  make_element_with_attrs "label" ?id ?class_ (fun el ->
+    set_opt_attr el "for" for_
+  ) children
 
 let button ?id ?class_ ?type_ ?(disabled=false) ?onclick ~children () =
-  let el = create_element document "button" in
-  set_opt_attr el "id" id;
-  set_opt_attr el "class" class_;
-  set_opt_attr el "type" type_;
-  set_bool_attr el "disabled" disabled;
-  (match onclick with Some h -> add_event_listener el "click" h | None -> ());
-  List.iter (append_to_element el) children;
-  Element el
+  make_element_with_attrs "button" ?id ?class_ ?onclick (fun el ->
+    set_opt_attr el "type" type_;
+    set_bool_attr el "disabled" disabled
+  ) children
 
 (** {1 Media} *)
 
-let img ?id ?class_ ?src ?alt ?width ?height () =
-  let el = create_element document "img" in
-  set_opt_attr el "id" id;
-  set_opt_attr el "class" class_;
-  set_opt_attr el "src" src;
-  set_opt_attr el "alt" alt;
-  (match width with Some n -> set_attribute el "width" (string_of_int n) | None -> ());
-  (match height with Some n -> set_attribute el "height" (string_of_int n) | None -> ());
-  Element el
+let img ?id ?class_ ?src ?alt ?width ?height ?loading () =
+  make_element_with_attrs "img" ?id ?class_ (fun el ->
+    set_opt_attr el "src" src;
+    set_opt_attr el "alt" alt;
+    (match width with Some n -> set_attribute el "width" (string_of_int n) | None -> ());
+    (match height with Some n -> set_attribute el "height" (string_of_int n) | None -> ());
+    set_opt_attr el "loading" loading
+  ) []
 
 (** {1 Portal} *)
 

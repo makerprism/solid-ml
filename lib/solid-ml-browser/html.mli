@@ -4,13 +4,19 @@
     so the same component patterns work on both server and client.
 *)
 
-(** {1 Node Types} *)
+(** {1 Core Types} *)
 
 type node =
   | Element of Dom.element
   | Text of Dom.text_node
   | Fragment of Dom.document_fragment
   | Empty
+
+type 'a signal = 'a Reactive_core.signal
+(** A reactive signal. *)
+
+type event = Dom.event
+(** Browser DOM event. *)
 
 (** {1 Node Conversion} *)
 
@@ -30,6 +36,17 @@ val int : int -> node
 val float : float -> node
 val empty : node
 
+(** {1 Reactive Text} *)
+
+val reactive_text : int signal -> node
+(** Reactive text from an int signal. *)
+
+val reactive_text_of : ('a -> string) -> 'a signal -> node
+(** Reactive text with custom formatter. *)
+
+val reactive_text_string : string signal -> node
+(** Reactive text from a string signal. *)
+
 (** {1 Fragment} *)
 
 val fragment : node list -> node
@@ -38,25 +55,25 @@ val fragment : node list -> node
 (** {1 Document Structure} *)
 
 val div : ?id:string -> ?class_:string -> ?style:string -> 
-  ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+  ?onclick:(event -> unit) -> children:node list -> unit -> node
 
 val span : ?id:string -> ?class_:string -> ?style:string ->
-  ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+  ?onclick:(event -> unit) -> children:node list -> unit -> node
 
 val p : ?id:string -> ?class_:string -> 
-  ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+  ?onclick:(event -> unit) -> children:node list -> unit -> node
 
 val pre : ?id:string -> ?class_:string -> children:node list -> unit -> node
 val code : ?id:string -> ?class_:string -> children:node list -> unit -> node
 
 (** {1 Headings} *)
 
-val h1 : ?id:string -> ?class_:string -> ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
-val h2 : ?id:string -> ?class_:string -> ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
-val h3 : ?id:string -> ?class_:string -> ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
-val h4 : ?id:string -> ?class_:string -> ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
-val h5 : ?id:string -> ?class_:string -> ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
-val h6 : ?id:string -> ?class_:string -> ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+val h1 : ?id:string -> ?class_:string -> ?onclick:(event -> unit) -> children:node list -> unit -> node
+val h2 : ?id:string -> ?class_:string -> ?onclick:(event -> unit) -> children:node list -> unit -> node
+val h3 : ?id:string -> ?class_:string -> ?onclick:(event -> unit) -> children:node list -> unit -> node
+val h4 : ?id:string -> ?class_:string -> ?onclick:(event -> unit) -> children:node list -> unit -> node
+val h5 : ?id:string -> ?class_:string -> ?onclick:(event -> unit) -> children:node list -> unit -> node
+val h6 : ?id:string -> ?class_:string -> ?onclick:(event -> unit) -> children:node list -> unit -> node
 
 (** {1 Sectioning} *)
 
@@ -71,7 +88,7 @@ val aside : ?id:string -> ?class_:string -> children:node list -> unit -> node
 (** {1 Inline Elements} *)
 
 val a : ?id:string -> ?class_:string -> ?href:string -> ?target:string ->
-  ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+  ?onclick:(event -> unit) -> children:node list -> unit -> node
 
 val strong : ?id:string -> ?class_:string -> children:node list -> unit -> node
 val em : ?id:string -> ?class_:string -> children:node list -> unit -> node
@@ -82,7 +99,7 @@ val hr : ?class_:string -> unit -> node
 
 val ul : ?id:string -> ?class_:string -> children:node list -> unit -> node
 val ol : ?id:string -> ?class_:string -> ?start:int -> children:node list -> unit -> node
-val li : ?id:string -> ?class_:string -> ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+val li : ?id:string -> ?class_:string -> ?onclick:(event -> unit) -> children:node list -> unit -> node
 
 (** {1 Tables} *)
 
@@ -97,19 +114,19 @@ val td : ?class_:string -> ?colspan:int -> ?rowspan:int -> children:node list ->
 (** {1 Forms} *)
 
 val form : ?id:string -> ?class_:string -> ?action:string -> ?method_:string ->
-  ?onsubmit:(Dom.event -> unit) -> children:node list -> unit -> node
+  ?enctype:string -> ?onsubmit:(event -> unit) -> children:node list -> unit -> node
 
 val input : ?id:string -> ?class_:string -> ?type_:string -> ?name:string ->
   ?value:string -> ?placeholder:string -> ?required:bool -> ?disabled:bool ->
-  ?checked:bool -> ?oninput:(Dom.event -> unit) -> ?onchange:(Dom.event -> unit) ->
-  ?onkeydown:(Dom.event -> unit) -> unit -> node
+  ?checked:bool -> ?autofocus:bool -> ?oninput:(event -> unit) -> ?onchange:(event -> unit) ->
+  ?onkeydown:(event -> unit) -> unit -> node
 
 val textarea : ?id:string -> ?class_:string -> ?name:string -> ?placeholder:string ->
   ?rows:int -> ?cols:int -> ?required:bool -> ?disabled:bool ->
-  ?oninput:(Dom.event -> unit) -> children:node list -> unit -> node
+  ?oninput:(event -> unit) -> children:node list -> unit -> node
 
 val select : ?id:string -> ?class_:string -> ?name:string -> ?required:bool ->
-  ?disabled:bool -> ?multiple:bool -> ?onchange:(Dom.event -> unit) ->
+  ?disabled:bool -> ?multiple:bool -> ?onchange:(event -> unit) ->
   children:node list -> unit -> node
 
 val option : ?value:string -> ?selected:bool -> ?disabled:bool ->
@@ -119,62 +136,62 @@ val label : ?id:string -> ?class_:string -> ?for_:string ->
   children:node list -> unit -> node
 
 val button : ?id:string -> ?class_:string -> ?type_:string -> ?disabled:bool ->
-  ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+  ?onclick:(event -> unit) -> children:node list -> unit -> node
 
 (** {1 Media} *)
 
 val img : ?id:string -> ?class_:string -> ?src:string -> ?alt:string ->
-  ?width:int -> ?height:int -> unit -> node
+  ?width:int -> ?height:int -> ?loading:string -> unit -> node
 
 (** {1 SVG Elements} *)
 
 module Svg : sig
   (** Browser SVG helpers using namespaced DOM creation. *)
   val svg : ?id:string -> ?class_:string -> ?style:string -> ?viewBox:string ->
-    ?width:string -> ?height:string -> ?onclick:(Dom.event -> unit) ->
+    ?width:string -> ?height:string -> ?onclick:(event -> unit) ->
     children:node list -> unit -> node
   val g : ?id:string -> ?class_:string -> ?style:string -> ?transform:string ->
-    ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+    ?onclick:(event -> unit) -> children:node list -> unit -> node
   val circle : ?id:string -> ?class_:string -> ?style:string -> ?cx:string ->
     ?cy:string -> ?r:string -> ?fill:string -> ?stroke:string ->
-    ?stroke_width:string -> ?onclick:(Dom.event -> unit) ->
+    ?stroke_width:string -> ?onclick:(event -> unit) ->
     children:node list -> unit -> node
   val rect : ?id:string -> ?class_:string -> ?style:string -> ?x:string ->
     ?y:string -> ?width:string -> ?height:string -> ?rx:string -> ?ry:string ->
     ?fill:string -> ?stroke:string -> ?stroke_width:string ->
-    ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+    ?onclick:(event -> unit) -> children:node list -> unit -> node
   val line : ?id:string -> ?class_:string -> ?style:string -> ?x1:string ->
     ?y1:string -> ?x2:string -> ?y2:string -> ?stroke:string ->
-    ?stroke_width:string -> ?onclick:(Dom.event -> unit) ->
+    ?stroke_width:string -> ?onclick:(event -> unit) ->
     children:node list -> unit -> node
   val path : ?id:string -> ?class_:string -> ?style:string -> ?d:string ->
     ?fill:string -> ?stroke:string -> ?stroke_width:string ->
-    ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+    ?onclick:(event -> unit) -> children:node list -> unit -> node
   val text_ : ?id:string -> ?class_:string -> ?style:string -> ?x:string ->
     ?y:string -> ?fill:string -> ?stroke:string -> ?stroke_width:string ->
-    ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+    ?onclick:(event -> unit) -> children:node list -> unit -> node
 end
 
 val svg : ?id:string -> ?class_:string -> ?style:string -> ?viewBox:string ->
-  ?width:string -> ?height:string -> ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+  ?width:string -> ?height:string -> ?onclick:(event -> unit) -> children:node list -> unit -> node
 val g : ?id:string -> ?class_:string -> ?style:string -> ?transform:string ->
-  ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+  ?onclick:(event -> unit) -> children:node list -> unit -> node
 val circle : ?id:string -> ?class_:string -> ?style:string -> ?cx:string ->
   ?cy:string -> ?r:string -> ?fill:string -> ?stroke:string -> ?stroke_width:string ->
-  ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+  ?onclick:(event -> unit) -> children:node list -> unit -> node
 val rect : ?id:string -> ?class_:string -> ?style:string -> ?x:string ->
   ?y:string -> ?width:string -> ?height:string -> ?rx:string -> ?ry:string ->
-  ?fill:string -> ?stroke:string -> ?stroke_width:string -> ?onclick:(Dom.event -> unit) ->
+  ?fill:string -> ?stroke:string -> ?stroke_width:string -> ?onclick:(event -> unit) ->
   children:node list -> unit -> node
 val line : ?id:string -> ?class_:string -> ?style:string -> ?x1:string ->
   ?y1:string -> ?x2:string -> ?y2:string -> ?stroke:string -> ?stroke_width:string ->
-  ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+  ?onclick:(event -> unit) -> children:node list -> unit -> node
 val path : ?id:string -> ?class_:string -> ?style:string -> ?d:string ->
-  ?fill:string -> ?stroke:string -> ?stroke_width:string -> ?onclick:(Dom.event -> unit) ->
+  ?fill:string -> ?stroke:string -> ?stroke_width:string -> ?onclick:(event -> unit) ->
   children:node list -> unit -> node
 val text_ : ?id:string -> ?class_:string -> ?style:string -> ?x:string ->
   ?y:string -> ?fill:string -> ?stroke:string -> ?stroke_width:string ->
-  ?onclick:(Dom.event -> unit) -> children:node list -> unit -> node
+  ?onclick:(event -> unit) -> children:node list -> unit -> node
 
 (** {1 Node Access} *)
 
