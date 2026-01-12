@@ -50,6 +50,39 @@ let set_bool_attr el name value =
   if value then set_attribute el name ""
   else remove_attribute el name
 
+(** Validate data-* attribute key.
+    Per HTML5 spec, data attribute names must:
+    - Contain only ASCII letters, digits, hyphens, underscores, and periods
+    - Not start with "xml" (case-insensitive)
+    Invalid keys are silently filtered out for security. *)
+let is_valid_data_key s =
+  let len = String.length s in
+  if len = 0 then false
+  else if len >= 3 && 
+    (s.[0] = 'x' || s.[0] = 'X') && 
+    (s.[1] = 'm' || s.[1] = 'M') && 
+    (s.[2] = 'l' || s.[2] = 'L') then false
+  else
+    let rec check i =
+      if i >= len then true
+      else match s.[i] with
+        | 'a'..'z' | 'A'..'Z' | '0'..'9' | '-' | '_' | '.' -> check (i + 1)
+        | _ -> false
+    in
+    check 0
+
+(** Helper to add data-* attributes with validation *)
+let set_data_attrs el data =
+  List.iter (fun (k, v) -> 
+    if is_valid_data_key k then set_attribute el ("data-" ^ k) v
+    (* Invalid keys are silently skipped for security *)
+  ) data
+
+(** Helper to set int attribute *)
+let set_int_attr el name = function
+  | Some n -> set_attribute el name (string_of_int n)
+  | None -> ()
+
 (** {1 Text Content} *)
 
 let text s = Text (create_text_node document s)
@@ -148,14 +181,28 @@ let make_element_with_attrs tag ?id ?class_ ?style ?onclick ?oninput ?onchange ?
 
 (** {1 Document Structure} *)
 
-let div ?id ?class_ ?style ?onclick ~children () =
-  make_element "div" ?id ?class_ ?style ?onclick children
+let div ?id ?class_ ?style ?role ?aria_label ?aria_hidden ?tabindex ?onclick ?(data=[]) ~children () =
+  make_element_with_attrs "div" ?id ?class_ ?style ?onclick (fun el ->
+    set_opt_attr el "role" role;
+    set_opt_attr el "aria-label" aria_label;
+    (match aria_hidden with Some b -> set_attribute el "aria-hidden" (string_of_bool b) | None -> ());
+    set_int_attr el "tabindex" tabindex;
+    set_data_attrs el data
+  ) children
 
-let span ?id ?class_ ?style ?onclick ~children () =
-  make_element "span" ?id ?class_ ?style ?onclick children
+let span ?id ?class_ ?style ?role ?aria_label ?aria_hidden ?onclick ?(data=[]) ~children () =
+  make_element_with_attrs "span" ?id ?class_ ?style ?onclick (fun el ->
+    set_opt_attr el "role" role;
+    set_opt_attr el "aria-label" aria_label;
+    (match aria_hidden with Some b -> set_attribute el "aria-hidden" (string_of_bool b) | None -> ());
+    set_data_attrs el data
+  ) children
 
-let p ?id ?class_ ?onclick ~children () =
-  make_element "p" ?id ?class_ ?onclick children
+let p ?id ?class_ ?role ?onclick ?(data=[]) ~children () =
+  make_element_with_attrs "p" ?id ?class_ ?onclick (fun el ->
+    set_opt_attr el "role" role;
+    set_data_attrs el data
+  ) children
 
 let pre ?id ?class_ ~children () =
   make_element "pre" ?id ?class_ children
@@ -165,29 +212,90 @@ let code ?id ?class_ ~children () =
 
 (** {1 Headings} *)
 
-let h1 ?id ?class_ ?onclick ~children () = make_element "h1" ?id ?class_ ?onclick children
-let h2 ?id ?class_ ?onclick ~children () = make_element "h2" ?id ?class_ ?onclick children
-let h3 ?id ?class_ ?onclick ~children () = make_element "h3" ?id ?class_ ?onclick children
-let h4 ?id ?class_ ?onclick ~children () = make_element "h4" ?id ?class_ ?onclick children
-let h5 ?id ?class_ ?onclick ~children () = make_element "h5" ?id ?class_ ?onclick children
-let h6 ?id ?class_ ?onclick ~children () = make_element "h6" ?id ?class_ ?onclick children
+let h1 ?id ?class_ ?tabindex ?onclick ?(data=[]) ~children () =
+  make_element_with_attrs "h1" ?id ?class_ ?onclick (fun el ->
+    set_int_attr el "tabindex" tabindex;
+    set_data_attrs el data
+  ) children
+let h2 ?id ?class_ ?tabindex ?onclick ?(data=[]) ~children () =
+  make_element_with_attrs "h2" ?id ?class_ ?onclick (fun el ->
+    set_int_attr el "tabindex" tabindex;
+    set_data_attrs el data
+  ) children
+let h3 ?id ?class_ ?tabindex ?onclick ?(data=[]) ~children () =
+  make_element_with_attrs "h3" ?id ?class_ ?onclick (fun el ->
+    set_int_attr el "tabindex" tabindex;
+    set_data_attrs el data
+  ) children
+let h4 ?id ?class_ ?tabindex ?onclick ?(data=[]) ~children () =
+  make_element_with_attrs "h4" ?id ?class_ ?onclick (fun el ->
+    set_int_attr el "tabindex" tabindex;
+    set_data_attrs el data
+  ) children
+let h5 ?id ?class_ ?tabindex ?onclick ?(data=[]) ~children () =
+  make_element_with_attrs "h5" ?id ?class_ ?onclick (fun el ->
+    set_int_attr el "tabindex" tabindex;
+    set_data_attrs el data
+  ) children
+let h6 ?id ?class_ ?tabindex ?onclick ?(data=[]) ~children () =
+  make_element_with_attrs "h6" ?id ?class_ ?onclick (fun el ->
+    set_int_attr el "tabindex" tabindex;
+    set_data_attrs el data
+  ) children
 
 (** {1 Sectioning} *)
 
-let header ?id ?class_ ~children () = make_element "header" ?id ?class_ children
-let footer ?id ?class_ ~children () = make_element "footer" ?id ?class_ children
-let main ?id ?class_ ~children () = make_element "main" ?id ?class_ children
-let nav ?id ?class_ ~children () = make_element "nav" ?id ?class_ children
-let section ?id ?class_ ~children () = make_element "section" ?id ?class_ children
-let article ?id ?class_ ~children () = make_element "article" ?id ?class_ children
-let aside ?id ?class_ ~children () = make_element "aside" ?id ?class_ children
+let header ?id ?class_ ?role ?(data=[]) ~children () =
+  make_element_with_attrs "header" ?id ?class_ (fun el ->
+    set_opt_attr el "role" role;
+    set_data_attrs el data
+  ) children
+let footer ?id ?class_ ?role ?(data=[]) ~children () =
+  make_element_with_attrs "footer" ?id ?class_ (fun el ->
+    set_opt_attr el "role" role;
+    set_data_attrs el data
+  ) children
+let main ?id ?class_ ?role ?(data=[]) ~children () =
+  make_element_with_attrs "main" ?id ?class_ (fun el ->
+    set_opt_attr el "role" role;
+    set_data_attrs el data
+  ) children
+let nav ?id ?class_ ?role ?aria_label ?(data=[]) ~children () =
+  make_element_with_attrs "nav" ?id ?class_ (fun el ->
+    set_opt_attr el "role" role;
+    set_opt_attr el "aria-label" aria_label;
+    set_data_attrs el data
+  ) children
+let section ?id ?class_ ?role ?aria_label ?aria_labelledby ?(data=[]) ~children () =
+  make_element_with_attrs "section" ?id ?class_ (fun el ->
+    set_opt_attr el "role" role;
+    set_opt_attr el "aria-label" aria_label;
+    set_opt_attr el "aria-labelledby" aria_labelledby;
+    set_data_attrs el data
+  ) children
+let article ?id ?class_ ?role ?(data=[]) ~children () =
+  make_element_with_attrs "article" ?id ?class_ (fun el ->
+    set_opt_attr el "role" role;
+    set_data_attrs el data
+  ) children
+let aside ?id ?class_ ?role ?aria_label ?(data=[]) ~children () =
+  make_element_with_attrs "aside" ?id ?class_ (fun el ->
+    set_opt_attr el "role" role;
+    set_opt_attr el "aria-label" aria_label;
+    set_data_attrs el data
+  ) children
 
 (** {1 Inline Elements} *)
 
-let a ?id ?class_ ?href ?target ?onclick ~children () =
+let a ?id ?class_ ?href ?target ?rel ?download ?hreflang ?tabindex ?onclick ?(data=[]) ~children () =
   make_element_with_attrs "a" ?id ?class_ ?onclick (fun el ->
     set_opt_attr el "href" href;
-    set_opt_attr el "target" target
+    set_opt_attr el "target" target;
+    set_opt_attr el "rel" rel;
+    set_opt_attr el "download" download;
+    set_opt_attr el "hreflang" hreflang;
+    set_int_attr el "tabindex" tabindex;
+    set_data_attrs el data
   ) children
 
 let strong ?id ?class_ ~children () = make_element "strong" ?id ?class_ children
@@ -199,14 +307,24 @@ let hr ?class_ () = make_element "hr" ?class_ []
 
 (** {1 Lists} *)
 
-let ul ?id ?class_ ~children () = make_element "ul" ?id ?class_ children
-
-let ol ?id ?class_ ?start ~children () =
-  make_element_with_attrs "ol" ?id ?class_ (fun el ->
-    (match start with Some n -> set_attribute el "start" (string_of_int n) | None -> ())
+let ul ?id ?class_ ?role ?(data=[]) ~children () =
+  make_element_with_attrs "ul" ?id ?class_ (fun el ->
+    set_opt_attr el "role" role;
+    set_data_attrs el data
   ) children
 
-let li ?id ?class_ ?onclick ~children () = make_element "li" ?id ?class_ ?onclick children
+let ol ?id ?class_ ?start ?role ?(data=[]) ~children () =
+  make_element_with_attrs "ol" ?id ?class_ (fun el ->
+    (match start with Some n -> set_attribute el "start" (string_of_int n) | None -> ());
+    set_opt_attr el "role" role;
+    set_data_attrs el data
+  ) children
+
+let li ?id ?class_ ?role ?onclick ?(data=[]) ~children () =
+  make_element_with_attrs "li" ?id ?class_ ?onclick (fun el ->
+    set_opt_attr el "role" role;
+    set_data_attrs el data
+  ) children
 
 (** {1 Tables} *)
 
@@ -238,38 +356,53 @@ let form ?id ?class_ ?action ?method_ ?enctype ?onsubmit ~children () =
     set_opt_attr el "enctype" enctype
   ) children
 
-let input ?id ?class_ ?type_ ?name ?value ?placeholder 
-    ?(required=false) ?(disabled=false) ?(checked=false) ?(autofocus=false)
-    ?oninput ?onchange ?onkeydown () =
+let input ?id ?class_ ?type_ ?name ?value ?placeholder ?accept ?min ?max ?step
+    ?(required=false) ?(disabled=false) ?(checked=false) ?(autofocus=false) ?(readonly=false)
+    ?tabindex ?oninput ?onchange ?onkeydown ?(data=[]) () =
   make_element_with_attrs "input" ?id ?class_ ?oninput ?onchange ?onkeydown (fun el ->
     set_opt_attr el "type" type_;
     set_opt_attr el "name" name;
     set_opt_attr el "value" value;
     set_opt_attr el "placeholder" placeholder;
+    set_opt_attr el "accept" accept;
+    set_opt_attr el "min" min;
+    set_opt_attr el "max" max;
+    set_opt_attr el "step" step;
     set_bool_attr el "required" required;
     set_bool_attr el "disabled" disabled;
     set_bool_attr el "autofocus" autofocus;
-    if checked then element_set_checked el true
+    set_bool_attr el "readonly" readonly;
+    set_int_attr el "tabindex" tabindex;
+    if checked then element_set_checked el true;
+    set_data_attrs el data
   ) []
 
 let textarea ?id ?class_ ?name ?placeholder ?rows ?cols 
-    ?(required=false) ?(disabled=false) ?oninput ~children () =
+    ?(required=false) ?(disabled=false) ?(autofocus=false) ?(readonly=false)
+    ?tabindex ?oninput ?(data=[]) ~children () =
   make_element_with_attrs "textarea" ?id ?class_ ?oninput (fun el ->
     set_opt_attr el "name" name;
     set_opt_attr el "placeholder" placeholder;
     (match rows with Some n -> set_attribute el "rows" (string_of_int n) | None -> ());
     (match cols with Some n -> set_attribute el "cols" (string_of_int n) | None -> ());
     set_bool_attr el "required" required;
-    set_bool_attr el "disabled" disabled
+    set_bool_attr el "disabled" disabled;
+    set_bool_attr el "autofocus" autofocus;
+    set_bool_attr el "readonly" readonly;
+    set_int_attr el "tabindex" tabindex;
+    set_data_attrs el data
   ) children
 
 let select ?id ?class_ ?name ?(required=false) ?(disabled=false) ?(multiple=false) 
-    ?onchange ~children () =
+    ?(autofocus=false) ?tabindex ?onchange ?(data=[]) ~children () =
   make_element_with_attrs "select" ?id ?class_ ?onchange (fun el ->
     set_opt_attr el "name" name;
     set_bool_attr el "required" required;
     set_bool_attr el "disabled" disabled;
-    set_bool_attr el "multiple" multiple
+    set_bool_attr el "multiple" multiple;
+    set_bool_attr el "autofocus" autofocus;
+    set_int_attr el "tabindex" tabindex;
+    set_data_attrs el data
   ) children
 
 let option ?value ?(selected=false) ?(disabled=false) ~children () =
@@ -284,21 +417,30 @@ let label ?id ?class_ ?for_ ~children () =
     set_opt_attr el "for" for_
   ) children
 
-let button ?id ?class_ ?type_ ?(disabled=false) ?onclick ~children () =
+let button ?id ?class_ ?type_ ?(disabled=false) ?tabindex ?aria_label ?aria_expanded ?aria_controls ?aria_haspopup ?onclick ?(data=[]) ~children () =
   make_element_with_attrs "button" ?id ?class_ ?onclick (fun el ->
     set_opt_attr el "type" type_;
-    set_bool_attr el "disabled" disabled
+    set_bool_attr el "disabled" disabled;
+    set_int_attr el "tabindex" tabindex;
+    set_opt_attr el "aria-label" aria_label;
+    (match aria_expanded with Some b -> set_attribute el "aria-expanded" (string_of_bool b) | None -> ());
+    set_opt_attr el "aria-controls" aria_controls;
+    (match aria_haspopup with Some b -> set_attribute el "aria-haspopup" (string_of_bool b) | None -> ());
+    set_data_attrs el data
   ) children
 
 (** {1 Media} *)
 
-let img ?id ?class_ ?src ?alt ?width ?height ?loading () =
+let img ?id ?class_ ?src ?alt ?width ?height ?loading ?srcset ?sizes ?(data=[]) () =
   make_element_with_attrs "img" ?id ?class_ (fun el ->
     set_opt_attr el "src" src;
     set_opt_attr el "alt" alt;
     (match width with Some n -> set_attribute el "width" (string_of_int n) | None -> ());
     (match height with Some n -> set_attribute el "height" (string_of_int n) | None -> ());
-    set_opt_attr el "loading" loading
+    set_opt_attr el "loading" loading;
+    set_opt_attr el "srcset" srcset;
+    set_opt_attr el "sizes" sizes;
+    set_data_attrs el data
   ) []
 
 (** {1 Portal} *)
@@ -361,7 +503,7 @@ let portal ?target ?(is_svg=false) ~(children : node) () : node =
 (** {1 SVG Elements} *)
 
 module Svg = struct
-  let svg ?id ?class_ ?style ?viewBox ?width ?height ?onclick ~children () =
+  let svg ?id ?class_ ?style ?viewBox ?width ?height ?fill ?onclick ~children () =
     let el = create_element_ns document svg_namespace "svg" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
@@ -369,21 +511,24 @@ module Svg = struct
     set_opt_attr el "viewBox" viewBox;
     set_opt_attr el "width" width;
     set_opt_attr el "height" height;
+    set_opt_attr el "fill" fill;
     (match onclick with Some h -> add_event_listener el "click" h | None -> ());
     List.iter (append_to_element el) children;
     Element el
 
-  let g ?id ?class_ ?style ?transform ?onclick ~children () =
+  let g ?id ?class_ ?style ?transform ?fill ?stroke ?onclick ~children () =
     let el = create_element_ns document svg_namespace "g" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
     set_opt_attr el "style" style;
     set_opt_attr el "transform" transform;
+    set_opt_attr el "fill" fill;
+    set_opt_attr el "stroke" stroke;
     (match onclick with Some h -> add_event_listener el "click" h | None -> ());
     List.iter (append_to_element el) children;
     Element el
 
-  let circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?onclick ~children () =
+  let circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children () =
     let el = create_element_ns document svg_namespace "circle" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
@@ -394,11 +539,31 @@ module Svg = struct
     set_opt_attr el "fill" fill;
     set_opt_attr el "stroke" stroke;
     set_opt_attr el "stroke-width" stroke_width;
+    set_opt_attr el "stroke-linecap" stroke_linecap;
+    set_opt_attr el "stroke-linejoin" stroke_linejoin;
     (match onclick with Some h -> add_event_listener el "click" h | None -> ());
     List.iter (append_to_element el) children;
     Element el
 
-  let rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?onclick ~children () =
+  let ellipse ?id ?class_ ?style ?cx ?cy ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children () =
+    let el = create_element_ns document svg_namespace "ellipse" in
+    set_opt_attr el "id" id;
+    set_opt_attr el "class" class_;
+    set_opt_attr el "style" style;
+    set_opt_attr el "cx" cx;
+    set_opt_attr el "cy" cy;
+    set_opt_attr el "rx" rx;
+    set_opt_attr el "ry" ry;
+    set_opt_attr el "fill" fill;
+    set_opt_attr el "stroke" stroke;
+    set_opt_attr el "stroke-width" stroke_width;
+    set_opt_attr el "stroke-linecap" stroke_linecap;
+    set_opt_attr el "stroke-linejoin" stroke_linejoin;
+    (match onclick with Some h -> add_event_listener el "click" h | None -> ());
+    List.iter (append_to_element el) children;
+    Element el
+
+  let rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children () =
     let el = create_element_ns document svg_namespace "rect" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
@@ -412,11 +577,13 @@ module Svg = struct
     set_opt_attr el "fill" fill;
     set_opt_attr el "stroke" stroke;
     set_opt_attr el "stroke-width" stroke_width;
+    set_opt_attr el "stroke-linecap" stroke_linecap;
+    set_opt_attr el "stroke-linejoin" stroke_linejoin;
     (match onclick with Some h -> add_event_listener el "click" h | None -> ());
     List.iter (append_to_element el) children;
     Element el
 
-  let line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?onclick ~children () =
+  let line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children () =
     let el = create_element_ns document svg_namespace "line" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
@@ -427,11 +594,43 @@ module Svg = struct
     set_opt_attr el "y2" y2;
     set_opt_attr el "stroke" stroke;
     set_opt_attr el "stroke-width" stroke_width;
+    set_opt_attr el "stroke-linecap" stroke_linecap;
+    set_opt_attr el "stroke-linejoin" stroke_linejoin;
     (match onclick with Some h -> add_event_listener el "click" h | None -> ());
     List.iter (append_to_element el) children;
     Element el
 
-  let path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?onclick ~children () =
+  let polyline ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children () =
+    let el = create_element_ns document svg_namespace "polyline" in
+    set_opt_attr el "id" id;
+    set_opt_attr el "class" class_;
+    set_opt_attr el "style" style;
+    set_opt_attr el "points" points;
+    set_opt_attr el "fill" fill;
+    set_opt_attr el "stroke" stroke;
+    set_opt_attr el "stroke-width" stroke_width;
+    set_opt_attr el "stroke-linecap" stroke_linecap;
+    set_opt_attr el "stroke-linejoin" stroke_linejoin;
+    (match onclick with Some h -> add_event_listener el "click" h | None -> ());
+    List.iter (append_to_element el) children;
+    Element el
+
+  let polygon ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children () =
+    let el = create_element_ns document svg_namespace "polygon" in
+    set_opt_attr el "id" id;
+    set_opt_attr el "class" class_;
+    set_opt_attr el "style" style;
+    set_opt_attr el "points" points;
+    set_opt_attr el "fill" fill;
+    set_opt_attr el "stroke" stroke;
+    set_opt_attr el "stroke-width" stroke_width;
+    set_opt_attr el "stroke-linecap" stroke_linecap;
+    set_opt_attr el "stroke-linejoin" stroke_linejoin;
+    (match onclick with Some h -> add_event_listener el "click" h | None -> ());
+    List.iter (append_to_element el) children;
+    Element el
+
+  let path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?fill_rule ?clip_rule ?onclick ~children () =
     let el = create_element_ns document svg_namespace "path" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
@@ -440,45 +639,168 @@ module Svg = struct
     set_opt_attr el "fill" fill;
     set_opt_attr el "stroke" stroke;
     set_opt_attr el "stroke-width" stroke_width;
+    set_opt_attr el "stroke-linecap" stroke_linecap;
+    set_opt_attr el "stroke-linejoin" stroke_linejoin;
+    set_opt_attr el "fill-rule" fill_rule;
+    set_opt_attr el "clip-rule" clip_rule;
     (match onclick with Some h -> add_event_listener el "click" h | None -> ());
     List.iter (append_to_element el) children;
     Element el
 
-  let text_ ?id ?class_ ?style ?x ?y ?fill ?stroke ?stroke_width ?onclick ~children () =
+  let text_ ?id ?class_ ?style ?x ?y ?dx ?dy ?text_anchor ?font_size ?font_family ?fill ?stroke ?stroke_width ?onclick ~children () =
     let el = create_element_ns document svg_namespace "text" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
     set_opt_attr el "style" style;
     set_opt_attr el "x" x;
     set_opt_attr el "y" y;
+    set_opt_attr el "dx" dx;
+    set_opt_attr el "dy" dy;
+    set_opt_attr el "text-anchor" text_anchor;
+    set_opt_attr el "font-size" font_size;
+    set_opt_attr el "font-family" font_family;
     set_opt_attr el "fill" fill;
     set_opt_attr el "stroke" stroke;
     set_opt_attr el "stroke-width" stroke_width;
     (match onclick with Some h -> add_event_listener el "click" h | None -> ());
     List.iter (append_to_element el) children;
     Element el
+
+  let tspan ?id ?class_ ?x ?y ?dx ?dy ?fill ?onclick ~children () =
+    let el = create_element_ns document svg_namespace "tspan" in
+    set_opt_attr el "id" id;
+    set_opt_attr el "class" class_;
+    set_opt_attr el "x" x;
+    set_opt_attr el "y" y;
+    set_opt_attr el "dx" dx;
+    set_opt_attr el "dy" dy;
+    set_opt_attr el "fill" fill;
+    (match onclick with Some h -> add_event_listener el "click" h | None -> ());
+    List.iter (append_to_element el) children;
+    Element el
+
+  let defs ?id ~children () =
+    let el = create_element_ns document svg_namespace "defs" in
+    set_opt_attr el "id" id;
+    List.iter (append_to_element el) children;
+    Element el
+
+  let use ?id ?class_ ?href ?x ?y ?width ?height ?onclick () =
+    let el = create_element_ns document svg_namespace "use" in
+    set_opt_attr el "id" id;
+    set_opt_attr el "class" class_;
+    set_opt_attr el "href" href;
+    set_opt_attr el "x" x;
+    set_opt_attr el "y" y;
+    set_opt_attr el "width" width;
+    set_opt_attr el "height" height;
+    (match onclick with Some h -> add_event_listener el "click" h | None -> ());
+    Element el
+
+  let symbol ?id ?viewBox ~children () =
+    let el = create_element_ns document svg_namespace "symbol" in
+    set_opt_attr el "id" id;
+    set_opt_attr el "viewBox" viewBox;
+    List.iter (append_to_element el) children;
+    Element el
+
+  let clipPath ?id ~children () =
+    let el = create_element_ns document svg_namespace "clipPath" in
+    set_opt_attr el "id" id;
+    List.iter (append_to_element el) children;
+    Element el
+
+  let mask ?id ~children () =
+    let el = create_element_ns document svg_namespace "mask" in
+    set_opt_attr el "id" id;
+    List.iter (append_to_element el) children;
+    Element el
+
+  let linearGradient ?id ?x1 ?y1 ?x2 ?y2 ?gradientUnits ?gradientTransform ~children () =
+    let el = create_element_ns document svg_namespace "linearGradient" in
+    set_opt_attr el "id" id;
+    set_opt_attr el "x1" x1;
+    set_opt_attr el "y1" y1;
+    set_opt_attr el "x2" x2;
+    set_opt_attr el "y2" y2;
+    set_opt_attr el "gradientUnits" gradientUnits;
+    set_opt_attr el "gradientTransform" gradientTransform;
+    List.iter (append_to_element el) children;
+    Element el
+
+  let radialGradient ?id ?cx ?cy ?r ?fx ?fy ?gradientUnits ?gradientTransform ~children () =
+    let el = create_element_ns document svg_namespace "radialGradient" in
+    set_opt_attr el "id" id;
+    set_opt_attr el "cx" cx;
+    set_opt_attr el "cy" cy;
+    set_opt_attr el "r" r;
+    set_opt_attr el "fx" fx;
+    set_opt_attr el "fy" fy;
+    set_opt_attr el "gradientUnits" gradientUnits;
+    set_opt_attr el "gradientTransform" gradientTransform;
+    List.iter (append_to_element el) children;
+    Element el
+
+  let stop ?offset ?stop_color ?stop_opacity () =
+    let el = create_element_ns document svg_namespace "stop" in
+    set_opt_attr el "offset" offset;
+    set_opt_attr el "stop-color" stop_color;
+    set_opt_attr el "stop-opacity" stop_opacity;
+    Element el
+
+  let image ?id ?class_ ?href ?x ?y ?width ?height ?preserveAspectRatio () =
+    let el = create_element_ns document svg_namespace "image" in
+    set_opt_attr el "id" id;
+    set_opt_attr el "class" class_;
+    set_opt_attr el "href" href;
+    set_opt_attr el "x" x;
+    set_opt_attr el "y" y;
+    set_opt_attr el "width" width;
+    set_opt_attr el "height" height;
+    set_opt_attr el "preserveAspectRatio" preserveAspectRatio;
+    Element el
+
+  let foreignObject ?id ?class_ ?x ?y ?width ?height ~children () =
+    let el = create_element_ns document svg_namespace "foreignObject" in
+    set_opt_attr el "id" id;
+    set_opt_attr el "class" class_;
+    set_opt_attr el "x" x;
+    set_opt_attr el "y" y;
+    set_opt_attr el "width" width;
+    set_opt_attr el "height" height;
+    List.iter (append_to_element el) children;
+    Element el
 end
 
-let svg ?id ?class_ ?style ?viewBox ?width ?height ?onclick ~children () =
-  Svg.svg ?id ?class_ ?style ?viewBox ?width ?height ?onclick ~children ()
+let svg ?id ?class_ ?style ?viewBox ?width ?height ?fill ?onclick ~children () =
+  Svg.svg ?id ?class_ ?style ?viewBox ?width ?height ?fill ?onclick ~children ()
 
-let g ?id ?class_ ?style ?transform ?onclick ~children () =
-  Svg.g ?id ?class_ ?style ?transform ?onclick ~children ()
+let g ?id ?class_ ?style ?transform ?fill ?stroke ?onclick ~children () =
+  Svg.g ?id ?class_ ?style ?transform ?fill ?stroke ?onclick ~children ()
 
-let circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?onclick ~children () =
-  Svg.circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?onclick ~children ()
+let circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children () =
+  Svg.circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children ()
 
-let rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?onclick ~children () =
-  Svg.rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?onclick ~children ()
+let ellipse ?id ?class_ ?style ?cx ?cy ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children () =
+  Svg.ellipse ?id ?class_ ?style ?cx ?cy ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children ()
 
-let line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?onclick ~children () =
-  Svg.line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?onclick ~children ()
+let rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children () =
+  Svg.rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children ()
 
-let path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?onclick ~children () =
-  Svg.path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?onclick ~children ()
+let line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children () =
+  Svg.line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children ()
 
-let text_ ?id ?class_ ?style ?x ?y ?fill ?stroke ?stroke_width ?onclick ~children () =
-  Svg.text_ ?id ?class_ ?style ?x ?y ?fill ?stroke ?stroke_width ?onclick ~children ()
+let polyline ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children () =
+  Svg.polyline ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children ()
+
+let polygon ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children () =
+  Svg.polygon ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children ()
+
+let path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?fill_rule ?clip_rule ?onclick ~children () =
+  Svg.path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?fill_rule ?clip_rule ?onclick ~children ()
+
+let text_ ?id ?class_ ?style ?x ?y ?dx ?dy ?text_anchor ?font_size ?font_family ?fill ?stroke ?stroke_width ?onclick ~children () =
+  Svg.text_ ?id ?class_ ?style ?x ?y ?dx ?dy ?text_anchor ?font_size ?font_family ?fill ?stroke ?stroke_width ?onclick ~children ()
 
 (** {1 Node Access} *)
 

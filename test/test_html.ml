@@ -366,6 +366,263 @@ let test_full_page () =
   assert (contains html "<h1>Welcome</h1>");
   print_endline "  PASSED"
 
+(* ============ Data Attribute Tests ============ *)
+
+let test_data_attributes () =
+  print_endline "Test: data-* attributes render correctly";
+  let node = Html.(div ~data:[("testid", "my-div"); ("value", "42")] ~children:[text "Content"] ()) in
+  let html = Html.to_string node in
+  assert (contains html "data-testid=\"my-div\"");
+  assert (contains html "data-value=\"42\"");
+  print_endline "  PASSED"
+
+let test_data_attributes_xss_protection () =
+  print_endline "Test: data-* attribute keys with XSS attempts are rejected";
+  (* Keys with special characters should be filtered out *)
+  let node = Html.(div ~data:[
+    ("valid-key", "ok");
+    ("\" onclick=\"", "xss-attempt");  (* Should be rejected *)
+    ("normal", "value")
+  ] ~children:[] ()) in
+  let html = Html.to_string node in
+  assert (contains html "data-valid-key=\"ok\"");
+  assert (contains html "data-normal=\"value\"");
+  (* The XSS attempt should NOT appear *)
+  assert (not (contains html "onclick"));
+  assert (not (contains html "xss-attempt"));
+  print_endline "  PASSED"
+
+let test_data_attributes_key_validation () =
+  print_endline "Test: data-* attribute key validation";
+  let node = Html.(div ~data:[
+    ("valid123", "ok");           (* alphanumeric - valid *)
+    ("with-hyphen", "ok");        (* hyphen - valid *)
+    ("with_underscore", "ok");    (* underscore - valid *)
+    ("with.period", "ok");        (* period - valid *)
+    ("xmlstart", "rejected");     (* starts with xml - invalid *)
+    ("XMLStart", "rejected");     (* starts with XML - invalid *)
+    ("", "rejected");             (* empty - invalid *)
+    ("has space", "rejected");    (* space - invalid *)
+    ("has<bracket", "rejected");  (* special char - invalid *)
+  ] ~children:[] ()) in
+  let html = Html.to_string node in
+  assert (contains html "data-valid123=\"ok\"");
+  assert (contains html "data-with-hyphen=\"ok\"");
+  assert (contains html "data-with_underscore=\"ok\"");
+  assert (contains html "data-with.period=\"ok\"");
+  (* Invalid keys should not appear *)
+  assert (not (contains html "xmlstart"));
+  assert (not (contains html "XMLStart"));
+  assert (not (contains html "has space"));
+  assert (not (contains html "has<bracket"));
+  print_endline "  PASSED"
+
+(* ============ ARIA Attribute Tests ============ *)
+
+let test_aria_label () =
+  print_endline "Test: aria-label attribute";
+  let node = Html.(button ~aria_label:"Close dialog" ~children:[text "X"] ()) in
+  let html = Html.to_string node in
+  assert (contains html "aria-label=\"Close dialog\"");
+  print_endline "  PASSED"
+
+let test_aria_hidden () =
+  print_endline "Test: aria-hidden attribute";
+  let node = Html.(div ~aria_hidden:true ~children:[text "Hidden from screen readers"] ()) in
+  let html = Html.to_string node in
+  assert (contains html "aria-hidden=\"true\"");
+  let node2 = Html.(span ~aria_hidden:false ~children:[text "Visible"] ()) in
+  let html2 = Html.to_string node2 in
+  assert (contains html2 "aria-hidden=\"false\"");
+  print_endline "  PASSED"
+
+let test_aria_expanded () =
+  print_endline "Test: aria-expanded attribute";
+  let node = Html.(button ~aria_expanded:true ~aria_controls:"menu-1" ~children:[text "Menu"] ()) in
+  let html = Html.to_string node in
+  assert (contains html "aria-expanded=\"true\"");
+  assert (contains html "aria-controls=\"menu-1\"");
+  print_endline "  PASSED"
+
+let test_role_attribute () =
+  print_endline "Test: role attribute";
+  let node = Html.(div ~role:"navigation" ~children:[text "Nav"] ()) in
+  let html = Html.to_string node in
+  assert (contains html "role=\"navigation\"");
+  print_endline "  PASSED"
+
+let test_aria_on_nav_section () =
+  print_endline "Test: ARIA attributes on nav and section";
+  let node = Html.(nav ~aria_label:"Main navigation" ~children:[text "Links"] ()) in
+  let html = Html.to_string node in
+  assert (contains html "aria-label=\"Main navigation\"");
+  let node2 = Html.(section ~aria_labelledby:"heading-1" ~children:[text "Content"] ()) in
+  let html2 = Html.to_string node2 in
+  assert (contains html2 "aria-labelledby=\"heading-1\"");
+  print_endline "  PASSED"
+
+(* ============ New HTML Attribute Tests ============ *)
+
+let test_anchor_rel () =
+  print_endline "Test: anchor rel attribute";
+  let node = Html.(a ~href:"https://example.com" ~target:"_blank" ~rel:"noopener noreferrer" ~children:[text "External"] ()) in
+  let html = Html.to_string node in
+  assert (contains html "rel=\"noopener noreferrer\"");
+  assert (contains html "target=\"_blank\"");
+  print_endline "  PASSED"
+
+let test_anchor_download () =
+  print_endline "Test: anchor download attribute";
+  let node = Html.(a ~href:"/file.pdf" ~download:"document.pdf" ~children:[text "Download PDF"] ()) in
+  let html = Html.to_string node in
+  assert (contains html "download=\"document.pdf\"");
+  print_endline "  PASSED"
+
+let test_input_accept () =
+  print_endline "Test: input accept attribute";
+  let node = Html.(input ~type_:"file" ~accept:"image/*,.pdf" ()) in
+  let html = Html.to_string node in
+  assert (contains html "accept=\"image/*,.pdf\"");
+  print_endline "  PASSED"
+
+let test_input_min_max_step () =
+  print_endline "Test: input min, max, step attributes";
+  let node = Html.(input ~type_:"number" ~min:"0" ~max:"100" ~step:"5" ()) in
+  let html = Html.to_string node in
+  assert (contains html "min=\"0\"");
+  assert (contains html "max=\"100\"");
+  assert (contains html "step=\"5\"");
+  (* Also test with date inputs *)
+  let node2 = Html.(input ~type_:"date" ~min:"2024-01-01" ~max:"2024-12-31" ()) in
+  let html2 = Html.to_string node2 in
+  assert (contains html2 "min=\"2024-01-01\"");
+  assert (contains html2 "max=\"2024-12-31\"");
+  print_endline "  PASSED"
+
+let test_input_readonly () =
+  print_endline "Test: input readonly attribute";
+  let node = Html.(input ~type_:"text" ~value:"Can't change" ~readonly:true ()) in
+  let html = Html.to_string node in
+  assert (contains html "readonly");
+  let node2 = Html.(textarea ~readonly:true ~children:[text "Read only text"] ()) in
+  let html2 = Html.to_string node2 in
+  assert (contains html2 "readonly");
+  print_endline "  PASSED"
+
+let test_tabindex () =
+  print_endline "Test: tabindex attribute";
+  let node = Html.(div ~tabindex:0 ~children:[text "Focusable div"] ()) in
+  let html = Html.to_string node in
+  assert (contains html "tabindex=\"0\"");
+  let node2 = Html.(h1 ~tabindex:(-1) ~children:[text "Not in tab order"] ()) in
+  let html2 = Html.to_string node2 in
+  assert (contains html2 "tabindex=\"-1\"");
+  print_endline "  PASSED"
+
+let test_img_srcset_sizes () =
+  print_endline "Test: img srcset and sizes attributes";
+  let node = Html.(img 
+    ~src:"/img/small.jpg" 
+    ~srcset:"/img/small.jpg 480w, /img/medium.jpg 800w, /img/large.jpg 1200w"
+    ~sizes:"(max-width: 600px) 480px, (max-width: 900px) 800px, 1200px"
+    ~alt:"Responsive image"
+    ()) in
+  let html = Html.to_string node in
+  assert (contains html "srcset=");
+  assert (contains html "sizes=");
+  assert (contains html "480w");
+  print_endline "  PASSED"
+
+(* ============ SVG Element Tests ============ *)
+
+let test_svg_ellipse () =
+  print_endline "Test: SVG ellipse element";
+  let node = Html.Svg.(ellipse ~cx:"100" ~cy:"50" ~rx:"80" ~ry:"40" ~fill:"red" ~children:[] ()) in
+  let html = Html.to_string node in
+  assert (contains html "<ellipse");
+  assert (contains html "cx=\"100\"");
+  assert (contains html "cy=\"50\"");
+  assert (contains html "rx=\"80\"");
+  assert (contains html "ry=\"40\"");
+  print_endline "  PASSED"
+
+let test_svg_polygon_polyline () =
+  print_endline "Test: SVG polygon and polyline elements";
+  let polygon = Html.Svg.(polygon ~points:"50,0 100,100 0,100" ~fill:"blue" ~children:[] ()) in
+  let html1 = Html.to_string polygon in
+  assert (contains html1 "<polygon");
+  assert (contains html1 "points=\"50,0 100,100 0,100\"");
+  let polyline = Html.Svg.(polyline ~points:"0,0 50,50 100,0" ~stroke:"black" ~fill:"none" ~children:[] ()) in
+  let html2 = Html.to_string polyline in
+  assert (contains html2 "<polyline");
+  assert (contains html2 "fill=\"none\"");
+  print_endline "  PASSED"
+
+let test_svg_stroke_linecap_linejoin () =
+  print_endline "Test: SVG stroke-linecap and stroke-linejoin attributes";
+  let node = Html.Svg.(path 
+    ~d:"M 10 10 L 50 50 L 90 10" 
+    ~stroke:"black" 
+    ~stroke_width:"5"
+    ~stroke_linecap:"round"
+    ~stroke_linejoin:"round"
+    ~fill:"none"
+    ~children:[] ()) in
+  let html = Html.to_string node in
+  assert (contains html "stroke-linecap=\"round\"");
+  assert (contains html "stroke-linejoin=\"round\"");
+  print_endline "  PASSED"
+
+let test_svg_gradient () =
+  print_endline "Test: SVG gradient elements";
+  let node = Html.Svg.(linearGradient ~id:"grad1" ~x1:"0%" ~y1:"0%" ~x2:"100%" ~y2:"0%" ~children:[
+    stop ~offset:"0%" ~stop_color:"red" ();
+    stop ~offset:"100%" ~stop_color:"blue" ()
+  ] ()) in
+  let html = Html.to_string node in
+  assert (contains html "<linearGradient");
+  assert (contains html "id=\"grad1\"");
+  assert (contains html "<stop");
+  assert (contains html "stop-color=\"red\"");
+  let radial = Html.Svg.(radialGradient ~id:"grad2" ~cx:"50%" ~cy:"50%" ~r:"50%" ~children:[
+    stop ~offset:"0%" ~stop_color:"white" ()
+  ] ()) in
+  let html2 = Html.to_string radial in
+  assert (contains html2 "<radialGradient");
+  print_endline "  PASSED"
+
+let test_svg_defs_use () =
+  print_endline "Test: SVG defs and use elements";
+  let node = Html.Svg.(svg ~viewBox:"0 0 100 100" ~children:[
+    defs ~children:[
+      symbol ~id:"icon" ~viewBox:"0 0 24 24" ~children:[
+        circle ~cx:"12" ~cy:"12" ~r:"10" ~fill:"blue" ~children:[] ()
+      ] ()
+    ] ();
+    use ~href:"#icon" ~x:"10" ~y:"10" ()
+  ] ()) in
+  let html = Html.to_string node in
+  assert (contains html "<defs>");
+  assert (contains html "<symbol");
+  assert (contains html "id=\"icon\"");
+  assert (contains html "<use");
+  assert (contains html "href=\"#icon\"");
+  print_endline "  PASSED"
+
+let test_svg_text_tspan () =
+  print_endline "Test: SVG text and tspan elements";
+  let node = Html.Svg.(text_ ~x:"10" ~y:"20" ~font_size:"16" ~font_family:"Arial" ~fill:"black" ~children:[
+    Html.text "Hello ";
+    tspan ~fill:"red" ~children:[Html.text "World"] ()
+  ] ()) in
+  let html = Html.to_string node in
+  assert (contains html "<text");
+  assert (contains html "font-size=\"16\"");
+  assert (contains html "font-family=\"Arial\"");
+  assert (contains html "<tspan");
+  assert (contains html "fill=\"red\"");
+  print_endline "  PASSED"
+
 (* ============ Main ============ *)
 
 let () =
@@ -410,5 +667,34 @@ let () =
   print_endline "\n-- Complex Examples --";
   test_counter_component ();
   test_full_page ();
+
+  print_endline "\n-- Data Attribute Tests --";
+  test_data_attributes ();
+  test_data_attributes_xss_protection ();
+  test_data_attributes_key_validation ();
+
+  print_endline "\n-- ARIA Attribute Tests --";
+  test_aria_label ();
+  test_aria_hidden ();
+  test_aria_expanded ();
+  test_role_attribute ();
+  test_aria_on_nav_section ();
+
+  print_endline "\n-- New HTML Attribute Tests --";
+  test_anchor_rel ();
+  test_anchor_download ();
+  test_input_accept ();
+  test_input_min_max_step ();
+  test_input_readonly ();
+  test_tabindex ();
+  test_img_srcset_sizes ();
+
+  print_endline "\n-- SVG Element Tests --";
+  test_svg_ellipse ();
+  test_svg_polygon_polyline ();
+  test_svg_stroke_linecap_linejoin ();
+  test_svg_gradient ();
+  test_svg_defs_use ();
+  test_svg_text_tspan ();
 
   print_endline "\n=== All tests passed! ===\n"
