@@ -53,4 +53,14 @@ module type S = sig
     (** Helper for preventing default event action *)
     val prevent_default : event -> unit
   end
+
+  module Router : sig
+    val use_path : unit -> string
+    val use_params : unit -> (string * string) list
+    val use_query_param : string -> string option
+    val navigate : string -> unit
+    
+    (* Components *)
+    val link : href:string -> ?class_:string -> children:Html.node list -> unit -> Html.node
+  end
 end

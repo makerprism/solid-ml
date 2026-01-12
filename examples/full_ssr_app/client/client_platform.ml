@@ -56,18 +56,78 @@ module Client_Platform : Shared_components.Platform_intf.S = struct
 
     let input ?type_ ?checked ?oninput ?onchange () =
       input ?type_ ?checked ?oninput ?onchange ()
-
+      
     let ul ?id ?class_ ?children () =
       ul ?id ?class_ ~children:(Option.value children ~default:[]) ()
-
+      
     let li ?id ?class_ ?children () =
       li ?id ?class_ ~children:(Option.value children ~default:[]) ()
-
+      
     let a ?href ?class_ ?onclick ~children () =
+      let href = href in (* Dummy use to suppress unused variable warning if signature changes *)
+      let class_ = class_ in
+      let onclick = onclick in
       a ?href ?class_ ?onclick ~children ()
+      
+    let prevent_default evt = Solid_ml_browser.Dom.prevent_default evt
+  end
 
-    type event = Solid_ml_browser.Dom.event
-    let prevent_default = Solid_ml_browser.Dom.prevent_default
+  module Router = struct
+    open Solid_ml_router
+
+    (* Instantiate Router Components with Browser HTML 
+       But we need to adapt the HTML module because Solid_ml_browser.Html events 
+       are 'event' (Dom.event), while Router Components expect 'unit -> unit' 
+       for SSR compatibility.
+       
+       Wait, `Solid_ml_router.Components.Make` expects:
+       `val a : ... ?onclick:(unit -> unit) ...`
+       
+       But `Solid_ml_browser.Html.a` has:
+       `val a : ... ?onclick:(event -> unit) ...`
+       
+       So we can't pass `Solid_ml_browser.Html` directly to `Components.Make`.
+       We need an adapter module.
+    *)
+    
+    module HtmlAdapter = struct
+      include Solid_ml_browser.Html
+      
+      let a ?id ?class_ ?href ?target ?rel ?download ?hreflang ?tabindex ?onclick ?data ?attrs ~children () =
+        let onclick_handler = 
+          match onclick with
+          | Some f -> Some (fun (_:event) -> f ())
+          | None -> None
+        in
+        Solid_ml_browser.Html.a ?id ?class_ ?href ?target ?rel ?download ?hreflang ?tabindex ?onclick:onclick_handler ?data ?attrs ~children ()
+        
+      let fragment = Solid_ml_browser.Html.fragment
+    end
+
+    module C = Solid_ml_router.Components.Make(HtmlAdapter)
+
+    let use_path () = Router.use_path ()
+    
+    let use_params () = 
+      let params = Router.use_params () in
+      Route.Params.to_list params
+
+    let use_query_param key =
+      let loc = Router.use_location () in
+      (* loc is a Signal.t containing nav_state *)
+      let current_state = Signal.get (Obj.magic loc) in
+      (* Now we can access query directly *)
+      let query = current_state.Solid_ml_router.Router.query in
+      Router.get_query_param key query
+
+
+    let navigate path = Router.navigate path
+
+    let link ~href ?class_ ~children () =
+      (* Use the browser-specific Link component *)
+      (* Safe cast because HtmlAdapter uses the same node type as Solid_ml_browser.Html *)
+      let node = C.link ~href ?class_ ~children:(Obj.magic children) () in
+      Obj.magic node
   end
 end
 

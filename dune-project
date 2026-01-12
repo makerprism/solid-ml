@@ -64,4 +64,16 @@
   (solid-ml (= :version))
   (solid-ml-ssr (= :version))))
 
+; Example SSR App
+(package
+ (name full-ssr-app)
+ (synopsis "Example SSR app for solid-ml")
+ (description "A full-stack SSR example using Dream and solid-ml.")
+ (allow_empty)
+ (depends
+  (ocaml (= 5.2.1))
+  (dream (>= 1.0.0~alpha8))
+  (solid-ml (= :version))
+  (solid-ml-ssr (= :version))))
+
 

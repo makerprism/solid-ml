@@ -76,7 +76,7 @@ example-full-ssr: example-full-ssr-client
 	@echo "Visit http://localhost:8080"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	@dune exec examples/full_ssr_app/server.exe || stty sane
+	@dune exec examples/full_ssr_app/server/server.exe || stty sane
 
 # Build SSR API client
 example-ssr-api-client:

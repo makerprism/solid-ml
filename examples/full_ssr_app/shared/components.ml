@@ -4,15 +4,15 @@
     parameterized by the Platform interface.
 *)
 
+(** Shared Todo Type - Defined outside the functor to be accessible everywhere *)
+type todo = {
+  id : int;
+  text : string;
+  completed : bool;
+}
+
 module Make (P : Platform_intf.S) = struct
   open P
-
-  (** Shared Todo Type *)
-  type todo = {
-    id : int;
-    text : string;
-    completed : bool;
-  }
 
   (** Counter Component *)
   let counter ~initial () =
@@ -70,5 +70,27 @@ module Make (P : Platform_intf.S) = struct
           ] ()
         ) (Signal.get todos)
       ) ()
+    ] ()
+
+  (** App Layout with Navigation *)
+  let app_layout ~children () =
+    Html.div ~class_:"app-container" ~children:[
+      Html.div ~class_:"nav" ~children:[
+        Router.link ~href:"/" ~class_:"nav-link" ~children:[Html.text "Home"] ();
+        Html.span ~children:[Html.text " | "] ();
+        Router.link ~href:"/counter" ~class_:"nav-link" ~children:[Html.text "Counter"] ();
+        Html.span ~children:[Html.text " | "] ();
+        Router.link ~href:"/todo" ~class_:"nav-link" ~children:[Html.text "Todo"] ();
+      ] ();
+      Html.div ~class_:"content" ~children:[
+        children
+      ] ();
+    ] ()
+
+  (** Home Page *)
+  let home_page () =
+    Html.div ~children:[
+      Html.h1 ~children:[Html.text "Welcome to Solid ML Isomorphic App"] ();
+      Html.p ~children:[Html.text "This application runs on both server (SSR) and browser."] ();
     ] ()
 end

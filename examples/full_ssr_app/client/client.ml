@@ -5,7 +5,7 @@
 *)
 
 open Solid_ml_browser
-open Client_platform
+module Shared = Shared_components.Components.Make(Client_platform.Client_Platform)
 
 (** {1 Shared Data Types} *)
 (* open Shared_components *)
@@ -73,11 +73,11 @@ let hydrate_todos () =
   | Some app_el ->
     (* For simplicity in this demo, we recreate the initial state manually
        In a real app, we'd serialize the state to JSON in the HTML *)
-    let initial_todos = [
-       { Shared.id = 1; text = "Learn solid-ml"; completed = true };
-       { Shared.id = 2; text = "Build an SSR app"; completed = false };
-       { Shared.id = 3; text = "Add hydration"; completed = false };
-       { Shared.id = 4; text = "Deploy to production"; completed = false };
+    let initial_todos = Shared_components.Components.[
+       { id = 1; text = "Learn solid-ml"; completed = true };
+       { id = 2; text = "Build an SSR app"; completed = false };
+       { id = 3; text = "Add hydration"; completed = false };
+       { id = 4; text = "Deploy to production"; completed = false };
     ] in
     
     (* Clear static content *)
