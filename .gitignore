@@ -2,6 +2,7 @@
 _build/
 *.install
 *.merlin
+*.cmt
 
 # opam files (generated from dune-project)
 *.opam
@@ -20,6 +21,9 @@ Thumbs.db
 _output/
 node_modules/
 
+# Compiled frontend assets (CSS/JS bundles)
+frontend/static/
+
 # Legacy esy build artifacts (no longer used)
 _esy/
 esy.lock/
@@ -29,3 +33,4 @@ test_debug/
 
 # dev tools
 dev-tools.locks/
+
