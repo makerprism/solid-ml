@@ -1,7 +1,7 @@
 (** Full SSR App Example - Server
     
     This example demonstrates a complete SSR + hydration setup:
-    1. Server renders HTML with reactive components
+    1. Server renders HTML with reactive components (defined in Shared_components)
     2. Client hydrates the HTML to make it interactive
     3. Navigation works both server-side (full page) and client-side (SPA)
     
@@ -11,20 +11,17 @@
 
 open Solid_ml
 open Solid_ml_ssr
+open Server_platform
 
 (** {1 Shared Data Types} *)
-
-type todo = {
-  id : int;
-  text : string;
-  completed : bool;
-}
+(* We use the shared component definitions now *)
+open Shared_components
 
 let sample_todos = [
-  { id = 1; text = "Learn solid-ml"; completed = true };
-  { id = 2; text = "Build an SSR app"; completed = false };
-  { id = 3; text = "Add hydration"; completed = false };
-  { id = 4; text = "Deploy to production"; completed = false };
+  { Components.id = 1; text = "Learn solid-ml"; completed = true };
+  { Components.id = 2; text = "Build an SSR app"; completed = false };
+  { Components.id = 3; text = "Add hydration"; completed = false };
+  { Components.id = 4; text = "Deploy to production"; completed = false };
 ]
 
 (** {1 Components} *)
@@ -170,6 +167,7 @@ let home_page () =
     ul ~children:[
       li ~children:[text "Server-side rendering with Dream"] ();
       li ~children:[text "Client-side hydration with Melange"] ();
+      li ~children:[text "Shared Component Architecture (Functor-based)"] ();
       li ~children:[text "Reactive counter with signals"] ();
       li ~children:[text "Interactive todo list"] ();
       li ~children:[text "Client-side navigation (after hydration)"] ();
@@ -182,58 +180,28 @@ let home_page () =
     ] ();
   ] ()
 
-(** Counter page - renders initial count, becomes interactive after hydration *)
+(** Counter page - uses Shared.counter *)
 let counter_page ~initial () =
-  let count, _ = Signal.create initial in
-  
-  layout ~title:"Counter - solid-ml SSR" ~current_path:"/counter" ~children:Html.[
-    h2 ~children:[text "Counter"] ();
-    p ~children:[
-      text "This counter is server-rendered. After hydration, the buttons become interactive."
-    ] ();
-    div ~class_:"counter-display" ~id:"counter-value" ~children:[
-      signal_text count
-    ] ();
-    div ~class_:"buttons" ~children:[
-      button ~id:"decrement" ~class_:"btn" ~children:[text "-"] ();
-      button ~id:"increment" ~class_:"btn" ~children:[text "+"] ();
-      button ~id:"reset" ~class_:"btn btn-secondary" ~children:[text "Reset"] ();
-    ] ();
-    (* Store initial value for hydration *)
-    input ~type_:"hidden" ~id:"initial-count" ~value:(string_of_int initial) ();
-    div ~id:"hydration-status" ~class_:"hydration-status" ~children:[
-      text "Hydrated! Counter is now interactive."
+  layout ~title:"Counter - solid-ml SSR" ~current_path:"/counter" ~children:[
+    (* Use the shared component *)
+    Shared.counter ~initial ();
+    
+    (* Hydration data/status *)
+    Html.input ~type_:"hidden" ~id:"initial-count" ~value:(string_of_int initial) ();
+    Html.div ~id:"hydration-status" ~class_:"hydration-status" ~children:[
+      Html.text "Hydrated! Counter is now interactive."
     ] ();
   ] ()
 
-(** Todos page *)
+(** Todos page - uses Shared.todo_list *)
 let todos_page ~todos () =
-  let incomplete = List.filter (fun t -> not t.completed) todos in
-  let count = List.length incomplete in
-  let count_signal, _ = Signal.create count in
-  
-  layout ~title:"Todos - solid-ml SSR" ~current_path:"/todos" ~children:Html.[
-    h2 ~children:[text "Todo List"] ();
-    p ~children:[
-      text "This todo list is server-rendered. After hydration, checkboxes become interactive."
-    ] ();
-    p ~class_:"status" ~children:[
-      signal_text count_signal;
-      text " items remaining";
-    ] ();
-    ul ~id:"todo-list" ~class_:"todo-list" ~children:(
-      List.map (fun (todo : todo) ->
-        let todo_id = "todo-" ^ string_of_int todo.id in
-        li ~id:todo_id
-          ~class_:(if todo.completed then "todo-item completed" else "todo-item")
-          ~children:[
-          input ~type_:"checkbox" ~checked:todo.completed ();
-          span ~children:[text todo.text] ();
-        ] ()
-      ) todos
-    ) ();
-    div ~id:"hydration-status" ~class_:"hydration-status" ~children:[
-      text "Hydrated! Todos are now interactive."
+  layout ~title:"Todos - solid-ml SSR" ~current_path:"/todos" ~children:[
+    (* Use the shared component *)
+    Shared.todo_list ~initial_todos:todos ();
+
+    (* Hydration status *)
+    Html.div ~id:"hydration-status" ~class_:"hydration-status" ~children:[
+      Html.text "Hydrated! Todos are now interactive."
     ] ();
   ] ()
 

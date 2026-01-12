@@ -1,0 +1,6 @@
+(executable
+ (name server)
+ (public_name full_ssr_server)
+ (package solid-ml)
+ (libraries dream solid-ml solid-ml-ssr shared_components)
+ (modules server server_platform))
