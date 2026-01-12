@@ -382,10 +382,10 @@ let render ~lang ~(tr : I18n.translations) ~(venue : Api_types.venue_detail) ~(e
                        {|<a id="coords-value" href="%s" target="_blank" rel="noopener noreferrer" class="hidden text-primary-600 dark:text-primary-400 hover:underline font-mono text-sm" title="Verify coordinates on OpenStreetMap">%.6f, %.6f</a>|}
                        (html_escape coords_url) lat lng)
                    ]
-                 | _ ->
-                   H.span ~class_:"text-amber-600 dark:text-amber-400 text-sm" ~children:[
-                     H.text tr.no_coordinates
-                   ] ())
+                  | _ ->
+                    H.span ~class_:"text-yellow-600 dark:text-yellow-400 text-sm" ~children:[
+                      H.text tr.no_coordinates
+                    ] ())
               ] ()
             ] ();
 
@@ -479,7 +479,7 @@ let render ~lang ~(tr : I18n.translations) ~(venue : Api_types.venue_detail) ~(e
             H.text tr.submit_new_event
           ] ();
           H.a ~href:(I18n.url lang ("/venues/" ^ venue.slug ^ "/events/oneoff"))
-              ~class_:"px-3 py-1.5 rounded-lg text-sm font-semibold transition-all bg-amber-600 hover:bg-amber-700 text-white inline-flex items-center gap-1.5" ~children:[
+              ~class_:"px-3 py-1.5 rounded-lg text-sm font-semibold transition-all bg-blue-600 hover:bg-blue-700 text-white inline-flex items-center gap-1.5" ~children:[
             icon ~class_:"w-4 h-4" "calendar-plus";
             H.text tr.submit_oneoff_event
           ] ()
