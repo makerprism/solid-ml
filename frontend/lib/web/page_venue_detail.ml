@@ -281,12 +281,10 @@ let render ~lang ~(tr : I18n.translations) ~(venue : Api_types.venue_detail) ~(e
           (js_escape tr.link_copied) (html_escape tr.share));
         
         (* Follow venue button *)
-        H.button ~id:"follow-btn" ~type_:"button"
-          ~class_:"px-5 py-3 rounded-lg text-base font-semibold transition-all bg-pink-500 hover:bg-pink-600 text-white border-2 border-pink-700 inline-flex items-center gap-2"
-          ~children:[
-            icon ~class_:"w-5 h-5" "heart";
-            H.span ~id:"follow-btn-text" ~children:[H.text tr.follow_venue] ()
-          ] ();
+        H.raw (Printf.sprintf {|<button id="follow-btn" type="button" data-venue-action="follow" data-venue-id="%s" class="px-5 py-3 rounded-lg text-base font-semibold transition-all bg-pink-500 hover:bg-pink-600 text-white border-2 border-pink-700 inline-flex items-center gap-2">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+<span id="follow-btn-text">%s</span>
+</button>|} venue.id (html_escape tr.follow_venue));
         
         (* Suggest edit link *)
         H.a ~href:(I18n.url lang ("/venues/" ^ venue.slug ^ "/edit"))
@@ -637,6 +635,39 @@ let render ~lang ~(tr : I18n.translations) ~(venue : Api_types.venue_detail) ~(e
       }
     }
   });
+
+  // Event delegation for follow button
+  document.addEventListener('click', async function(e) {
+    const btn = e.target.closest('[data-venue-action="follow"]');
+    if (!btn) return;
+
+    const state = btn.dataset.state;
+
+    if (state === 'logged-out') {
+      sessionStorage.setItem('auth_return_url', window.location.href);
+      window.location.href = '/' + langCode + '/login';
+      return;
+    }
+
+    await toggleFollow();
+  });
+
+  // Event delegation for hover effects on follow button
+  document.addEventListener('mouseenter', function(e) {
+    const btn = e.target.closest('[data-venue-action="follow"]');
+    if (btn && btn.dataset.state === 'following') {
+      const textSpan = btn.querySelector('#follow-btn-text');
+      if (textSpan) textSpan.textContent = i18n.unfollow;
+    }
+  }, true);
+
+  document.addEventListener('mouseleave', function(e) {
+    const btn = e.target.closest('[data-venue-action="follow"]');
+    if (btn && btn.dataset.state === 'following') {
+      const textSpan = btn.querySelector('#follow-btn-text');
+      if (textSpan) textSpan.textContent = btn.dataset.baseText;
+    }
+  }, true);
   
   // Update regulars count display
   function updateCountDisplay() {
@@ -648,29 +679,24 @@ let render ~lang ~(tr : I18n.translations) ~(venue : Api_types.venue_detail) ~(e
   function updateButton() {
     if (!Auth.isLoggedIn()) {
       followBtnText.textContent = i18n.follow;
-      followBtn.onclick = function() {
-        sessionStorage.setItem('auth_return_url', window.location.href);
-        window.location.href = '/' + langCode + '/login';
-      };
+      followBtn.dataset.state = 'logged-out';
+      followBtn.dataset.baseText = i18n.follow;
       return;
     }
-    
+
     if (isFollowing) {
       followBtnText.textContent = i18n.following;
       followBtn.classList.remove('bg-pink-500', 'hover:bg-pink-600', 'border-pink-700');
       followBtn.classList.add('bg-gray-500', 'hover:bg-gray-600', 'border-gray-700');
-      // Show unfollow on hover
-      followBtn.onmouseenter = function() { followBtnText.textContent = i18n.unfollow; };
-      followBtn.onmouseleave = function() { followBtnText.textContent = i18n.following; };
+      followBtn.dataset.state = 'following';
+      followBtn.dataset.baseText = i18n.following;
     } else {
       followBtnText.textContent = i18n.follow;
       followBtn.classList.add('bg-pink-500', 'hover:bg-pink-600', 'border-pink-700');
       followBtn.classList.remove('bg-gray-500', 'hover:bg-gray-600', 'border-gray-700');
-      followBtn.onmouseenter = null;
-      followBtn.onmouseleave = null;
+      followBtn.dataset.state = 'not-following';
+      followBtn.dataset.baseText = i18n.follow;
     }
-    
-    followBtn.onclick = toggleFollow;
   }
   
   // Toggle follow status
