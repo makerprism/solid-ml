@@ -275,7 +275,7 @@ solid-ml aims to match SolidJS semantics closely. Here are the known differences
 | `SuspenseList` | Experimental in SolidJS, doesn't fully support SSR |
 | `children` helper | Use direct children access |
 | `lazy` | Use OCaml's native `lazy` |
-| Event delegation | Uses inline handlers (simpler, same perf) |
+| Event delegation | Implemented globally (matches SolidJS behavior) |
 
 ### Semantic Differences
 

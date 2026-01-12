@@ -145,12 +145,14 @@ let row_template : Dom.element Lazy.t = lazy (
   let td2 = Dom.create_element Dom.document "td" in
   Dom.set_class_name td2 "col-md-4";
   let a = Dom.create_element Dom.document "a" in
+  Dom.set_class_name a "lbl"; (* Marker class for delegation *)
   Dom.append_child td2 (Dom.node_of_element a);
   Dom.append_child tr (Dom.node_of_element td2);
   
   let td3 = Dom.create_element Dom.document "td" in
   Dom.set_class_name td3 "col-md-1";
   let a_del = Dom.create_element Dom.document "a" in
+  Dom.set_class_name a_del "remove"; (* Marker class for delegation *)
   let span = Dom.create_element Dom.document "span" in
   Dom.set_class_name span "glyphicon glyphicon-remove";
   Dom.set_attribute span "aria-hidden" "true";
@@ -395,8 +397,10 @@ let render_keyed_list ~(items : row array Reactive.Signal.t) (parent : Dom.eleme
         let a_del = (Dom.get_children td3).(0) in
         
         (* Event handlers - inline, matching SolidJS *)
-        Dom.add_event_listener a "click" (fun _ -> select row.id);
-        Dom.add_event_listener a_del "click" (fun _ -> remove row.id);
+        (* Optimization: Use global event delegation with data-id attributes *)
+        (* Dom.add_event_listener a "click" (fun _ -> select row.id); *)
+        (* Dom.add_event_listener a_del "click" (fun _ -> remove row.id); *)
+        Dom.set_attribute tr "data-id" (string_of_int row.id);
         
         (* Create row effects in the shared root *)
         let state = create_row_effects ~row ~tr ~td1 ~a in
@@ -448,6 +452,47 @@ let () =
       (* Initialize the selector inside the root context *)
       (* New API: create_selector returns (int -> bool), auto-cleans up *)
       is_selected := Some (Reactive.create_selector selected);
+
+      (* Global event delegation on tbody *)
+      let _cleanup_click = Event.delegate tbody "click" (fun _evt target ->
+        (* Find the closest row (tr) *)
+        let rec find_row el =
+          if Dom.get_tag_name el = "TR" then Some el
+          else match Dom.get_parent_element el with
+            | Some parent -> find_row parent
+            | None -> None
+        in
+        
+        match find_row target with
+        | Some row_el ->
+           (match Dom.get_attribute row_el "data-id" with
+            | Some id_str ->
+                let id = int_of_string id_str in
+                
+                (* Determine action based on clicked element class *)
+                (* We need to check the target and its parents up to the row *)
+                let rec find_action_element el =
+                  if el == row_el then None
+                  else 
+                    let cls = Dom.get_class_name el in
+                    if cls = "remove" || cls = "lbl" then Some (cls, el)
+                    else 
+                      match Dom.get_parent_element el with
+                      | Some p -> find_action_element p
+                      | None -> None
+                in
+
+                (match find_action_element target with
+                 | Some ("remove", _) -> remove id
+                 (* For "lbl", strictly it's the select action. 
+                    However, checking if the clicked element is inside the <a> with class "lbl" 
+                    is safer than loose class matching. *)
+                 | Some ("lbl", _) -> select id
+                 | _ -> ())
+            | None -> ())
+        | None -> ()
+      ) in
+
       render_keyed_list ~items:data tbody
     ) in
     
