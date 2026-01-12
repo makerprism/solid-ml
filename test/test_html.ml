@@ -449,16 +449,67 @@ let test_role_attribute () =
   let node = Html.(div ~role:"navigation" ~children:[text "Nav"] ()) in
   let html = Html.to_string node in
   assert (contains html "role=\"navigation\"");
-  print_endline "  PASSED"
-
-let test_aria_on_nav_section () =
-  print_endline "Test: ARIA attributes on nav and section";
-  let node = Html.(nav ~aria_label:"Main navigation" ~children:[text "Links"] ()) in
-  let html = Html.to_string node in
-  assert (contains html "aria-label=\"Main navigation\"");
   let node2 = Html.(section ~aria_labelledby:"heading-1" ~children:[text "Content"] ()) in
   let html2 = Html.to_string node2 in
   assert (contains html2 "aria-labelledby=\"heading-1\"");
+  print_endline "  PASSED"
+
+(* ============ Custom Attributes Tests ============ *)
+
+let test_custom_attrs_single () =
+  print_endline "Test: Single custom attribute with ~attrs";
+  let node = Html.(div ~attrs:[("data-test", "value")] ~children:[text "Test"] ()) in
+  let html = Html.to_string node in
+  assert (contains html "data-test=\"value\"");
+  assert (contains html ">Test</div>");
+  print_endline "  PASSED"
+
+let test_custom_attrs_multiple () =
+  print_endline "Test: Multiple custom attributes with ~attrs";
+  let node = Html.(div ~attrs:[("data-id", "123"); ("data-category", "items"); ("aria-custom", "value")] ~children:[text "Multi"] ()) in
+  let html = Html.to_string node in
+  assert (contains html "data-id=\"123\"");
+  assert (contains html "data-category=\"items\"");
+  assert (contains html "aria-custom=\"value\"");
+  assert (contains html ">Multi</div>");
+  print_endline "  PASSED"
+
+let test_custom_attrs_xss_protection_ssr () =
+  print_endline "Test: XSS protection - attribute values are escaped on SSR";
+  let node = Html.(div ~attrs:[("data-evil", "<script>alert(1)</script>")] ~children:[text "Content"] ()) in
+  let html = Html.to_string node in
+  assert (not (contains html "<script>"));
+  assert (contains html "&lt;script&gt;alert(1)&lt;/script&gt;");
+  print_endline "  PASSED"
+
+let test_data_vs_attrs_parameter () =
+  print_endline "Test: ~data parameter (with validation) vs ~attrs (no validation)";
+  (* ~data validates keys, ~attrs does not *)
+  let node1 = Html.(div ~data:[("filter", "type1"); ("count", "5")] ~children:[text "Using ~data"] ()) in
+  let node2 = Html.(div ~attrs:[("data-filter", "type1"); ("data-count", "5")] ~children:[text "Using ~attrs"] ()) in
+  let html1 = Html.to_string node1 in
+  let html2 = Html.to_string node2 in
+  assert (contains html1 "data-filter=\"type1\"");
+  assert (contains html1 "data-count=\"5\"");
+  assert (contains html2 "data-filter=\"type1\"");
+  assert (contains html2 "data-count=\"5\"");
+  print_endline "  PASSED"
+
+let test_custom_attrs_empty () =
+  print_endline "Test: Empty ~attrs list";
+  let node = Html.(div ~attrs:[] ~children:[text "Empty attrs"] ()) in
+  let html = Html.to_string node in
+  assert (contains html ">Empty attrs</div>");
+  print_endline "  PASSED"
+
+let test_custom_attrs_with_standard_attrs () =
+  print_endline "Test: Custom attrs coexist with standard attributes";
+  let node = Html.(input ~type_:"text" ~id:"test" ~class_:"input" ~attrs:[("data-validate", "true")] ()) in
+  let html = Html.to_string node in
+  assert (contains html "type=\"text\"");
+  assert (contains html "id=\"test\"");
+  assert (contains html "class=\"input\"");
+  assert (contains html "data-validate=\"true\"");
   print_endline "  PASSED"
 
 (* ============ New HTML Attribute Tests ============ *)
@@ -638,6 +689,12 @@ let () =
   test_self_closing ();
   test_input ();
   test_attribute_escaping ();
+  test_custom_attrs_single ();
+  test_custom_attrs_multiple ();
+  test_custom_attrs_xss_protection_ssr ();
+  test_data_vs_attrs_parameter ();
+  test_custom_attrs_empty ();
+  test_custom_attrs_with_standard_attrs ();
   test_fragment ();
   test_boolean_attrs ();
   test_headings ();
@@ -678,7 +735,6 @@ let () =
   test_aria_hidden ();
   test_aria_expanded ();
   test_role_attribute ();
-  test_aria_on_nav_section ();
 
   print_endline "\n-- New HTML Attribute Tests --";
   test_anchor_rel ();

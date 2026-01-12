@@ -55,185 +55,177 @@ val fragment : node list -> node
 (** {1 Document Structure} *)
 
 val div : ?id:string -> ?class_:string -> ?style:string -> ?role:string -> ?aria_label:string -> ?aria_hidden:bool -> ?tabindex:int ->
-  ?onclick:(event -> unit) -> ?data:(string * string) list -> children:node list -> unit -> node
+  ?onclick:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
 
 val span : ?id:string -> ?class_:string -> ?style:string -> ?role:string -> ?aria_label:string -> ?aria_hidden:bool ->
-  ?onclick:(event -> unit) -> ?data:(string * string) list -> children:node list -> unit -> node
+  ?onclick:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
 
 val p : ?id:string -> ?class_:string -> ?role:string ->
-  ?onclick:(event -> unit) -> ?data:(string * string) list -> children:node list -> unit -> node
+  ?onclick:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
 
-val pre : ?id:string -> ?class_:string -> children:node list -> unit -> node
-val code : ?id:string -> ?class_:string -> children:node list -> unit -> node
+val pre : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val code : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
 
-(** {1 Headings} *)
+(** {2 Headings} *)
 
-val h1 : ?id:string -> ?class_:string -> ?tabindex:int -> ?onclick:(event -> unit) -> ?data:(string * string) list -> children:node list -> unit -> node
-val h2 : ?id:string -> ?class_:string -> ?tabindex:int -> ?onclick:(event -> unit) -> ?data:(string * string) list -> children:node list -> unit -> node
-val h3 : ?id:string -> ?class_:string -> ?tabindex:int -> ?onclick:(event -> unit) -> ?data:(string * string) list -> children:node list -> unit -> node
-val h4 : ?id:string -> ?class_:string -> ?tabindex:int -> ?onclick:(event -> unit) -> ?data:(string * string) list -> children:node list -> unit -> node
-val h5 : ?id:string -> ?class_:string -> ?tabindex:int -> ?onclick:(event -> unit) -> ?data:(string * string) list -> children:node list -> unit -> node
-val h6 : ?id:string -> ?class_:string -> ?tabindex:int -> ?onclick:(event -> unit) -> ?data:(string * string) list -> children:node list -> unit -> node
+val h1 : ?id:string -> ?class_:string -> ?tabindex:int -> ?onclick:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val h2 : ?id:string -> ?class_:string -> ?tabindex:int -> ?onclick:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val h3 : ?id:string -> ?class_:string -> ?tabindex:int -> ?onclick:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val h4 : ?id:string -> ?class_:string -> ?tabindex:int -> ?onclick:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val h5 : ?id:string -> ?class_:string -> ?tabindex:int -> ?onclick:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val h6 : ?id:string -> ?class_:string -> ?tabindex:int -> ?onclick:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
 
-(** {1 Sectioning} *)
+(** {2 Sectioning} *)
 
-val header : ?id:string -> ?class_:string -> ?role:string -> ?data:(string * string) list -> children:node list -> unit -> node
-val footer : ?id:string -> ?class_:string -> ?role:string -> ?data:(string * string) list -> children:node list -> unit -> node
-val main : ?id:string -> ?class_:string -> ?role:string -> ?data:(string * string) list -> children:node list -> unit -> node
-val nav : ?id:string -> ?class_:string -> ?role:string -> ?aria_label:string -> ?data:(string * string) list -> children:node list -> unit -> node
-val section : ?id:string -> ?class_:string -> ?role:string -> ?aria_label:string -> ?aria_labelledby:string -> ?data:(string * string) list -> children:node list -> unit -> node
-val article : ?id:string -> ?class_:string -> ?role:string -> ?data:(string * string) list -> children:node list -> unit -> node
-val aside : ?id:string -> ?class_:string -> ?role:string -> ?aria_label:string -> ?data:(string * string) list -> children:node list -> unit -> node
+val header : ?id:string -> ?class_:string -> ?role:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val footer : ?id:string -> ?class_:string -> ?role:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val main : ?id:string -> ?class_:string -> ?role:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val nav : ?id:string -> ?class_:string -> ?role:string -> ?aria_label:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val section : ?id:string -> ?class_:string -> ?role:string -> ?aria_label:string -> ?aria_labelledby:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val article : ?id:string -> ?class_:string -> ?role:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val aside : ?id:string -> ?class_:string -> ?role:string -> ?aria_label:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
 
-(** {1 Inline Elements} *)
+(** {2 Inline Elements} *)
 
 val a : ?id:string -> ?class_:string -> ?href:string -> ?target:string -> ?rel:string -> ?download:string -> ?hreflang:string -> ?tabindex:int ->
-  ?onclick:(event -> unit) -> ?data:(string * string) list -> children:node list -> unit -> node
+  ?onclick:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
 
-val strong : ?id:string -> ?class_:string -> children:node list -> unit -> node
-val em : ?id:string -> ?class_:string -> children:node list -> unit -> node
-val br : unit -> node
-val hr : ?class_:string -> unit -> node
+val strong : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val em : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val br : ?attrs:(string * string) list -> unit -> node
+val hr : ?class_:string -> ?attrs:(string * string) list -> unit -> node
 
-(** {1 Lists} *)
+(** {2 Lists} *)
 
-val ul : ?id:string -> ?class_:string -> ?role:string -> ?data:(string * string) list -> children:node list -> unit -> node
-val ol : ?id:string -> ?class_:string -> ?start:int -> ?role:string -> ?data:(string * string) list -> children:node list -> unit -> node
-val li : ?id:string -> ?class_:string -> ?role:string -> ?onclick:(event -> unit) -> ?data:(string * string) list -> children:node list -> unit -> node
+val ul : ?id:string -> ?class_:string -> ?role:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val ol : ?id:string -> ?class_:string -> ?start:int -> ?role:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val li : ?id:string -> ?class_:string -> ?role:string -> ?onclick:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
 
-(** {1 Tables} *)
+(** {2 Tables} *)
 
-val table : ?id:string -> ?class_:string -> children:node list -> unit -> node
-val thead : children:node list -> unit -> node
-val tbody : children:node list -> unit -> node
-val tfoot : children:node list -> unit -> node
-val tr : ?class_:string -> children:node list -> unit -> node
-val th : ?class_:string -> ?scope:string -> ?colspan:int -> ?rowspan:int -> children:node list -> unit -> node
-val td : ?class_:string -> ?colspan:int -> ?rowspan:int -> children:node list -> unit -> node
+val table : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val thead : ?attrs:(string * string) list -> children:node list -> unit -> node
+val tbody : ?attrs:(string * string) list -> children:node list -> unit -> node
+val tfoot : ?attrs:(string * string) list -> children:node list -> unit -> node
+val tr : ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val th : ?class_:string -> ?scope:string -> ?colspan:int -> ?rowspan:int -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val td : ?class_:string -> ?colspan:int -> ?rowspan:int -> ?attrs:(string * string) list -> children:node list -> unit -> node
 
-(** {1 Forms} *)
+(** {2 Forms} *)
 
 val form : ?id:string -> ?class_:string -> ?action:string -> ?method_:string ->
-  ?enctype:string -> ?onsubmit:(event -> unit) -> children:node list -> unit -> node
+  ?enctype:string -> ?onsubmit:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
 
 val input : ?id:string -> ?class_:string -> ?type_:string -> ?name:string ->
   ?value:string -> ?placeholder:string -> ?accept:string -> ?min:string -> ?max:string -> ?step:string ->
   ?required:bool -> ?disabled:bool -> ?checked:bool -> ?autofocus:bool -> ?readonly:bool ->
   ?tabindex:int -> ?oninput:(event -> unit) -> ?onchange:(event -> unit) ->
-  ?onkeydown:(event -> unit) -> ?data:(string * string) list -> unit -> node
+  ?onkeydown:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> unit -> node
 
 val textarea : ?id:string -> ?class_:string -> ?name:string -> ?placeholder:string ->
   ?rows:int -> ?cols:int -> ?required:bool -> ?disabled:bool -> ?autofocus:bool -> ?readonly:bool ->
-  ?tabindex:int -> ?oninput:(event -> unit) -> ?data:(string * string) list -> children:node list -> unit -> node
+  ?tabindex:int -> ?oninput:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
 
 val select : ?id:string -> ?class_:string -> ?name:string -> ?required:bool ->
   ?disabled:bool -> ?multiple:bool -> ?autofocus:bool -> ?tabindex:int -> ?onchange:(event -> unit) ->
-  ?data:(string * string) list -> children:node list -> unit -> node
+  ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
 
-val option : ?value:string -> ?selected:bool -> ?disabled:bool ->
+val option : ?value:string -> ?selected:bool -> ?disabled:bool -> ?attrs:(string * string) list ->
   children:node list -> unit -> node
 
-val label : ?id:string -> ?class_:string -> ?for_:string ->
+val label : ?id:string -> ?class_:string -> ?for_:string -> ?attrs:(string * string) list ->
   children:node list -> unit -> node
 
 val button : ?id:string -> ?class_:string -> ?type_:string -> ?disabled:bool ->
   ?tabindex:int -> ?aria_label:string -> ?aria_expanded:bool -> ?aria_controls:string -> ?aria_haspopup:bool ->
-  ?onclick:(event -> unit) -> ?data:(string * string) list -> children:node list -> unit -> node
+  ?onclick:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
 
-(** {1 Media} *)
+(** {2 Media} *)
 
 val img : ?id:string -> ?class_:string -> ?src:string -> ?alt:string ->
-  ?width:int -> ?height:int -> ?loading:string -> ?srcset:string -> ?sizes:string -> ?data:(string * string) list -> unit -> node
+  ?width:int -> ?height:int -> ?loading:string -> ?srcset:string -> ?sizes:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> unit -> node
 
 (** {1 SVG Elements} *)
 
 module Svg : sig
   (** Browser SVG helpers using namespaced DOM creation. *)
-  val svg : ?id:string -> ?class_:string -> ?style:string -> ?viewBox:string ->
-    ?width:string -> ?height:string -> ?fill:string -> ?onclick:(event -> unit) ->
-    children:node list -> unit -> node
-  val g : ?id:string -> ?class_:string -> ?style:string -> ?transform:string ->
-    ?fill:string -> ?stroke:string -> ?onclick:(event -> unit) -> children:node list -> unit -> node
+  val svg : ?id:string -> ?class_:string -> ?style:string -> ?viewBox:string -> ?width:string -> ?height:string -> ?fill:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
+  val g : ?id:string -> ?class_:string -> ?style:string -> ?transform:string -> ?fill:string -> ?stroke:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
   val circle : ?id:string -> ?class_:string -> ?style:string -> ?cx:string ->
-    ?cy:string -> ?r:string -> ?fill:string -> ?stroke:string ->
-    ?stroke_width:string -> ?stroke_linecap:string -> ?stroke_linejoin:string -> ?onclick:(event -> unit) ->
-    children:node list -> unit -> node
+    ?cy:string -> ?r:string -> ?fill:string -> ?stroke:string -> ?stroke_width:string ->
+    ?stroke_linecap:string -> ?stroke_linejoin:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
   val ellipse : ?id:string -> ?class_:string -> ?style:string -> ?cx:string ->
-    ?cy:string -> ?rx:string -> ?ry:string -> ?fill:string -> ?stroke:string ->
-    ?stroke_width:string -> ?stroke_linecap:string -> ?stroke_linejoin:string -> ?onclick:(event -> unit) ->
-    children:node list -> unit -> node
+    ?cy:string -> ?rx:string -> ?ry:string -> ?fill:string -> ?stroke:string -> ?stroke_width:string ->
+    ?stroke_linecap:string -> ?stroke_linejoin:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
   val rect : ?id:string -> ?class_:string -> ?style:string -> ?x:string ->
     ?y:string -> ?width:string -> ?height:string -> ?rx:string -> ?ry:string ->
-    ?fill:string -> ?stroke:string -> ?stroke_width:string -> ?stroke_linecap:string -> ?stroke_linejoin:string ->
-    ?onclick:(event -> unit) -> children:node list -> unit -> node
+    ?fill:string -> ?stroke:string -> ?stroke_width:string -> ?stroke_linecap:string -> ?stroke_linejoin:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
   val line : ?id:string -> ?class_:string -> ?style:string -> ?x1:string ->
-    ?y1:string -> ?x2:string -> ?y2:string -> ?stroke:string ->
-    ?stroke_width:string -> ?stroke_linecap:string -> ?stroke_linejoin:string -> ?onclick:(event -> unit) ->
-    children:node list -> unit -> node
+    ?y1:string -> ?x2:string -> ?y2:string -> ?stroke:string -> ?stroke_width:string ->
+    ?stroke_linecap:string -> ?stroke_linejoin:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
   val polyline : ?id:string -> ?class_:string -> ?style:string -> ?points:string ->
     ?fill:string -> ?stroke:string -> ?stroke_width:string -> ?stroke_linecap:string -> ?stroke_linejoin:string ->
-    ?onclick:(event -> unit) -> children:node list -> unit -> node
+    ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
   val polygon : ?id:string -> ?class_:string -> ?style:string -> ?points:string ->
     ?fill:string -> ?stroke:string -> ?stroke_width:string -> ?stroke_linecap:string -> ?stroke_linejoin:string ->
-    ?onclick:(event -> unit) -> children:node list -> unit -> node
+    ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
   val path : ?id:string -> ?class_:string -> ?style:string -> ?d:string ->
     ?fill:string -> ?stroke:string -> ?stroke_width:string -> ?stroke_linecap:string -> ?stroke_linejoin:string ->
-    ?fill_rule:string -> ?clip_rule:string -> ?onclick:(event -> unit) ->
+    ?fill_rule:string -> ?clip_rule:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list ->
     children:node list -> unit -> node
   val text_ : ?id:string -> ?class_:string -> ?style:string -> ?x:string ->
     ?y:string -> ?dx:string -> ?dy:string -> ?text_anchor:string -> ?font_size:string -> ?font_family:string ->
-    ?fill:string -> ?stroke:string -> ?stroke_width:string ->
-    ?onclick:(event -> unit) -> children:node list -> unit -> node
+    ?fill:string -> ?stroke:string -> ?stroke_width:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
   val tspan : ?id:string -> ?class_:string -> ?x:string -> ?y:string -> ?dx:string -> ?dy:string ->
-    ?fill:string -> ?onclick:(event -> unit) -> children:node list -> unit -> node
-  val defs : ?id:string -> children:node list -> unit -> node
+    ?fill:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
+  val defs : ?id:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
   val use : ?id:string -> ?class_:string -> ?href:string -> ?x:string -> ?y:string ->
-    ?width:string -> ?height:string -> ?onclick:(event -> unit) -> unit -> node
-  val symbol : ?id:string -> ?viewBox:string -> children:node list -> unit -> node
-  val clipPath : ?id:string -> children:node list -> unit -> node
-  val mask : ?id:string -> children:node list -> unit -> node
+    ?width:string -> ?height:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> unit -> node
+  val symbol : ?id:string -> ?viewBox:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+  val clipPath : ?id:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+  val mask : ?id:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
   val linearGradient : ?id:string -> ?x1:string -> ?y1:string -> ?x2:string -> ?y2:string ->
-    ?gradientUnits:string -> ?gradientTransform:string -> children:node list -> unit -> node
+    ?gradientUnits:string -> ?gradientTransform:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
   val radialGradient : ?id:string -> ?cx:string -> ?cy:string -> ?r:string -> ?fx:string -> ?fy:string ->
-    ?gradientUnits:string -> ?gradientTransform:string -> children:node list -> unit -> node
-  val stop : ?offset:string -> ?stop_color:string -> ?stop_opacity:string -> unit -> node
+    ?gradientUnits:string -> ?gradientTransform:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+  val stop : ?offset:string -> ?stop_color:string -> ?stop_opacity:string -> ?attrs:(string * string) list -> unit -> node
   val image : ?id:string -> ?class_:string -> ?href:string -> ?x:string -> ?y:string ->
-    ?width:string -> ?height:string -> ?preserveAspectRatio:string -> unit -> node
+    ?width:string -> ?height:string -> ?preserveAspectRatio:string -> ?attrs:(string * string) list -> unit -> node
   val foreignObject : ?id:string -> ?class_:string -> ?x:string -> ?y:string ->
-    ?width:string -> ?height:string -> children:node list -> unit -> node
+    ?width:string -> ?height:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
 end
 
 val svg : ?id:string -> ?class_:string -> ?style:string -> ?viewBox:string ->
-  ?width:string -> ?height:string -> ?fill:string -> ?onclick:(event -> unit) -> children:node list -> unit -> node
+  ?width:string -> ?height:string -> ?fill:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val g : ?id:string -> ?class_:string -> ?style:string -> ?transform:string ->
-  ?fill:string -> ?stroke:string -> ?onclick:(event -> unit) -> children:node list -> unit -> node
+  ?fill:string -> ?stroke:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val circle : ?id:string -> ?class_:string -> ?style:string -> ?cx:string ->
   ?cy:string -> ?r:string -> ?fill:string -> ?stroke:string -> ?stroke_width:string ->
-  ?stroke_linecap:string -> ?stroke_linejoin:string -> ?onclick:(event -> unit) -> children:node list -> unit -> node
+  ?stroke_linecap:string -> ?stroke_linejoin:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val ellipse : ?id:string -> ?class_:string -> ?style:string -> ?cx:string ->
   ?cy:string -> ?rx:string -> ?ry:string -> ?fill:string -> ?stroke:string -> ?stroke_width:string ->
-  ?stroke_linecap:string -> ?stroke_linejoin:string -> ?onclick:(event -> unit) -> children:node list -> unit -> node
+  ?stroke_linecap:string -> ?stroke_linejoin:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val rect : ?id:string -> ?class_:string -> ?style:string -> ?x:string ->
   ?y:string -> ?width:string -> ?height:string -> ?rx:string -> ?ry:string ->
   ?fill:string -> ?stroke:string -> ?stroke_width:string -> ?stroke_linecap:string -> ?stroke_linejoin:string -> ?onclick:(event -> unit) ->
-  children:node list -> unit -> node
+  ?attrs:(string * string) list -> children:node list -> unit -> node
 val line : ?id:string -> ?class_:string -> ?style:string -> ?x1:string ->
   ?y1:string -> ?x2:string -> ?y2:string -> ?stroke:string -> ?stroke_width:string ->
-  ?stroke_linecap:string -> ?stroke_linejoin:string -> ?onclick:(event -> unit) -> children:node list -> unit -> node
+  ?stroke_linecap:string -> ?stroke_linejoin:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val polyline : ?id:string -> ?class_:string -> ?style:string -> ?points:string ->
   ?fill:string -> ?stroke:string -> ?stroke_width:string -> ?stroke_linecap:string -> ?stroke_linejoin:string ->
-  ?onclick:(event -> unit) -> children:node list -> unit -> node
+  ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val polygon : ?id:string -> ?class_:string -> ?style:string -> ?points:string ->
   ?fill:string -> ?stroke:string -> ?stroke_width:string -> ?stroke_linecap:string -> ?stroke_linejoin:string ->
-  ?onclick:(event -> unit) -> children:node list -> unit -> node
+  ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val path : ?id:string -> ?class_:string -> ?style:string -> ?d:string ->
   ?fill:string -> ?stroke:string -> ?stroke_width:string -> ?stroke_linecap:string -> ?stroke_linejoin:string ->
-  ?fill_rule:string -> ?clip_rule:string -> ?onclick:(event -> unit) ->
+  ?fill_rule:string -> ?clip_rule:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list ->
   children:node list -> unit -> node
 val text_ : ?id:string -> ?class_:string -> ?style:string -> ?x:string ->
   ?y:string -> ?dx:string -> ?dy:string -> ?text_anchor:string -> ?font_size:string -> ?font_family:string ->
   ?fill:string -> ?stroke:string -> ?stroke_width:string ->
-  ?onclick:(event -> unit) -> children:node list -> unit -> node
+  ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
 
 (** {1 Node Access} *)
 

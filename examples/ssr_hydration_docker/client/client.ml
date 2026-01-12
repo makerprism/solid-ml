@@ -50,9 +50,9 @@ let counter_component ~initial ~set_count ~count =
         Html.empty
       ] ();
       (* SVG badge - also hydrated *)
-      svg ~viewBox:"0 0 120 120" ~width:"180" ~height:"180" ~children:[
-        circle ~cx:"60" ~cy:"60" ~r:"50" ~fill:"#4f46e5" ~children:[] ();
-        text_ ~x:"60" ~y:"68" ~fill:"white"
+      Svg.svg ~viewBox:"0 0 120 120" ~width:"180" ~height:"180" ~children:[
+        Svg.circle ~cx:"60" ~cy:"60" ~r:"50" ~fill:"#4f46e5" ~children:[] ();
+        Svg.text_ ~x:"60" ~y:"68" ~fill:"white"
           ~style:"font-size:24px; text-anchor:middle; font-family:system-ui;"
           ~children:[text "solid-ml"] ()
       ] ();

@@ -158,77 +158,107 @@ let add_data data attrs =
 let add_int name value attrs =
   match value with Some n -> (name, string_of_int n) :: attrs | None -> attrs
 
+(** Helper to add custom attributes *)
+let add_attrs custom_attrs attrs =
+  List.fold_left (fun acc (k, v) -> 
+    let safe_key = escape_attr_name k in
+    (safe_key, v) :: acc
+  ) attrs custom_attrs
+
 let element tag ?(self_closing=false) attrs children =
   Element { tag; attrs; children; self_closing }
 
 (** Document structure elements *)
-let html ?lang ~children () =
-  element "html" (add_opt "lang" lang []) children
+let html ?lang ?(attrs=[]) ~children () =
+  element "html" (add_opt "lang" lang attrs) children
 
-let head ~children () = element "head" [] children
+let head ?(attrs=[]) ~children () =
+  element "head" attrs children
 
-let body ?id ?class_ ~children () =
-  let attrs = [] |> add_opt "id" id |> add_opt "class" class_ in
+let body ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = [] 
+    |> add_opt "id" id 
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
   element "body" attrs children
 
-let title ~children () = element "title" [] children
+let title ?(attrs=[]) ~children () =
+  element "title" attrs children
 
-let meta ?charset ?name ?property ?content () =
-  let attrs = [] |> add_opt "charset" charset |> add_opt "name" name |> add_opt "property" property |> add_opt "content" content in
+let meta ?charset ?name ?property ?content ?(attrs=[]) () =
+  let attrs = [] 
+    |> add_opt "charset" charset 
+    |> add_opt "name" name 
+    |> add_opt "property" property 
+    |> add_opt "content" content
+    |> add_attrs attrs
+  in
   element "meta" ~self_closing:true attrs []
 
-let link ?rel ?href ?hreflang ?type_ () =
-  let attrs = [] |> add_opt "rel" rel |> add_opt "href" href |> add_opt "hreflang" hreflang |> add_opt "type" type_ in
+let link ?rel ?href ?hreflang ?type_ ?(attrs=[]) () =
+  let attrs = [] 
+    |> add_opt "rel" rel 
+    |> add_opt "href" href 
+    |> add_opt "hreflang" hreflang 
+    |> add_opt "type" type_
+    |> add_attrs attrs
+  in
   element "link" ~self_closing:true attrs []
 
-let script ?src ?type_ ?(defer=false) ?(async=false) ~children () =
+let script ?src ?type_ ?(defer=false) ?(async=false) ?(attrs=[]) ~children () =
   let attrs = [] 
     |> add_opt "src" src 
     |> add_opt "type" type_
     |> add_bool "defer" defer
     |> add_bool "async" async
+    |> add_attrs attrs
   in
   element "script" attrs children
 
 (** Content sectioning *)
-let header ?id ?class_ ?role ?(data=[]) ~children () =
+let header ?id ?class_ ?role ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
     |> add_opt "role" role
     |> add_data data
+    |> add_attrs attrs
   in
   element "header" attrs children
 
-let footer ?id ?class_ ?role ?(data=[]) ~children () =
+let footer ?id ?class_ ?role ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
     |> add_opt "role" role
     |> add_data data
+    |> add_attrs attrs
   in
   element "footer" attrs children
 
-let main ?id ?class_ ?role ?(data=[]) ~children () =
+let main ?id ?class_ ?role ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
     |> add_opt "role" role
     |> add_data data
+    |> add_attrs attrs
   in
   element "main" attrs children
 
-let nav ?id ?class_ ?role ?aria_label ?(data=[]) ~children () =
+let nav ?id ?class_ ?role ?aria_label ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
     |> add_opt "role" role
     |> add_opt "aria-label" aria_label
     |> add_data data
+    |> add_attrs attrs
   in
   element "nav" attrs children
 
-let section ?id ?class_ ?role ?aria_label ?aria_labelledby ?(data=[]) ~children () =
+let section ?id ?class_ ?role ?aria_label ?aria_labelledby ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
@@ -236,30 +266,33 @@ let section ?id ?class_ ?role ?aria_label ?aria_labelledby ?(data=[]) ~children 
     |> add_opt "aria-label" aria_label
     |> add_opt "aria-labelledby" aria_labelledby
     |> add_data data
+    |> add_attrs attrs
   in
   element "section" attrs children
 
-let article ?id ?class_ ?role ?(data=[]) ~children () =
+let article ?id ?class_ ?role ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
     |> add_opt "role" role
     |> add_data data
+    |> add_attrs attrs
   in
   element "article" attrs children
 
-let aside ?id ?class_ ?role ?aria_label ?(data=[]) ~children () =
+let aside ?id ?class_ ?role ?aria_label ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
     |> add_opt "role" role
     |> add_opt "aria-label" aria_label
     |> add_data data
+    |> add_attrs attrs
   in
   element "aside" attrs children
 
 (** Text content *)
-let div ?id ?class_ ?style ?role ?aria_label ?aria_hidden ?tabindex ?onclick:_ ?(data=[]) ~children () =
+let div ?id ?class_ ?style ?role ?aria_label ?aria_hidden ?tabindex ?onclick:_ ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
@@ -269,19 +302,21 @@ let div ?id ?class_ ?style ?role ?aria_label ?aria_hidden ?tabindex ?onclick:_ ?
     |> add_opt "aria-hidden" (Option.map string_of_bool aria_hidden)
     |> add_int "tabindex" tabindex
     |> add_data data
+    |> add_attrs attrs
   in
   element "div" attrs children
 
-let p ?id ?class_ ?role ?onclick:_ ?(data=[]) ~children () =
+let p ?id ?class_ ?role ?onclick:_ ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
     |> add_opt "role" role
     |> add_data data
+    |> add_attrs attrs
   in
   element "p" attrs children
 
-let span ?id ?class_ ?style ?role ?aria_label ?aria_hidden ?onclick:_ ?(data=[]) ~children () =
+let span ?id ?class_ ?style ?role ?aria_label ?aria_hidden ?onclick:_ ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
@@ -290,78 +325,97 @@ let span ?id ?class_ ?style ?role ?aria_label ?aria_hidden ?onclick:_ ?(data=[])
     |> add_opt "aria-label" aria_label
     |> add_opt "aria-hidden" (Option.map string_of_bool aria_hidden)
     |> add_data data
+    |> add_attrs attrs
   in
   element "span" attrs children
 
-let pre ?id ?class_ ~children () =
-  let attrs = [] |> add_opt "id" id |> add_opt "class" class_ in
+let pre ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = [] 
+    |> add_opt "id" id 
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
   element "pre" attrs children
 
-let code ?id ?class_ ~children () =
-  let attrs = [] |> add_opt "id" id |> add_opt "class" class_ in
+let code ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = [] 
+    |> add_opt "id" id 
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
   element "code" attrs children
 
-let blockquote ?id ?class_ ~children () =
-  let attrs = [] |> add_opt "id" id |> add_opt "class" class_ in
+let blockquote ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = [] 
+    |> add_opt "id" id 
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
   element "blockquote" attrs children
 
 (** Headings *)
-let h1 ?id ?class_ ?tabindex ?onclick:_ ?(data=[]) ~children () =
+let h1 ?id ?class_ ?tabindex ?onclick:_ ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
     |> add_int "tabindex" tabindex
     |> add_data data
+    |> add_attrs attrs
   in
   element "h1" attrs children
 
-let h2 ?id ?class_ ?tabindex ?onclick:_ ?(data=[]) ~children () =
+let h2 ?id ?class_ ?tabindex ?onclick:_ ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
     |> add_int "tabindex" tabindex
     |> add_data data
+    |> add_attrs attrs
   in
   element "h2" attrs children
 
-let h3 ?id ?class_ ?tabindex ?onclick:_ ?(data=[]) ~children () =
+let h3 ?id ?class_ ?tabindex ?onclick:_ ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
     |> add_int "tabindex" tabindex
     |> add_data data
+    |> add_attrs attrs
   in
   element "h3" attrs children
 
-let h4 ?id ?class_ ?tabindex ?onclick:_ ?(data=[]) ~children () =
+let h4 ?id ?class_ ?tabindex ?onclick:_ ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
     |> add_int "tabindex" tabindex
     |> add_data data
+    |> add_attrs attrs
   in
   element "h4" attrs children
 
-let h5 ?id ?class_ ?tabindex ?onclick:_ ?(data=[]) ~children () =
+let h5 ?id ?class_ ?tabindex ?onclick:_ ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
     |> add_int "tabindex" tabindex
     |> add_data data
+    |> add_attrs attrs
   in
   element "h5" attrs children
 
-let h6 ?id ?class_ ?tabindex ?onclick:_ ?(data=[]) ~children () =
+let h6 ?id ?class_ ?tabindex ?onclick:_ ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
     |> add_int "tabindex" tabindex
     |> add_data data
+    |> add_attrs attrs
   in
   element "h6" attrs children
 
 (** Inline text *)
-let a ?id ?class_ ?href ?target ?rel ?download ?hreflang ?tabindex ?onclick:_ ?(data=[]) ~children () =
+let a ?id ?class_ ?href ?target ?rel ?download ?hreflang ?tabindex ?onclick:_ ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
@@ -372,94 +426,127 @@ let a ?id ?class_ ?href ?target ?rel ?download ?hreflang ?tabindex ?onclick:_ ?(
     |> add_opt "hreflang" hreflang
     |> add_int "tabindex" tabindex
     |> add_data data
+    |> add_attrs attrs
   in
   element "a" attrs children
 
-let strong ?id ?class_ ~children () =
-  let attrs = [] |> add_opt "id" id |> add_opt "class" class_ in
+let strong ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = [] 
+    |> add_opt "id" id 
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
   element "strong" attrs children
 
-let em ?id ?class_ ~children () =
-  let attrs = [] |> add_opt "id" id |> add_opt "class" class_ in
+let em ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = [] 
+    |> add_opt "id" id 
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
   element "em" attrs children
 
-let br () = element "br" ~self_closing:true [] []
+let br ?(attrs=[]) () =
+  element "br" ~self_closing:true attrs []
 
-let hr ?class_ () =
-  let attrs = [] |> add_opt "class" class_ in
+let hr ?class_ ?(attrs=[]) () =
+  let attrs = [] 
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
   element "hr" ~self_closing:true attrs []
 
 (** Lists *)
-let ul ?id ?class_ ?role ?(data=[]) ~children () =
+let ul ?id ?class_ ?role ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
     |> add_opt "role" role
     |> add_data data
+    |> add_attrs attrs
   in
   element "ul" attrs children
 
-let ol ?id ?class_ ?start ?role ?(data=[]) ~children () =
+let ol ?id ?class_ ?start ?role ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = [] 
     |> add_opt "id" id 
     |> add_opt "class" class_
     |> add_opt "start" (Option.map string_of_int start)
     |> add_opt "role" role
     |> add_data data
+    |> add_attrs attrs
   in
   element "ol" attrs children
 
-let li ?id ?class_ ?role ?onclick:_ ?(data=[]) ~children () =
+let li ?id ?class_ ?role ?onclick:_ ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
     |> add_opt "role" role
     |> add_data data
+    |> add_attrs attrs
   in
   element "li" attrs children
 
 (** Tables *)
-let table ?id ?class_ ~children () =
-  let attrs = [] |> add_opt "id" id |> add_opt "class" class_ in
+let table ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = [] 
+    |> add_opt "id" id 
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
   element "table" attrs children
 
-let thead ~children () = element "thead" [] children
-let tbody ~children () = element "tbody" [] children
-let tfoot ~children () = element "tfoot" [] children
+let thead ?(attrs=[]) ~children () =
+  element "thead" attrs children
 
-let tr ?class_ ~children () =
-  let attrs = [] |> add_opt "class" class_ in
+let tbody ?(attrs=[]) ~children () =
+  element "tbody" attrs children
+
+let tfoot ?(attrs=[]) ~children () =
+  element "tfoot" attrs children
+
+let tr ?class_ ?(attrs=[]) ~children () =
+  let attrs = [] 
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
   element "tr" attrs children
 
-let th ?class_ ?scope ?colspan ?rowspan ~children () =
+let th ?class_ ?scope ?colspan ?rowspan ?(attrs=[]) ~children () =
   let attrs = [] 
     |> add_opt "class" class_
     |> add_opt "scope" scope
     |> add_opt "colspan" (Option.map string_of_int colspan)
     |> add_opt "rowspan" (Option.map string_of_int rowspan)
+    |> add_attrs attrs
   in
   element "th" attrs children
 
-let td ?class_ ?colspan ?rowspan ~children () =
+let td ?class_ ?colspan ?rowspan ?(attrs=[]) ~children () =
   let attrs = [] 
     |> add_opt "class" class_
     |> add_opt "colspan" (Option.map string_of_int colspan)
     |> add_opt "rowspan" (Option.map string_of_int rowspan)
+    |> add_attrs attrs
   in
   element "td" attrs children
 
 (** Forms *)
-let form ?id ?class_ ?action ?method_ ?enctype ?onsubmit:_ ~children () =
+let form ?id ?class_ ?action ?method_ ?enctype ?onsubmit:_ ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
     |> add_opt "action" action
     |> add_opt "method" method_
     |> add_opt "enctype" enctype
+    |> add_attrs attrs
   in
   element "form" attrs children
 
-let input ?id ?class_ ?type_ ?name ?value ?placeholder ?accept ?min ?max ?step ?(required=false) ?(disabled=false) ?(checked=false) ?(autofocus=false) ?(readonly=false) ?tabindex ?oninput:_ ?onchange:_ ?onkeydown:_ ?(data=[]) () =
+let input ?id ?class_ ?type_ ?name ?value ?placeholder ?accept ?min ?max ?step
+    ?(required=false) ?(disabled=false) ?(checked=false) ?(autofocus=false) ?(readonly=false)
+    ?tabindex ?oninput:_ ?onchange:_ ?onkeydown:_ ?(data=[]) ?(attrs=[]) () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
@@ -478,10 +565,11 @@ let input ?id ?class_ ?type_ ?name ?value ?placeholder ?accept ?min ?max ?step ?
     |> add_bool "readonly" readonly
     |> add_int "tabindex" tabindex
     |> add_data data
+    |> add_attrs attrs
   in
   element "input" ~self_closing:true attrs []
 
-let textarea ?id ?class_ ?name ?placeholder ?rows ?cols ?(required=false) ?(disabled=false) ?(autofocus=false) ?(readonly=false) ?tabindex ?oninput:_ ?(data=[]) ~children () =
+let textarea ?id ?class_ ?name ?placeholder ?rows ?cols ?(required=false) ?(disabled=false) ?(autofocus=false) ?(readonly=false) ?tabindex ?oninput:_ ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
@@ -495,10 +583,11 @@ let textarea ?id ?class_ ?name ?placeholder ?rows ?cols ?(required=false) ?(disa
     |> add_bool "readonly" readonly
     |> add_int "tabindex" tabindex
     |> add_data data
+    |> add_attrs attrs
   in
   element "textarea" attrs children
 
-let select ?id ?class_ ?name ?(required=false) ?(disabled=false) ?(multiple=false) ?(autofocus=false) ?tabindex ?onchange:_ ?(data=[]) ~children () =
+let select ?id ?class_ ?name ?(required=false) ?(disabled=false) ?(multiple=false) ?(autofocus=false) ?tabindex ?onchange:_ ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
@@ -509,26 +598,29 @@ let select ?id ?class_ ?name ?(required=false) ?(disabled=false) ?(multiple=fals
     |> add_bool "autofocus" autofocus
     |> add_int "tabindex" tabindex
     |> add_data data
+    |> add_attrs attrs
   in
   element "select" attrs children
 
-let option ?value ?(selected=false) ?(disabled=false) ~children () =
+let option ?value ?(selected=false) ?(disabled=false) ?(attrs=[]) ~children () =
   let attrs = [] 
     |> add_opt "value" value
     |> add_bool "selected" selected
     |> add_bool "disabled" disabled
+    |> add_attrs attrs
   in
   element "option" attrs children
 
-let label ?id ?class_ ?for_ ~children () =
+let label ?id ?class_ ?for_ ?(attrs=[]) ~children () =
   let attrs = [] 
     |> add_opt "id" id 
     |> add_opt "class" class_
     |> add_opt "for" for_
+    |> add_attrs attrs
   in
   element "label" attrs children
 
-let button ?id ?class_ ?type_ ?(disabled=false) ?tabindex ?aria_label ?aria_expanded ?aria_controls ?aria_haspopup ?onclick:_ ?(data=[]) ~children () =
+let button ?id ?class_ ?type_ ?(disabled=false) ?tabindex ?aria_label ?aria_expanded ?aria_controls ?aria_haspopup ?onclick:_ ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
@@ -540,21 +632,24 @@ let button ?id ?class_ ?type_ ?(disabled=false) ?tabindex ?aria_label ?aria_expa
     |> add_opt "aria-controls" aria_controls
     |> add_opt "aria-haspopup" (Option.map string_of_bool aria_haspopup)
     |> add_data data
+    |> add_attrs attrs
   in
   element "button" attrs children
 
-let fieldset ?id ?class_ ?(disabled=false) ~children () =
+let fieldset ?id ?class_ ?(disabled=false) ?(attrs=[]) ~children () =
   let attrs = [] 
     |> add_opt "id" id 
     |> add_opt "class" class_
     |> add_bool "disabled" disabled
+    |> add_attrs attrs
   in
   element "fieldset" attrs children
 
-let legend ~children () = element "legend" [] children
+let legend ?(attrs=[]) ~children () =
+  element "legend" attrs children
 
 (** Media *)
-let img ?id ?class_ ?src ?alt ?width ?height ?loading ?srcset ?sizes ?(data=[]) () =
+let img ?id ?class_ ?src ?alt ?width ?height ?loading ?srcset ?sizes ?(data=[]) ?(attrs=[]) () =
   let attrs = [] 
     |> add_opt "id" id 
     |> add_opt "class" class_
@@ -566,10 +661,11 @@ let img ?id ?class_ ?src ?alt ?width ?height ?loading ?srcset ?sizes ?(data=[]) 
     |> add_opt "srcset" srcset
     |> add_opt "sizes" sizes
     |> add_data data
+    |> add_attrs attrs
   in
   element "img" ~self_closing:true attrs []
 
-let video ?id ?class_ ?src ?(controls=false) ?(autoplay=false) ?(loop=false) ?(muted=false) ?poster ~children () =
+let video ?id ?class_ ?src ?(controls=false) ?(autoplay=false) ?(loop=false) ?(muted=false) ?poster ?(attrs=[]) ~children () =
   let attrs = [] 
     |> add_opt "id" id 
     |> add_opt "class" class_
@@ -579,10 +675,11 @@ let video ?id ?class_ ?src ?(controls=false) ?(autoplay=false) ?(loop=false) ?(m
     |> add_bool "autoplay" autoplay
     |> add_bool "loop" loop
     |> add_bool "muted" muted
+    |> add_attrs attrs
   in
   element "video" attrs children
 
-let audio ?id ?class_ ?src ?(controls=false) ?(autoplay=false) ?(loop=false) ?(muted=false) ~children () =
+let audio ?id ?class_ ?src ?(controls=false) ?(autoplay=false) ?(loop=false) ?(muted=false) ?(attrs=[]) ~children () =
   let attrs = [] 
     |> add_opt "id" id 
     |> add_opt "class" class_
@@ -591,14 +688,19 @@ let audio ?id ?class_ ?src ?(controls=false) ?(autoplay=false) ?(loop=false) ?(m
     |> add_bool "autoplay" autoplay
     |> add_bool "loop" loop
     |> add_bool "muted" muted
+    |> add_attrs attrs
   in
   element "audio" attrs children
 
-let source ?src ?type_ () =
-  let attrs = [] |> add_opt "src" src |> add_opt "type" type_ in
+let source ?src ?type_ ?(attrs=[]) () =
+  let attrs = [] 
+    |> add_opt "src" src 
+    |> add_opt "type" type_
+    |> add_attrs attrs
+  in
   element "source" ~self_closing:true attrs []
 
-let iframe ?id ?class_ ?src ?width ?height ?title () =
+let iframe ?id ?class_ ?src ?width ?height ?title ?(attrs=[]) () =
   let attrs = [] 
     |> add_opt "id" id 
     |> add_opt "class" class_
@@ -606,13 +708,14 @@ let iframe ?id ?class_ ?src ?width ?height ?title () =
     |> add_opt "width" width
     |> add_opt "height" height
     |> add_opt "title" title
+    |> add_attrs attrs
   in
   element "iframe" attrs []
 
 (** {1 SVG Elements} *)
 
 module Svg = struct
-  let svg ?(xmlns=true) ?id ?class_ ?style ?viewBox ?width ?height ?fill ?onclick:_ ~children () =
+  let svg ?(xmlns=true) ?id ?class_ ?style ?viewBox ?width ?height ?fill ?onclick:_ ?(attrs=[]) ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -621,11 +724,12 @@ module Svg = struct
       |> add_opt "width" width
       |> add_opt "height" height
       |> add_opt "fill" fill
+      |> add_attrs attrs
     in
     let attrs = if xmlns then ("xmlns", svg_namespace) :: attrs else attrs in
     element "svg" attrs children
 
-  let g ?id ?class_ ?style ?transform ?fill ?stroke ?onclick:_ ~children () =
+  let g ?id ?class_ ?style ?transform ?fill ?stroke ?onclick:_ ?(attrs=[]) ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -633,10 +737,11 @@ module Svg = struct
       |> add_opt "transform" transform
       |> add_opt "fill" fill
       |> add_opt "stroke" stroke
+      |> add_attrs attrs
     in
     element "g" attrs children
 
-  let circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick:_ ~children () =
+  let circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick:_ ?(attrs=[]) ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -649,10 +754,11 @@ module Svg = struct
       |> add_opt "stroke-width" stroke_width
       |> add_opt "stroke-linecap" stroke_linecap
       |> add_opt "stroke-linejoin" stroke_linejoin
+      |> add_attrs attrs
     in
     element "circle" attrs children
 
-  let ellipse ?id ?class_ ?style ?cx ?cy ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick:_ ~children () =
+  let ellipse ?id ?class_ ?style ?cx ?cy ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick:_ ?(attrs=[]) ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -666,10 +772,11 @@ module Svg = struct
       |> add_opt "stroke-width" stroke_width
       |> add_opt "stroke-linecap" stroke_linecap
       |> add_opt "stroke-linejoin" stroke_linejoin
+      |> add_attrs attrs
     in
     element "ellipse" attrs children
 
-  let rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick:_ ~children () =
+  let rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick:_ ?(attrs=[]) ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -685,10 +792,11 @@ module Svg = struct
       |> add_opt "stroke-width" stroke_width
       |> add_opt "stroke-linecap" stroke_linecap
       |> add_opt "stroke-linejoin" stroke_linejoin
+      |> add_attrs attrs
     in
     element "rect" attrs children
 
-  let line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick:_ ~children () =
+  let line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick:_ ?(attrs=[]) ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -701,10 +809,11 @@ module Svg = struct
       |> add_opt "stroke-width" stroke_width
       |> add_opt "stroke-linecap" stroke_linecap
       |> add_opt "stroke-linejoin" stroke_linejoin
+      |> add_attrs attrs
     in
     element "line" attrs children
 
-  let polyline ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick:_ ~children () =
+  let polyline ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick:_ ?(attrs=[]) ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -715,10 +824,11 @@ module Svg = struct
       |> add_opt "stroke-width" stroke_width
       |> add_opt "stroke-linecap" stroke_linecap
       |> add_opt "stroke-linejoin" stroke_linejoin
+      |> add_attrs attrs
     in
     element "polyline" attrs children
 
-  let polygon ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick:_ ~children () =
+  let polygon ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick:_ ?(attrs=[]) ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -729,10 +839,11 @@ module Svg = struct
       |> add_opt "stroke-width" stroke_width
       |> add_opt "stroke-linecap" stroke_linecap
       |> add_opt "stroke-linejoin" stroke_linejoin
+      |> add_attrs attrs
     in
     element "polygon" attrs children
 
-  let path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?fill_rule ?clip_rule ?onclick:_ ~children () =
+  let path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?fill_rule ?clip_rule ?onclick:_ ?(attrs=[]) ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -745,10 +856,11 @@ module Svg = struct
       |> add_opt "stroke-linejoin" stroke_linejoin
       |> add_opt "fill-rule" fill_rule
       |> add_opt "clip-rule" clip_rule
+      |> add_attrs attrs
     in
     element "path" attrs children
 
-  let text_ ?id ?class_ ?style ?x ?y ?dx ?dy ?text_anchor ?font_size ?font_family ?fill ?stroke ?stroke_width ?onclick:_ ~children () =
+  let text_ ?id ?class_ ?style ?x ?y ?dx ?dy ?text_anchor ?font_size ?font_family ?fill ?stroke ?stroke_width ?onclick:_ ?(attrs=[]) ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -763,10 +875,11 @@ module Svg = struct
       |> add_opt "fill" fill
       |> add_opt "stroke" stroke
       |> add_opt "stroke-width" stroke_width
+      |> add_attrs attrs
     in
     element "text" attrs children
 
-  let tspan ?id ?class_ ?x ?y ?dx ?dy ?fill ?onclick:_ ~children () =
+  let tspan ?id ?class_ ?x ?y ?dx ?dy ?fill ?onclick:_ ?(attrs=[]) ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -775,14 +888,18 @@ module Svg = struct
       |> add_opt "dx" dx
       |> add_opt "dy" dy
       |> add_opt "fill" fill
+      |> add_attrs attrs
     in
     element "tspan" attrs children
 
-  let defs ?id ~children () =
-    let attrs = [] |> add_opt "id" id in
+  let defs ?id ?(attrs=[]) ~children () =
+    let attrs = [] 
+      |> add_opt "id" id 
+      |> add_attrs attrs
+    in
     element "defs" attrs children
 
-  let use ?id ?class_ ?href ?x ?y ?width ?height ?onclick:_ () =
+  let use ?id ?class_ ?href ?x ?y ?width ?height ?onclick:_ ?(attrs=[]) () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -791,25 +908,33 @@ module Svg = struct
       |> add_opt "y" y
       |> add_opt "width" width
       |> add_opt "height" height
+      |> add_attrs attrs
     in
     element "use" ~self_closing:true attrs []
 
-  let symbol ?id ?viewBox ~children () =
+  let symbol ?id ?viewBox ?(attrs=[]) ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "viewBox" viewBox
+      |> add_attrs attrs
     in
     element "symbol" attrs children
 
-  let clipPath ?id ~children () =
-    let attrs = [] |> add_opt "id" id in
+  let clipPath ?id ?(attrs=[]) ~children () =
+    let attrs = [] 
+      |> add_opt "id" id 
+      |> add_attrs attrs
+    in
     element "clipPath" attrs children
 
-  let mask ?id ~children () =
-    let attrs = [] |> add_opt "id" id in
+  let mask ?id ?(attrs=[]) ~children () =
+    let attrs = [] 
+      |> add_opt "id" id 
+      |> add_attrs attrs
+    in
     element "mask" attrs children
 
-  let linearGradient ?id ?x1 ?y1 ?x2 ?y2 ?gradientUnits ?gradientTransform ~children () =
+  let linearGradient ?id ?x1 ?y1 ?x2 ?y2 ?gradientUnits ?gradientTransform ?(attrs=[]) ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "x1" x1
@@ -818,10 +943,11 @@ module Svg = struct
       |> add_opt "y2" y2
       |> add_opt "gradientUnits" gradientUnits
       |> add_opt "gradientTransform" gradientTransform
+      |> add_attrs attrs
     in
     element "linearGradient" attrs children
 
-  let radialGradient ?id ?cx ?cy ?r ?fx ?fy ?gradientUnits ?gradientTransform ~children () =
+  let radialGradient ?id ?cx ?cy ?r ?fx ?fy ?gradientUnits ?gradientTransform ?(attrs=[]) ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "cx" cx
@@ -831,18 +957,20 @@ module Svg = struct
       |> add_opt "fy" fy
       |> add_opt "gradientUnits" gradientUnits
       |> add_opt "gradientTransform" gradientTransform
+      |> add_attrs attrs
     in
     element "radialGradient" attrs children
 
-  let stop ?offset ?stop_color ?stop_opacity () =
+  let stop ?offset ?stop_color ?stop_opacity ?(attrs=[]) () =
     let attrs = []
       |> add_opt "offset" offset
       |> add_opt "stop-color" stop_color
       |> add_opt "stop-opacity" stop_opacity
+      |> add_attrs attrs
     in
     element "stop" ~self_closing:true attrs []
 
-  let image ?id ?class_ ?href ?x ?y ?width ?height ?preserveAspectRatio () =
+  let image ?id ?class_ ?href ?x ?y ?width ?height ?preserveAspectRatio ?(attrs=[]) () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -852,10 +980,11 @@ module Svg = struct
       |> add_opt "width" width
       |> add_opt "height" height
       |> add_opt "preserveAspectRatio" preserveAspectRatio
+      |> add_attrs attrs
     in
     element "image" ~self_closing:true attrs []
 
-  let foreignObject ?id ?class_ ?x ?y ?width ?height ~children () =
+  let foreignObject ?id ?class_ ?x ?y ?width ?height ?(attrs=[]) ~children () =
     let attrs = []
       |> add_opt "id" id
       |> add_opt "class" class_
@@ -863,39 +992,40 @@ module Svg = struct
       |> add_opt "y" y
       |> add_opt "width" width
       |> add_opt "height" height
+      |> add_attrs attrs
     in
     element "foreignObject" attrs children
 end
 
-let svg ?xmlns ?id ?class_ ?style ?viewBox ?width ?height ?fill ?onclick ~children () =
-  Svg.svg ?xmlns ?id ?class_ ?style ?viewBox ?width ?height ?fill ?onclick ~children ()
+let svg ?xmlns ?id ?class_ ?style ?viewBox ?width ?height ?fill ?onclick ?attrs ~children () =
+  Svg.svg ?xmlns ?id ?class_ ?style ?viewBox ?width ?height ?fill ?onclick ?attrs ~children ()
 
-let g ?id ?class_ ?style ?transform ?fill ?stroke ?onclick ~children () =
-  Svg.g ?id ?class_ ?style ?transform ?fill ?stroke ?onclick ~children ()
+let g ?id ?class_ ?style ?transform ?fill ?stroke ?onclick ?attrs ~children () =
+  Svg.g ?id ?class_ ?style ?transform ?fill ?stroke ?onclick ?attrs ~children ()
 
-let circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children () =
-  Svg.circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children ()
+let circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ?attrs ~children () =
+  Svg.circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ?attrs ~children ()
 
-let ellipse ?id ?class_ ?style ?cx ?cy ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children () =
-  Svg.ellipse ?id ?class_ ?style ?cx ?cy ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children ()
+let ellipse ?id ?class_ ?style ?cx ?cy ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ?attrs ~children () =
+  Svg.ellipse ?id ?class_ ?style ?cx ?cy ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ?attrs ~children ()
 
-let rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children () =
-  Svg.rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children ()
+let rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ?attrs ~children () =
+  Svg.rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ?attrs ~children ()
 
-let line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children () =
-  Svg.line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children ()
+let line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ?attrs ~children () =
+  Svg.line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ?attrs ~children ()
 
-let polyline ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children () =
-  Svg.polyline ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children ()
+let polyline ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ?attrs ~children () =
+  Svg.polyline ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ?attrs ~children ()
 
-let polygon ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children () =
-  Svg.polygon ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ~children ()
+let polygon ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ?attrs ~children () =
+  Svg.polygon ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ?attrs ~children ()
 
-let path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?fill_rule ?clip_rule ?onclick ~children () =
-  Svg.path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?fill_rule ?clip_rule ?onclick ~children ()
+let path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?fill_rule ?clip_rule ?onclick ?attrs ~children () =
+  Svg.path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?fill_rule ?clip_rule ?onclick ?attrs ~children ()
 
-let text_ ?id ?class_ ?style ?x ?y ?dx ?dy ?text_anchor ?font_size ?font_family ?fill ?stroke ?stroke_width ?onclick ~children () =
-  Svg.text_ ?id ?class_ ?style ?x ?y ?dx ?dy ?text_anchor ?font_size ?font_family ?fill ?stroke ?stroke_width ?onclick ~children ()
+let text_ ?id ?class_ ?style ?x ?y ?dx ?dy ?text_anchor ?font_size ?font_family ?fill ?stroke ?stroke_width ?onclick ?attrs ~children () =
+  Svg.text_ ?id ?class_ ?style ?x ?y ?dx ?dy ?text_anchor ?font_size ?font_family ?fill ?stroke ?stroke_width ?onclick ?attrs ~children ()
 
 (** Fragment *)
 let fragment nodes = Fragment nodes
