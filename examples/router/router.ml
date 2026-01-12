@@ -11,10 +11,46 @@
       dune exec examples/router/router.exe
 *)
 
-open Solid_ml_ssr
-open Solid_ml_router
+ open Solid_ml_ssr
+ open Solid_ml_router
 
-(** {1 Page Components} *)
+ (** {1 Common Helper Patterns} *)
+
+ (** Result type for safe parameter extraction *)
+type ('a, 'e) result =
+  | Ok of 'a
+  | Error of 'e
+
+let use_param_safe param_name =
+  match Router.use_param param_name with
+  | Some v -> Ok v
+  | None -> Error ("Missing parameter: " ^ param_name)
+
+ (** {1 Data Loading Pattern}
+
+   Shows how to handle data loading with error states.
+   In a real app, this would fetch from a database or API. *)
+
+type user = {
+  id : string;
+  name : string;
+  email : string;
+}
+
+let fake_users = [
+  ("alice", { id = "alice"; name = "Alice Johnson"; email = "alice@example.com" });
+  ("bob", { id = "bob"; name = "Bob Smith"; email = "bob@example.com" });
+  ("charlie", { id = "charlie"; name = "Charlie Brown"; email = "charlie@example.com" });
+]
+
+let fetch_user username =
+  try
+    let user = List.assoc username fake_users in
+    Ok user
+  with Not_found ->
+    Error ("User not found: " ^ username)
+
+ (** {1 Page Components} *)
 
 (** Home page *)
 let home_page () =
@@ -44,18 +80,64 @@ let users_page () =
     ] ()
   )
 
-(** User profile page - uses route params *)
+(** User profile page - uses route params with error handling *)
 let user_profile_page () =
-  let username = Router.use_param "username" |> Option.value ~default:"unknown" in
-  Html.(
-    div ~class_:"page" ~children:[
-      h2 ~children:[text ("User: " ^ username)] ();
-      p ~children:[text ("This is " ^ username ^ "'s profile page.")] ();
-      p ~children:[
-        Components.link ~href:"/users" ~children:[text "Back to users list"] ()
-      ] ();
-    ] ()
-  )
+  match use_param_safe "username" with
+  | Error msg ->
+    Html.(
+      div ~class_:"page error" ~children:[
+        h2 ~children:[text "Error"] ();
+        p ~children:[text msg] ();
+        p ~children:[
+          Components.link ~href:"/users" ~children:[text "Back to users list"] ()
+      )
+      )
+
+  | Ok username ->
+    match fetch_user username with
+    | Error err ->
+      Html.(
+        div ~class_:"page error" ~children:[
+          h2 ~children:[text "User Not Found"] ();
+          p ~children:[text err] ();
+          p ~children:[
+            Components.link ~href:"/users" ~children:[text "Back to users list"] ()
+          ] ()
+         )
+     | Ok user ->
+      Html.(
+        div ~class_:"page" ~children:[
+          h2 ~children:[text user.name] ();
+          p ~children:[text ("ID: " ^ user.id)] ();
+          p ~children:[text ("Email: " ^ user.email)] ();
+          p ~children:[
+            Components.link ~href:"/users" ~children:[text "Back to users list"] ()
+          ] ();
+        ] ()
+      )
+
+    | Ok user ->
+      Html.(
+        div ~class_:"page" ~children:[
+          h2 ~children:[text user.name] ();
+          p ~children:[text ("ID: " ^ user.id)] ();
+          p ~children:[text ("Email: " ^ user.email)] ();
+          p ~children:[
+            Components.link ~href:"/users" ~children:[text "Back to users list"] ()
+          ] ()
+        )
+
+    | Ok user ->
+      Html.(
+        div ~class_:"page" ~children:[
+          h2 ~children:[text user.name] ();
+          p ~children:[text ("ID: " ^ user.id)] ();
+          p ~children:[text ("Email: " ^ user.email)] ();
+          p ~children:[
+            Components.link ~href:"/users" ~children:[text "Back to users list"] ()
+          ] ();
+        ] ()
+      )
 
 (** About page *)
 let about_page () =
@@ -118,7 +200,36 @@ let not_found_page () =
     ] ()
   )
 
-(** {1 Route Definitions} *)
+ (** Protected route example - shows authentication guard pattern *)
+let admin_page () =
+  (* In a real app, check authentication state *)
+  (* This demonstrates the pattern of redirecting unauthenticated users *)
+  let is_authenticated = false in
+
+  if not is_authenticated then
+    Html.(
+      div ~class_:"page error" ~children:[
+        h2 ~children:[text "Authentication Required"] ();
+        p ~children:[text "You must be logged in to access the admin panel."] ();
+        p ~children:[
+          Components.link ~href:"/login" ~children:[text "Go to login"] ()
+        ] ();
+      ] ()
+    )
+  else
+    Html.(
+      div ~class_:"page" ~children:[
+        h2 ~children:[text "Admin Panel"] ();
+        p ~children:[text "Welcome, administrator!"] ();
+        ul ~children:[
+          li ~children:[text "User Management"] ();
+          li ~children:[text "System Settings"] ();
+          li ~children:[text "Logs and Monitoring"] ();
+        ] ();
+      ] ()
+    )
+
+ (** {1 Route Definitions} *)
 
 (** Define routes with their patterns and associated components *)
 let routes : (unit -> Html.node) Route.t list = [
@@ -127,6 +238,7 @@ let routes : (unit -> Html.node) Route.t list = [
   Route.create ~path:"/users/:username" ~data:user_profile_page;
   Route.create ~path:"/about" ~data:about_page;
   Route.create ~path:"/docs/*" ~data:docs_page;
+  Route.create ~path:"/admin" ~data:admin_page;
 ]
 
 (** {1 Layout} *)
@@ -137,6 +249,7 @@ let nav_bar () =
     nav ~class_:"nav" ~children:[
       Components.nav_link ~href:"/" ~exact:true ~children:[text "Home"] ();
       Components.nav_link ~href:"/users" ~children:[text "Users"] ();
+      Components.nav_link ~href:"/admin" ~children:[text "Admin"] ();
       Components.nav_link ~href:"/about" ~children:[text "About"] ();
       Components.nav_link ~href:"/docs" ~children:[text "Docs"] ();
     ] ()
@@ -177,6 +290,7 @@ let () =
     "/docs";
     "/docs/getting-started";
     "/docs/router/basics";
+    "/admin";
     "/unknown-page";
     "/users/bob?tab=posts#section2";
   ] in
@@ -235,5 +349,20 @@ let () =
     | None ->
       Printf.printf "Path '%s' -> no match (404)\n" path
   ) match_examples;
-  
+
+  print_endline "\n=== Router Patterns ===\n";
+  print_endline "Protected Routes:";
+  print_endline "  Check authentication state in the page component";
+  print_endline "  Redirect to login if not authenticated";
+  print_endline "";
+  print_endline "Data Loading:";
+  print_endline "  Use Result type for safe parameter extraction";
+  print_endline "  Match on Result to handle errors gracefully";
+  print_endline "  Show different views for Loading/Error/Success states";
+  print_endline "";
+  print_endline "Route Types:";
+  print_endline "  Static: '/about' - exact match";
+  print_endline "  Param: '/users/:id' - extracts parameter";
+  print_endline "  Wildcard: '/docs/*' - captures everything after /docs/";
+
   print_endline "\n=== Router example completed! ==="

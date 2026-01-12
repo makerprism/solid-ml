@@ -65,28 +65,28 @@ let get_or_create_text_node key initial_value =
 
 let reactive_text signal =
   let key = Hydration.next_hydration_key () in
-  let initial = string_of_int (Reactive_core.read_typed_signal signal) in
+  let initial = string_of_int (Reactive_core.get_signal signal) in
   let txt = get_or_create_text_node key initial in
   Reactive_core.create_effect (fun () ->
-    text_set_data txt (string_of_int (Reactive_core.read_typed_signal signal))
+    text_set_data txt (string_of_int (Reactive_core.get_signal signal))
   );
   Text txt
 
 let reactive_text_of fmt signal =
   let key = Hydration.next_hydration_key () in
-  let initial = fmt (Reactive_core.read_typed_signal signal) in
+  let initial = fmt (Reactive_core.get_signal signal) in
   let txt = get_or_create_text_node key initial in
   Reactive_core.create_effect (fun () ->
-    text_set_data txt (fmt (Reactive_core.read_typed_signal signal))
+    text_set_data txt (fmt (Reactive_core.get_signal signal))
   );
   Text txt
 
 let reactive_text_string signal =
   let key = Hydration.next_hydration_key () in
-  let initial = Reactive_core.read_typed_signal signal in
+  let initial = Reactive_core.get_signal signal in
   let txt = get_or_create_text_node key initial in
   Reactive_core.create_effect (fun () ->
-    text_set_data txt (Reactive_core.read_typed_signal signal)
+    text_set_data txt (Reactive_core.get_signal signal)
   );
   Text txt
   

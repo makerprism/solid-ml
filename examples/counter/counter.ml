@@ -26,34 +26,33 @@ let counter_example () =
   run_example "Counter Example" (fun () ->
     (* Create a signal for the count *)
     let count, set_count = Signal.create 0 in
-    
-    (* Create a memo for doubled value *)
-    let doubled = Memo.create (fun () ->
-      Signal.get count * 2
-    ) in
-    
-    (* Create a memo for a formatted message *)
-    let message = Memo.create (fun () ->
+
+    (* Idiomatic: use plain function for simple derived state *)
+    (* Only use Memo.create for expensive computations that need explicit caching *)
+    let doubled () = Signal.get count * 2 in
+
+    (* Derived computation combining signals and other derived values *)
+    let message () =
       let c = Signal.get count in
-      let d = Memo.get doubled in
+      let d = doubled () in
       Printf.sprintf "Count: %d, Doubled: %d" c d
-    ) in
-    
+    in
+
     (* Effect that prints whenever the message changes *)
     Effect.create (fun () ->
-      print_endline (Memo.get message)
+      print_endline (message ())
     );
-    
+
     (* Increment the counter *)
     print_endline "\n[Incrementing...]";
     set_count 1;
-    
+
     print_endline "\n[Incrementing...]";
     set_count 2;
-    
+
     print_endline "\n[Setting to 10...]";
     Signal.set count 10;
-    
+
     print_endline "\n[Using update function...]";
     Signal.update count (fun n -> n + 5)
   )
@@ -159,27 +158,46 @@ let batch_example () =
   run_example "Batch Example" (fun () ->
     let first_name, set_first = Signal.create "John" in
     let last_name, set_last = Signal.create "Doe" in
-    
+
     let effect_count = ref 0 in
-    
-    let full_name = Memo.create (fun () ->
+
+    (* Idiomatic: use plain function for simple derived state *)
+    let full_name () =
       Signal.get first_name ^ " " ^ Signal.get last_name
-    ) in
-    
+    in
+
     Effect.create (fun () ->
       incr effect_count;
-      print_endline (Printf.sprintf "[Run %d] Full name: %s" !effect_count (Memo.get full_name))
+      print_endline (Printf.sprintf "[Run %d] Full name: %s" !effect_count (full_name ()))
     );
-    
+
     print_endline "\n[Without batch - two separate updates:]";
     set_first "Jane";
     set_last "Smith";
-    
+
     print_endline "\n[With batch - single update:]";
     Batch.run (fun () ->
       set_first "Bob";
       set_last "Johnson"
-    )
+    );
+
+    print_endline "";
+    print_endline "Use Batch.run when:";
+    print_endline "  - Updating multiple signals that should trigger effects once";
+    print_endline "  - Doing bulk operations (arrays, lists, forms)";
+    print_endline "  - Preventing unnecessary intermediate re-renders";
+    print_endline "";
+    print_endline "Common patterns:";
+    print_endline "  Batch.run (fun () ->";
+    print_endline "    set_loading true;";
+    print_endline "    set_error None;";
+    print_endline "    async_request ()";
+    print_endline "  );";
+    print_endline "";
+    print_endline "  Batch.run (fun () ->";
+    print_endline "    update_multiple_form_fields ();";
+    print_endline "    set_dirty true";
+    print_endline "  );"
   )
 
 (** Main entry point *)
