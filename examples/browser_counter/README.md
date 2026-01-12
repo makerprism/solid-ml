@@ -7,13 +7,12 @@ This example demonstrates solid-ml-browser running in the browser, compiled to J
 ```bash
 # From the repository root:
 
-# 1. One-time setup (installs Melange via esy)
-make setup
-
-# 2. Build the example
+# 1. Build the example
 make example-browser
 
-# 3. Open in browser (URL shown after build)
+# 2. Serve and open in browser
+make serve
+# Then open http://localhost:8000/browser_counter/
 ```
 
 ## What This Example Shows
@@ -43,6 +42,6 @@ browser_counter/
 
 ## Notes
 
-- Requires [esy](https://esy.sh/) for Melange: `npm install -g esy`
+- Requires Node.js for esbuild bundling
 - The compiled JavaScript uses ES6 modules
 - All reactive updates happen automatically when signals change

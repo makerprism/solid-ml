@@ -6,7 +6,7 @@
 ; - Hydration of server-rendered HTML
 ; - Uses shared reactive core with browser-specific backend
 ;
-; To build: esy install && esy build
+; To build: dune build lib/solid-ml-browser
 
 (library
  (name solid_ml_browser)

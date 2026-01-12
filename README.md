@@ -265,30 +265,35 @@ dune exec examples/router/router.exe
 dune exec examples/parallel/parallel.exe
 ```
 
-### Web Server Examples (require Dream: `opam install dream`)
+### Web Server Examples (require Dream)
+
+The SSR server examples require Dream and are disabled by default to keep the core library dependencies minimal.
 
 ```bash
-# SSR server with routing
+# SSR server with routing (requires dream)
 dune exec examples/ssr_server/server.exe
 
-# Full SSR app with hydration
-dune exec examples/full_ssr_app/server.exe
+# Full SSR app with hydration (requires dream)
+make example-full-ssr
 
-# SSR API demo
-dune exec examples/ssr_api_app/server.exe
+# SSR API demo (requires dream)
+make example-ssr-api
 ```
 
-### Browser Examples (require Melange: `esy install && esy build`)
+### Browser Examples
 
 ```bash
-# Browser counter with client-side reactivity
-# See examples/browser_counter/
+# Build browser examples
+make browser-examples
 
-# Browser router with client-side navigation
-# See examples/browser_router/
+# Serve and open http://localhost:8000
+make serve
+```
 
-# JS Framework Benchmark
-# See examples/js_framework_benchmark/
+See also:
+- `examples/browser_counter/` - Browser counter with client-side reactivity
+- `examples/browser_router/` - Browser router with client-side navigation
+- `examples/js_framework_benchmark/` - JS Framework Benchmark
 ```
 
 ## Building
@@ -305,8 +310,8 @@ dune runtest
 
 - **OCaml 5.0+** (uses Domain-local storage for thread safety)
 - **dune 3.16+** with Melange support (`(using melange 0.1)`)
-- **For browser builds:** Melange 3.0+ (via `esy` or `opam install melange`)
-- **For web servers:** Dream (optional, `opam install dream`)
+- **For browser builds:** Node.js (for esbuild bundling)
+- **For web server examples:** Dream (not included - see examples for reference code)
 
 ## Installation
 
@@ -389,7 +394,7 @@ solid-ml has comprehensive test coverage:
 Run tests with:
 ```bash
 dune runtest          # Native OCaml tests
-esy dune runtest      # Including Melange/browser tests
+make browser-tests    # Browser tests via Node.js
 ```
 
 ## Project Status

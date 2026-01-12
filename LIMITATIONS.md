@@ -27,18 +27,17 @@ All 5 development phases are complete. solid-ml has 217 tests passing.
 
 **Impact:** 
 - Server-side packages (`solid-ml`, `solid-ml-ssr`, `solid-ml-router`) work with standard OCaml
-- Browser package requires Melange 3.0+ installed via `esy` or opam
+- Browser package requires Melange 3.0+ (installed via dune package management)
 
-**Solution:** Use esy for browser builds:
+**Solution:** Melange is automatically installed via dune package management:
 ```bash
-esy install
-esy build
+dune build lib/solid-ml-browser
 ```
 
-Or install Melange via opam:
+For browser examples:
 ```bash
-opam install melange
-dune build
+make browser-examples
+make serve
 ```
 
 **Example browser code:**

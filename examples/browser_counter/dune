@@ -1,9 +1,9 @@
 ; Browser counter example - compiles to JavaScript via Melange
 ;
 ; To build and run:
-; 1. Install Melange: opam install melange
-; 2. Build: dune build @melange
-; 3. Open examples/browser_counter/index.html in a browser
+;   make example-browser
+;   make serve
+; Then open http://localhost:8000/browser_counter/ in a browser
 
 (melange.emit
  (target output)

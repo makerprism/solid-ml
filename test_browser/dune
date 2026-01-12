@@ -1,8 +1,9 @@
 ; Browser reactive core tests
 ;
 ; These tests verify the browser reactive implementation works correctly.
-; Run with: esy dune build @test_browser/melange
-;           esy sh -c 'node $cur__target_dir/default/test_browser/output/test_browser/test_reactive.js'
+; Run with: make browser-tests
+;   or: dune build @test_browser/melange
+;       node _build/default/test_browser/output/test_browser/test_reactive.js
 
 (melange.emit
  (target output)

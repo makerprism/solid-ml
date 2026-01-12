@@ -24,7 +24,7 @@ solid-ml is an OCaml framework for building reactive web applications with SSR, 
 ## Build Commands
 
 ```bash
-# Build all packages (without Melange)
+# Build all packages
 dune build
 
 # Run tests
@@ -33,12 +33,11 @@ dune runtest
 # Clean build artifacts
 dune clean
 
-# Build with esy (includes Melange for browser runtime)
-esy install
-esy build
+# Build browser examples (requires Node.js for esbuild bundling)
+make browser-examples
 
-# Run tests with esy
-esy dune runtest
+# Run browser tests
+make browser-tests
 ```
 
 ## Architecture
@@ -143,7 +142,6 @@ let read_typed_signal (type a) (s : a signal) : a =
 - [x] Render function (client-side from scratch)
 - [x] Hydrate function with text node adoption via hydration markers
 - [x] Browser counter example (`examples/browser_counter/`)
-- [x] Builds successfully with esy
 - [x] Browser reactive tests (14 tests via Node.js)
 
 **Phase 4: Router** (complete)

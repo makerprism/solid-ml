@@ -3,9 +3,10 @@
     These tests verify the shared reactive implementation works correctly
     when instantiated with the browser backend.
     
-    Run with:
-      esy dune build @test_browser/melange
-      esy sh -c 'node $cur__target_dir/default/test_browser/output/test_browser/test_reactive.js'
+    Run with: make browser-tests
+    Or directly:
+      dune build @test_browser/melange
+      node _build/default/test_browser/output/test_browser/test_reactive.js
 *)
 
 open Solid_ml_browser
