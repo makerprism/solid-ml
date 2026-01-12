@@ -90,9 +90,9 @@ let user_profile_page () =
         p ~children:[text msg] ();
         p ~children:[
           Components.link ~href:"/users" ~children:[text "Back to users list"] ()
-      )
-      )
-
+        ] ()
+      ] ()
+    )
   | Ok username ->
     match fetch_user username with
     | Error err ->
@@ -103,30 +103,8 @@ let user_profile_page () =
           p ~children:[
             Components.link ~href:"/users" ~children:[text "Back to users list"] ()
           ] ()
-         )
-     | Ok user ->
-      Html.(
-        div ~class_:"page" ~children:[
-          h2 ~children:[text user.name] ();
-          p ~children:[text ("ID: " ^ user.id)] ();
-          p ~children:[text ("Email: " ^ user.email)] ();
-          p ~children:[
-            Components.link ~href:"/users" ~children:[text "Back to users list"] ()
-          ] ();
         ] ()
       )
-
-    | Ok user ->
-      Html.(
-        div ~class_:"page" ~children:[
-          h2 ~children:[text user.name] ();
-          p ~children:[text ("ID: " ^ user.id)] ();
-          p ~children:[text ("Email: " ^ user.email)] ();
-          p ~children:[
-            Components.link ~href:"/users" ~children:[text "Back to users list"] ()
-          ] ()
-        )
-
     | Ok user ->
       Html.(
         div ~class_:"page" ~children:[
