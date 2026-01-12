@@ -1,6 +1,6 @@
 (library
  (name shared_components)
- (package solid-ml)
+ (package full_ssr_app)
  (modules platform_intf components)
  (libraries solid-ml)
  (modes byte native melange))

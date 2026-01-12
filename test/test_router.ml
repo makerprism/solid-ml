@@ -452,7 +452,7 @@ let test_router_provider () =
       Route.create ~path:"/users/:id" ~data:();
     ] in
     Runtime.run (fun () ->
-      Components.provide ~initial_path:"/users/123" ~routes (fun () ->
+      Components.Link.provide ~initial_path:"/users/123" ~routes (fun () ->
         let path = Router.use_path () in
         assert_equal path "/users/123"
       )
@@ -464,7 +464,7 @@ let test_router_provider () =
       Route.create ~path:"/users/:id" ~data:();
     ] in
     Runtime.run (fun () ->
-      Components.provide ~initial_path:"/users/456" ~routes (fun () ->
+      Components.Link.provide ~initial_path:"/users/456" ~routes (fun () ->
         let id = Router.use_param "id" in
         assert_equal id (Some "456")
       )
@@ -474,7 +474,7 @@ let test_router_provider () =
   test "provide parses query string" (fun () ->
     let routes = [Route.create ~path:"/search" ~data:()] in
     Runtime.run (fun () ->
-      Components.provide ~initial_path:"/search?q=test&page=2" ~routes (fun () ->
+      Components.Link.provide ~initial_path:"/search?q=test&page=2" ~routes (fun () ->
         (* Query parsing is tested via URL parsing tests *)
         let path = Router.use_path () in
         assert_equal path "/search"
@@ -488,7 +488,7 @@ let test_router_provider () =
       Route.create ~path:"/about" ~data:();
     ] in
     Runtime.run (fun () ->
-      Components.provide ~initial_path:"/" ~routes (fun () ->
+      Components.Link.provide ~initial_path:"/" ~routes (fun () ->
         assert_equal (Router.use_path ()) "/";
         Router.navigate "/about";
         assert_equal (Router.use_path ()) "/about"
@@ -512,8 +512,8 @@ let test_link_component () =
   
   test "link renders anchor tag" (fun () ->
     Runtime.run (fun () ->
-      Components.provide ~initial_path:"/" (fun () ->
-        let node = Components.link ~href:"/about" ~children:[Solid_ml_ssr.Html.text "About"] () in
+      Components.Link.provide ~initial_path:"/" (fun () ->
+        let node = Components.Link.link ~href:"/about" ~children:[Solid_ml_ssr.Html.text "About"] () in
         let html = Solid_ml_ssr.Html.to_string node in
         assert (String.length html > 0);
         assert (String.sub html 0 9 = "<a href=\"")
@@ -523,8 +523,8 @@ let test_link_component () =
   
   test "link with class" (fun () ->
     Runtime.run (fun () ->
-      Components.provide ~initial_path:"/" (fun () ->
-        let node = Components.link ~class_:"nav-link" ~href:"/about" ~children:[Solid_ml_ssr.Html.text "About"] () in
+      Components.Link.provide ~initial_path:"/" (fun () ->
+        let node = Components.Link.link ~class_:"nav-link" ~href:"/about" ~children:[Solid_ml_ssr.Html.text "About"] () in
         let html = Solid_ml_ssr.Html.to_string node in
         assert (String.length html > 0)
       )
@@ -533,8 +533,8 @@ let test_link_component () =
   
   test "nav_link adds active class when exact match" (fun () ->
     Runtime.run (fun () ->
-      Components.provide ~initial_path:"/about" (fun () ->
-        let node = Components.nav_link ~exact:true ~href:"/about" ~children:[Solid_ml_ssr.Html.text "About"] () in
+      Components.Link.provide ~initial_path:"/about" (fun () ->
+        let node = Components.Link.nav_link ~exact:true ~href:"/about" ~children:[Solid_ml_ssr.Html.text "About"] () in
         let html = Solid_ml_ssr.Html.to_string node in
         (* Should contain class="active" - class comes before href *)
         assert (String.length html > 0);
@@ -551,9 +551,9 @@ let test_link_component () =
   
   test "nav_link partial match (default)" (fun () ->
     Runtime.run (fun () ->
-      Components.provide ~initial_path:"/users/123" (fun () ->
+      Components.Link.provide ~initial_path:"/users/123" (fun () ->
         (* /users should be active when viewing /users/123 *)
-        let node = Components.nav_link ~href:"/users" ~children:[Solid_ml_ssr.Html.text "Users"] () in
+        let node = Components.Link.nav_link ~href:"/users" ~children:[Solid_ml_ssr.Html.text "Users"] () in
         let html = Solid_ml_ssr.Html.to_string node in
         (* Check that "active" appears in the output *)
         let has_active = ref false in
@@ -567,9 +567,9 @@ let test_link_component () =
   
   test "nav_link exact match does not match partial" (fun () ->
     Runtime.run (fun () ->
-      Components.provide ~initial_path:"/users/123" (fun () ->
+      Components.Link.provide ~initial_path:"/users/123" (fun () ->
         (* With exact=true, /users should NOT be active when viewing /users/123 *)
-        let node = Components.nav_link ~exact:true ~href:"/users" ~children:[Solid_ml_ssr.Html.text "Users"] () in
+        let node = Components.Link.nav_link ~exact:true ~href:"/users" ~children:[Solid_ml_ssr.Html.text "Users"] () in
         let html = Solid_ml_ssr.Html.to_string node in
         (* Should NOT have active class *)
         assert (String.sub html 0 9 = "<a href=\"")
@@ -591,8 +591,8 @@ let test_outlet_component () =
       Route.create ~path:"/about" ~data:about_component;
     ] in
     Runtime.run (fun () ->
-      Components.provide ~initial_path:"/" (fun () ->
-        let node = Components.outlet ~routes () in
+      Components.Link.provide ~initial_path:"/" (fun () ->
+        let node = Components.Link.outlet ~routes () in
         let html = Solid_ml_ssr.Html.to_string node in
         assert_equal html "Home Page"
       )
@@ -604,9 +604,9 @@ let test_outlet_component () =
       Route.create ~path:"/" ~data:(fun () -> Solid_ml_ssr.Html.text "Home");
     ] in
     Runtime.run (fun () ->
-      Components.provide ~initial_path:"/unknown" (fun () ->
+      Components.Link.provide ~initial_path:"/unknown" (fun () ->
         let not_found () = Solid_ml_ssr.Html.text "404 Not Found" in
-        let node = Components.outlet ~routes ~not_found () in
+        let node = Components.Link.outlet ~routes ~not_found () in
         let html = Solid_ml_ssr.Html.to_string node in
         assert_equal html "404 Not Found"
       )

@@ -1,0 +1,18 @@
+(lang dune 3.16)
+(using melange 0.1)
+
+(name full_ssr_app)
+(version 0.1.0)
+
+(package
+ (name full_ssr_app)
+ (synopsis "Example SSR app for solid-ml")
+ (description "A full-stack SSR example using Dream and solid-ml.")
+ (allow_empty)
+ (depends
+  (ocaml (= 5.2.1))
+  (dream (>= 1.0.0~alpha8))
+  (solid-ml (>= 0.1.0))
+  (solid-ml-ssr (>= 0.1.0))
+  (solid-ml-router (>= 0.1.0))
+  (solid-ml-browser (>= 0.1.0))))

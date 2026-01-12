@@ -1,4 +1,7 @@
+
 (library
  (name solid_ml_ssr)
  (public_name solid-ml-ssr)
- (libraries solid-ml))
+ (libraries solid-ml)
+ (modes byte native melange))
+
