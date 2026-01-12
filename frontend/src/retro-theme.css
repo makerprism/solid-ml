@@ -1,0 +1,673 @@
+/* ========================================
+   RETRO ARCADE THEME
+   KaraokeCrowd Design System
+   ======================================== */
+
+/* ========================================
+   CSS CUSTOM PROPERTIES
+   ======================================== */
+:root {
+  --shadow-offset: 6px;
+  --shadow-offset-hover: 8px;
+  --border-width: 4px;
+  --border-width-thin: 2px;
+  --glow-intensity: 0;
+  --transition-speed: 0.2s;
+}
+
+html.dark {
+  --glow-intensity: 0.6;
+}
+
+@keyframes slide-up {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-slide-up { animation: slide-up 0.3s ease-out; }
+
+/* Retro Arcade - Peachy gradient background for light mode */
+html:not(.dark) {
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+}
+
+html:not(.dark) body {
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+}
+
+/* ========================================
+   CARD STYLING FOR LIGHT MODE
+   Clean with subtle personality
+   ======================================== */
+.retro-card {
+  border: 2px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.08);
+  transition: all 0.2s ease;
+}
+
+.retro-card:hover {
+  transform: translateY(-1px);
+  border-color: #f97316;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.15);
+}
+
+.retro-card-alt {
+  border: 2px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.08);
+  transition: all 0.2s ease;
+}
+
+.retro-card-alt:hover {
+  transform: translateY(-1px);
+  border-color: #06b6d4;
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.15);
+}
+
+/* Static cards - no hover effects */
+.retro-card-static:hover {
+  transform: none;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.08);
+}
+
+.retro-card-alt.retro-card-static:hover {
+  transform: none;
+  box-shadow: 0 2px 8px rgba(6, 182, 212, 0.08);
+}
+
+/* ========================================
+   BUTTON STYLING FOR LIGHT MODE
+   Clean with subtle depth
+   ======================================== */
+html:not(.dark) .retro-btn-primary {
+  border: 2px solid transparent;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-weight: 600;
+}
+
+html:not(.dark) .retro-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+html:not(.dark) .retro-btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+html:not(.dark) .retro-btn-accent {
+  border: 2px solid transparent;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-weight: 600;
+}
+
+html:not(.dark) .retro-btn-accent:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+html:not(.dark) .retro-btn-accent:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* ========================================
+   RETRO BUTTON SECONDARY
+   ======================================== */
+.retro-btn-secondary {
+  border: 1px solid #d1d5db;
+  box-shadow: none;
+  background-color: #fff;
+  color: #374151;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  transition: all 0.15s ease;
+}
+
+.retro-btn-secondary:hover {
+  border-color: #9ca3af;
+  background-color: #f9fafb;
+}
+
+.retro-btn-secondary:active {
+  background-color: #f3f4f6;
+}
+
+html.dark .retro-btn-secondary {
+  border-color: #444;
+  background-color: #1a1a1a;
+  color: #d1d5db;
+}
+
+html.dark .retro-btn-secondary:hover {
+  border-color: #555;
+  background-color: #262626;
+}
+
+html.dark .retro-btn-secondary:active {
+  background-color: #333;
+}
+
+/* ========================================
+   TAG STYLING
+   Subtle with color personality
+   ======================================== */
+html:not(.dark) .retro-tag {
+  border: 1px solid currentColor;
+  box-shadow: none;
+  font-weight: 600;
+  border-radius: 9999px;
+  transition: all 0.2s ease;
+}
+
+html:not(.dark) .retro-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Static tags - no hover effects */
+html:not(.dark) .retro-tag-static:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* ========================================
+   SHADOW UTILITY CLASSES
+   ======================================== */
+.shadow-retro-orange { box-shadow: var(--shadow-offset) var(--shadow-offset) 0 #f97316; }
+.shadow-retro-cyan { box-shadow: var(--shadow-offset) var(--shadow-offset) 0 #06b6d4; }
+.shadow-retro-yellow { box-shadow: var(--shadow-offset) var(--shadow-offset) 0 #eab308; }
+.shadow-retro-green { box-shadow: var(--shadow-offset) var(--shadow-offset) 0 #10b981; }
+.shadow-retro-blue { box-shadow: var(--shadow-offset) var(--shadow-offset) 0 #3b82f6; }
+.shadow-retro-red { box-shadow: var(--shadow-offset) var(--shadow-offset) 0 #dc2626; }
+.shadow-retro-purple { box-shadow: var(--shadow-offset) var(--shadow-offset) 0 #a855f7; }
+
+html.dark .shadow-retro-orange { box-shadow: var(--shadow-offset) var(--shadow-offset) 0 #9a3412; }
+html.dark .shadow-retro-cyan { box-shadow: var(--shadow-offset) var(--shadow-offset) 0 #155e75; }
+html.dark .shadow-retro-yellow { box-shadow: var(--shadow-offset) var(--shadow-offset) 0 #92400e; }
+html.dark .shadow-retro-green { box-shadow: var(--shadow-offset) var(--shadow-offset) 0 #065f46; }
+html.dark .shadow-retro-blue { box-shadow: var(--shadow-offset) var(--shadow-offset) 0 #1e40af; }
+html.dark .shadow-retro-red { box-shadow: var(--shadow-offset) var(--shadow-offset) 0 #991b1b; }
+html.dark .shadow-retro-purple { box-shadow: var(--shadow-offset) var(--shadow-offset) 0 #6b21a8; }
+
+/* ========================================
+   DARK MODE GRADIENT BACKGROUND
+   ======================================== */
+html.dark {
+  background: linear-gradient(180deg, #0a0a0a 0%, #0f0f0f 50%, #111111 100%);
+}
+
+html.dark body {
+  background: transparent;
+}
+
+/* ========================================
+   DARK MODE CARDS
+   Subtle borders with soft glow on hover
+   ======================================== */
+html.dark .retro-card {
+  border: 1px solid #333;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: #1a1a1a;
+  transition: all 0.2s ease;
+}
+
+html.dark .retro-card:hover {
+  border-color: #fb923c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(251, 146, 60, 0.2);
+  background: #1f1f1f;
+}
+
+/* Dark mode alt cards - subtle with cyan accent on hover */
+html.dark .retro-card-alt {
+  border: 1px solid #333;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: #1a1a1a;
+  transition: all 0.2s ease;
+}
+
+html.dark .retro-card-alt:hover {
+  border-color: #22d3ee;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(34, 211, 238, 0.2);
+  background: #1f1f1f;
+}
+
+/* Dark mode static cards - no hover effects */
+html.dark .retro-card-static:hover {
+  border-color: #333;
+  transform: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: #1a1a1a;
+}
+
+html.dark .retro-card-alt.retro-card-static:hover {
+  border-color: #333;
+  transform: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: #1a1a1a;
+}
+
+/* ========================================
+   DARK MODE BUTTONS
+   Clean with subtle depth
+   ======================================== */
+html.dark .retro-btn-primary {
+  border: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+html.dark .retro-btn-primary:hover {
+  transform: translateY(-1px);
+}
+
+html.dark .retro-btn-primary:active {
+  transform: translateY(0);
+}
+
+html.dark .retro-btn-accent {
+  border: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+html.dark .retro-btn-accent:hover {
+  transform: translateY(-1px);
+}
+
+html.dark .retro-btn-accent:active {
+  transform: translateY(0);
+}
+
+/* Dark mode button shadows - subtle glow on hover */
+html.dark .bg-primary-600 {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+html.dark .bg-primary-600:hover {
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.3);
+}
+html.dark .bg-primary-600:active {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .bg-success-600 {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+html.dark .bg-success-600:hover {
+  box-shadow: 0 4px 12px rgba(52, 211, 153, 0.3);
+}
+html.dark .bg-success-600:active {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .bg-red-600 {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+html.dark .bg-red-600:hover {
+  box-shadow: 0 4px 12px rgba(248, 113, 113, 0.3);
+}
+html.dark .bg-red-600:active {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Dark mode tags - subtle with personality */
+html.dark .retro-tag {
+  border: 1px solid currentColor;
+  box-shadow: none;
+  font-weight: 600;
+  border-radius: 9999px;
+  transition: all 0.2s ease;
+}
+
+html.dark .retro-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+}
+
+/* Static tags - no hover effects in dark mode */
+html.dark .retro-tag-static:hover {
+  transform: none;
+  box-shadow: none;
+  filter: none;
+}
+
+/* ========================================
+   VENUE LIST ITEMS
+   Clean with subtle left accent
+   ======================================== */
+.venue-list-item,
+.venue-list-item-alt,
+.venue-list-item-both {
+  border: 1px solid #e5e7eb;
+  border-left: 3px solid #f97316;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.15s ease;
+}
+
+.venue-list-item-alt {
+  border-left-color: #06b6d4;
+}
+
+.venue-list-item-both {
+  border-left-color: #a855f7;
+}
+
+.venue-list-item:hover,
+.venue-list-item-alt:hover,
+.venue-list-item-both:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.venue-list-item:hover { border-left-color: #f97316; }
+.venue-list-item-alt:hover { border-left-color: #06b6d4; }
+.venue-list-item-both:hover { border-left-color: #a855f7; }
+
+/* Dark mode venue list items */
+html.dark .venue-list-item,
+html.dark .venue-list-item-alt,
+html.dark .venue-list-item-both {
+  border: 1px solid #333;
+  border-left: 3px solid #f97316;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .venue-list-item-alt {
+  border-left-color: #06b6d4;
+}
+
+html.dark .venue-list-item-both {
+  border-left-color: #a855f7;
+}
+
+html.dark .venue-list-item:hover,
+html.dark .venue-list-item-alt:hover,
+html.dark .venue-list-item-both:hover {
+  border-color: #444;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+html.dark .venue-list-item:hover { border-left-color: #fb923c; }
+html.dark .venue-list-item-alt:hover { border-left-color: #22d3ee; }
+html.dark .venue-list-item-both:hover { border-left-color: #c084fc; }
+
+/* Form inputs card - clean styling */
+.form-inputs-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+html.dark .form-inputs-card {
+  border-color: #333;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* ========================================
+   CHECKBOX STYLING
+   ======================================== */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid #374151;
+  border-radius: 0.25rem;
+  background-color: white;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+html.dark input[type="checkbox"] {
+  border-color: #52525b;
+  background-color: #0f0f0f;
+}
+
+input[type="checkbox"]:checked {
+  background-color: transparent;
+  border-color: #374151;
+}
+
+html.dark input[type="checkbox"]:checked {
+  background-color: transparent;
+  border-color: #52525b;
+}
+
+input[type="checkbox"]:checked::after {
+  content: '✗';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #ea580c;
+  font-size: 2.5rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+html.dark input[type="checkbox"]:checked::after {
+  color: #fb923c;
+}
+
+input[type="checkbox"]:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #ea580c;
+}
+
+html.dark input[type="checkbox"]:focus {
+  box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.5);
+}
+
+input[type="checkbox"]:hover:not(:checked) {
+  border-color: #ea580c;
+}
+
+html.dark input[type="checkbox"]:hover:not(:checked) {
+  border-color: #fb923c;
+  background-color: #1a1a1a;
+}
+
+/* ========================================
+   LOADING SKELETON STYLES
+   ======================================== */
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton {
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+  background-size: 200% 100%;
+}
+
+html.dark .skeleton {
+  background: linear-gradient(90deg, #1f1f1f 25%, #2a2a2a 50%, #1f1f1f 75%);
+  background-size: 200% 100%;
+}
+
+/* ========================================
+   SCHEDULE DOT INDICATOR COMPONENT
+   ======================================== */
+
+/* Container - no card, just inline flex */
+.schedule {
+  display: inline-flex;
+  gap: 2px;
+}
+
+/* Individual day cell */
+.schedule-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 0;
+  width: 32px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+/* Day label */
+.schedule-day-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* Inactive day */
+.schedule-day-inactive .schedule-day-label {
+  color: #9ca3af;
+}
+html.dark .schedule-day-inactive .schedule-day-label {
+  color: #525252;
+}
+
+/* Active day label */
+.schedule-day-active .schedule-day-label {
+  color: #374151;
+}
+html.dark .schedule-day-active .schedule-day-label {
+  color: #f97316;
+}
+
+/* Dot indicator */
+.schedule-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+}
+
+/* Inactive dot - hollow */
+.schedule-day-inactive .schedule-dot {
+  border: 1.5px solid #d1d5db;
+  background: transparent;
+}
+html.dark .schedule-day-inactive .schedule-dot {
+  border: 1.5px solid #404040;
+  background: transparent;
+}
+
+/* Active dot - filled */
+.schedule-day-active .schedule-dot {
+  border: none;
+  background: #f97316;
+}
+html.dark .schedule-day-active .schedule-dot {
+  background: #fb923c;
+  box-shadow: 0 0 6px rgba(251, 146, 60, 0.4);
+}
+
+/* Active day with background highlight */
+.schedule-day-active.schedule-day-highlight {
+  background: #fed7aa;
+}
+html.dark .schedule-day-active.schedule-day-highlight {
+  background: rgba(251, 146, 60, 0.1);
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ========================================
+   FOCUS STATES FOR ACCESSIBILITY
+   ======================================== */
+.retro-tag:focus {
+  outline: none;
+  box-shadow: 
+    3px 3px 0 #000,
+    0 0 0 3px rgba(249, 115, 22, 0.5);
+}
+
+html.dark .retro-tag:focus {
+  box-shadow: 
+    3px 3px 0 rgba(0, 0, 0, 0.8),
+    0 0 0 3px rgba(251, 146, 60, 0.5);
+}
+
+.retro-card:focus-within,
+.retro-card-alt:focus-within {
+  outline: 3px solid #f97316;
+  outline-offset: 2px;
+}
+
+html.dark .retro-card:focus-within,
+html.dark .retro-card-alt:focus-within {
+  outline-color: #fb923c;
+}
+
+.retro-btn-primary:focus,
+.retro-btn-secondary:focus {
+  outline: none;
+  box-shadow: 
+    4px 4px 0 #000,
+    0 0 0 3px rgba(249, 115, 22, 0.5);
+}
+
+html.dark .retro-btn-primary:focus,
+html.dark .retro-btn-secondary:focus {
+  box-shadow: 
+    4px 4px 0 currentColor,
+    0 0 0 3px rgba(251, 146, 60, 0.5);
+}
+
+/* ========================================
+   RESPONSIVE ADJUSTMENTS
+   ======================================== */
+@media (max-width: 768px) {
+  :root {
+    --shadow-offset: 4px;
+    --shadow-offset-hover: 6px;
+    --border-width: 3px;
+    --border-width-thin: 1.5px;
+  }
+
+  .retro-card,
+  .retro-card-alt {
+    border-width: var(--border-width);
+  }
+
+  .venue-list-item {
+    border-width: var(--border-width);
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0 #f97316;
+  }
+
+  .venue-list-item-alt {
+    border-width: var(--border-width);
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0 #06b6d4;
+  }
+
+  .venue-list-item-both {
+    border-width: var(--border-width);
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0 #a855f7;
+  }
+
+  .retro-tag {
+    border-width: var(--border-width-thin);
+    box-shadow: 2px 2px 0 #000;
+  }
+
+  html.dark .retro-tag {
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
+  }
+
+  .retro-btn-primary,
+  .retro-btn-secondary {
+    border-width: 2px;
+    box-shadow: 3px 3px 0 #000;
+  }
+}
