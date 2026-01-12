@@ -277,7 +277,7 @@ let render ~lang ~(tr : I18n.translations) ~(venue : Api_types.venue_detail) ~(e
               H.text tr.call
             ] ()
          | _ -> H.fragment []);
-        H.raw (Printf.sprintf {|<button onclick="navigator.share ? navigator.share({title: document.title, url: window.location.href}) : navigator.clipboard.writeText(window.location.href).then(() => alert('%s'))" class="px-5 py-3 rounded-lg text-base font-semibold transition-all bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white border-2 border-gray-700 dark:border-gray-500 inline-flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>%s</button>|} 
+        H.raw (Printf.sprintf {|<button data-action="share" data-message="%s" class="px-5 py-3 rounded-lg text-base font-semibold transition-all bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white border-2 border-gray-700 dark:border-gray-500 inline-flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>%s</button>|}
           (js_escape tr.link_copied) (html_escape tr.share));
         
         (* Follow venue button *)
@@ -616,6 +616,27 @@ let render ~lang ~(tr : I18n.translations) ~(venue : Api_types.venue_detail) ~(e
   
   let isFollowing = false;
   let count = 0;
+
+  // Prevent duplicate event listeners
+  if (document.querySelector('[data-share-handler-installed]')) {
+    return;
+  }
+  const marker = document.createElement('div');
+  marker.setAttribute('data-share-handler-installed', 'true');
+  document.body.appendChild(marker);
+
+  // Event delegation for share button
+  document.addEventListener('click', function(e) {
+    const shareBtn = e.target.closest('[data-action="share"]');
+    if (shareBtn) {
+      const message = shareBtn.dataset.message || 'Link copied!';
+      if (navigator.share) {
+        navigator.share({ title: document.title, url: window.location.href });
+      } else {
+        navigator.clipboard.writeText(window.location.href).then(() => alert(message));
+      }
+    }
+  });
   
   // Update regulars count display
   function updateCountDisplay() {

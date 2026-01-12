@@ -174,7 +174,7 @@ let render ~lang ~(tr : I18n.translations) () =
             <a href="/${langCode}/friends/${friend.id}/rsvps" class="retro-tag px-3 py-2 text-sm bg-primary-100 text-primary-700 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500">
               ${i18n.view_rsvps}
             </a>
-            <button onclick="unfriend('${friend.id}')" class="px-3 py-2 text-sm font-bold uppercase tracking-wide text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg border-2 border-transparent hover:border-red-300 dark:hover:border-red-700 transition-colors">
+            <button data-friends-action="unfriend" data-friends-id="${encodeURIComponent(friend.id)}" class="px-3 py-2 text-sm font-bold uppercase tracking-wide text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg border-2 border-transparent hover:border-red-300 dark:hover:border-red-700 transition-colors">
               ${i18n.unfriend}
             </button>
           </div>
@@ -209,10 +209,10 @@ let render ~lang ~(tr : I18n.translations) () =
             ${mutualHtml}
           </div>
           <div class="flex gap-2 flex-shrink-0">
-            <button onclick="acceptRequest('${request.id}')" class="retro-btn-primary px-4 py-2 text-sm bg-success-600 hover:bg-success-700 text-white rounded-lg">
+            <button data-friends-action="accept-request" data-friends-id="${encodeURIComponent(request.id)}" class="retro-btn-primary px-4 py-2 text-sm bg-success-600 hover:bg-success-700 text-white rounded-lg">
               ${i18n.accept}
             </button>
-            <button onclick="declineRequest('${request.id}')" class="px-4 py-2 text-sm font-bold uppercase tracking-wide text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg border-2 border-gray-300 dark:border-gray-600 transition-colors">
+            <button data-friends-action="decline-request" data-friends-id="${encodeURIComponent(request.id)}" class="px-4 py-2 text-sm font-bold uppercase tracking-wide text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg border-2 border-gray-300 dark:border-gray-600 transition-colors">
               ${i18n.decline}
             </button>
           </div>
@@ -241,7 +241,7 @@ let render ~lang ~(tr : I18n.translations) () =
             ${recipient.username ? `<p class="text-sm text-gray-500 dark:text-gray-400">@${recipient.username}</p>` : ''}
             <p class="text-xs text-secondary-600 dark:text-secondary-400 font-medium uppercase tracking-wide">${i18n.request_sent}</p>
           </div>
-          <button onclick="cancelRequest('${request.id}')" class="px-4 py-2 text-sm font-bold uppercase tracking-wide text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg border-2 border-gray-300 dark:border-gray-600 transition-colors">
+          <button data-friends-action="cancel-request" data-friends-id="${encodeURIComponent(request.id)}" class="px-4 py-2 text-sm font-bold uppercase tracking-wide text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg border-2 border-gray-300 dark:border-gray-600 transition-colors">
             ${i18n.cancel}
           </button>
         </div>
@@ -345,55 +345,70 @@ let render ~lang ~(tr : I18n.translations) () =
     }
   }
 
-  // Accept request
-  window.acceptRequest = async function(id) {
-    try {
-      const res = await apiFetch('/api/friend-requests/' + id + '/accept', { method: 'POST' });
-      if (res.ok) {
-        loadIncoming();
-        loadFriends();
-      }
-    } catch (err) {
-      console.error('Failed to accept request:', err);
-    }
-  };
+  // Prevent duplicate event listeners
+  if (document.querySelector('[data-friends-handler-installed]')) {
+    return;
+  }
+  const marker = document.createElement('div');
+  marker.setAttribute('data-friends-handler-installed', 'true');
+  document.body.appendChild(marker);
 
-  // Decline request
-  window.declineRequest = async function(id) {
-    try {
-      const res = await apiFetch('/api/friend-requests/' + id + '/decline', { method: 'POST' });
-      if (res.ok) {
-        loadIncoming();
-      }
-    } catch (err) {
-      console.error('Failed to decline request:', err);
-    }
-  };
+  // Event delegation for all button actions
+  document.addEventListener('click', async function(e) {
+    const btn = e.target.closest('[data-friends-action]');
+    if (!btn) return;
 
-  // Cancel request
-  window.cancelRequest = async function(id) {
-    try {
-      const res = await apiFetch('/api/friend-requests/' + id, { method: 'DELETE' });
-      if (res.ok) {
-        loadOutgoing();
-      }
-    } catch (err) {
-      console.error('Failed to cancel request:', err);
-    }
-  };
+    const action = btn.dataset.friendsAction;
+    const id = decodeURIComponent(btn.dataset.friendsId);
 
-  // Unfriend
-  window.unfriend = async function(userId) {
-    if (!confirm(i18n.unfriend_confirm)) return;
-    try {
-      const res = await apiFetch('/api/friends/' + userId, { method: 'DELETE' });
-      if (res.ok) {
-        loadFriends();
-      }
-    } catch (err) {
-      console.error('Failed to unfriend:', err);
+    switch (action) {
+      case 'accept-request':
+        try {
+          const res = await apiFetch('/api/friend-requests/' + id + '/accept', { method: 'POST' });
+          if (res.ok) {
+            loadIncoming();
+            loadFriends();
+          }
+        } catch (err) {
+          console.error('Failed to accept request:', err);
+        }
+        break;
+
+      case 'decline-request':
+        try {
+          const res = await apiFetch('/api/friend-requests/' + id + '/decline', { method: 'POST' });
+          if (res.ok) {
+            loadIncoming();
+          }
+        } catch (err) {
+          console.error('Failed to decline request:', err);
+        }
+        break;
+
+      case 'cancel-request':
+        try {
+          const res = await apiFetch('/api/friend-requests/' + id, { method: 'DELETE' });
+          if (res.ok) {
+            loadOutgoing();
+          }
+        } catch (err) {
+          console.error('Failed to cancel request:', err);
+        }
+        break;
+
+      case 'unfriend':
+        if (!confirm(i18n.unfriend_confirm)) return;
+        try {
+          const res = await apiFetch('/api/friends/' + id, { method: 'DELETE' });
+          if (res.ok) {
+            loadFriends();
+          }
+        } catch (err) {
+          console.error('Failed to unfriend:', err);
+        }
+        break;
     }
-  };
+  });
 
   // User search
   let searchTimeout;
