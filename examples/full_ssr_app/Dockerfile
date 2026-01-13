@@ -24,8 +24,10 @@ RUN curl -fsSL https://github.com/ocaml-dune/dune-bin-install/releases/download/
 WORKDIR /app
 COPY . .
 
-# Build client bundle (Melange) and native server
+# Build client bundle (Melange)
 RUN dune build examples/full_ssr_app/client
+
+# Build server (no enabled_if, always enabled)
 RUN dune build examples/full_ssr_app/server/server.exe
 
 # Copy generated client bundle into static directory for runtime stage

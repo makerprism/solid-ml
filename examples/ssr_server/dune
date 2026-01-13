@@ -1,10 +1,12 @@
 ; SSR Server Example
 ;
 ; To build: dune build examples/ssr_server/server.exe
-; To run:   make example-ssr-server
+; To run:   make example-ssr-server-docker
 ;
-; Requires: dream (available via dune pkg lock)
+; Requires: dream (install via dune pkg lock)
+; This example is disabled by default - use Docker to run it
 
 (executable
  (name server)
+ (enabled_if false)
  (libraries solid-ml solid-ml-ssr dream))

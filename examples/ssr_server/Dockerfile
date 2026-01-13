@@ -24,9 +24,14 @@ RUN curl -fsSL https://github.com/ocaml-dune/dune-bin-install/releases/download/
 WORKDIR /app
 COPY . .
 
-# Build client bundle (Melange) and native server
+# Build client bundle (Melange)
 RUN dune build examples/ssr_server/client
-RUN dune build examples/ssr_server/server.exe
+
+# Build server with enabled_if overridden
+# Note: This requires dream to be available (installed via dune pkg lock)
+RUN cat examples/ssr_server/dune | sed 's/(enabled_if false)/(enabled_if true)/' > examples/ssr_server/dune.tmp && \
+    mv examples/ssr_server/dune.tmp examples/ssr_server/dune && \
+    dune build examples/ssr_server/server.exe
 
 # Copy generated client bundle into static directory for runtime stage
 RUN mkdir -p examples/ssr_server/static && \

@@ -21,7 +21,7 @@
 
 # Build all packages
 build:
-	dune build @check --force 2>/dev/null || dune build lib/solid-ml lib/solid-ml-ssr lib/solid-ml-router lib/solid-ml-browser lib/solid-ml-internal
+	dune build @check --force 2>/dev/null || dune build lib/solid-ml lib/solid-ml-ssr lib/solid-ml-router lib/solid-ml-internal
 
 # Run all tests
 test:
