@@ -1,10 +1,9 @@
 ; SSR Hydration Docker Example - Server
 ;
-; Requires: dream (install via dune pkg lock)
-; This example is disabled by default - enable it after installing dream
+; Requires: dream (available via dune pkg lock)
+; This example is enabled when dream is available
 
 (executable
  (name server)
  (modules server)
- (enabled_if false)
  (libraries solid-ml solid-ml-ssr dream))

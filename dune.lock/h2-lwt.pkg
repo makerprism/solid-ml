@@ -1,0 +1,17 @@
+(version 0.12.0)
+
+(build
+ (progn
+  (when
+   %{pkg-self:dev}
+   (run dune subst))
+  (run dune build -p %{pkg-self:name} -j %{jobs} @install)))
+
+(depends dune ocaml h2 lwt gluten-lwt)
+
+(source
+ (fetch
+  (url
+   https://github.com/anmonteiro/ocaml-h2/releases/download/0.12.0/h2-0.12.0.tbz)
+  (checksum
+   sha256=36e40b113d90ea383619a8c7bd993f866131c3c5d957619b6849eb32af8c53c6)))

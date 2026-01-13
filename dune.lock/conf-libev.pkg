@@ -1,0 +1,22 @@
+(version 4-13)
+
+(build
+ (run sh ./build.sh))
+
+(depends ocaml)
+
+(depexts libev-dev)
+
+(extra_sources
+ (build.sh
+  (fetch
+   (url
+    https://raw.githubusercontent.com/ocaml/opam-source-archives/main/patches/conf-libev/build.sh)
+   (checksum
+    sha256=4825462f8f84312caf9a2c797bbd24abc776d8a343de5561330314d846e5cf61)))
+ (discover.ml
+  (fetch
+   (url
+    https://raw.githubusercontent.com/ocaml/opam-source-archives/main/patches/conf-libev/discover.ml.4-13)
+   (checksum
+    sha256=569e94c09c4722989c3acb0f6b709a5dd6218f79175268c7f40f4bd26abd4fc2))))

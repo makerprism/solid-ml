@@ -1,0 +1,13 @@
+(version 0.0.3)
+
+(build
+ (run dune build -p %{pkg-self:name} -j %{jobs}))
+
+(depends ocaml dune)
+
+(source
+ (fetch
+  (url
+   https://github.com/robur-coop/bstr/releases/download/v0.0.3/bstr-0.0.3.tbz)
+  (checksum
+   sha256=503c4f74f67d16e30dd962a753ed3bca1469282c2202392f5b0e1b7e2a9b4562)))
