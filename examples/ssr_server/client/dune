@@ -2,6 +2,6 @@
 ; Build with: make example-ssr-client
 
 (melange.emit
- (target output)
+ (target client_output)
  (libraries solid-ml-browser)
  (module_systems es6))

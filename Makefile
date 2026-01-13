@@ -9,9 +9,9 @@
 #   make serve              # Build and serve browser examples at http://localhost:8000
 
 .PHONY: build test clean \
-        example-counter example-todo example-router example-parallel example-ssr-server \
+        example-counter example-todo example-router example-parallel example-ssr-server example-ssr-server-docker \
         example-browser example-browser-router browser-examples browser-tests serve \
-        example-full-ssr example-full-ssr-client \
+        example-full-ssr example-full-ssr-client example-full-ssr-docker \
         example-ssr-api example-ssr-api-client \
         example-ssr-hydration-docker
 
@@ -21,7 +21,7 @@
 
 # Build all packages
 build:
-	dune build @check --force 2>/dev/null || dune build lib/solid-ml lib/solid-ml-html lib/solid-ml-router
+	dune build @check --force 2>/dev/null || dune build lib/solid-ml lib/solid-ml-ssr lib/solid-ml-router lib/solid-ml-browser lib/solid-ml-internal
 
 # Run all tests
 test:
@@ -59,14 +59,24 @@ example-ssr-server:
 	@echo ""
 	@dune exec examples/ssr_server/server.exe || stty sane
 
+# Build and run SSR server example via Docker
+example-ssr-server-docker:
+	@echo "=== Building Docker image: solid-ml-ssr-server ==="
+	@docker build -t solid-ml-ssr-server -f examples/ssr_server/Dockerfile .
+	@echo ""
+	@echo "=== Running container ==="
+	@echo "Visit http://localhost:8080"
+	@echo "Press Ctrl+C to stop (container will be removed)"
+	@echo ""
+	@docker run --rm -p 8080:8080 solid-ml-ssr-server || stty sane
+
 # Build full SSR client
 example-full-ssr-client:
 	@echo "Building full SSR client..."
 	@dune build @examples/full_ssr_app/client/melange
 	@mkdir -p examples/full_ssr_app/static
 	@echo "Bundling with esbuild..."
-	@cd _build/default/examples/full_ssr_app/client/output && \
-		npx esbuild examples/full_ssr_app/client/client.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/full_ssr_app/static/client.js --format=esm 2>/dev/null
+	@npx esbuild _build/default/examples/full_ssr_app/client/client_output/examples/full_ssr_app/client/client.js --bundle --minify --target=es2020 --outfile=examples/full_ssr_app/static/client.js --format=esm 2>/dev/null
 	@echo "Client built: examples/full_ssr_app/static/client.js"
 
 # Run full SSR example (server + client)
@@ -77,6 +87,17 @@ example-full-ssr: example-full-ssr-client
 	@echo "Press Ctrl+C to stop"
 	@echo ""
 	@dune exec examples/full_ssr_app/server/server.exe || stty sane
+
+# Build and run full SSR example via Docker
+example-full-ssr-docker:
+	@echo "=== Building Docker image: solid-ml-full-ssr ==="
+	@docker build -t solid-ml-full-ssr -f examples/full_ssr_app/Dockerfile .
+	@echo ""
+	@echo "=== Running container ==="
+	@echo "Visit http://localhost:8080"
+	@echo "Press Ctrl+C to stop (container will be removed)"
+	@echo ""
+	@docker run --rm -p 8080:8080 solid-ml-full-ssr || stty sane
 
 # Build SSR API client
 example-ssr-api-client:
@@ -177,12 +198,14 @@ help:
 	@echo "  make example-todo       - Run todo example"
 	@echo "  make example-router     - Run router example"
 	@echo "  make example-parallel   - Run parallel domains example"
+	@echo "  make example-ssr-server - Run SSR server example (requires dream)"
 	@echo "  make examples           - Run all native examples"
 	@echo ""
 	@echo "Full SSR (requires: dream + cohttp-lwt-unix, or Docker):"
 	@echo "  make example-full-ssr            - SSR with counter and todos"
-	@echo "  make example-ssr-api             - SSR with REST API data fetching"
-	@echo "  make example-ssr-hydration-docker - Build + run Docker SSR hydration demo"
+	@echo "  make example-full-ssr-docker      - SSR with counter and todos (via Docker)"
+	@echo "  make example-ssr-server-docker     - Basic SSR server demo (via Docker)"
+	@echo "  make example-ssr-hydration-docker - Docker SSR hydration demo"
 	@echo ""
 	@echo "Browser development (requires Node.js for esbuild):"
 	@echo "  make serve               - Build and serve browser examples"

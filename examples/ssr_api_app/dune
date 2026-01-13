@@ -4,7 +4,7 @@
 ; Run:   make example-ssr-api
 ;
 ; Requires: dream + cohttp-lwt-unix + yojson (install via dune pkg lock)
-; This example is disabled by default - enable it after installing dependencies
+; This example is disabled by default - requires additional dependencies
 
 (executable
  (name server)

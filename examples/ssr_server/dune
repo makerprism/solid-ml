@@ -3,10 +3,8 @@
 ; To build: dune build examples/ssr_server/server.exe
 ; To run:   make example-ssr-server
 ;
-; Requires: dream (install via dune pkg lock)
-; This example is disabled by default - enable it after installing dream
+; Requires: dream (available via dune pkg lock)
 
 (executable
  (name server)
- (enabled_if false)
  (libraries solid-ml solid-ml-ssr dream))
