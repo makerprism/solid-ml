@@ -45,6 +45,11 @@ module Ssr_env = struct
     let reactive_text_of = Solid_ml_ssr.Html.reactive_text_of
     let reactive_text_string = Solid_ml_ssr.Html.reactive_text_string
 
+    module Template = struct
+      include Solid_ml_ssr.Html.Template
+      let hydrate ~root:_ template = Solid_ml_ssr.Html.Template.instantiate template
+    end
+
     let div = Solid_ml_ssr.Html.div
     let span = Solid_ml_ssr.Html.span
     let p = Solid_ml_ssr.Html.p

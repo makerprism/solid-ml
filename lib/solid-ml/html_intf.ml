@@ -158,4 +158,16 @@ module type S = sig
   
   val img : ?id:string -> ?class_:string -> ?src:string -> ?alt:string ->
     ?width:int -> ?height:int -> ?loading:string -> ?srcset:string -> ?sizes:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> unit -> node
+
+  (** {2 Compiled Templates}
+
+      A SolidJS-style compiler can target this module to instantiate precompiled
+      templates and attach bindings.
+
+      This is intentionally backend-specific:
+      - On SSR, instantiation produces an HTML node rendered efficiently
+      - On the browser, instantiation clones a DOM subtree and bindings update it *)
+  module Template : Solid_ml_template_runtime.TEMPLATE
+    with type node := node
+     and type event := event
 end

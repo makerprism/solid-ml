@@ -44,6 +44,69 @@ let escape_html s =
   ) s;
   Buffer.contents buf
 
+module Template : Solid_ml_template_runtime.TEMPLATE
+  with type node := node
+   and type event := event = struct
+  type template = {
+    segments : string array;
+    slot_kinds : Solid_ml_template_runtime.slot_kind array;
+  }
+
+  type instance = {
+    template : template;
+    values : string array;
+  }
+
+  type text_slot = {
+    inst : instance;
+    id : int;
+  }
+
+  type element = unit
+
+  let compile ~segments ~slot_kinds =
+    if Array.length segments <> Array.length slot_kinds + 1 then
+      invalid_arg "Solid_ml_ssr.Html.Template.compile: segments length must be slot_kinds length + 1";
+    { segments; slot_kinds }
+
+  let instantiate template =
+    let values = Array.make (Array.length template.slot_kinds) "" in
+    { template; values }
+
+  let bind_text inst ~id ~path:_ =
+    if id < 0 || id >= Array.length inst.values then
+      invalid_arg "Solid_ml_ssr.Html.Template.bind_text: id out of bounds";
+    { inst; id }
+
+  let set_text slot value =
+    slot.inst.values.(slot.id) <- value
+
+  let bind_element _inst ~id:_ ~path:_ = ()
+
+  let set_attr () ~name:_ _ = ()
+
+  let on_ () ~event:_ _ = ()
+
+  let hydrate ~root:() template = instantiate template
+
+  let render (inst : instance) : string =
+    let buf = Buffer.create 256 in
+    let segments = inst.template.segments in
+    let slot_kinds = inst.template.slot_kinds in
+    Buffer.add_string buf segments.(0);
+    for i = 0 to Array.length slot_kinds - 1 do
+      let raw_value = inst.values.(i) in
+      let escaped = escape_html raw_value in
+      (match slot_kinds.(i) with
+       | `Attr -> Buffer.add_string buf escaped
+       | `Text -> Buffer.add_string buf escaped);
+      Buffer.add_string buf segments.(i + 1)
+    done;
+    Buffer.contents buf
+
+  let root inst = Raw (render inst)
+end
+
 (** Escape/sanitize attribute names.
     Only allows safe characters: a-z, A-Z, 0-9, hyphen, underscore, period, colon (for namespaced attrs).
     Other characters are replaced with underscore. *)

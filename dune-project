@@ -64,4 +64,22 @@
   (solid-ml (= :version))
   (solid-ml-ssr (= :version))))
 
+; Template runtime interfaces (shared)
+(package
+ (name solid-ml-template-runtime)
+ (synopsis "Template runtime interfaces for solid-ml")
+ (description "Shared runtime interfaces and types for SolidJS-style template compilation.")
+ (allow_empty)
+ (depends
+  (ocaml (>= 4.14.0))))
+
+; Template compiler PPX (build-time)
+(package
+ (name solid-ml-template-ppx)
+ (synopsis "Template compiler PPX for solid-ml")
+ (description "PPX rewriter for SolidJS-style template compilation targeting solid-ml Html backends.")
+ (allow_empty)
+ (depends
+  (ocaml (>= 4.14.0))
+  (ppxlib (>= 0.27.0))))
 

@@ -52,6 +52,12 @@ val reactive_text_string : string signal -> node
 val fragment : node list -> node
 (** Create a fragment from a list of nodes *)
 
+(** {1 Compiled Templates} *)
+
+module Template : Solid_ml_template_runtime.TEMPLATE
+  with type node := node
+   and type event := event
+
 (** {1 Document Structure} *)
 
 val div : ?id:string -> ?class_:string -> ?style:string -> ?role:string -> ?aria_label:string -> ?aria_hidden:bool -> ?tabindex:int ->
