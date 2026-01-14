@@ -47,6 +47,9 @@ test_debug/
 # dev tools
 dev-tools.locks/
 
+# dune lockfiles (generated)
+dune.lock/
+
 # Coverage/profiling artifacts
 _coverage/
 coverage/
