@@ -172,22 +172,22 @@ let not_found_page () =
 
 (** Routes with their component render functions *)
 let routes : (unit -> Html.node) Router.Route.t list = [
-  Router.Route.create ~path:"/" ~data:home_page;
-  Router.Route.create ~path:"/counter" ~data:counter_page;
-  Router.Route.create ~path:"/users" ~data:users_page;
-  Router.Route.create ~path:"/users/:username" ~data:user_profile_page;
-  Router.Route.create ~path:"/about" ~data:about_page;
-  Router.Route.create ~path:"/docs/*" ~data:docs_page;
+  Router.Route.create ~path:"/" ~data:home_page ();
+  Router.Route.create ~path:"/counter" ~data:counter_page ();
+  Router.Route.create ~path:"/users" ~data:users_page ();
+  Router.Route.create ~path:"/users/:username" ~data:user_profile_page ();
+  Router.Route.create ~path:"/about" ~data:about_page ();
+  Router.Route.create ~path:"/docs/*" ~data:docs_page ();
 ]
 
 (** Routes for config (just patterns, no data needed) *)
 let config_routes : unit Router.Route.t list = [
-  Router.Route.create ~path:"/" ~data:();
-  Router.Route.create ~path:"/counter" ~data:();
-  Router.Route.create ~path:"/users" ~data:();
-  Router.Route.create ~path:"/users/:username" ~data:();
-  Router.Route.create ~path:"/about" ~data:();
-  Router.Route.create ~path:"/docs/*" ~data:();
+  Router.Route.create ~path:"/" ~data:() ();
+  Router.Route.create ~path:"/counter" ~data:() ();
+  Router.Route.create ~path:"/users" ~data:() ();
+  Router.Route.create ~path:"/users/:username" ~data:() ();
+  Router.Route.create ~path:"/about" ~data:() ();
+  Router.Route.create ~path:"/docs/*" ~data:() ();
 ]
 
 (** {1 Layout} *)

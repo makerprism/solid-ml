@@ -33,27 +33,27 @@ let test_pattern_parsing () =
   
   test "parse empty path" (fun () ->
     (* "/" parses to empty static *)
-    let route = Route.create ~path:"/" ~data:() in
+    let route = Route.create ~path:"/" ~data:() () in
     assert_some (Route.match_route route "/")
   );
   
   test "parse static path" (fun () ->
-    let route = Route.create ~path:"/users" ~data:() in
+    let route = Route.create ~path:"/users" ~data:() () in
     assert_some (Route.match_route route "/users")
   );
   
   test "parse multi-segment static" (fun () ->
-    let route = Route.create ~path:"/users/profile" ~data:() in
+    let route = Route.create ~path:"/users/profile" ~data:() () in
     assert_some (Route.match_route route "/users/profile")
   );
   
   test "parse param segment" (fun () ->
-    let route = Route.create ~path:"/users/:id" ~data:() in
+    let route = Route.create ~path:"/users/:id" ~data:() () in
     assert_some (Route.match_route route "/users/123")
   );
   
   test "parse wildcard" (fun () ->
-    let route = Route.create ~path:"/files/*" ~data:() in
+    let route = Route.create ~path:"/files/*" ~data:() () in
     assert_some (Route.match_route route "/files/a/b/c")
   )
 
@@ -63,32 +63,32 @@ let test_static_matching () =
   print_endline "\n=== Static Route Matching ===";
   
   test "exact match succeeds" (fun () ->
-    let route = Route.create ~path:"/users" ~data:() in
+    let route = Route.create ~path:"/users" ~data:() () in
     assert_some (Route.match_route route "/users")
   );
   
   test "exact match with trailing slash" (fun () ->
-    let route = Route.create ~path:"/users" ~data:() in
+    let route = Route.create ~path:"/users" ~data:() () in
     assert_some (Route.match_route route "/users/")
   );
   
   test "different path fails" (fun () ->
-    let route = Route.create ~path:"/users" ~data:() in
+    let route = Route.create ~path:"/users" ~data:() () in
     assert_none (Route.match_route route "/posts")
   );
   
   test "prefix match fails" (fun () ->
-    let route = Route.create ~path:"/users" ~data:() in
+    let route = Route.create ~path:"/users" ~data:() () in
     assert_none (Route.match_route route "/users/123")
   );
   
   test "multi-segment exact match" (fun () ->
-    let route = Route.create ~path:"/api/v1/users" ~data:() in
+    let route = Route.create ~path:"/api/v1/users" ~data:() () in
     assert_some (Route.match_route route "/api/v1/users")
   );
   
   test "multi-segment partial fails" (fun () ->
-    let route = Route.create ~path:"/api/v1/users" ~data:() in
+    let route = Route.create ~path:"/api/v1/users" ~data:() () in
     assert_none (Route.match_route route "/api/v1")
   )
 
@@ -98,7 +98,7 @@ let test_param_matching () =
   print_endline "\n=== Parameter Matching ===";
   
   test "single param extraction" (fun () ->
-    let route = Route.create ~path:"/users/:id" ~data:() in
+    let route = Route.create ~path:"/users/:id" ~data:() () in
     match Route.match_route route "/users/123" with
     | Some result ->
       assert_equal (Route.Params.get "id" result.params) (Some "123")
@@ -106,7 +106,7 @@ let test_param_matching () =
   );
   
   test "multiple params extraction" (fun () ->
-    let route = Route.create ~path:"/users/:user_id/posts/:post_id" ~data:() in
+    let route = Route.create ~path:"/users/:user_id/posts/:post_id" ~data:() () in
     match Route.match_route route "/users/42/posts/99" with
     | Some result ->
       assert_equal (Route.Params.get "user_id" result.params) (Some "42");
@@ -115,7 +115,7 @@ let test_param_matching () =
   );
   
   test "param with static prefix" (fun () ->
-    let route = Route.create ~path:"/api/users/:id" ~data:() in
+    let route = Route.create ~path:"/api/users/:id" ~data:() () in
     match Route.match_route route "/api/users/abc" with
     | Some result ->
       assert_equal (Route.Params.get "id" result.params) (Some "abc")
@@ -123,7 +123,7 @@ let test_param_matching () =
   );
   
   test "param with static suffix" (fun () ->
-    let route = Route.create ~path:"/:category/items" ~data:() in
+    let route = Route.create ~path:"/:category/items" ~data:() () in
     match Route.match_route route "/books/items" with
     | Some result ->
       assert_equal (Route.Params.get "category" result.params) (Some "books")
@@ -131,7 +131,7 @@ let test_param_matching () =
   );
   
   test "missing param segment fails" (fun () ->
-    let route = Route.create ~path:"/users/:id" ~data:() in
+    let route = Route.create ~path:"/users/:id" ~data:() () in
     assert_none (Route.match_route route "/users/")
   )
 
@@ -141,7 +141,7 @@ let test_wildcard_matching () =
   print_endline "\n=== Wildcard Matching ===";
   
   test "wildcard captures single segment" (fun () ->
-    let route = Route.create ~path:"/files/*" ~data:() in
+    let route = Route.create ~path:"/files/*" ~data:() () in
     match Route.match_route route "/files/readme.txt" with
     | Some result ->
       assert_equal (Route.Params.get "*" result.params) (Some "readme.txt")
@@ -149,7 +149,7 @@ let test_wildcard_matching () =
   );
   
   test "wildcard captures multiple segments" (fun () ->
-    let route = Route.create ~path:"/files/*" ~data:() in
+    let route = Route.create ~path:"/files/*" ~data:() () in
     match Route.match_route route "/files/path/to/file.txt" with
     | Some result ->
       assert_equal (Route.Params.get "*" result.params) (Some "path/to/file.txt")
@@ -157,7 +157,7 @@ let test_wildcard_matching () =
   );
   
   test "wildcard captures empty" (fun () ->
-    let route = Route.create ~path:"/files/*" ~data:() in
+    let route = Route.create ~path:"/files/*" ~data:() () in
     match Route.match_route route "/files/" with
     | Some result ->
       assert_equal (Route.Params.get "*" result.params) (Some "")
@@ -165,7 +165,7 @@ let test_wildcard_matching () =
   );
   
   test "static before wildcard" (fun () ->
-    let route = Route.create ~path:"/api/files/*" ~data:() in
+    let route = Route.create ~path:"/api/files/*" ~data:() () in
     assert_some (Route.match_route route "/api/files/a/b");
     assert_none (Route.match_route route "/other/files/a/b")
   )
@@ -176,10 +176,10 @@ let test_route_list_matching () =
   print_endline "\n=== Route List Matching ===";
   
   let routes = [
-    Route.create ~path:"/" ~data:"home";
-    Route.create ~path:"/users" ~data:"users_list";
-    Route.create ~path:"/users/:id" ~data:"user_detail";
-    Route.create ~path:"/posts/*" ~data:"posts_catchall";
+    Route.create ~path:"/" ~data:"home" ();
+    Route.create ~path:"/users" ~data:"users_list" ();
+    Route.create ~path:"/users/:id" ~data:"user_detail" ();
+    Route.create ~path:"/posts/*" ~data:"posts_catchall" ();
   ] in
   
   test "match root" (fun () ->
@@ -448,8 +448,8 @@ let test_router_provider () =
   
   test "provide sets initial path" (fun () ->
     let routes = [
-      Route.create ~path:"/" ~data:();
-      Route.create ~path:"/users/:id" ~data:();
+      Route.create ~path:"/" ~data:() ();
+      Route.create ~path:"/users/:id" ~data:() ();
     ] in
     Runtime.run (fun () ->
       Components.Link.provide ~initial_path:"/users/123" ~routes (fun () ->
@@ -461,7 +461,7 @@ let test_router_provider () =
   
   test "provide extracts params from route" (fun () ->
     let routes = [
-      Route.create ~path:"/users/:id" ~data:();
+      Route.create ~path:"/users/:id" ~data:() ();
     ] in
     Runtime.run (fun () ->
       Components.Link.provide ~initial_path:"/users/456" ~routes (fun () ->
@@ -472,7 +472,7 @@ let test_router_provider () =
   );
   
   test "provide parses query string" (fun () ->
-    let routes = [Route.create ~path:"/search" ~data:()] in
+    let routes = [Route.create ~path:"/search" ~data:() ()] in
     Runtime.run (fun () ->
       Components.Link.provide ~initial_path:"/search?q=test&page=2" ~routes (fun () ->
         (* Query parsing is tested via URL parsing tests *)
@@ -484,8 +484,8 @@ let test_router_provider () =
   
   test "navigate updates path" (fun () ->
     let routes = [
-      Route.create ~path:"/" ~data:();
-      Route.create ~path:"/about" ~data:();
+      Route.create ~path:"/" ~data:() ();
+      Route.create ~path:"/about" ~data:() ();
     ] in
     Runtime.run (fun () ->
       Components.Link.provide ~initial_path:"/" ~routes (fun () ->
@@ -587,8 +587,8 @@ let test_outlet_component () =
     let about_component () = Solid_ml_ssr.Html.text "About Page" in
     
     let routes = [
-      Route.create ~path:"/" ~data:home_component;
-      Route.create ~path:"/about" ~data:about_component;
+      Route.create ~path:"/" ~data:home_component ();
+      Route.create ~path:"/about" ~data:about_component ();
     ] in
     Runtime.run (fun () ->
       Components.Link.provide ~initial_path:"/" (fun () ->
@@ -601,7 +601,7 @@ let test_outlet_component () =
   
   test "outlet renders not_found when no match" (fun () ->
     let routes = [
-      Route.create ~path:"/" ~data:(fun () -> Solid_ml_ssr.Html.text "Home");
+      Route.create ~path:"/" ~data:(fun () -> Solid_ml_ssr.Html.text "Home") ();
     ] in
     Runtime.run (fun () ->
       Components.Link.provide ~initial_path:"/unknown" (fun () ->
@@ -611,6 +611,241 @@ let test_outlet_component () =
         assert_equal html "404 Not Found"
       )
     )
+  )
+
+(* ========== Match Filters ========== *)
+
+let test_match_filters () =
+  print_endline "\n=== Match Filters ===";
+  
+  test "filter int - valid" (fun () ->
+    let route = Route.create 
+      ~path:"/users/:id" 
+      ~filters:[("id", Route.Filter.int)]
+      ~data:() () in
+    assert_some (Route.match_route route "/users/123")
+  );
+  
+  test "filter int - invalid" (fun () ->
+    let route = Route.create 
+      ~path:"/users/:id" 
+      ~filters:[("id", Route.Filter.int)]
+      ~data:() () in
+    assert_none (Route.match_route route "/users/abc")
+  );
+  
+  test "filter int - negative" (fun () ->
+    let route = Route.create 
+      ~path:"/users/:id" 
+      ~filters:[("id", Route.Filter.int)]
+      ~data:() () in
+    assert_some (Route.match_route route "/users/-5")
+  );
+  
+  test "filter positive_int - valid" (fun () ->
+    let route = Route.create 
+      ~path:"/posts/:id" 
+      ~filters:[("id", Route.Filter.positive_int)]
+      ~data:() () in
+    assert_some (Route.match_route route "/posts/42")
+  );
+  
+  test "filter positive_int - zero fails" (fun () ->
+    let route = Route.create 
+      ~path:"/posts/:id" 
+      ~filters:[("id", Route.Filter.positive_int)]
+      ~data:() () in
+    assert_none (Route.match_route route "/posts/0")
+  );
+  
+  test "filter positive_int - negative fails" (fun () ->
+    let route = Route.create 
+      ~path:"/posts/:id" 
+      ~filters:[("id", Route.Filter.positive_int)]
+      ~data:() () in
+    assert_none (Route.match_route route "/posts/-1")
+  );
+  
+  test "filter non_negative_int - zero passes" (fun () ->
+    let route = Route.create 
+      ~path:"/page/:num" 
+      ~filters:[("num", Route.Filter.non_negative_int)]
+      ~data:() () in
+    assert_some (Route.match_route route "/page/0")
+  );
+  
+  test "filter uuid - valid" (fun () ->
+    let route = Route.create 
+      ~path:"/items/:id" 
+      ~filters:[("id", Route.Filter.uuid)]
+      ~data:() () in
+    assert_some (Route.match_route route "/items/550e8400-e29b-41d4-a716-446655440000")
+  );
+  
+  test "filter uuid - invalid format" (fun () ->
+    let route = Route.create 
+      ~path:"/items/:id" 
+      ~filters:[("id", Route.Filter.uuid)]
+      ~data:() () in
+    assert_none (Route.match_route route "/items/not-a-uuid")
+  );
+  
+  test "filter uuid - uppercase valid" (fun () ->
+    let route = Route.create 
+      ~path:"/items/:id" 
+      ~filters:[("id", Route.Filter.uuid)]
+      ~data:() () in
+    assert_some (Route.match_route route "/items/550E8400-E29B-41D4-A716-446655440000")
+  );
+  
+  test "filter alphanumeric - valid" (fun () ->
+    let route = Route.create 
+      ~path:"/users/:username" 
+      ~filters:[("username", Route.Filter.alphanumeric)]
+      ~data:() () in
+    assert_some (Route.match_route route "/users/JohnDoe123")
+  );
+  
+  test "filter alphanumeric - invalid" (fun () ->
+    let route = Route.create 
+      ~path:"/users/:username" 
+      ~filters:[("username", Route.Filter.alphanumeric)]
+      ~data:() () in
+    assert_none (Route.match_route route "/users/john-doe")
+  );
+  
+  test "filter slug - valid" (fun () ->
+    let route = Route.create 
+      ~path:"/posts/:slug" 
+      ~filters:[("slug", Route.Filter.slug)]
+      ~data:() () in
+    assert_some (Route.match_route route "/posts/my-first-post")
+  );
+  
+  test "filter slug - uppercase fails" (fun () ->
+    let route = Route.create 
+      ~path:"/posts/:slug" 
+      ~filters:[("slug", Route.Filter.slug)]
+      ~data:() () in
+    assert_none (Route.match_route route "/posts/My-Post")
+  );
+  
+  test "filter one_of - valid" (fun () ->
+    let route = Route.create 
+      ~path:"/lang/:code" 
+      ~filters:[("code", Route.Filter.one_of ["en"; "fr"; "de"])]
+      ~data:() () in
+    assert_some (Route.match_route route "/lang/en");
+    assert_some (Route.match_route route "/lang/fr")
+  );
+  
+  test "filter one_of - invalid" (fun () ->
+    let route = Route.create 
+      ~path:"/lang/:code" 
+      ~filters:[("code", Route.Filter.one_of ["en"; "fr"; "de"])]
+      ~data:() () in
+    assert_none (Route.match_route route "/lang/es")
+  );
+  
+  test "filter length - valid" (fun () ->
+    let route = Route.create 
+      ~path:"/code/:code" 
+      ~filters:[("code", Route.Filter.length ~min:3 ~max:6)]
+      ~data:() () in
+    assert_some (Route.match_route route "/code/abc");
+    assert_some (Route.match_route route "/code/abcdef")
+  );
+  
+  test "filter length - too short" (fun () ->
+    let route = Route.create 
+      ~path:"/code/:code" 
+      ~filters:[("code", Route.Filter.length ~min:3 ~max:6)]
+      ~data:() () in
+    assert_none (Route.match_route route "/code/ab")
+  );
+  
+  test "filter length - too long" (fun () ->
+    let route = Route.create 
+      ~path:"/code/:code" 
+      ~filters:[("code", Route.Filter.length ~min:3 ~max:6)]
+      ~data:() () in
+    assert_none (Route.match_route route "/code/abcdefg")
+  );
+  
+  test "filter all - combines with AND" (fun () ->
+    let route = Route.create 
+      ~path:"/id/:id" 
+      ~filters:[("id", Route.Filter.all [Route.Filter.int; Route.Filter.min_length 2])]
+      ~data:() () in
+    assert_some (Route.match_route route "/id/42");
+    assert_none (Route.match_route route "/id/1");  (* too short *)
+    assert_none (Route.match_route route "/id/ab")  (* not int *)
+  );
+  
+  test "filter any_of - combines with OR" (fun () ->
+    let route = Route.create 
+      ~path:"/ref/:ref" 
+      ~filters:[("ref", Route.Filter.any_of [Route.Filter.int; Route.Filter.slug])]
+      ~data:() () in
+    assert_some (Route.match_route route "/ref/123");
+    assert_some (Route.match_route route "/ref/my-slug")
+  );
+  
+  test "filter not_ - negation" (fun () ->
+    let route = Route.create 
+      ~path:"/name/:name" 
+      ~filters:[("name", Route.Filter.not_ (Route.Filter.one_of ["admin"; "root"]))]
+      ~data:() () in
+    assert_some (Route.match_route route "/name/john");
+    assert_none (Route.match_route route "/name/admin")
+  );
+  
+  test "multiple filters on different params" (fun () ->
+    let route = Route.create 
+      ~path:"/users/:id/posts/:post_id"
+      ~filters:[
+        ("id", Route.Filter.positive_int);
+        ("post_id", Route.Filter.positive_int)
+      ]
+      ~data:() () in
+    assert_some (Route.match_route route "/users/1/posts/99");
+    assert_none (Route.match_route route "/users/abc/posts/99");
+    assert_none (Route.match_route route "/users/1/posts/abc")
+  );
+  
+  test "filter with route matching - first valid wins" (fun () ->
+    let routes = [
+      Route.create ~path:"/items/:id" ~filters:[("id", Route.Filter.int)] ~data:"numeric" ();
+      Route.create ~path:"/items/:id" ~filters:[("id", Route.Filter.slug)] ~data:"slug" ();
+      Route.create ~path:"/items/:id" ~data:"any" ();  (* no filter - catches all *)
+    ] in
+    (* Numeric ID matches first route *)
+    (match Route.match_routes routes "/items/123" with
+     | Some (route, _) -> assert_equal (Route.data route) "numeric"
+     | None -> failwith "expected match");
+    (* Slug matches second route *)
+    (match Route.match_routes routes "/items/my-item" with
+     | Some (route, _) -> assert_equal (Route.data route) "slug"
+     | None -> failwith "expected match");
+    (* Other matches third route *)
+    (match Route.match_routes routes "/items/Some_Thing" with
+     | Some (route, _) -> assert_equal (Route.data route) "any"
+     | None -> failwith "expected match")
+  );
+  
+  test "params are still extracted with filters" (fun () ->
+    let route = Route.create 
+      ~path:"/users/:id" 
+      ~filters:[("id", Route.Filter.positive_int)]
+      ~data:() () in
+    match Route.match_route route "/users/42" with
+    | Some result -> assert_equal (Route.Params.get "id" result.params) (Some "42")
+    | None -> failwith "expected match"
+  );
+  
+  test "route without filters still works" (fun () ->
+    let route = Route.create ~path:"/users/:id" ~data:() () in
+    assert_some (Route.match_route route "/users/anything")
   )
 
 (* ========== Resource ========== *)
@@ -811,6 +1046,7 @@ let () =
   test_query_string_parsing ();
   test_url_building ();
   test_url_encoding ();
+  test_match_filters ();
   test_router_provider ();
   test_link_component ();
   test_outlet_component ();

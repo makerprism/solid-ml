@@ -12,9 +12,9 @@
       open Solid_ml_router
       
       (* Define routes *)
-      let home_route = Route.create ~path:"/" ~data:`Home
-      let users_route = Route.create ~path:"/users" ~data:`Users
-      let user_route = Route.create ~path:"/users/:id" ~data:`User
+      let home_route = Route.create ~path:"/" ~data:`Home ()
+      let users_route = Route.create ~path:"/users" ~data:`Users ()
+      let user_route = Route.create ~path:"/users/:id" ~data:`User ()
       
       let routes = [home_route; users_route; user_route]
       

@@ -211,12 +211,12 @@ let admin_page () =
 
 (** Define routes with their patterns and associated components *)
 let routes : (unit -> Html.node) Route.t list = [
-  Route.create ~path:"/" ~data:home_page;
-  Route.create ~path:"/users" ~data:users_page;
-  Route.create ~path:"/users/:username" ~data:user_profile_page;
-  Route.create ~path:"/about" ~data:about_page;
-  Route.create ~path:"/docs/*" ~data:docs_page;
-  Route.create ~path:"/admin" ~data:admin_page;
+  Route.create ~path:"/" ~data:home_page ();
+  Route.create ~path:"/users" ~data:users_page ();
+  Route.create ~path:"/users/:username" ~data:user_profile_page ();
+  Route.create ~path:"/about" ~data:about_page ();
+  Route.create ~path:"/docs/*" ~data:docs_page ();
+  Route.create ~path:"/admin" ~data:admin_page ();
 ]
 
 (** {1 Layout} *)

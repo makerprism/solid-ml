@@ -12,9 +12,9 @@
       
       (* Define routes *)
       let routes = [
-        Router.Route.create ~path:"/" ~data:home_component;
-        Router.Route.create ~path:"/about" ~data:about_component;
-        Router.Route.create ~path:"/users/:id" ~data:user_component;
+        Router.Route.create ~path:"/" ~data:home_component ();
+        Router.Route.create ~path:"/about" ~data:about_component ();
+        Router.Route.create ~path:"/users/:id" ~data:user_component ();
       ]
       
       (* Initialize the router *)
@@ -65,10 +65,77 @@ module Route = struct
     path : string;
   }
 
+  (** Match filter for parameter validation *)
+  type match_filter = string -> bool
+  
+  (** Built-in filters for common validation patterns *)
+  module Filter = struct
+    let int s = 
+      match int_of_string_opt s with Some _ -> true | None -> false
+    
+    let positive_int s = 
+      match int_of_string_opt s with Some n -> n > 0 | None -> false
+    
+    let non_negative_int s =
+      match int_of_string_opt s with Some n -> n >= 0 | None -> false
+    
+    let float s =
+      match float_of_string_opt s with Some _ -> true | None -> false
+    
+    let uuid s =
+      let len = String.length s in
+      len = 36 &&
+      s.[8] = '-' && s.[13] = '-' && s.[18] = '-' && s.[23] = '-' &&
+      let hex_at i = 
+        let c = s.[i] in
+        (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+      in
+      let rec check_hex positions = 
+        match positions with
+        | [] -> true
+        | i :: rest -> if hex_at i then check_hex rest else false
+      in
+      check_hex [0;1;2;3;4;5;6;7;9;10;11;12;14;15;16;17;19;20;21;22;24;25;26;27;28;29;30;31;32;33;34;35]
+    
+    let alphanumeric s =
+      String.length s > 0 &&
+      let rec check i =
+        if i >= String.length s then true
+        else 
+          let c = s.[i] in
+          if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+          then check (i + 1)
+          else false
+      in
+      check 0
+    
+    let slug s =
+      String.length s > 0 &&
+      let rec check i =
+        if i >= String.length s then true
+        else
+          let c = s.[i] in
+          if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c = '-'
+          then check (i + 1)
+          else false
+      in
+      check 0
+    
+    let one_of options s = List.mem s options
+    let length n s = String.length s = n
+    let min_length n s = String.length s >= n
+    let max_length n s = String.length s <= n
+    let all filters s = List.for_all (fun f -> f s) filters
+    let any_of filters s = List.exists (fun f -> f s) filters
+    let not_ f s = not (f s)
+    let predicate f = f
+  end
+
   type 'a t = {
     pattern : pattern;
     path_template : string;
     data : 'a;
+    filters : (string * match_filter) list;
   }
 
   let parse_pattern path =
@@ -113,13 +180,26 @@ module Route = struct
     
     match_segments pattern path_segments Params.empty
 
-  let create ~path ~data =
+  (** Validate params against filters *)
+  let validate_filters filters params =
+    List.for_all (fun (name, filter) ->
+      match Params.get name params with
+      | Some value -> filter value
+      | None -> true  (* Missing params pass - they'll fail pattern match anyway *)
+    ) filters
+
+  let create ~path ~data ?filters () =
     let pattern = parse_pattern path in
-    { pattern; path_template = path; data }
+    let filters = match filters with Some f -> f | None -> [] in
+    { pattern; path_template = path; data; filters }
 
   let match_route route path =
     match match_pattern route.pattern path with
-    | Some params -> Some { params; path }
+    | Some params ->
+      if validate_filters route.filters params then
+        Some { params; path }
+      else
+        None
     | None -> None
 
   let match_routes routes path =
@@ -134,6 +214,7 @@ module Route = struct
 
   let path_template route = route.path_template
   let data route = route.data
+  let filters route = route.filters
 end
 
 (** {1 Types} *)
