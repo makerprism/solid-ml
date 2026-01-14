@@ -1,6 +1,6 @@
 (** Async primitive for Promise-based data fetching with Suspense integration.
     
-    This module provides [create_async], a convenient wrapper for fetching async
+    This module provides [create], a convenient wrapper for fetching async
     data that integrates seamlessly with Suspense boundaries. It's inspired by
     SolidJS's createAsync from solid-router.
     
@@ -14,14 +14,14 @@
     {[
       (* Simple async fetch *)
       let user = Async.create (fun () ->
-        Fetch.get ("/api/users/" ^ Signal.get user_id)
+        fetch_user (Reactive_core.get_signal user_id)
       ) in
       
       (* In a Suspense boundary *)
       Suspense.boundary
         ~fallback:(fun () -> Html.text "Loading user...")
         (fun () ->
-          let data = Async.get user in  (* Suspends if loading *)
+          let data = Async.get user ~default:empty_user in
           User_card.make ~user:data ()
         )
     ]}
@@ -40,6 +40,7 @@ type 'a t = {
   state : 'a state Reactive_core.signal;
   refetch : unit -> unit;
   id : int;
+  dispose : unit -> unit;  (* Cleanup function for the effect *)
 }
 
 (** Unique ID counter for Suspense tracking *)
@@ -52,6 +53,10 @@ let next_id = ref 0
     The function is immediately called and will be re-called whenever any
     signals read inside it change (like createMemo with async support).
     
+    IMPORTANT: This should be called within a reactive context (e.g., inside
+    a component or [Reactive_core.create_root]). The effect will be automatically
+    cleaned up when the owner is disposed.
+    
     @param fetcher A function that returns a Promise
     @return An async value that can be read with [get] *)
 let create (fetcher : unit -> 'a Dom.promise) : 'a t =
@@ -61,37 +66,46 @@ let create (fetcher : unit -> 'a Dom.promise) : 'a t =
   
   (* Track whether we're currently fetching to avoid duplicate requests *)
   let fetch_counter = ref 0 in
+  let disposed = ref false in
   
   let do_fetch () =
-    (* Increment counter to identify this fetch request *)
-    incr fetch_counter;
-    let this_fetch = !fetch_counter in
-    
-    (* Set to pending *)
-    Reactive_core.set_signal state Pending;
-    
-    (* Call the fetcher - this tracks dependencies *)
-    let promise = fetcher () in
-    
-    (* Handle the promise *)
-    Dom.promise_on_complete promise
-      ~on_success:(fun data ->
-        (* Only update if this is still the latest fetch *)
-        if this_fetch = !fetch_counter then
-          Reactive_core.set_signal state (Ready data)
-      )
-      ~on_error:(fun exn ->
-        if this_fetch = !fetch_counter then
-          Reactive_core.set_signal state (Error exn)
-      )
+    if !disposed then () else begin
+      (* Increment counter to identify this fetch request *)
+      incr fetch_counter;
+      let this_fetch = !fetch_counter in
+      
+      (* Set to pending *)
+      Reactive_core.set_signal state Pending;
+      
+      (* Call the fetcher - this tracks dependencies *)
+      let promise = fetcher () in
+      
+      (* Handle the promise *)
+      Dom.promise_on_complete promise
+        ~on_success:(fun data ->
+          (* Only update if this is still the latest fetch and not disposed *)
+          if this_fetch = !fetch_counter && not !disposed then
+            Reactive_core.set_signal state (Ready data)
+        )
+        ~on_error:(fun exn ->
+          if this_fetch = !fetch_counter && not !disposed then
+            Reactive_core.set_signal state (Error exn)
+        )
+    end
   in
   
-  (* Create an effect that re-runs the fetcher when dependencies change *)
-  Reactive_core.create_effect (fun () ->
-    do_fetch ()
+  (* Create an effect that re-runs the fetcher when dependencies change.
+     Use create_effect_with_cleanup so we can properly dispose. *)
+  Reactive_core.create_effect_with_cleanup (fun () ->
+    do_fetch ();
+    (* Return cleanup function *)
+    fun () -> disposed := true
   );
   
-  { state; refetch = do_fetch; id }
+  (* Also register with Owner for cleanup when root is disposed *)
+  Reactive_core.on_cleanup (fun () -> disposed := true);
+  
+  { state; refetch = do_fetch; id; dispose = fun () -> disposed := true }
 
 (** Create an async value with a source signal.
     
@@ -113,33 +127,42 @@ let create_once (fetcher : unit -> 'a Dom.promise) : 'a t =
   let state = Reactive_core.create_signal Pending in
   let id = !next_id in
   incr next_id;
+  let disposed = ref false in
   
   let do_fetch () =
-    Reactive_core.set_signal state Pending;
-    let promise = fetcher () in
-    Dom.promise_on_complete promise
-      ~on_success:(fun data -> Reactive_core.set_signal state (Ready data))
-      ~on_error:(fun exn -> Reactive_core.set_signal state (Error exn))
+    if !disposed then () else begin
+      Reactive_core.set_signal state Pending;
+      let promise = fetcher () in
+      Dom.promise_on_complete promise
+        ~on_success:(fun data -> 
+          if not !disposed then 
+            Reactive_core.set_signal state (Ready data))
+        ~on_error:(fun exn -> 
+          if not !disposed then
+            Reactive_core.set_signal state (Error exn))
+    end
   in
   
   (* Fetch immediately, but only once *)
   do_fetch ();
   
-  { state; refetch = do_fetch; id }
+  { state; refetch = do_fetch; id; dispose = fun () -> disposed := true }
 
 (** {1 Reading} *)
 
 (** Get the value, integrating with Suspense.
     
     - If Ready: returns the value
-    - If Pending: registers with Suspense and raises a "Pending" exception
+    - If Pending: registers with Suspense and returns the default
     - If Error: re-raises the error
     
     This function is designed to be used inside Suspense boundaries.
-    The Suspense boundary will catch the suspension and show the fallback.
+    When pending, it increments the Suspense counter which triggers
+    the fallback to be shown.
     
-    @raise Failure if pending (caught by Suspense) or if an error occurred *)
-let get (async : 'a t) : 'a =
+    @param default Value to return while pending
+    @raise exn Re-raises if an error occurred *)
+let get (async : 'a t) ~(default : 'a) : 'a =
   match Reactive_core.get_signal async.state with
   | Ready data -> data
   | Error exn -> raise exn
@@ -149,12 +172,25 @@ let get (async : 'a t) : 'a =
      | Some suspense_state -> Suspense.increment suspense_state
      | None -> ()
     );
-    (* Raise to signal that we're still loading *)
-    failwith "Async value is pending"
+    (* Return default - Suspense will show fallback based on counter *)
+    default
+
+(** Get the value, raising if not ready.
+    
+    Unlike [get], this doesn't integrate with Suspense - it just raises.
+    Use this when you want explicit error handling.
+    
+    @raise Failure if pending
+    @raise exn if an error occurred *)
+let get_exn (async : 'a t) : 'a =
+  match Reactive_core.get_signal async.state with
+  | Ready data -> data
+  | Error exn -> raise exn
+  | Pending -> failwith "Async value is pending"
 
 (** Get the value with a default for pending state.
     
-    Unlike [get], this doesn't raise when pending - it returns the default.
+    This doesn't integrate with Suspense - use [get] for that.
     Errors still raise.
     
     @param default Value to return while pending *)
@@ -162,13 +198,7 @@ let get_or (async : 'a t) ~(default : 'a) : 'a =
   match Reactive_core.get_signal async.state with
   | Ready data -> data
   | Error exn -> raise exn
-  | Pending ->
-    (* Register with Suspense if available *)
-    (match Suspense.get_state () with
-     | Some suspense_state -> Suspense.increment suspense_state
-     | None -> ()
-    );
-    default
+  | Pending -> default
 
 (** Get the current state without raising.
     
@@ -207,6 +237,14 @@ let error (async : 'a t) : exn option =
 (** Manually trigger a refetch *)
 let refetch (async : 'a t) : unit =
   async.refetch ()
+
+(** Dispose the async value, stopping any future updates.
+    
+    This is automatically called when the owning reactive root is disposed.
+    You only need to call this manually if you create an Async.t outside
+    of a reactive context. *)
+let dispose (async : 'a t) : unit =
+  async.dispose ()
 
 (** {1 Transformations} *)
 

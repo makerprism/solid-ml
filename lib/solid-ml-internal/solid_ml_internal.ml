@@ -16,3 +16,6 @@ module Backend = Backend
 
 (** Functor to create reactive system *)
 module Reactive_functor = Reactive_functor
+
+(** Route parameter filters (shared between server and browser) *)
+module Filter = Filter

@@ -167,10 +167,13 @@ end
 
 (** {1 Store Type} *)
 
-(** A store holds reactive state with lens-based access *)
+(** A store holds reactive state with lens-based access.
+    
+    The store tracks a version number that increments on every update,
+    which can be useful for debugging or cache invalidation. *)
 type 'a t = {
   state: 'a Reactive_core.signal;
-  version: int ref;  (* For tracking updates *)
+  version: int ref;
 }
 
 (** {1 Creation} *)
@@ -198,6 +201,13 @@ let peek_all (store : 'a t) : 'a =
 (** Peek at a focused value (non-reactive) *)
 let peek (store : 'a t) (lens : ('a, 'b) lens) : 'b =
   lens.get (Reactive_core.peek_signal store.state)
+
+(** Get the current version number.
+    
+    The version increments on every update to the store.
+    This is useful for debugging or as a cache invalidation key. *)
+let version (store : 'a t) : int =
+  !(store.version)
 
 (** {1 Updating State} *)
 
@@ -299,19 +309,26 @@ let on_change_all (store : 'a t) (callback : 'a -> unit) : unit =
 (** {1 Subscriptions} *)
 
 (** Subscribe to changes in a focused value.
-    Returns an unsubscribe function. 
+    Returns an unsubscribe function.
     
-    Note: Uses effect internally, so should be called within a reactive context. *)
+    The callback is invoked immediately with the current value, and then
+    again whenever the focused value changes.
+    
+    Note: The underlying effect exists until the owning reactive root is disposed.
+    Calling unsubscribe stops the callback from being invoked but doesn't
+    fully dispose the effect (this matches SolidJS behavior). *)
 let subscribe (store : 'a t) (lens : ('a, 'b) lens) (callback : 'b -> unit) : (unit -> unit) =
-  let disposed = ref false in
+  let active = ref true in
   Reactive_core.create_effect_with_cleanup (fun () ->
-    if not !disposed then begin
+    if !active then begin
       let value = get store lens in
       callback value
     end;
-    (fun () -> disposed := true)
+    (* Cleanup function - called before next run and on owner disposal *)
+    fun () -> ()
   );
-  fun () -> disposed := true
+  (* Return unsubscribe function *)
+  fun () -> active := false
 
 (** {1 Produce (Immer-style updates)} *)
 

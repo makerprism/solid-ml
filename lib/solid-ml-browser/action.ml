@@ -35,23 +35,14 @@
 
 (** {1 Types} *)
 
-(** Submission state for tracking action progress *)
-type 'a submission = {
+(** Submission state for tracking action progress.
+    Includes both input and output tracking. *)
+type ('input, 'output) submission = {
   pending: bool Reactive_core.signal;
-  result: 'a option Reactive_core.signal;
+  result: 'output option Reactive_core.signal;
   error: exn option Reactive_core.signal;
   input: 'input option Reactive_core.signal;
   clear: unit -> unit;
-}
-  constraint 'a = 'output
-  constraint 'input = _
-
-(** Simplified submission type - tracks output only *)
-type 'output submission_state = {
-  s_pending: bool Reactive_core.signal;
-  s_result: 'output option Reactive_core.signal;
-  s_error: exn option Reactive_core.signal;
-  s_clear: unit -> unit;
 }
 
 (** An action wraps an async mutation function *)
@@ -193,21 +184,23 @@ let use_async (action : ('input, 'output) t) : ('input -> 'output Dom.promise) =
     - [pending]: true while the action is running
     - [result]: Some output after success, None otherwise
     - [error]: Some exn after failure, None otherwise
-    - [clear]: Function to reset result/error state
+    - [input]: The input that triggered the current/last action
+    - [clear]: Function to reset result/error/input state
     
     @param action The action to track
-    @return Submission state signals *)
-let use_submission (action : ('input, 'output) t) : 'output submission_state =
+    @return Submission state with all tracking signals *)
+let use_submission (action : ('input, 'output) t) : ('input, 'output) submission =
   let clear () =
     Reactive_core.set_signal action.result None;
     Reactive_core.set_signal action.error None;
     Reactive_core.set_signal action.input None
   in
   {
-    s_pending = action.pending;
-    s_result = action.result;
-    s_error = action.error;
-    s_clear = clear;
+    pending = action.pending;
+    result = action.result;
+    error = action.error;
+    input = action.input;
+    clear;
   }
 
 (** {1 Revalidation} *)
@@ -217,10 +210,15 @@ let use_submission (action : ('input, 'output) t) : 'output submission_state =
     Call this when creating an Async resource that should be refetched
     when related data is mutated.
     
+    The registration is automatically cleaned up when the owning reactive
+    context is disposed.
+    
     @param key Unique key for this resource
     @param async The Async.t to register *)
 let register_async ~key (async : 'a Async.t) : unit =
-  Registry.register key (fun () -> Async.refetch async)
+  Registry.register key (fun () -> Async.refetch async);
+  (* Auto-cleanup when owner is disposed *)
+  Reactive_core.on_cleanup (fun () -> Registry.unregister key)
 
 (** Unregister a resource from revalidation *)
 let unregister ~key : unit =
@@ -282,20 +280,21 @@ let create_simple (handler : unit -> 'output Dom.promise) : (unit, 'output) t =
 
 (** Chain two actions: run the second after the first succeeds.
     
+    The second action receives the output of the first as its input.
+    
     @param first Action to run first
-    @param second Function that takes first's output and returns second action's input
-    @return A combined action *)
+    @param second Action that takes first's output as input
+    @return A combined action that runs first then second *)
 let chain
     (first : ('a, 'b) t)
-    (second : 'b -> ('c, 'd) t)
-    : ('a, 'd) t =
+    (second : ('b, 'c) t)
+    : ('a, 'c) t =
   create (fun input ->
     Dom.promise_make (fun resolve reject ->
       let first_promise = first.handler input in
       Dom.promise_on_complete first_promise
         ~on_success:(fun b ->
-          let second_action = second b in
-          let second_promise = second_action.handler b in
+          let second_promise = second.handler b in
           Dom.promise_on_complete second_promise
             ~on_success:resolve
             ~on_error:reject
