@@ -529,3 +529,59 @@ let js_map_get_opt map key =
 
 let js_map_set_ map key value =
   ignore (js_map_set map key value)
+
+(** {1 Promises} *)
+
+(** JavaScript Promise type *)
+type 'a promise
+
+(** Create a resolved promise *)
+external promise_resolve : 'a -> 'a promise = "resolve"
+  [@@mel.scope "Promise"]
+
+(** Create a rejected promise *)
+external promise_reject : exn -> 'a promise = "reject"
+  [@@mel.scope "Promise"]
+
+(** Chain a promise with a callback (then) *)
+external promise_then : 'a promise -> ('a -> 'b) -> 'b promise = "then"
+  [@@mel.send]
+
+(** Chain a promise with a promise-returning callback *)
+external promise_then_promise : 'a promise -> ('a -> 'b promise) -> 'b promise = "then"
+  [@@mel.send]
+
+(** Catch promise rejection *)
+external promise_catch : 'a promise -> (exn -> 'a) -> 'a promise = "catch"
+  [@@mel.send]
+
+(** Finally - runs regardless of success/failure *)
+external promise_finally : 'a promise -> (unit -> unit) -> 'a promise = "finally"
+  [@@mel.send]
+
+(** Create a promise with resolve/reject callbacks *)
+let promise_make (executor : (('a -> unit) -> (exn -> unit) -> unit)) : 'a promise =
+  let _ = executor in
+  [%mel.raw {|
+    new Promise(function(resolve, reject) {
+      executor(resolve, reject);
+    })
+  |}]
+
+(** Run a promise and handle both success and error *)
+let promise_on_complete (p : 'a promise) ~(on_success : 'a -> unit) ~(on_error : exn -> unit) : unit =
+  let _ = p in
+  let _ = on_success in
+  let _ = on_error in
+  [%mel.raw {|
+    p.then(on_success).catch(on_error)
+  |}]
+
+(* Re-export promise utilities to avoid unused warnings - these are public API *)
+let _ = promise_resolve
+let _ = promise_reject
+let _ = promise_then
+let _ = promise_then_promise
+let _ = promise_catch
+let _ = promise_finally
+let _ = promise_make

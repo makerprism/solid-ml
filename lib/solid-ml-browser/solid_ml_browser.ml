@@ -61,6 +61,9 @@ module Router = Router
 (** Async resource with loading/error/ready states *)
 module Resource = Resource
 
+(** Async primitive for Promise-based data with Suspense integration *)
+module Async = Async
+
 (** Suspense boundaries for async loading states *)
 module Suspense = Suspense
 

@@ -335,3 +335,32 @@ val js_map_clear : ('k, 'v) js_map -> unit
 
 val js_map_size : ('k, 'v) js_map -> int
 (** Get number of entries *)
+
+(** {1 Promises} *)
+
+(** JavaScript Promise type *)
+type 'a promise
+
+val promise_resolve : 'a -> 'a promise
+(** Create a resolved promise *)
+
+val promise_reject : exn -> 'a promise
+(** Create a rejected promise *)
+
+val promise_then : 'a promise -> ('a -> 'b) -> 'b promise
+(** Chain a promise with a callback (then) *)
+
+val promise_then_promise : 'a promise -> ('a -> 'b promise) -> 'b promise
+(** Chain a promise with a promise-returning callback *)
+
+val promise_catch : 'a promise -> (exn -> 'a) -> 'a promise
+(** Catch promise rejection *)
+
+val promise_finally : 'a promise -> (unit -> unit) -> 'a promise
+(** Finally - runs regardless of success/failure *)
+
+val promise_make : (('a -> unit) -> (exn -> unit) -> unit) -> 'a promise
+(** Create a promise with resolve/reject callbacks *)
+
+val promise_on_complete : 'a promise -> on_success:('a -> unit) -> on_error:(exn -> unit) -> unit
+(** Run a promise and handle both success and error *)
