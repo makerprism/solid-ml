@@ -136,31 +136,31 @@ let select id =
 
 (* Create a template row element for cloning - faster than createElement for each row *)
 let row_template : Dom.element Lazy.t = lazy (
-  let tr = Dom.create_element Dom.document "tr" in
+  let tr = Dom.create_element (Dom.document ()) "tr" in
   
-  let td1 = Dom.create_element Dom.document "td" in
+  let td1 = Dom.create_element (Dom.document ()) "td" in
   Dom.set_class_name td1 "col-md-1";
   Dom.append_child tr (Dom.node_of_element td1);
   
-  let td2 = Dom.create_element Dom.document "td" in
+  let td2 = Dom.create_element (Dom.document ()) "td" in
   Dom.set_class_name td2 "col-md-4";
-  let a = Dom.create_element Dom.document "a" in
+  let a = Dom.create_element (Dom.document ()) "a" in
   Dom.set_class_name a "lbl"; (* Marker class for delegation *)
   Dom.append_child td2 (Dom.node_of_element a);
   Dom.append_child tr (Dom.node_of_element td2);
   
-  let td3 = Dom.create_element Dom.document "td" in
+  let td3 = Dom.create_element (Dom.document ()) "td" in
   Dom.set_class_name td3 "col-md-1";
-  let a_del = Dom.create_element Dom.document "a" in
+  let a_del = Dom.create_element (Dom.document ()) "a" in
   Dom.set_class_name a_del "remove"; (* Marker class for delegation *)
-  let span = Dom.create_element Dom.document "span" in
+  let span = Dom.create_element (Dom.document ()) "span" in
   Dom.set_class_name span "glyphicon glyphicon-remove";
   Dom.set_attribute span "aria-hidden" "true";
   Dom.append_child a_del (Dom.node_of_element span);
   Dom.append_child td3 (Dom.node_of_element a_del);
   Dom.append_child tr (Dom.node_of_element td3);
   
-  let td4 = Dom.create_element Dom.document "td" in
+  let td4 = Dom.create_element (Dom.document ()) "td" in
   Dom.set_class_name td4 "col-md-6";
   Dom.append_child tr (Dom.node_of_element td4);
   
@@ -444,7 +444,7 @@ let render_keyed_list ~(items : row array Reactive.Signal.t) (parent : Dom.eleme
 let () =
   Random.self_init ();
   
-  match Dom.get_element_by_id Dom.document "tbody" with
+  match Dom.get_element_by_id (Dom.document ()) "tbody" with
   | None -> Dom.error "tbody not found"
   | Some tbody ->
     (* Set up keyed list rendering inside reactive root *)
@@ -498,7 +498,7 @@ let () =
     
     (* Button handlers *)
     let setup_button id handler =
-      match Dom.get_element_by_id Dom.document id with
+      match Dom.get_element_by_id (Dom.document ()) id with
       | Some btn -> Dom.add_event_listener btn "click" (fun _ -> handler ())
       | None -> ()
     in

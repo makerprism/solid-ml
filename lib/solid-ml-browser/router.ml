@@ -19,7 +19,7 @@
       
       (* Initialize the router *)
       let () =
-        match Dom.get_element_by_id Dom.document "app" with
+        match Dom.get_element_by_id (Dom.document ()) "app" with
         | Some root ->
           let _dispose = Router.init ~routes (fun () ->
             Render.render root (fun () ->
@@ -473,7 +473,7 @@ let nav_link ?(class_="") ?(active_class="active") ?(exact=false) ~href ~childre
 
 let outlet ~(routes : (unit -> Html.node) Route.t list) ?not_found () =
   (* Create a container element that will be updated reactively *)
-  let container = Dom.create_element Dom.document "div" in
+  let container = Dom.create_element (Dom.document ()) "div" in
   let current_path = ref "" in
   
   (* Effect that re-renders the outlet when the path changes *)

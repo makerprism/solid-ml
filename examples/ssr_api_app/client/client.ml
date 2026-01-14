@@ -12,9 +12,9 @@ open Solid_ml_browser
 
 (** {1 DOM Helpers} *)
 
-let get_element id = Dom.get_element_by_id Dom.document id
-let query_selector sel = Dom.query_selector Dom.document sel
-let query_selector_all sel = Dom.query_selector_all Dom.document sel
+let get_element id = Dom.get_element_by_id (Dom.document ()) id
+let query_selector sel = Dom.query_selector (Dom.document ()) sel
+let query_selector_all sel = Dom.query_selector_all (Dom.document ()) sel
 
 (** {1 Fetch API via Raw JS} *)
 

@@ -228,7 +228,7 @@ let app () =
 (** {1 Main Entry Point} *)
 
 let () =
-  match Dom.get_element_by_id Dom.document "app" with
+  match Dom.get_element_by_id (Dom.document ()) "app" with
   | Some root ->
     (* Set base to /browser_router since we're served from that subdirectory *)
     let config = Router.{ 

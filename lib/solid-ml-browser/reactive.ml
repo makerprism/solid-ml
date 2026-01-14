@@ -198,7 +198,7 @@ end
 let get_or_create_text_node key initial_value =
   match Hydration.adopt_text_node key with
   | Some txt -> txt  (* Adopt existing node *)
-  | None -> Dom.create_text_node Dom.document initial_value
+  | None -> Dom.create_text_node (Dom.document ()) initial_value
 
 let text = Html.reactive_text
 let text_of = Html.reactive_text_of
@@ -407,7 +407,7 @@ let each_keyed ~(items : 'a list Signal.t) ~(key : 'a -> string)
     @param render Function to render content when visible
     @param parent DOM element to append content to *)
 let show ~(when_ : bool Signal.t) ~(render : unit -> Html.node) (parent : Dom.element) =
-  let placeholder = Dom.create_comment Dom.document "show" in
+  let placeholder = Dom.create_comment (Dom.document ()) "show" in
   let current_node : Dom.node option ref = ref None in
   
   (* Insert placeholder *)
@@ -448,7 +448,7 @@ let show ~(when_ : bool Signal.t) ~(render : unit -> Html.node) (parent : Dom.el
     @param else_ Function to render when false
     @param parent DOM element to append content to *)
 let if_ ~(when_ : bool Signal.t) ~then_ ~else_ (parent : Dom.element) =
-  let placeholder = Dom.create_comment Dom.document "if" in
+  let placeholder = Dom.create_comment (Dom.document ()) "if" in
   let current_node : Dom.node option ref = ref None in
   let current_branch : bool option ref = ref None in
   

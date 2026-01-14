@@ -10,7 +10,7 @@
 
 open Solid_ml_browser
 
-let get_element id = Dom.get_element_by_id Dom.document id
+let get_element id = Dom.get_element_by_id (Dom.document ()) id
 
 let read_initial () =
   match get_element "counter-initial" with
@@ -67,7 +67,7 @@ let () =
   let initial = read_initial () in
 
 (* Find the main element to hydrate *)
-  match Dom.query_selector Dom.document "main.app" with
+  match Dom.query_selector (Dom.document ()) "main.app" with
   | None -> Dom.warn "No main.app element found for hydration"
   | Some main_el ->
     let count, set_count = Reactive.Signal.create initial in

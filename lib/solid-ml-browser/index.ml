@@ -56,7 +56,7 @@ let create (type a) (props : a index_props) : Html.node =
   let open Dom in
   
   let items_ref : a index_state list ref = ref [] in
-  let placeholder = create_comment document "index" in
+  let placeholder = create_comment (document ()) "index" in
   let placeholder_node = node_of_comment placeholder in
   let current_items_ref : a list ref = ref [] in
   
@@ -122,9 +122,9 @@ let create (type a) (props : a index_props) : Html.node =
     
     Owner.on_cleanup (fun () -> Dom.remove_node fallback_node);
     
-    Text (create_text_node document "")
+    Text (create_text_node (document ()) "")
   | None ->
-    Text (create_text_node document "")
+    Text (create_text_node (document ()) "")
 
 (** {1 Shorthand} *)
 

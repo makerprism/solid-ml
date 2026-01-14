@@ -48,8 +48,10 @@ val element_of_event_target : event_target -> element
 
 (** {1 Global Objects} *)
 
-val document : document
-(** The global document object *)
+val document : unit -> document
+(** Get the global document object. 
+    This is a function to avoid errors in non-browser environments (e.g., Node.js)
+    when only using Promise/Timer APIs. *)
 
 (** {1 Document Methods} *)
 

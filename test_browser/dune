@@ -1,6 +1,6 @@
-; Browser reactive core tests
+; Browser tests
 ;
-; These tests verify the browser reactive implementation works correctly.
+; These tests verify the browser implementation works correctly.
 ; Run with: make browser-tests
 ;   or: dune build @test_browser/melange
 ;       node _build/default/test_browser/output/test_browser/test_reactive.js

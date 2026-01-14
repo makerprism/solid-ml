@@ -30,7 +30,7 @@ let to_dom_node = function
   | Element el -> node_of_element el
   | Text txt -> node_of_text txt
   | Fragment frag -> node_of_fragment frag
-  | Empty -> node_of_text (create_text_node document "")
+  | Empty -> node_of_text (create_text_node (document ()) "")
 
 (** Append a node to an element *)
 let append_to_element parent child =
@@ -103,7 +103,7 @@ let set_attrs el attrs =
 
 (** {1 Text Content} *)
 
-let text s = Text (create_text_node document s)
+let text s = Text (create_text_node (document ()) s)
 let int n = text (string_of_int n)
 let float f = text (string_of_float f)
 let empty = Empty
@@ -112,7 +112,7 @@ let empty = Empty
 let get_or_create_text_node key initial_value =
   match Hydration.adopt_text_node key with
   | Some txt -> txt
-  | None -> create_text_node document initial_value
+  | None -> create_text_node (document ()) initial_value
 
 let reactive_text signal =
   let key = Hydration.next_hydration_key () in
@@ -148,7 +148,7 @@ let signal_text = reactive_text
 (** Create a fragment from a list of nodes.
     Unlike wrapping in a span, this preserves the flat structure. *)
 let fragment children =
-  let frag = create_document_fragment document in
+  let frag = create_document_fragment (document ()) in
   List.iter (append_to_fragment frag) children;
   Fragment frag
 
@@ -159,7 +159,7 @@ let make_element tag ?id ?class_ ?style ?onclick ?oninput ?onchange ?onkeydown ?
   (* Try to adopt existing element during hydration *)
   let el, adopted = match Hydration.adopt_element tag with
     | Some existing -> (existing, true)
-    | None -> (create_element document tag, false)
+    | None -> (create_element (document ()) tag, false)
   in
   (* Set attributes (even on adopted elements to ensure consistency) *)
   set_opt_attr el "id" id;
@@ -487,7 +487,7 @@ let get_document_body () =
   match !document_body with
   | Some body -> body
   | None ->
-    let body = Option.get (get_element_by_id document "body") in
+    let body = Option.get (get_element_by_id (document ()) "body") in
     document_body := Some body;
     body
 
@@ -496,7 +496,7 @@ let get_document_body () =
     - is_svg: Use <g> wrapper instead of <div> for SVG context
     - children: Content to render in the portal *)
 let portal ?target ?(is_svg=false) ~(children : node) () : node =
-  let _placeholder = create_comment document "portal" in
+  let _placeholder = create_comment (document ()) "portal" in
   
   let mounted_node : Dom.node option ref = ref None in
   
@@ -519,7 +519,7 @@ let portal ?target ?(is_svg=false) ~(children : node) () : node =
     else if get_tag_name target = "HEAD" then
       children_node
     else
-      let wrapper = create_element document "div" in
+      let wrapper = create_element (document ()) "div" in
       set_attribute wrapper "data-solid-ml-portal" "";
       append_child wrapper children_node;
       node_of_element wrapper
@@ -531,13 +531,13 @@ let portal ?target ?(is_svg=false) ~(children : node) () : node =
     Reactive_core.on_cleanup cleanup
   );
   
-  Text (create_text_node document "")
+  Text (create_text_node (document ()) "")
 
 (** {1 SVG Elements} *)
 
 module Svg = struct
   let svg ?id ?class_ ?style ?viewBox ?width ?height ?fill ?onclick ?(attrs=[]) ~children () =
-    let el = create_element_ns document svg_namespace "svg" in
+    let el = create_element_ns (document ()) svg_namespace "svg" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
     set_opt_attr el "style" style;
@@ -551,7 +551,7 @@ module Svg = struct
     Element el
 
   let g ?id ?class_ ?style ?transform ?fill ?stroke ?onclick ?(attrs=[]) ~children () =
-    let el = create_element_ns document svg_namespace "g" in
+    let el = create_element_ns (document ()) svg_namespace "g" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
     set_opt_attr el "style" style;
@@ -564,7 +564,7 @@ module Svg = struct
     Element el
 
   let circle ?id ?class_ ?style ?cx ?cy ?r ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ?(attrs=[]) ~children () =
-    let el = create_element_ns document svg_namespace "circle" in
+    let el = create_element_ns (document ()) svg_namespace "circle" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
     set_opt_attr el "style" style;
@@ -582,7 +582,7 @@ module Svg = struct
     Element el
 
   let ellipse ?id ?class_ ?style ?cx ?cy ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ?(attrs=[]) ~children () =
-    let el = create_element_ns document svg_namespace "ellipse" in
+    let el = create_element_ns (document ()) svg_namespace "ellipse" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
     set_opt_attr el "style" style;
@@ -601,7 +601,7 @@ module Svg = struct
     Element el
 
   let rect ?id ?class_ ?style ?x ?y ?width ?height ?rx ?ry ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ?(attrs=[]) ~children () =
-    let el = create_element_ns document svg_namespace "rect" in
+    let el = create_element_ns (document ()) svg_namespace "rect" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
     set_opt_attr el "style" style;
@@ -622,7 +622,7 @@ module Svg = struct
     Element el
 
   let line ?id ?class_ ?style ?x1 ?y1 ?x2 ?y2 ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ?(attrs=[]) ~children () =
-    let el = create_element_ns document svg_namespace "line" in
+    let el = create_element_ns (document ()) svg_namespace "line" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
     set_opt_attr el "style" style;
@@ -640,7 +640,7 @@ module Svg = struct
     Element el
 
   let polyline ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ?(attrs=[]) ~children () =
-    let el = create_element_ns document svg_namespace "polyline" in
+    let el = create_element_ns (document ()) svg_namespace "polyline" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
     set_opt_attr el "style" style;
@@ -656,7 +656,7 @@ module Svg = struct
     Element el
 
   let polygon ?id ?class_ ?style ?points ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?onclick ?(attrs=[]) ~children () =
-    let el = create_element_ns document svg_namespace "polygon" in
+    let el = create_element_ns (document ()) svg_namespace "polygon" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
     set_opt_attr el "style" style;
@@ -672,7 +672,7 @@ module Svg = struct
     Element el
 
   let path ?id ?class_ ?style ?d ?fill ?stroke ?stroke_width ?stroke_linecap ?stroke_linejoin ?fill_rule ?clip_rule ?onclick ?(attrs=[]) ~children () =
-    let el = create_element_ns document svg_namespace "path" in
+    let el = create_element_ns (document ()) svg_namespace "path" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
     set_opt_attr el "style" style;
@@ -690,7 +690,7 @@ module Svg = struct
     Element el
 
   let text_ ?id ?class_ ?style ?x ?y ?dx ?dy ?text_anchor ?font_size ?font_family ?fill ?stroke ?stroke_width ?onclick ?(attrs=[]) ~children () =
-    let el = create_element_ns document svg_namespace "text" in
+    let el = create_element_ns (document ()) svg_namespace "text" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
     set_opt_attr el "style" style;
@@ -710,7 +710,7 @@ module Svg = struct
     Element el
 
   let tspan ?id ?class_ ?x ?y ?dx ?dy ?fill ?onclick ?(attrs=[]) ~children () =
-    let el = create_element_ns document svg_namespace "tspan" in
+    let el = create_element_ns (document ()) svg_namespace "tspan" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
     set_opt_attr el "x" x;
@@ -724,14 +724,14 @@ module Svg = struct
     Element el
 
   let defs ?id ?(attrs=[]) ~children () =
-    let el = create_element_ns document svg_namespace "defs" in
+    let el = create_element_ns (document ()) svg_namespace "defs" in
     set_opt_attr el "id" id;
     set_attrs el attrs;
     List.iter (append_to_element el) children;
     Element el
 
   let use ?id ?class_ ?href ?x ?y ?width ?height ?onclick ?(attrs=[]) () =
-    let el = create_element_ns document svg_namespace "use" in
+    let el = create_element_ns (document ()) svg_namespace "use" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
     set_opt_attr el "href" href;
@@ -744,7 +744,7 @@ module Svg = struct
     Element el
 
   let symbol ?id ?viewBox ?(attrs=[]) ~children () =
-    let el = create_element_ns document svg_namespace "symbol" in
+    let el = create_element_ns (document ()) svg_namespace "symbol" in
     set_opt_attr el "id" id;
     set_opt_attr el "viewBox" viewBox;
     set_attrs el attrs;
@@ -752,21 +752,21 @@ module Svg = struct
     Element el
 
   let clipPath ?id ?(attrs=[]) ~children () =
-    let el = create_element_ns document svg_namespace "clipPath" in
+    let el = create_element_ns (document ()) svg_namespace "clipPath" in
     set_opt_attr el "id" id;
     set_attrs el attrs;
     List.iter (append_to_element el) children;
     Element el
 
   let mask ?id ?(attrs=[]) ~children () =
-    let el = create_element_ns document svg_namespace "mask" in
+    let el = create_element_ns (document ()) svg_namespace "mask" in
     set_opt_attr el "id" id;
     set_attrs el attrs;
     List.iter (append_to_element el) children;
     Element el
 
   let linearGradient ?id ?x1 ?y1 ?x2 ?y2 ?gradientUnits ?gradientTransform ?(attrs=[]) ~children () =
-    let el = create_element_ns document svg_namespace "linearGradient" in
+    let el = create_element_ns (document ()) svg_namespace "linearGradient" in
     set_opt_attr el "id" id;
     set_opt_attr el "x1" x1;
     set_opt_attr el "y1" y1;
@@ -779,7 +779,7 @@ module Svg = struct
     Element el
 
   let radialGradient ?id ?cx ?cy ?r ?fx ?fy ?gradientUnits ?gradientTransform ?(attrs=[]) ~children () =
-    let el = create_element_ns document svg_namespace "radialGradient" in
+    let el = create_element_ns (document ()) svg_namespace "radialGradient" in
     set_opt_attr el "id" id;
     set_opt_attr el "cx" cx;
     set_opt_attr el "cy" cy;
@@ -793,7 +793,7 @@ module Svg = struct
     Element el
 
   let stop ?offset ?stop_color ?stop_opacity ?(attrs=[]) () =
-    let el = create_element_ns document svg_namespace "stop" in
+    let el = create_element_ns (document ()) svg_namespace "stop" in
     set_opt_attr el "offset" offset;
     set_opt_attr el "stop-color" stop_color;
     set_opt_attr el "stop-opacity" stop_opacity;
@@ -801,7 +801,7 @@ module Svg = struct
     Element el
 
   let image ?id ?class_ ?href ?x ?y ?width ?height ?preserveAspectRatio ?(attrs=[]) () =
-    let el = create_element_ns document svg_namespace "image" in
+    let el = create_element_ns (document ()) svg_namespace "image" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
     set_opt_attr el "href" href;
@@ -814,7 +814,7 @@ module Svg = struct
     Element el
 
   let foreignObject ?id ?class_ ?x ?y ?width ?height ?(attrs=[]) ~children () =
-    let el = create_element_ns document svg_namespace "foreignObject" in
+    let el = create_element_ns (document ()) svg_namespace "foreignObject" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
     set_opt_attr el "x" x;

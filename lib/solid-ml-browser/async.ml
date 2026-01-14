@@ -66,10 +66,11 @@ let create (fetcher : unit -> 'a Dom.promise) : 'a t =
   
   (* Track whether we're currently fetching to avoid duplicate requests *)
   let fetch_counter = ref 0 in
-  let disposed = ref false in
+  (* permanently_disposed is set when the Async is explicitly disposed or the owner is disposed *)
+  let permanently_disposed = ref false in
   
   let do_fetch () =
-    if !disposed then () else begin
+    if !permanently_disposed then () else begin
       (* Increment counter to identify this fetch request *)
       incr fetch_counter;
       let this_fetch = !fetch_counter in
@@ -84,28 +85,26 @@ let create (fetcher : unit -> 'a Dom.promise) : 'a t =
       Dom.promise_on_complete promise
         ~on_success:(fun data ->
           (* Only update if this is still the latest fetch and not disposed *)
-          if this_fetch = !fetch_counter && not !disposed then
+          if this_fetch = !fetch_counter && not !permanently_disposed then
             Reactive_core.set_signal state (Ready data)
         )
         ~on_error:(fun exn ->
-          if this_fetch = !fetch_counter && not !disposed then
+          if this_fetch = !fetch_counter && not !permanently_disposed then
             Reactive_core.set_signal state (Error exn)
         )
     end
   in
   
   (* Create an effect that re-runs the fetcher when dependencies change.
-     Use create_effect_with_cleanup so we can properly dispose. *)
-  Reactive_core.create_effect_with_cleanup (fun () ->
-    do_fetch ();
-    (* Return cleanup function *)
-    fun () -> disposed := true
+     The effect's cleanup is a no-op - we use fetch_counter to cancel stale requests. *)
+  Reactive_core.create_effect (fun () ->
+    do_fetch ()
   );
   
-  (* Also register with Owner for cleanup when root is disposed *)
-  Reactive_core.on_cleanup (fun () -> disposed := true);
+  (* Register with Owner for cleanup when root is disposed *)
+  Reactive_core.on_cleanup (fun () -> permanently_disposed := true);
   
-  { state; refetch = do_fetch; id; dispose = fun () -> disposed := true }
+  { state; refetch = do_fetch; id; dispose = fun () -> permanently_disposed := true }
 
 (** Create an async value with a source signal.
     

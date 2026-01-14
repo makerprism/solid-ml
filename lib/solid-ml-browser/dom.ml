@@ -29,7 +29,9 @@ external element_of_event_target : event_target -> element = "%identity"
 
 (** {1 Global Objects} *)
 
-let document : document = [%mel.raw "document"]
+(** Get the document object. This is lazy to avoid errors in non-browser environments
+    like Node.js when only using Promise/Timer APIs. *)
+let document () : document = [%mel.raw "document"]
 
 (** {1 Document Methods} *)
 
@@ -336,20 +338,22 @@ external blur : element -> unit = "blur"
 
 (** {1 Timers} *)
 
+(** Note: These use globalThis which works in both browser and Node.js environments *)
+
 external set_timeout : (unit -> unit) -> int -> int = "setTimeout"
-  [@@mel.scope "window"]
+  [@@mel.scope "globalThis"]
 
 external clear_timeout : int -> unit = "clearTimeout"
-  [@@mel.scope "window"]
+  [@@mel.scope "globalThis"]
 
 external set_interval : (unit -> unit) -> int -> int = "setInterval"
-  [@@mel.scope "window"]
+  [@@mel.scope "globalThis"]
 
 external clear_interval : int -> unit = "clearInterval"
-  [@@mel.scope "window"]
+  [@@mel.scope "globalThis"]
 
 external request_animation_frame : (float -> unit) -> int = "requestAnimationFrame"
-  [@@mel.scope "window"]
+  [@@mel.scope "globalThis"]
 
 external cancel_animation_frame : int -> unit = "cancelAnimationFrame"
   [@@mel.scope "window"]

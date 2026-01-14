@@ -70,7 +70,7 @@ let todo_component ~initial_todos () =
   ) in
   
   (* Create todo list container *)
-  let todo_list_el = Dom.create_element Dom.document "div" in
+  let todo_list_el = Dom.create_element (Dom.document ()) "div" in
   
   (* Set up reactive list rendering *)
   Reactive.each ~items:todos ~render:(fun todo ->
@@ -106,7 +106,7 @@ let () =
   let path = Dom.get_pathname () in
   Dom.log ("Hydrating page: " ^ path);
   
-  match Dom.get_element_by_id Dom.document "app" with
+  match Dom.get_element_by_id (Dom.document ()) "app" with
   | None -> Dom.error "Could not find #app element for hydration"
   | Some root ->
     (* For now, we replace content rather than true hydration *)

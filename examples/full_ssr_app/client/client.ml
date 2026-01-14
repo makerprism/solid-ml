@@ -13,10 +13,10 @@ module Shared = Shared_components.Components.Make(Client_platform.Client_Platfor
 (** {1 DOM Helpers} *)
 
 let get_element id =
-  Dom.get_element_by_id Dom.document id
+  Dom.get_element_by_id (Dom.document ()) id
 
 let query_selector_all selector =
-  Dom.query_selector_all Dom.document selector
+  Dom.query_selector_all (Dom.document ()) selector
 
 (** {1 Client-Side Navigation} *)
 

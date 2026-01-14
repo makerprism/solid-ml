@@ -100,7 +100,7 @@ let todo_list () =
   ) in
   
   (* Create the todo list container *)
-  let todo_list_el = Dom.create_element Dom.document "ul" in
+  let todo_list_el = Dom.create_element (Dom.document ()) "ul" in
   Dom.set_attribute todo_list_el "class" "todo-list";
   
   (* Set up reactive list rendering *)
@@ -156,7 +156,7 @@ let todo_list () =
 
 (** Main entry point *)
 let () =
-  match Dom.get_element_by_id Dom.document "app" with
+  match Dom.get_element_by_id (Dom.document ()) "app" with
   | Some root ->
     let _dispose = Render.render root (fun () ->
       Html.fragment [

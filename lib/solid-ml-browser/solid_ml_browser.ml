@@ -26,7 +26,7 @@
         )
       
       let () =
-        match Dom.get_element_by_id Dom.document "app" with
+        match Dom.get_element_by_id (Dom.document ()) "app" with
         | Some root -> ignore (Render.render root counter)
         | None -> Dom.error "No #app element found"
     ]}
