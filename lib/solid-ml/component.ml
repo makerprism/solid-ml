@@ -106,6 +106,27 @@ module Ssr_env : COMPONENT_ENV = struct
     let reactive_text _ = ()
     let reactive_text_of _ _ = ()
     let reactive_text_string _ = ()
+
+    module Template = struct
+      type template = unit
+      type instance = unit
+
+      type text_slot = unit
+      type element = unit
+
+      let compile ~segments:_ ~slot_kinds:_ = ()
+      let instantiate () = ()
+      let hydrate ~root:() () = ()
+      let root () = ()
+
+      let bind_text () ~id:_ ~path:_ = ()
+      let set_text () _ = ()
+
+      let bind_element () ~id:_ ~path:_ = ()
+      let set_attr () ~name:_ _ = ()
+      let on_ () ~event:_ _ = ()
+    end
+
     let div ?id:_ ?class_:_ ?style:_ ?role:_ ?aria_label:_ ?aria_hidden:_ ?tabindex:_ ?onclick:_ ?data:_ ?attrs:_ ~children:_ () = ()
     let span ?id:_ ?class_:_ ?style:_ ?role:_ ?aria_label:_ ?aria_hidden:_ ?onclick:_ ?data:_ ?attrs:_ ~children:_ () = ()
     let p ?id:_ ?class_:_ ?role:_ ?onclick:_ ?data:_ ?attrs:_ ~children:_ () = ()

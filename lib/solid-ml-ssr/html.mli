@@ -255,6 +255,12 @@ val text_ : ?id:string -> ?class_:string -> ?style:string -> ?x:string ->
 
 val fragment : node list -> node
 
+(** {1 Compiled Templates} *)
+
+module Template : Solid_ml_template_runtime.TEMPLATE
+  with type node := node
+   and type event := event
+
 (** {1 Rendering} *)
 
 (** Render a complete HTML document. *)

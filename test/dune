@@ -25,3 +25,7 @@
 (test
   (name test_component)
   (libraries solid-ml solid-ml-ssr))
+
+(test
+  (name test_template)
+  (libraries solid-ml solid-ml-ssr))

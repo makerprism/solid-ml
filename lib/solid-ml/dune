@@ -6,5 +6,5 @@
 (library
  (name solid_ml)
  (public_name solid-ml)
- (libraries solid-ml-internal)
+ (libraries solid-ml-internal solid-ml-template-runtime)
  (modes byte native melange))

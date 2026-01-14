@@ -1,0 +1,5 @@
+(library
+ (name solid_ml_template_runtime)
+ (public_name solid-ml-template-runtime)
+ (libraries)
+ (modes byte native melange))

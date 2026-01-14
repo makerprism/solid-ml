@@ -1,0 +1,5 @@
+(library
+ (name solid_ml_template_ppx)
+ (public_name solid-ml-template-ppx)
+ (kind ppx_rewriter)
+ (libraries ppxlib))

@@ -23,6 +23,119 @@ type node =
   | Fragment of document_fragment
   | Empty
 
+module Template : Solid_ml_template_runtime.TEMPLATE
+  with type node := node
+   and type event := event = struct
+  type template = {
+    container : element;
+  }
+
+  type instance = {
+    root_node : Dom.node;
+    root_repr : [ `Element of Dom.element | `Fragment of document_fragment ];
+  }
+
+  type text_slot = text_node
+
+  type element = Dom.element
+
+  let build_html (segments : string array) (slot_kinds : Solid_ml_template_runtime.slot_kind array) : string =
+    if Array.length segments <> Array.length slot_kinds + 1 then
+      invalid_arg "Solid_ml_browser.Html.Template.compile: segments length must be slot_kinds length + 1";
+    let buf = Buffer.create 256 in
+    Buffer.add_string buf segments.(0);
+    for i = 0 to Array.length slot_kinds - 1 do
+      (match slot_kinds.(i) with
+       | `Attr ->
+         (* For CSR, emit an empty attribute value; bindings will set the real value. *)
+         Buffer.add_string buf ""
+       | `Text ->
+         (* Emit nothing; bind_text will create/insert the text node by path. *)
+         ());
+      Buffer.add_string buf segments.(i + 1)
+    done;
+    Buffer.contents buf
+
+  let compile ~segments ~slot_kinds =
+    let html = build_html segments slot_kinds in
+    let el = create_element (document ()) "div" in
+    set_inner_html el html;
+    { container = el }
+
+  let instantiate template =
+    let clone = clone_node template.container true in
+    let frag = create_document_fragment (document ()) in
+    let children = get_child_nodes clone in
+    Array.iter (fun child -> fragment_append_child frag child) children;
+    { root_node = node_of_fragment frag; root_repr = `Fragment frag }
+
+  let hydrate ~root _template =
+    { root_node = node_of_element root; root_repr = `Element root }
+
+  let root inst =
+    match inst.root_repr with
+    | `Fragment frag -> Fragment frag
+    | `Element el -> Element el
+
+  let node_at (root : Dom.node) (path : int array) : Dom.node =
+    let current = ref root in
+    for i = 0 to Array.length path - 1 do
+      let children = node_child_nodes !current in
+      let idx = path.(i) in
+      if idx < 0 || idx >= Array.length children then
+        invalid_arg "Solid_ml_browser.Html.Template: path out of bounds";
+      current := children.(idx)
+    done;
+    !current
+
+  let bind_text inst ~id:_ ~path =
+    (* [path] is an insertion path. All but the last index locate the parent.
+       The last index is the insertion position for the text node. *)
+    if Array.length path = 0 then
+      invalid_arg "Solid_ml_browser.Html.Template.bind_text: empty path";
+    let parent_path = Array.sub path 0 (Array.length path - 1) in
+    let insert_idx = path.(Array.length path - 1) in
+    let parent_node = node_at inst.root_node parent_path in
+    if not (is_element parent_node) then
+      invalid_arg "Solid_ml_browser.Html.Template.bind_text: parent is not an element";
+    let parent_el = element_of_node parent_node in
+    let children = get_child_nodes parent_el in
+    let existing =
+      if insert_idx >= 0 && insert_idx < Array.length children then
+        let n = children.(insert_idx) in
+        if is_text n then Some (text_of_node n) else None
+      else
+        None
+    in
+    match existing with
+    | Some t -> t
+    | None ->
+      let t = create_text_node (document ()) "" in
+      let ref_node =
+        if insert_idx >= 0 && insert_idx < Array.length children then Some children.(insert_idx)
+        else None
+      in
+      insert_before parent_el (node_of_text t) ref_node;
+      t
+
+  let set_text (slot : text_slot) (value : string) =
+    text_set_data slot value
+
+  let bind_element inst ~id:_ ~path =
+    let n = node_at inst.root_node path in
+    if not (is_element n) then
+      invalid_arg "Solid_ml_browser.Html.Template.bind_element: node is not an element";
+    element_of_node n
+
+  let set_attr (el : element) ~name (value : string option) =
+    match value with
+    | Some v -> set_attribute el name v
+    | None -> remove_attribute el name
+
+  let on_ (el : element) ~event handler =
+    add_event_listener el event handler
+end
+
 (** {1 Node Conversion} *)
 
 (** Convert our node type to a DOM node for appending *)
