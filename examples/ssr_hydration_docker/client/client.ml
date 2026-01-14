@@ -9,6 +9,7 @@
 *)
 
 open Solid_ml_browser
+open Reactive
 
 let get_element id = Dom.get_element_by_id (Dom.document ()) id
 
@@ -37,10 +38,10 @@ let counter_component ~initial ~set_count ~count =
         div ~class_:"buttons" ~children:[
           (* Event handlers are attached to adopted button elements *)
           button ~id:"decrement" ~class_:"btn"
-            ~onclick:(fun _ -> Reactive.Signal.update count (fun n -> n - 1))
+            ~onclick:(fun _ -> Signal.update count (fun n -> n - 1))
             ~children:[text "-"] ();
           button ~id:"increment" ~class_:"btn"
-            ~onclick:(fun _ -> Reactive.Signal.update count (fun n -> n + 1))
+            ~onclick:(fun _ -> Signal.update count (fun n -> n + 1))
             ~children:[text "+"] ();
           button ~id:"reset" ~class_:"btn"
             ~onclick:(fun _ -> set_count initial)
@@ -70,7 +71,7 @@ let () =
   match Dom.query_selector (Dom.document ()) "main.app" with
   | None -> Dom.warn "No main.app element found for hydration"
   | Some main_el ->
-    let count, set_count = Reactive.Signal.create initial in
+    let count, set_count = Signal.create initial in
     let _dispose = Render.hydrate main_el (fun () ->
       counter_component ~initial ~set_count ~count
     ) in

@@ -7,6 +7,10 @@ _build/
 # opam files (generated from dune-project)
 *.opam
 
+# opam switch artifacts
+_opam/
+.opam-switch/
+
 # Editor
 .vscode/
 *.swp
@@ -24,6 +28,15 @@ node_modules/
 # Compiled frontend assets (CSS/JS bundles)
 frontend/static/
 
+# JS build artifacts
+dist/
+build/
+*.map
+.parcel-cache/
+.vite/
+.turbo/
+.next/
+
 # Legacy esy build artifacts (no longer used)
 _esy/
 esy.lock/
@@ -33,4 +46,12 @@ test_debug/
 
 # dev tools
 dev-tools.locks/
+
+# Coverage/profiling artifacts
+_coverage/
+coverage/
+*.coverage
+bisect*.out
+*.profraw
+*.profdata
 

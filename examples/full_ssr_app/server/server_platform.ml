@@ -65,6 +65,13 @@ module Server_Platform : (Shared_components.Platform_intf.S
       input ?type_ ?checked ()
   end
 
+  module For = struct
+    let list items_signal render =
+      (* On server, just map the current signal value *)
+      let items = Signal.get items_signal in
+      Html.fragment (List.map render items)
+  end
+
   module Router = struct
     (* For SSR, we need a way to provide the initial path.
        In a real implementation, we'd probably use a context or global variable

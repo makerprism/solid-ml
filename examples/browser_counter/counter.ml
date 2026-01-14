@@ -1,10 +1,11 @@
 (** Interactive counter example for the browser.
     
     This example demonstrates:
-    - Client-side rendering with solid-ml-dom
+    - Client-side rendering with solid-ml-browser
     - Reactive text updates
     - Event handling via element attributes
     - Two-way form bindings
+    - List rendering with For component
     
     Build with: dune build @melange
     Then open index.html in a browser.
@@ -20,15 +21,15 @@ let counter () =
   
   Html.(
     div ~id:"counter" ~class_:"counter-app" ~children:[
-      h1 ~children:[Html.text "solid-ml Counter"] ();
+      h1 ~children:[text "solid-ml Counter"] ();
       
       div ~class_:"display" ~children:[
         p ~children:[
-          Html.text "Count: ";
+          text "Count: ";
           Reactive.text count;
         ] ();
         p ~children:[
-          Html.text "Doubled: ";
+          text "Doubled: ";
           Reactive.memo_text doubled;
         ] ();
       ] ();
@@ -37,17 +38,17 @@ let counter () =
         button 
           ~class_:"btn" 
           ~onclick:(fun _ -> Signal.update count (fun n -> n - 1))
-          ~children:[Html.text "-"] 
+          ~children:[text "-"] 
           ();
         button 
           ~class_:"btn" 
           ~onclick:(fun _ -> Signal.update count (fun n -> n + 1))
-          ~children:[Html.text "+"] 
+          ~children:[text "+"] 
           ();
         button 
           ~class_:"btn btn-reset" 
           ~onclick:(fun _ -> set_count 0)
-          ~children:[Html.text "Reset"] 
+          ~children:[text "Reset"] 
           ();
       ] ();
     ] ()
@@ -99,58 +100,58 @@ let todo_list () =
     |> List.length
   ) in
   
-  (* Create the todo list container *)
-  let todo_list_el = Dom.create_element (Dom.document ()) "ul" in
-  Dom.set_attribute todo_list_el "class" "todo-list";
-  
-  (* Set up reactive list rendering *)
-  Reactive.each ~items:todos ~render:(fun todo ->
-    let item_class = if todo.completed then "todo-item completed" else "todo-item" in
-    Html.(
-      li ~class_:item_class ~children:[
-        input 
-          ~type_:"checkbox" 
-          ~checked:todo.completed 
-          ~onchange:(fun _ -> toggle_todo todo.id)
-          ();
-        span ~children:[Html.text todo.text] ();
-        button 
-          ~class_:"delete" 
-          ~onclick:(fun _ -> remove_todo todo.id)
-          ~children:[Html.text "x"] 
-          ();
-      ] ()
-    )
-  ) todo_list_el;
-  
+  let todo_input =
+    Html.input 
+      ~type_:"text" 
+      ~placeholder:"What needs to be done?"
+      ~onkeydown:(fun evt ->
+        if Event.Keyboard.is_enter evt then add_todo ()
+      )
+      ()
+  in
+  (* Bind input value to signal for two-way updates *)
+  (match Html.get_element todo_input with
+   | Some el -> Reactive.bind_input el new_todo_text set_new_todo_text
+   | None -> ());
+
   Html.(
     div ~id:"todos" ~class_:"todo-app" ~children:[
-      h1 ~children:[Html.text "Todo List"] ();
+      h1 ~children:[text "Todo List"] ();
       
       (* Add todo form *)
       div ~class_:"add-todo" ~children:[
-        input 
-          ~type_:"text" 
-          ~placeholder:"What needs to be done?"
-          ~oninput:(fun evt -> set_new_todo_text (Dom.input_value evt))
-          ~onkeydown:(fun evt ->
-            if Event.Keyboard.is_enter evt then add_todo ()
-          )
-          ();
+        todo_input;
         button 
           ~onclick:(fun _ -> add_todo ())
-          ~children:[Html.text "Add"] 
+          ~children:[text "Add"] 
           ();
       ] ();
       
       (* Status *)
       p ~class_:"status" ~children:[
         Reactive.memo_text incomplete_count;
-        Html.text " items left";
+        text " items left";
       ] ();
       
-      (* The todo list element we created above *)
-      Element todo_list_el;
+      (* Todo list using For component *)
+      ul ~class_:"todo-list" ~children:[
+        For.create' ~each:todos ~children:(fun todo ->
+          let item_class = if todo.completed then "todo-item completed" else "todo-item" in
+          li ~class_:item_class ~children:[
+            input 
+              ~type_:"checkbox" 
+              ~checked:todo.completed 
+              ~onchange:(fun _ -> toggle_todo todo.id)
+              ();
+            span ~children:[text todo.text] ();
+            button 
+              ~class_:"delete" 
+              ~onclick:(fun _ -> remove_todo todo.id)
+              ~children:[text "x"] 
+              ();
+          ] ()
+        ) ()
+      ] ();
     ] ()
   )
 
@@ -168,3 +169,4 @@ let () =
     Dom.log "solid-ml app mounted!"
   | None ->
     Dom.error "Could not find #app element"
+

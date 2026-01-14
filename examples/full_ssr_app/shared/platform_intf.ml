@@ -54,6 +54,11 @@ module type S = sig
     val prevent_default : event -> unit
   end
 
+  (** Reactive list rendering *)
+  module For : sig
+    val list : 'a list Signal.t -> ('a -> Html.node) -> Html.node
+  end
+
   module Router : sig
     val use_path : unit -> string
     val use_params : unit -> (string * string) list

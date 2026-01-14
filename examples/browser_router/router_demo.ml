@@ -12,6 +12,7 @@
 *)
 
 open Solid_ml_browser
+open Reactive
 
 (** {1 Page Components} *)
 
@@ -28,8 +29,8 @@ let home_page () =
 
 (** Counter page - demonstrates state within routed pages *)
 let counter_page () =
-  let count, set_count = Reactive.Signal.create 0 in
-  let doubled = Reactive.Memo.create (fun () -> Reactive.Signal.get count * 2) in
+  let count, set_count = Signal.create 0 in
+  let doubled = Memo.create (fun () -> Signal.get count * 2) in
   
   Html.(
     div ~class_:"page" ~children:[
@@ -49,10 +50,10 @@ let counter_page () =
       
       div ~class_:"buttons" ~children:[
         button ~class_:"btn" ~onclick:(fun _ -> 
-          Reactive.Signal.update count (fun n -> n - 1)
+          Signal.update count (fun n -> n - 1)
         ) ~children:[text "-"] ();
         button ~class_:"btn" ~onclick:(fun _ -> 
-          Reactive.Signal.update count (fun n -> n + 1)
+          Signal.update count (fun n -> n + 1)
         ) ~children:[text "+"] ();
         button ~class_:"btn btn-secondary" ~onclick:(fun _ -> set_count 0) 
           ~children:[text "Reset"] ();
@@ -243,3 +244,4 @@ let () =
     Dom.log "solid-ml router demo initialized!"
   | None ->
     Dom.error "Could not find #app element"
+

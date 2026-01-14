@@ -16,6 +16,7 @@
 [@@@warning "-26"]
 
 open Solid_ml_browser
+open Reactive
 
 (** {1 Data Generation} *)
 
@@ -45,7 +46,7 @@ let next_id = ref 1
 (** Row data with a signal for the label (like SolidJS) *)
 type row = {
   id : int;
-  label : string Reactive.Signal.t;
+  label : string Signal.t;
   set_label : string -> unit;
 }
 
@@ -56,7 +57,7 @@ let build_data count =
       colors.(random (Array.length colors)) ^ " " ^
       nouns.(random (Array.length nouns))
     in
-    let label, set_label = Reactive.Signal.create initial_label in
+    let label, set_label = Signal.create initial_label in
     let id = !next_id in
     incr next_id;
     { id; label; set_label }
@@ -65,10 +66,10 @@ let build_data count =
 (** {1 Application State} *)
 
 (* Main data signal - array of rows *)
-let data, set_data = Reactive.Signal.create [||]
+let data, set_data = Signal.create [||]
 
 (* Selected row ID signal - use -1 for "no selection" like null in JS *)
-let selected, set_selected = Reactive.Signal.create (-1)
+let selected, set_selected = Signal.create (-1)
 
 (* Selector initialized later inside reactive root *)
 (* New API: selector is just a function (int -> bool) with auto-cleanup *)
@@ -83,17 +84,17 @@ let run_lots () =
   set_data (build_data 10000)
 
 let add () =
-  let current = Reactive.Signal.peek data in
+  let current = Signal.peek data in
   set_data (Array.append current (build_data 1000))
 
 let update_rows () =
-  Reactive.Batch.run (fun () ->
-    let d = Reactive.Signal.peek data in
+  Batch.run (fun () ->
+    let d = Signal.peek data in
     let len = Array.length d in
     let i = ref 0 in
     while !i < len do
       let row = d.(!i) in
-      row.set_label (Reactive.Signal.peek row.label ^ " !!!");
+      row.set_label (Signal.peek row.label ^ " !!!");
       i := !i + 10
     done
   )
@@ -102,7 +103,7 @@ let clear () =
   set_data [||]
 
 let swap_rows () =
-  let d = Reactive.Signal.peek data in
+  let d = Signal.peek data in
   if Array.length d > 998 then begin
     let new_data = Array.copy d in
     let tmp = new_data.(1) in
@@ -112,7 +113,7 @@ let swap_rows () =
   end
 
 let remove id =
-  let d = Reactive.Signal.peek data in
+  let d = Signal.peek data in
   let len = Array.length d in
   (* Find index of item to remove - early exit when found *)
   let idx = ref (-1) in
@@ -186,18 +187,18 @@ let create_row_effects ~row ~tr ~td1 ~a =
   
   (* TD 2: Label - reactive text content *)
   (* Initial value set without tracking *)
-  Dom.set_text_content a (Reactive.Signal.peek row.label);
+  Dom.set_text_content a (Signal.peek row.label);
   (* Effect for updates *)
-  Reactive.Effect.create_deferred
-    ~track:(fun () -> Reactive.Signal.get row.label)
+  Effect.create_deferred
+    ~track:(fun () -> Signal.get row.label)
     ~run:(fun label -> Dom.set_text_content a label);
   let label_dispose () = () in (* No explicit disposal needed - handled by owner *)
   
   (* Reactive class binding using selector - O(1) instead of O(n)! *)
-  let init_sel = Reactive.Effect.untrack (fun () -> check_selected row.id) in
+  let init_sel = Effect.untrack (fun () -> check_selected row.id) in
   if init_sel then Dom.set_class_name tr "danger";
   (* Effect for updates *)
-  Reactive.Effect.create_deferred
+  Effect.create_deferred
     ~track:(fun () -> check_selected row.id)
     ~run:(fun is_sel -> Dom.set_class_name tr (if is_sel then "danger" else ""));
   let sel_dispose () = () in (* No explicit disposal needed - handled by owner *)
@@ -354,14 +355,14 @@ let reconcile_arrays (parent : Dom.element) (a : Dom.element array) (b : Dom.ele
 
 (** Efficient keyed list rendering with minimal DOM updates.
     Uses the same reconciliation algorithm as SolidJS (udomdiff). *)
-let render_keyed_list ~(items : row array Reactive.Signal.t) (parent : Dom.element) =
+let render_keyed_list ~(items : row array Signal.t) (parent : Dom.element) =
   (* Map from row id to row state (element + dispose) - sized for 10k rows *)
   let node_map : (int, row_state) Hashtbl.t = Hashtbl.create 16384 in
   (* Track previous DOM elements for reconciliation *)
   let prev_nodes : Dom.element array ref = ref [||] in
   
-  Reactive.Effect.create (fun () ->
-    let new_items = Reactive.Signal.get items in
+  Effect.create (fun () ->
+    let new_items = Signal.get items in
     let new_len = Array.length new_items in
     
     (* Build set of new IDs for O(1) lookup *)
@@ -430,7 +431,7 @@ let render_keyed_list ~(items : row array Reactive.Signal.t) (parent : Dom.eleme
   );
   
    (* Cleanup on disposal - dispose effects and remove DOM *)
-   Reactive.Owner.on_cleanup (fun () ->
+   Owner.on_cleanup (fun () ->
      Hashtbl.iter (fun _ state ->
        (try state.label_dispose () with _ -> ());
        (try state.sel_dispose () with _ -> ());
@@ -448,10 +449,10 @@ let () =
   | None -> Dom.error "tbody not found"
   | Some tbody ->
     (* Set up keyed list rendering inside reactive root *)
-    let _dispose = Reactive.Owner.create_root (fun () ->
+    let _dispose = Owner.create_root (fun () ->
       (* Initialize the selector inside the root context *)
       (* New API: create_selector returns (int -> bool), auto-cleans up *)
-      is_selected := Some (Reactive.create_selector selected);
+      is_selected := Some (create_selector selected);
 
       (* Global event delegation on tbody *)
       let _cleanup_click = Event.delegate tbody "click" (fun _evt target ->

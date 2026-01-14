@@ -54,11 +54,9 @@ module Make (P : Platform_intf.S) = struct
         Html.text " items remaining";
       ] ();
       
-      Html.ul ~class_:"todo-list" ~children:(
-        (* Note: In a real app we'd use a reactive list (For/Index) 
-           but for simplicity we map the signal once here. 
-           (Reactivity for list changes requires more advanced handling in the shared layer) *)
-        List.map (fun todo ->
+      Html.ul ~class_:"todo-list" ~children:[
+        (* Use For component for efficient list rendering *)
+        For.list todos (fun todo ->
           Html.li ~class_:(if todo.completed then "todo-item completed" else "todo-item") ~children:[
             Html.input ~type_:"checkbox" ~checked:todo.completed 
               ~onchange:(fun _ -> 
@@ -68,8 +66,8 @@ module Make (P : Platform_intf.S) = struct
               ) ();
             Html.span ~children:[Html.text todo.text] ();
           ] ()
-        ) (Signal.get todos)
-      ) ()
+        )
+      ] ()
     ] ()
 
   (** App Layout with Navigation *)

@@ -72,6 +72,11 @@ module Client_Platform : Shared_components.Platform_intf.S = struct
     let prevent_default evt = Solid_ml_browser.Dom.prevent_default evt
   end
 
+  module For = struct
+    let list items_signal render =
+      Solid_ml_browser.For.create' ~each:items_signal ~children:render ()
+  end
+
   module Router = struct
     open Solid_ml_router
 

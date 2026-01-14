@@ -7,11 +7,12 @@
 *)
 
 open Solid_ml_browser
+open Reactive
 
 (** Counter component - must match the server-side structure *)
 let counter_component ~initial () =
-  let count, set_count = Reactive.Signal.create initial in
-  let doubled = Reactive.Memo.create (fun () -> Reactive.Signal.get count * 2) in
+  let count, set_count = Signal.create initial in
+  let doubled = Memo.create (fun () -> Signal.get count * 2) in
   
   Html.(
     div ~class_:"counter" ~children:[
@@ -24,10 +25,10 @@ let counter_component ~initial () =
       
       div ~class_:"buttons" ~children:[
         button ~class_:"btn" ~onclick:(fun _ -> 
-          Reactive.Signal.update count (fun n -> n - 1)
+          Signal.update count (fun n -> n - 1)
         ) ~children:[text "-"] ();
         button ~class_:"btn" ~onclick:(fun _ -> 
-          Reactive.Signal.update count (fun n -> n + 1)
+          Signal.update count (fun n -> n + 1)
         ) ~children:[text "+"] ();
         button ~class_:"btn btn-reset" ~onclick:(fun _ -> set_count initial) 
           ~children:[text "Reset"] ();
@@ -53,10 +54,10 @@ type todo = {
 
 (** Todo component - interactive version *)
 let todo_component ~initial_todos () =
-  let todos, _set_todos = Reactive.Signal.create initial_todos in
+  let todos, _set_todos = Signal.create initial_todos in
   
   let toggle_todo id =
-    Reactive.Signal.update todos (fun ts ->
+    Signal.update todos (fun ts ->
       List.map (fun t ->
         if t.id = id then { t with completed = not t.completed }
         else t
@@ -64,29 +65,27 @@ let todo_component ~initial_todos () =
     )
   in
   
-  let incomplete_count = Reactive.Memo.create (fun () ->
-    List.filter (fun t -> not t.completed) (Reactive.Signal.get todos)
+  let incomplete_count = Memo.create (fun () ->
+    List.filter (fun t -> not t.completed) (Signal.get todos)
     |> List.length
   ) in
   
-  (* Create todo list container *)
-  let todo_list_el = Dom.create_element (Dom.document ()) "div" in
-  
-  (* Set up reactive list rendering *)
-  Reactive.each ~items:todos ~render:(fun todo ->
-    let item_class = if todo.completed then "todo-item completed" else "todo-item" in
-    Html.(
-      div ~class_:item_class ~children:[
-        input 
-          ~type_:"checkbox" 
-          ~checked:todo.completed 
-          ~onchange:(fun _ -> toggle_todo todo.id)
-          ();
-        span ~children:[text (" " ^ todo.text)] ();
-      ] ()
-    )
-  ) todo_list_el;
-  
+  let todo_items =
+    For.create' ~each:todos ~children:(fun todo ->
+      let item_class = if todo.completed then "todo-item completed" else "todo-item" in
+      Html.(
+        div ~class_:item_class ~children:[
+          input 
+            ~type_:"checkbox" 
+            ~checked:todo.completed 
+            ~onchange:(fun _ -> toggle_todo todo.id)
+            ();
+          span ~children:[text (" " ^ todo.text)] ();
+        ] ()
+      )
+    ) ()
+  in
+
   Html.(
     fragment [
       h1 ~children:[text "Interactive Todos"] ();
@@ -94,7 +93,7 @@ let todo_component ~initial_todos () =
         Reactive.memo_text incomplete_count;
         text " items remaining";
       ] ();
-      Element todo_list_el;
+      div ~class_:"todo-list" ~children:[todo_items] ();
       p ~class_:"hydrated-notice" ~children:[
         text "Todos are now interactive! Click checkboxes to toggle."
       ] ();
