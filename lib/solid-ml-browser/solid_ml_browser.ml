@@ -67,6 +67,9 @@ module Async = Async
 (** Actions for mutations with cache revalidation *)
 module Action = Action
 
+(** Lens-based store for nested reactive state *)
+module Store = Store
+
 (** Suspense boundaries for async loading states *)
 module Suspense = Suspense
 
