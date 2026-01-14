@@ -64,6 +64,9 @@ module Resource = Resource
 (** Async primitive for Promise-based data with Suspense integration *)
 module Async = Async
 
+(** Actions for mutations with cache revalidation *)
+module Action = Action
+
 (** Suspense boundaries for async loading states *)
 module Suspense = Suspense
 
