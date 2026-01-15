@@ -25,6 +25,9 @@ type node
     On SSR, events are never instantiated - handlers are ignored. *)
 type event = unit
 
+type 'a signal = 'a Solid_ml.Signal.t
+(** A reactive signal type for unified SSR/browser components. *)
+
 (** Convert a node to its HTML string representation. *)
 val to_string : node -> string
 
@@ -49,21 +52,21 @@ val raw : string -> node
     that enable client-side hydration. *)
 
 (** Create a reactive text node from an int signal. *)
-val reactive_text : int Solid_ml.Signal.t -> node
+val reactive_text : int signal -> node
 
 (** Reactive text with custom formatter. *)
-val reactive_text_of : ('a -> string) -> 'a Solid_ml.Signal.t -> node
+val reactive_text_of : ('a -> string) -> 'a signal -> node
 
 (** Reactive text from a string signal. *)
-val reactive_text_string : string Solid_ml.Signal.t -> node
+val reactive_text_string : string signal -> node
 
 (** {1 Deprecated Aliases} *)
 
 (** @deprecated Use [reactive_text] instead. *)
-val signal_text : int Solid_ml.Signal.t -> node
+val signal_text : int signal -> node
 
 (** @deprecated Use [reactive_text_of] instead. *)
-val signal_text_of : ('a -> string) -> 'a Solid_ml.Signal.t -> node
+val signal_text_of : ('a -> string) -> 'a signal -> node
 
 (** {1 HTML Elements} *)
 

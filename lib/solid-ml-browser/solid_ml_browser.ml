@@ -84,3 +84,27 @@ module For = For
 
 (** Index component - position-keyed list rendering *)
 module Index = Index
+
+module Env = struct
+  type 'a signal = 'a Reactive_core.signal
+
+  module Signal = struct
+    type 'a t = 'a signal
+
+    let create ?equals initial =
+      let s = Reactive_core.create_signal ?equals initial in
+      (s, fun v -> Reactive_core.set_signal s v)
+
+    let get = Reactive_core.get_signal
+    let peek = Reactive_core.peek_signal
+
+    let update s f =
+      Reactive_core.update_signal s f
+  end
+
+  module Html = Html
+  module Effect = Reactive.Effect
+  module Owner = Reactive.Owner
+end
+
+module _ : Solid_ml.Component.TEMPLATE_ENV = Env
