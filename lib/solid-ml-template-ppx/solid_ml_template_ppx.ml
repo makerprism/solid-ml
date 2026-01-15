@@ -241,13 +241,28 @@ let compile_tag_with_children ~(loc : Location.t) ~(tag : string)
   let static_nodes = ref 0 in
   let slot_id = ref 0 in
 
+  let static_id =
+    List.fold_left
+      (fun acc -> function
+        | Static_id v -> Some v
+        | _ -> acc)
+      None static_props
+  in
+  let static_class =
+    List.fold_left
+      (fun acc -> function
+        | Static_class v -> Some v
+        | _ -> acc)
+      None static_props
+  in
   let static_attrs_string =
-    String.concat ""
-      (List.map
-         (function
-           | Static_id v -> " id=\"" ^ escape_html v ^ "\""
-           | Static_class v -> " class=\"" ^ escape_html v ^ "\"")
-         static_props)
+    (match static_id with
+     | None -> ""
+     | Some v -> " id=\"" ^ escape_html v ^ "\"")
+    ^
+    (match static_class with
+     | None -> ""
+     | Some v -> " class=\"" ^ escape_html v ^ "\"")
   in
   Buffer.add_string current_segment ("<" ^ tag ^ static_attrs_string ^ ">");
 
@@ -468,18 +483,35 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                    | _ -> None
                  in
 
-                 let static_props = List.filter_map extract_static_prop args in
+                  let static_props = List.filter_map extract_static_prop args in
 
-                 let attr_bindings =
-                   List.filter_map
-                     (function
-                       | (Asttypes.Labelled "children", _) -> None
-                       | (Asttypes.Nolabel, _e) -> None
-                       | (Asttypes.Labelled _lbl, e)
-                       | (Asttypes.Optional _lbl, e) ->
-                         extract_tpl_attr_binding ~aliases e)
-                     args
-                 in
+                  let attr_bindings =
+                    List.filter_map
+                      (function
+                        | (Asttypes.Labelled "children", _) -> None
+                        | (Asttypes.Nolabel, _e) -> None
+                        | (Asttypes.Labelled _lbl, e)
+                        | (Asttypes.Optional _lbl, e) ->
+                          extract_tpl_attr_binding ~aliases e)
+                      args
+                  in
+
+                  let has_static_id_or_class =
+                    List.exists
+                      (function
+                        | Static_id _ | Static_class _ -> true)
+                      static_props
+                  in
+                  let has_dynamic_id_or_class =
+                    List.exists
+                      (fun (b : attr_binding) ->
+                        String.equal b.name "id" || String.equal b.name "class")
+                      attr_bindings
+                  in
+                  if has_static_id_or_class && has_dynamic_id_or_class then
+                    Location.raise_errorf ~loc:expr.pexp_loc
+                      "solid-ml-template-ppx: cannot combine static ~id/~class_ with dynamic Tpl.attr(_opt) for id/class";
+
                  let other_args_ok =
                    List.for_all
                      (function
