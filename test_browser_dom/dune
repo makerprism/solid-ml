@@ -8,5 +8,5 @@
 (melange.emit
  (target output)
  (libraries solid-ml-browser)
- (preprocess (pps melange.ppx))
+ (preprocess (pps solid-ml-template-ppx melange.ppx))
  (module_systems es6))
