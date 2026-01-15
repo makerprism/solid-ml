@@ -59,10 +59,57 @@ let test_hydrate_text_slot () =
   H.Template.set_text slot "Hydrated";
   assert_eq ~name:"hydrate textContent" (get_text_content root) "Hydrated"
 
+module Link (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
+  open Env
+
+  let render ~href ~label () =
+    Html.a
+      ~href:
+        (Solid_ml_template_runtime.Tpl.attr_opt ~name:"href" (fun () -> Signal.get href))
+      ~children:
+        [ Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get label) ]
+      ()
+end
+
+let test_compiled_attr_opt () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  let href, set_href = Solid_ml_browser.Env.Signal.create (Some "/a") in
+  let label, set_label = Solid_ml_browser.Env.Signal.create "Link" in
+
+  let module C = Link (Solid_ml_browser.Env) in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      let node = C.render ~href ~label () in
+      Html.append_to_element root node)
+  in
+
+  let children = get_child_nodes root in
+  if Array.length children <> 1 then fail "compiled attr: expected one child";
+  let a_el = element_of_node children.(0) in
+
+  assert_eq ~name:"compiled href initial" (Option.value (get_attribute a_el "href") ~default:"") "/a";
+  assert_eq ~name:"compiled text initial" (Option.value (node_text_content (node_of_element a_el)) ~default:"") "Link";
+
+  set_href None;
+  if get_attribute a_el "href" <> None then fail "compiled href: expected removed";
+
+  set_href (Some "/b");
+  assert_eq ~name:"compiled href updated" (Option.value (get_attribute a_el "href") ~default:"") "/b";
+
+  set_label "Next";
+  assert_eq ~name:"compiled text updated" (Option.value (node_text_content (node_of_element a_el)) ~default:"") "Next";
+
+  dispose ()
+
 let () =
   try
     test_instantiate_text_slot ();
     test_hydrate_text_slot ();
+    test_compiled_attr_opt ();
     set_result "PASS" "PASS"
   with exn ->
     let err_msg = exn_to_string exn in
