@@ -3,8 +3,14 @@ open Solid_ml
 module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Env
 
-  let render ~name () =
+  let render_div ~name () =
     Html.div
+      ~children:
+        [ Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name) ]
+      ()
+
+  let render_span ~name () =
+    Html.span
       ~children:
         [ Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name) ]
       ()
@@ -16,7 +22,15 @@ let () =
   let html =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
-      C.render ~name ())
+      C.render_div ~name ())
   in
   assert (html = "<div>World</div>");
+
+  let html_span =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_span ~name ())
+  in
+  assert (html_span = "<span>World</span>");
+
   print_endline "  PASSED"
