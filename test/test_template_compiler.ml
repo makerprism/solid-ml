@@ -69,6 +69,14 @@ module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
           Html.text "\n" ]
       ()
 
+  let render_code_formatting ~name () =
+    Html.code
+      ~children:
+        [ Html.text "\n  ";
+          Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name);
+          Html.text "\n" ]
+      ()
+
   let render_p_two_slots ~first ~last () =
     Html.p
       ~children:
@@ -145,6 +153,13 @@ let () =
       C.render_pre_formatting ~name ())
   in
   assert (html_pre_formatting = "<pre>\n  World\n</pre>");
+
+  let html_code_formatting =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_code_formatting ~name ())
+  in
+  assert (html_code_formatting = "<code>\n  World\n</code>");
 
   let first, _set_first = Signal.create "Ada" in
   let last, _set_last = Signal.create "Lovelace" in
