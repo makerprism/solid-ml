@@ -260,10 +260,16 @@ val fragment : node list -> node
 
 (** {1 Compiled Templates} *)
 
+type template_element
+(** Element handle used by compiled templates.
+
+    On SSR this is an internal handle that allows [Template.set_attr] to affect
+    the rendered output. *)
+
 module Template : Solid_ml_template_runtime.TEMPLATE
   with type node := node
    and type event := event
-   and type element = unit
+   and type element = template_element
 
 (** {1 Rendering} *)
 
