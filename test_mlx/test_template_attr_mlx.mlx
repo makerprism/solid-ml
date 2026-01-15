@@ -58,4 +58,11 @@ let () =
   in
   assert (empty_html = "<a href=\"\">Go World</a>");
 
+  let nested_html =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module R = C (Solid_ml_ssr.Env) in
+      Solid_ml_ssr.Html.div ~children:[ R.render_a_some ~name () ] ())
+  in
+  assert (nested_html = "<div><a href=\"/x?y=&lt;z&gt;\">Go World</a></div>");
+
   print_endline "  PASSED"

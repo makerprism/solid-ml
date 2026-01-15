@@ -146,12 +146,56 @@ let test_compiled_attr () =
 
   dispose ()
 
+let test_compiled_attr_nested () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  let href, set_href = Solid_ml_browser.Env.Signal.create "/a" in
+  let label, set_label = Solid_ml_browser.Env.Signal.create "Link" in
+
+  let module C = Link (Solid_ml_browser.Env) in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      let link = C.render_attr ~href ~label () in
+      let wrapper =
+        Html.div
+          ~children:
+            [ Html.text "(";
+              link;
+              Html.text ")" ]
+          ()
+      in
+      Html.append_to_element root wrapper)
+  in
+
+  let children = get_child_nodes root in
+  if Array.length children <> 1 then fail "nested attr: expected one child";
+
+  (* root -> div -> [text, a, text] *)
+  let div_el = element_of_node children.(0) in
+  let div_children = get_child_nodes div_el in
+  if Array.length div_children < 2 then fail "nested attr: expected a child";
+  let a_el = element_of_node div_children.(1) in
+
+  assert_eq ~name:"nested href initial" (Option.value (get_attribute a_el "href") ~default:"") "/a";
+
+  set_href "/b";
+  assert_eq ~name:"nested href updated" (Option.value (get_attribute a_el "href") ~default:"") "/b";
+
+  set_label "Next";
+  assert_eq ~name:"nested text updated" (Option.value (node_text_content (node_of_element a_el)) ~default:"") "Next";
+
+  dispose ()
+
 let () =
   try
     test_instantiate_text_slot ();
     test_hydrate_text_slot ();
     test_compiled_attr_opt ();
     test_compiled_attr ();
+    test_compiled_attr_nested ();
     set_result "PASS" "PASS"
   with exn ->
     let err_msg = exn_to_string exn in
