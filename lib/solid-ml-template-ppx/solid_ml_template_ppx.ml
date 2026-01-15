@@ -141,6 +141,8 @@ let supported_intrinsic_tags =
     "header";
     "footer";
     "nav";
+    "pre";
+    "code";
     "h1";
     "h2";
     "h3";
