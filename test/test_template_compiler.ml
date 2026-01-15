@@ -9,6 +9,14 @@ module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         [ Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name) ]
       ()
 
+  let render_div_props ~name () =
+    Html.div
+      ~id:"root"
+      ~class_:"c1 c2"
+      ~children:
+        [ Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name) ]
+      ()
+
   let render_span ~name () =
     Html.span
       ~children:
@@ -97,6 +105,13 @@ let () =
       C.render_div ~name ())
   in
   assert (html = "<div>World</div>");
+
+  let html_props =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_div_props ~name ())
+  in
+  assert (html_props = "<div id=\"root\" class=\"c1 c2\">World</div>");
 
   let html_span =
     Solid_ml_ssr.Render.to_string (fun () ->

@@ -107,6 +107,7 @@ let contains_tpl_markers (structure : Parsetree.structure) : (Location.t * strin
 let supported_subset =
   "Html.<tag> ~children:[Html.text \"<literal>\"; Tpl.text <thunk>; ...] ()\n\
    - ignores formatting-only whitespace Html.text literals that contain newlines\n\
+   - supports static ~id:\"...\" and ~class_:\"...\"\n\
    - supports Tpl.attr/Tpl.attr_opt in labelled args (string literal ~name)\n\
    - no other props; <tag> in {div,span,p,a,button,ul,li,strong,em,section,main,header,footer,nav,pre,code,h1..h6}"
 
@@ -170,6 +171,10 @@ type attr_binding = {
   optional : bool;
 }
 
+type static_prop =
+  | Static_id of string
+  | Static_class of string
+
 let escape_html (s : string) : string =
   let b = Buffer.create (String.length s) in
   String.iter
@@ -222,7 +227,7 @@ let extract_static_text_literal (expr : Parsetree.expression) : string option =
 
 let compile_tag_with_children ~(loc : Location.t) ~(tag : string)
     ~(children : child_part list) ~(attrs : attr_binding list)
-    : Parsetree.expression =
+    ~(static_props : static_prop list) : Parsetree.expression =
   let open Ast_builder.Default in
   let lid s = { loc; txt = Longident.parse s } in
   let template_var = "__solid_ml_tpl_template" in
@@ -236,7 +241,15 @@ let compile_tag_with_children ~(loc : Location.t) ~(tag : string)
   let static_nodes = ref 0 in
   let slot_id = ref 0 in
 
-  Buffer.add_string current_segment ("<" ^ tag ^ ">");
+  let static_attrs_string =
+    String.concat ""
+      (List.map
+         (function
+           | Static_id v -> " id=\"" ^ escape_html v ^ "\""
+           | Static_class v -> " class=\"" ^ escape_html v ^ "\"")
+         static_props)
+  in
+  Buffer.add_string current_segment ("<" ^ tag ^ static_attrs_string ^ ">");
 
   List.iter
     (function
@@ -373,6 +386,7 @@ let compile_tag_with_children ~(loc : Location.t) ~(tag : string)
 let compile_tag_with_text ~(loc : Location.t) ~(tag : string)
     ~(thunk : Parsetree.expression) : Parsetree.expression =
   compile_tag_with_children ~loc ~tag ~children:[ Text_slot thunk ] ~attrs:[]
+    ~static_props:[]
 
 let extract_tpl_attr_binding ~(aliases : string list) (expr : Parsetree.expression)
     : attr_binding option =
@@ -446,6 +460,16 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                       | _ -> None)
                     args
                 in
+                 let extract_static_prop = function
+                   | (Asttypes.Labelled "id", { pexp_desc = Pexp_constant (Pconst_string (s, _, _)); _ }) ->
+                     Some (Static_id s)
+                   | (Asttypes.Labelled "class_", { pexp_desc = Pexp_constant (Pconst_string (s, _, _)); _ }) ->
+                     Some (Static_class s)
+                   | _ -> None
+                 in
+
+                 let static_props = List.filter_map extract_static_prop args in
+
                  let attr_bindings =
                    List.filter_map
                      (function
@@ -461,9 +485,9 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                      (function
                        | (Asttypes.Labelled "children", _) -> true
                        | (Asttypes.Nolabel, e) -> is_unit_expr e
-                       | (Asttypes.Labelled _lbl, e)
-                       | (Asttypes.Optional _lbl, e) ->
-                         Option.is_some (extract_tpl_attr_binding ~aliases e))
+                       | arg ->
+                         Option.is_some (extract_static_prop arg)
+                         || Option.is_some (extract_tpl_attr_binding ~aliases (snd arg)))
                      args
                  in
                  (match (children_arg, other_args_ok) with
@@ -507,6 +531,7 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                        if supported && has_dynamic then
                          compile_tag_with_children ~loc:expr.pexp_loc ~tag
                            ~children:parts ~attrs:attr_bindings
+                           ~static_props:static_props
                        else expr
                      | _ -> expr)
 
