@@ -105,7 +105,7 @@ let contains_tpl_markers (structure : Parsetree.structure) : (Location.t * strin
   !found
 
 let supported_subset =
-  "Html.<tag> ~children:[Tpl.text _] () (no props; <tag> in {div,span,p,a,button,ul,li,strong,em,section,main,header,footer,nav,h1..h6})"
+  "Html.<tag> ~children:[Html.text <lit>; Tpl.text <thunk>; ...] () (no props; <tag> in {div,span,p,a,button,ul,li,strong,em,section,main,header,footer,nav,h1..h6})"
 
 let rec list_of_expr (expr : Parsetree.expression) : Parsetree.expression list option =
   match expr.pexp_desc with
@@ -155,61 +155,152 @@ let extract_intrinsic_tag (longident : Longident.t) : string option =
   | tag :: _ when is_supported_intrinsic_tag tag -> Some tag
   | _ -> None
 
-let compile_tag_with_text ~(loc : Location.t) ~(tag : string)
-    ~(thunk : Parsetree.expression) : Parsetree.expression =
+type child_part =
+  | Static_text of string
+  | Text_slot of Parsetree.expression
+
+let escape_html (s : string) : string =
+  let b = Buffer.create (String.length s) in
+  String.iter
+    (function
+      | '&' -> Buffer.add_string b "&amp;"
+      | '<' -> Buffer.add_string b "&lt;"
+      | '>' -> Buffer.add_string b "&gt;"
+      | '"' -> Buffer.add_string b "&quot;"
+      | '\'' -> Buffer.add_string b "&#x27;"
+      | c -> Buffer.add_char b c)
+    s;
+  Buffer.contents b
+
+let is_html_text_longident (longident : Longident.t) : bool =
+  match List.rev (longident_to_list longident) with
+  | "text" :: "Html" :: _ -> true
+  | _ -> false
+
+let extract_static_text_literal (expr : Parsetree.expression) : string option =
+  match expr.pexp_desc with
+  | Pexp_apply (_fn, args) ->
+    (match head_ident expr with
+     | Some longident when is_html_text_longident longident ->
+       List.find_map
+         (function
+           | (Asttypes.Nolabel, { pexp_desc = Pexp_constant (Pconst_string (s, _, _)); _ }) ->
+             Some s
+           | _ -> None)
+         args
+     | _ -> None)
+  | _ -> None
+
+let compile_tag_with_children ~(loc : Location.t) ~(tag : string)
+    ~(children : child_part list) : Parsetree.expression =
   let open Ast_builder.Default in
   let lid s = { loc; txt = Longident.parse s } in
   let template_var = "__solid_ml_tpl_template" in
   let inst_var = "__solid_ml_tpl_inst" in
-  let slot_var = "__solid_ml_tpl_slot0" in
-  let segments =
+
+  (* Build segments + slots. *)
+  let segments_rev = ref [] in
+  let slots_rev : (int * int * Parsetree.expression) list ref = ref [] in
+  let current_segment = Buffer.create 64 in
+  let static_nodes = ref 0 in
+  let slot_id = ref 0 in
+
+  Buffer.add_string current_segment ("<" ^ tag ^ ">");
+
+  List.iter
+    (function
+      | Static_text s ->
+        let escaped = escape_html s in
+        Buffer.add_string current_segment escaped;
+        if escaped <> "" then incr static_nodes
+      | Text_slot thunk ->
+        segments_rev := Buffer.contents current_segment :: !segments_rev;
+        Buffer.reset current_segment;
+        slots_rev := (!slot_id, !static_nodes, thunk) :: !slots_rev;
+        incr slot_id)
+    children;
+
+  Buffer.add_string current_segment ("</" ^ tag ^ ">");
+  segments_rev := Buffer.contents current_segment :: !segments_rev;
+
+  let slots = List.rev !slots_rev in
+  let segments = List.rev !segments_rev in
+
+  let segments_expr = pexp_array ~loc (List.map (estring ~loc) segments) in
+  let slot_kinds_expr =
     pexp_array ~loc
-      [ estring ~loc ("<" ^ tag ^ ">"); estring ~loc ("</" ^ tag ^ ">") ]
+      (List.map (fun _ -> pexp_variant ~loc "Text" None) slots)
   in
-  let slot_kinds = pexp_array ~loc [ pexp_variant ~loc "Text" None ] in
-  let path0 = pexp_array ~loc [ eint ~loc 0 ] in
+
   let compile_call =
     pexp_apply ~loc
       (pexp_ident ~loc (lid "Html.Template.compile"))
-      [ (Labelled "segments", segments); (Labelled "slot_kinds", slot_kinds) ]
+      [ (Labelled "segments", segments_expr);
+        (Labelled "slot_kinds", slot_kinds_expr) ]
   in
+
   let instantiate_call =
     pexp_apply ~loc
       (pexp_ident ~loc (lid "Html.Template.instantiate"))
       [ (Nolabel, evar ~loc template_var) ]
   in
-  let bind_text_call =
-    pexp_apply ~loc
-      (pexp_ident ~loc (lid "Html.Template.bind_text"))
-      [ (Nolabel, evar ~loc inst_var);
-        (Labelled "id", eint ~loc 0);
-        (Labelled "path", path0) ]
-  in
-  let thunk_call = pexp_apply ~loc thunk [ (Nolabel, eunit ~loc) ] in
-  let set_text_call =
-    pexp_apply ~loc
-      (pexp_ident ~loc (lid "Html.Template.set_text"))
-      [ (Nolabel, evar ~loc slot_var); (Nolabel, thunk_call) ]
-  in
-  let effect_call =
-    pexp_apply ~loc
-      (pexp_ident ~loc (lid "Effect.create"))
-      [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) set_text_call) ]
-  in
+
   let root_call =
     pexp_apply ~loc
       (pexp_ident ~loc (lid "Html.Template.root"))
       [ (Nolabel, evar ~loc inst_var) ]
   in
-  let vb_template =
-    value_binding ~loc ~pat:(pvar ~loc template_var) ~expr:compile_call
+
+  let effects_in_order =
+    List.map
+      (fun (id, _insert_idx, thunk) ->
+        let slot_var = "__solid_ml_tpl_slot" ^ string_of_int id in
+        let thunk_call = pexp_apply ~loc thunk [ (Nolabel, eunit ~loc) ] in
+        let set_text_call =
+          pexp_apply ~loc
+            (pexp_ident ~loc (lid "Html.Template.set_text"))
+            [ (Nolabel, evar ~loc slot_var); (Nolabel, thunk_call) ]
+        in
+        pexp_apply ~loc
+          (pexp_ident ~loc (lid "Effect.create"))
+          [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) set_text_call) ])
+      slots
   in
-  let vb_inst = value_binding ~loc ~pat:(pvar ~loc inst_var) ~expr:instantiate_call in
-  let vb_slot = value_binding ~loc ~pat:(pvar ~loc slot_var) ~expr:bind_text_call in
-  pexp_let ~loc Nonrecursive [ vb_template ]
-    (pexp_let ~loc Nonrecursive [ vb_inst ]
-       (pexp_let ~loc Nonrecursive [ vb_slot ]
-          (pexp_sequence ~loc effect_call root_call)))
+
+  let body =
+    List.fold_right (fun eff acc -> pexp_sequence ~loc eff acc) effects_in_order
+      root_call
+  in
+
+  (* Bind slots right-to-left to keep insertion indices stable on browser. *)
+  let slots_for_binding = List.rev slots in
+
+  let bind_slot acc (id, insert_idx, _thunk) =
+    let slot_var = "__solid_ml_tpl_slot" ^ string_of_int id in
+    let path = pexp_array ~loc [ eint ~loc insert_idx ] in
+    let bind_text_call =
+      pexp_apply ~loc
+        (pexp_ident ~loc (lid "Html.Template.bind_text"))
+        [ (Nolabel, evar ~loc inst_var);
+          (Labelled "id", eint ~loc id);
+          (Labelled "path", path) ]
+    in
+    pexp_let ~loc Nonrecursive
+      [ value_binding ~loc ~pat:(pvar ~loc slot_var) ~expr:bind_text_call ]
+      acc
+  in
+
+  let body_with_slots = List.fold_left bind_slot body slots_for_binding in
+
+  pexp_let ~loc Nonrecursive
+    [ value_binding ~loc ~pat:(pvar ~loc template_var) ~expr:compile_call ]
+    (pexp_let ~loc Nonrecursive
+       [ value_binding ~loc ~pat:(pvar ~loc inst_var) ~expr:instantiate_call ]
+       body_with_slots)
+
+let compile_tag_with_text ~(loc : Location.t) ~(tag : string)
+    ~(thunk : Parsetree.expression) : Parsetree.expression =
+  compile_tag_with_children ~loc ~tag ~children:[ Text_slot thunk ]
 
 let extract_tpl_text_thunk ~(aliases : string list) (expr : Parsetree.expression)
     : Parsetree.expression option =
@@ -262,13 +353,33 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                 in
                 (match (children_arg, other_args_ok) with
                  | (Some children_expr, true) ->
-                   (match list_of_expr children_expr with
-                    | Some [ child ] ->
-                      (match extract_tpl_text_thunk ~aliases child with
-                       | Some thunk ->
-                         compile_tag_with_text ~loc:expr.pexp_loc ~tag ~thunk
-                       | None -> expr)
+                    (match list_of_expr children_expr with
+                     | Some children_list ->
+                       let parts =
+                         List.filter_map
+                           (fun child ->
+                             match extract_static_text_literal child with
+                             | Some lit -> Some (Static_text lit)
+                             | None ->
+                               (match extract_tpl_text_thunk ~aliases child with
+                                | Some thunk -> Some (Text_slot thunk)
+                                | None -> None))
+                           children_list
+                       in
+                       let all_supported = List.length parts = List.length children_list in
+                       let has_slot =
+                         List.exists
+                           (function
+                             | Text_slot _ -> true
+                             | Static_text _ -> false)
+                           parts
+                       in
+                       if all_supported && has_slot then
+                         compile_tag_with_children ~loc:expr.pexp_loc ~tag
+                           ~children:parts
+                       else expr
                     | _ -> expr)
+
                  | _ -> expr)))
         | _ -> expr
     end
