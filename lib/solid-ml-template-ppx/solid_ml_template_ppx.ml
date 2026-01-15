@@ -105,7 +105,9 @@ let contains_tpl_markers (structure : Parsetree.structure) : (Location.t * strin
   !found
 
 let supported_subset =
-  "Html.<tag> ~children:[Html.text \"<literal>\"; Tpl.text <thunk>; ...] () (no props; <tag> in {div,span,p,a,button,ul,li,strong,em,section,main,header,footer,nav,h1..h6})"
+  "Html.<tag> ~children:[Html.text \"<literal>\"; Tpl.text <thunk>; ...] ()\n\
+   - ignores formatting-only whitespace Html.text literals that contain newlines\n\
+   - no props; <tag> in {div,span,p,a,button,ul,li,strong,em,section,main,header,footer,nav,h1..h6}"
 
 let rec list_of_expr (expr : Parsetree.expression) : Parsetree.expression list option =
   match expr.pexp_desc with
@@ -176,6 +178,22 @@ let is_html_text_longident (longident : Longident.t) : bool =
   match List.rev (longident_to_list longident) with
   | "text" :: "Html" :: _ -> true
   | _ -> false
+
+let is_whitespace_char = function
+  | ' ' | '\n' | '\r' | '\t' -> true
+  | _ -> false
+
+let is_formatting_whitespace (s : string) : bool =
+  (* Heuristic: ignore whitespace-only nodes that contain a newline/tab.
+     This matches how MLX introduces formatting nodes between children.
+     A literal " " (space) is considered meaningful and kept. *)
+  let has_linebreak =
+    String.exists (function
+      | '\n' | '\r' | '\t' -> true
+      | _ -> false)
+      s
+  in
+  has_linebreak && String.for_all is_whitespace_char s
 
 let extract_static_text_literal (expr : Parsetree.expression) : string option =
   match expr.pexp_desc with
@@ -355,18 +373,24 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                  | (Some children_expr, true) ->
                     (match list_of_expr children_expr with
                      | Some children_list ->
-                       let parts =
-                         List.filter_map
+                       let supported_parts = ref [] in
+                       let supported =
+                         List.for_all
                            (fun child ->
                              match extract_static_text_literal child with
-                             | Some lit -> Some (Static_text lit)
+                             | Some lit when is_formatting_whitespace lit -> true
+                             | Some lit ->
+                               supported_parts := Static_text lit :: !supported_parts;
+                               true
                              | None ->
                                (match extract_tpl_text_thunk ~aliases child with
-                                | Some thunk -> Some (Text_slot thunk)
-                                | None -> None))
+                                | Some thunk ->
+                                  supported_parts := Text_slot thunk :: !supported_parts;
+                                  true
+                                | None -> false))
                            children_list
                        in
-                       let all_supported = List.length parts = List.length children_list in
+                       let parts = List.rev !supported_parts in
                        let has_slot =
                          List.exists
                            (function
@@ -374,7 +398,7 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                              | Static_text _ -> false)
                            parts
                        in
-                       if all_supported && has_slot then
+                       if supported && has_slot then
                          compile_tag_with_children ~loc:expr.pexp_loc ~tag
                            ~children:parts
                        else expr
