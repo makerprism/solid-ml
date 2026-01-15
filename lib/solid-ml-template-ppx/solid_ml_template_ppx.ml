@@ -105,7 +105,7 @@ let contains_tpl_markers (structure : Parsetree.structure) : (Location.t * strin
   !found
 
 let supported_subset =
-  "Html.(div|span|p|h1|h2|h3|h4|h5|h6) ~children:[Tpl.text _] ()"
+  "Html.<tag> ~children:[Tpl.text _] () (no props; <tag> in {div,span,p,a,button,ul,li,strong,em,section,main,header,footer,nav,h1..h6})"
 
 let rec list_of_expr (expr : Parsetree.expression) : Parsetree.expression list option =
   match expr.pexp_desc with
@@ -124,7 +124,28 @@ let is_unit_expr (expr : Parsetree.expression) : bool =
   | _ -> false
 
 let supported_intrinsic_tags =
-  [ "div"; "span"; "p"; "h1"; "h2"; "h3"; "h4"; "h5"; "h6" ]
+  [
+    "div";
+    "span";
+    "p";
+    "a";
+    "button";
+    "ul";
+    "li";
+    "strong";
+    "em";
+    "section";
+    "main";
+    "header";
+    "footer";
+    "nav";
+    "h1";
+    "h2";
+    "h3";
+    "h4";
+    "h5";
+    "h6";
+  ]
 
 let is_supported_intrinsic_tag tag =
   List.exists (String.equal tag) supported_intrinsic_tags
