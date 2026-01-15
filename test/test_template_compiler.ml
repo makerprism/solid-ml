@@ -14,6 +14,12 @@ module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       ~children:
         [ Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name) ]
       ()
+
+  let render_p ~name () =
+    Html.p
+      ~children:
+        [ Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name) ]
+      ()
 end
 
 let () =
@@ -32,5 +38,12 @@ let () =
       C.render_span ~name ())
   in
   assert (html_span = "<span>World</span>");
+
+  let html_p =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_p ~name ())
+  in
+  assert (html_p = "<p>World</p>");
 
   print_endline "  PASSED"
