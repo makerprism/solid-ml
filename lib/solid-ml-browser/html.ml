@@ -25,9 +25,11 @@ type node =
 
 module Template : Solid_ml_template_runtime.TEMPLATE
   with type node := node
-   and type event := event = struct
+   and type event := event
+   and type element = Dom.element = struct
   type template = {
     container : element;
+    root_tag : string;
   }
 
   type instance = {
@@ -60,16 +62,35 @@ module Template : Solid_ml_template_runtime.TEMPLATE
     let html = build_html segments slot_kinds in
     let el = create_element (document ()) "div" in
     set_inner_html el html;
-    { container = el }
+    (* Compiled templates must have exactly one root element so that hydration
+       paths can be relative to the same root on CSR and hydration. *)
+    let children = get_child_nodes el in
+    if Array.length children <> 1 || not (is_element children.(0)) then
+      invalid_arg
+        (Printf.sprintf
+           "Solid_ml_browser.Html.Template.compile: expected exactly one root element (got %d). Hint: compiled templates cannot have fragments or top-level text nodes."
+           (Array.length children));
+    let root_el = element_of_node children.(0) in
+    { container = el; root_tag = get_tag_name root_el }
 
   let instantiate template =
     let clone = clone_node template.container true in
-    let frag = create_document_fragment (document ()) in
     let children = get_child_nodes clone in
-    Array.iter (fun child -> fragment_append_child frag child) children;
-    { root_node = node_of_fragment frag; root_repr = `Fragment frag }
+    if Array.length children <> 1 || not (is_element children.(0)) then
+      invalid_arg
+        (Printf.sprintf
+           "Solid_ml_browser.Html.Template.instantiate: expected exactly one root element (got %d)."
+           (Array.length children));
+    let root = children.(0) in
+    { root_node = root; root_repr = `Element (element_of_node root) }
 
-  let hydrate ~root _template =
+  let hydrate ~root template =
+    let actual = get_tag_name root in
+    if actual <> template.root_tag then
+      invalid_arg
+        (Printf.sprintf
+           "Solid_ml_browser.Html.Template.hydrate: root tag mismatch (expected %s, got %s)."
+           template.root_tag actual);
     { root_node = node_of_element root; root_repr = `Element root }
 
   let root inst =
@@ -83,7 +104,10 @@ module Template : Solid_ml_template_runtime.TEMPLATE
       let children = node_child_nodes !current in
       let idx = path.(i) in
       if idx < 0 || idx >= Array.length children then
-        invalid_arg "Solid_ml_browser.Html.Template: path out of bounds";
+        invalid_arg
+          (Printf.sprintf
+             "Solid_ml_browser.Html.Template: path out of bounds at depth %d (idx=%d, children=%d)"
+             i idx (Array.length children));
       current := children.(idx)
     done;
     !current
@@ -97,7 +121,10 @@ module Template : Solid_ml_template_runtime.TEMPLATE
     let insert_idx = path.(Array.length path - 1) in
     let parent_node = node_at inst.root_node parent_path in
     if not (is_element parent_node) then
-      invalid_arg "Solid_ml_browser.Html.Template.bind_text: parent is not an element";
+      invalid_arg
+        (Printf.sprintf
+           "Solid_ml_browser.Html.Template.bind_text: parent is not an element (nodeType=%d)"
+           (node_type parent_node));
     let parent_el = element_of_node parent_node in
     let children = get_child_nodes parent_el in
     let existing =
@@ -124,7 +151,10 @@ module Template : Solid_ml_template_runtime.TEMPLATE
   let bind_element inst ~id:_ ~path =
     let n = node_at inst.root_node path in
     if not (is_element n) then
-      invalid_arg "Solid_ml_browser.Html.Template.bind_element: node is not an element";
+      invalid_arg
+        (Printf.sprintf
+           "Solid_ml_browser.Html.Template.bind_element: node is not an element (nodeType=%d)"
+           (node_type n));
     element_of_node n
 
   let set_attr (el : element) ~name (value : string option) =

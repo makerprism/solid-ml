@@ -10,7 +10,7 @@
 
 .PHONY: build test clean \
         example-counter example-todo example-router example-parallel example-ssr-server example-ssr-server-docker \
-        example-browser example-browser-router browser-examples browser-tests serve \
+        example-browser example-browser-router browser-examples browser-tests browser-tests-headless serve \
         example-full-ssr example-full-ssr-client example-full-ssr-docker \
         example-ssr-api example-ssr-api-client \
         example-ssr-hydration-docker
@@ -175,11 +175,49 @@ serve: browser-examples
 	@echo ""
 	@python3 -m http.server 8000 -d examples || stty sane
 
-# Run browser tests (requires Node.js)
+# Run browser tests (Node.js only; no DOM)
 browser-tests:
-	@echo "Running browser tests..."
+	@echo "Running browser tests (Node.js, no DOM)..."
 	@dune build @test_browser/melange
 	@node _build/default/test_browser/output/test_browser/test_reactive.js
+
+# Run browser tests in a real headless browser (requires Chrome)
+browser-tests-headless:
+	@echo "Running browser DOM tests (headless Chrome)..."
+	@dune build @test_browser_dom/melange
+	@npx esbuild _build/default/test_browser_dom/output/test_browser_dom/test_template_dom.js --bundle --format=iife --target=es2020 --outfile=_build/default/test_browser_dom/test_template_dom_bundle.js
+	@tmp_dom="$$(mktemp)"; tmp_err="$$(mktemp)"; tmp_png="$$(mktemp --suffix=.png)"; \
+	  artifacts_dir="_build/default/test_browser_dom/artifacts"; \
+	  mkdir -p "$$artifacts_dir"; \
+	  timeout 30s google-chrome --headless=new --disable-gpu --no-sandbox --disable-dev-shm-usage \
+	    --allow-file-access-from-files --disable-web-security --virtual-time-budget=5000 \
+	    --window-size=1280,720 --screenshot="$$tmp_png" \
+	    --dump-dom file://$(PWD)/test_browser_dom/runner.html \
+	    1>"$$tmp_dom" 2>"$$tmp_err"; \
+	  if rg -q 'data-test-result="PASS"' "$$tmp_dom"; then \
+	    rm -f "$$tmp_dom" "$$tmp_err" "$$tmp_png"; \
+	    exit 0; \
+	  else \
+	    fail_dom="$$artifacts_dir/last_fail_dump_dom.html"; \
+	    fail_err="$$artifacts_dir/last_fail_chrome_stderr.log"; \
+	    fail_png="$$artifacts_dir/last_fail_screenshot.png"; \
+	    cp "$$tmp_dom" "$$fail_dom"; \
+	    cp "$$tmp_err" "$$fail_err"; \
+	    cp "$$tmp_png" "$$fail_png" || true; \
+	    echo "\nHeadless DOM tests failed."; \
+	    echo "Saved artifacts:"; \
+	    echo "  $$fail_dom"; \
+	    echo "  $$fail_err"; \
+	    echo "  $$fail_png"; \
+	    echo "\n--- test-result element ---"; \
+	    rg -n 'test-result|data-test-result|data-test-error|data-test-stack' "$$tmp_dom" || true; \
+	    echo "--- chrome stderr (first 50 lines) ---"; \
+	    sed -n '1,50p' "$$tmp_err" || true; \
+	    echo "--- dumped DOM (first 120 lines) ---"; \
+	    sed -n '1,120p' "$$tmp_dom" || true; \
+	    rm -f "$$tmp_dom" "$$tmp_err" "$$tmp_png"; \
+	    exit 1; \
+	  fi
 
 # ==============================================================================
 # Help
@@ -210,4 +248,5 @@ help:
 	@echo "Browser development (requires Node.js for esbuild):"
 	@echo "  make serve               - Build and serve browser examples"
 	@echo "  make browser-examples    - Build all browser examples"
-	@echo "  make browser-tests       - Run browser tests"
+	@echo "  make browser-tests       - Run browser tests (Node-only)"
+	@echo "  make browser-tests-headless - Run browser DOM tests (headless Chrome)"

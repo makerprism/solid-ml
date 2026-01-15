@@ -44,19 +44,28 @@ module type TEMPLATE = sig
   (** Adopt existing DOM for hydration.
 
       On the browser, [root] is the DOM element that corresponds to the
-      template's root.
+      template's single root element.
+
+      Compiled templates are expected to have exactly one root element so that
+      paths are interpreted relative to the same node for CSR (instantiate) and
+      hydration (hydrate).
 
       On SSR, this is a no-op wrapper around [instantiate]. *)
 
   val root : instance -> node
-  (** Return the root node for the instance. *)
+  (** Return the root node for the instance.
+
+      For browser CSR/hydration, this should be the single root element.
+      (Templates with multiple top-level nodes are intentionally unsupported in
+      v1 because they make path-based hydration ambiguous.) *)
 
   val bind_text : instance -> id:int -> path:int array -> text_slot
   (** Bind a template text slot.
 
       [id] is a compiler-assigned slot id.
 
-      [path] is interpreted as an *insertion path* for text:
+      [path] is interpreted as an *insertion path* for text, relative to the
+      instance root element:
       - All but the last index locate the parent node
       - The last index is the child insertion index
 

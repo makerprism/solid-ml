@@ -1,0 +1,12 @@
+; Browser DOM tests (run in real headless Chrome)
+;
+; These tests compile to JS via Melange and are executed in a real browser.
+;
+; Build with:
+;   dune build @test_browser_dom/melange
+
+(melange.emit
+ (target output)
+ (libraries solid-ml-browser)
+ (preprocess (pps melange.ppx))
+ (module_systems es6))
