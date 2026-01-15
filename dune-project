@@ -80,6 +80,7 @@
  (description "PPX rewriter for SolidJS-style template compilation targeting solid-ml Html backends.")
  (allow_empty)
  (depends
-  (ocaml (>= 4.14.0))
-  (ppxlib (>= 0.27.0))))
+   (ocaml (>= 4.14.0))
+   (ppxlib (>= 0.27.0))
+   (mlx (>= 0.11))))
 
