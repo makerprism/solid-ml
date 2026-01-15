@@ -104,7 +104,8 @@ let contains_tpl_markers (structure : Parsetree.structure) : (Location.t * strin
   iter#structure structure;
   !found
 
-let supported_subset = "Html.div ~children:[Tpl.text _] ()"
+let supported_subset =
+  "Html.(div|span|p|h1|h2|h3|h4|h5|h6) ~children:[Tpl.text _] ()"
 
 let rec list_of_expr (expr : Parsetree.expression) : Parsetree.expression list option =
   match expr.pexp_desc with
@@ -122,37 +123,28 @@ let is_unit_expr (expr : Parsetree.expression) : bool =
   | Pexp_construct ({ txt = Longident.Lident "()"; _ }, None) -> true
   | _ -> false
 
-let is_div_longident (longident : Longident.t) : bool =
-  match List.rev (longident_to_list longident) with
-  | [ "div" ] -> true
-  | "div" :: "Html" :: _ -> true
-  | _ -> false
+let supported_intrinsic_tags =
+  [ "div"; "span"; "p"; "h1"; "h2"; "h3"; "h4"; "h5"; "h6" ]
 
-let extract_tpl_text_thunk ~(aliases : string list) (expr : Parsetree.expression)
-    : Parsetree.expression option =
-  match expr.pexp_desc with
-  | Pexp_apply (_fn, args) ->
-    (match head_ident expr with
-     | None -> None
-     | Some longident ->
-       (match tpl_marker_name ~aliases longident with
-        | Some "text" ->
-          List.find_map
-            (function
-              | (Asttypes.Nolabel, thunk) -> Some thunk
-              | _ -> None)
-            args
-        | _ -> None))
+let is_supported_intrinsic_tag tag =
+  List.exists (String.equal tag) supported_intrinsic_tags
+
+let extract_intrinsic_tag (longident : Longident.t) : string option =
+  match List.rev (longident_to_list longident) with
+  | tag :: _ when is_supported_intrinsic_tag tag -> Some tag
   | _ -> None
 
-let compile_div_with_text ~(loc : Location.t) ~(thunk : Parsetree.expression)
-    : Parsetree.expression =
+let compile_tag_with_text ~(loc : Location.t) ~(tag : string)
+    ~(thunk : Parsetree.expression) : Parsetree.expression =
   let open Ast_builder.Default in
   let lid s = { loc; txt = Longident.parse s } in
   let template_var = "__solid_ml_tpl_template" in
   let inst_var = "__solid_ml_tpl_inst" in
   let slot_var = "__solid_ml_tpl_slot0" in
-  let segments = pexp_array ~loc [ estring ~loc "<div>"; estring ~loc "</div>" ] in
+  let segments =
+    pexp_array ~loc
+      [ estring ~loc ("<" ^ tag ^ ">"); estring ~loc ("</" ^ tag ^ ">") ]
+  in
   let slot_kinds = pexp_array ~loc [ pexp_variant ~loc "Text" None ] in
   let path0 = pexp_array ~loc [ eint ~loc 0 ] in
   let compile_call =
@@ -198,6 +190,24 @@ let compile_div_with_text ~(loc : Location.t) ~(thunk : Parsetree.expression)
        (pexp_let ~loc Nonrecursive [ vb_slot ]
           (pexp_sequence ~loc effect_call root_call)))
 
+let extract_tpl_text_thunk ~(aliases : string list) (expr : Parsetree.expression)
+    : Parsetree.expression option =
+  match expr.pexp_desc with
+  | Pexp_apply (_fn, args) ->
+    (match head_ident expr with
+     | None -> None
+     | Some longident ->
+       (match tpl_marker_name ~aliases longident with
+        | Some "text" ->
+          List.find_map
+            (function
+              | (Asttypes.Nolabel, thunk) -> Some thunk
+              | _ -> None)
+            args
+        | _ -> None))
+  | _ -> None
+
+(* tag compilation is implemented by [compile_tag_with_text]. *)
 let transform_structure (structure : Parsetree.structure) : Parsetree.structure =
   let aliases = collect_tpl_aliases structure in
   let mapper =
@@ -210,32 +220,35 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
         | Pexp_apply (_fn, args) ->
           (match head_ident expr with
            | None -> expr
-           | Some longident when is_div_longident longident ->
-             let children_arg =
-               List.find_map
-                 (function
-                   | (Asttypes.Labelled "children", e) -> Some e
-                   | _ -> None)
-                 args
-             in
-             let other_args_ok =
-               List.for_all
-                 (function
-                   | (Asttypes.Labelled "children", _) -> true
-                   | (Asttypes.Nolabel, e) -> is_unit_expr e
-                   | _ -> false)
-                 args
-             in
-             (match (children_arg, other_args_ok) with
-              | (Some children_expr, true) ->
-                (match list_of_expr children_expr with
-                 | Some [ child ] ->
-                   (match extract_tpl_text_thunk ~aliases child with
-                    | Some thunk -> compile_div_with_text ~loc:expr.pexp_loc ~thunk
-                    | None -> expr)
-                 | _ -> expr)
-              | _ -> expr)
-           | _ -> expr)
+           | Some longident ->
+             (match extract_intrinsic_tag longident with
+              | None -> expr
+              | Some tag ->
+                let children_arg =
+                  List.find_map
+                    (function
+                      | (Asttypes.Labelled "children", e) -> Some e
+                      | _ -> None)
+                    args
+                in
+                let other_args_ok =
+                  List.for_all
+                    (function
+                      | (Asttypes.Labelled "children", _) -> true
+                      | (Asttypes.Nolabel, e) -> is_unit_expr e
+                      | _ -> false)
+                    args
+                in
+                (match (children_arg, other_args_ok) with
+                 | (Some children_expr, true) ->
+                   (match list_of_expr children_expr with
+                    | Some [ child ] ->
+                      (match extract_tpl_text_thunk ~aliases child with
+                       | Some thunk ->
+                         compile_tag_with_text ~loc:expr.pexp_loc ~tag ~thunk
+                       | None -> expr)
+                    | _ -> expr)
+                 | _ -> expr)))
         | _ -> expr
     end
   in
