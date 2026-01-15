@@ -115,6 +115,16 @@ let test_ssr_env_satisfies_interface () =
   let _ = (module Ssr_env : Component.COMPONENT_ENV) in
   print_endline "  PASSED"
 
+let test_ssr_env_satisfies_template_env () =
+  print_endline "Test: SSR environment satisfies TEMPLATE_ENV";
+  let module Env = struct
+    include Ssr_env
+    module Effect = Solid_ml.Effect
+    module Owner = Solid_ml.Owner
+  end in
+  let _ = (module Env : Component.TEMPLATE_ENV) in
+  print_endline "  PASSED"
+
 let test_component_functor_instantiation () =
   print_endline "Test: Component functor can be instantiated with SSR";
   (* Create a component and render it *)
@@ -193,6 +203,7 @@ let () =
 
   print_endline "-- Interface Tests --";
   test_ssr_env_satisfies_interface ();
+  test_ssr_env_satisfies_template_env ();
 
   print_endline "\n-- Functor Instantiation Tests --";
   test_component_functor_instantiation ();
