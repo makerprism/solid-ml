@@ -1,0 +1,22 @@
+open Solid_ml
+
+module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
+  open Env
+
+  let render ~name () =
+    Html.div
+      ~children:
+        [ Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name) ]
+      ()
+end
+
+let () =
+  print_endline "Test: Template PPX compiles Tpl.text";
+  let name, _set_name = Signal.create "World" in
+  let html =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render ~name () )
+  in
+  assert (html = "<div>World</div>");
+  print_endline "  PASSED"
