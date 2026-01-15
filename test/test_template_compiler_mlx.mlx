@@ -4,14 +4,13 @@ module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Env
 
   let render ~name () =
-    Html.div
-      ~children:
-        [ Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name) ]
-      ()
+    <Html.div>
+      (Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name))
+    </Html.div>
 end
 
 let () =
-  print_endline "Test: Template PPX compiles Tpl.text (non-MLX)";
+  print_endline "Test: Template PPX compiles Tpl.text (MLX)";
   let name, _set_name = Signal.create "World" in
   let html =
     Solid_ml_ssr.Render.to_string (fun () ->
