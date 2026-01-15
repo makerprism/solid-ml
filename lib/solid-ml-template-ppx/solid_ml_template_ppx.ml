@@ -186,7 +186,9 @@ let is_whitespace_char = function
 let is_formatting_whitespace (s : string) : bool =
   (* Heuristic: ignore whitespace-only nodes that contain a newline/tab.
      This matches how MLX introduces formatting nodes between children.
-     A literal " " (space) is considered meaningful and kept. *)
+
+     Note: we will only apply this heuristic for tags where whitespace is not
+     semantically meaningful (i.e. not <pre>/<code>). *)
   let has_linebreak =
     String.exists (function
       | '\n' | '\r' | '\t' -> true
@@ -374,11 +376,19 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                     (match list_of_expr children_expr with
                      | Some children_list ->
                        let supported_parts = ref [] in
+                       let allow_whitespace_normalization =
+                         match tag with
+                         | "pre" | "code" -> false
+                         | _ -> true
+                       in
                        let supported =
                          List.for_all
                            (fun child ->
                              match extract_static_text_literal child with
-                             | Some lit when is_formatting_whitespace lit -> true
+                             | Some lit
+                               when allow_whitespace_normalization
+                                    && is_formatting_whitespace lit ->
+                               true
                              | Some lit ->
                                supported_parts := Static_text lit :: !supported_parts;
                                true
