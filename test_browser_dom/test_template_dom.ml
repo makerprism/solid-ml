@@ -135,6 +135,9 @@ let test_compiled_attr () =
 
   assert_eq ~name:"compiled attr initial" (Option.value (get_attribute a_el "href") ~default:"") "/a?x=<y>";
 
+  set_href "";
+  assert_eq ~name:"compiled attr empty" (Option.value (get_attribute a_el "href") ~default:"") "";
+
   set_href "/b";
   assert_eq ~name:"compiled attr updated" (Option.value (get_attribute a_el "href") ~default:"") "/b";
 
