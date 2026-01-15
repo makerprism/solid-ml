@@ -38,8 +38,10 @@ let test_ssr_env_satisfies_interface () =
   print_endline "  PASSED"
 
 let test_ssr_env_satisfies_template_env () =
-  print_endline "Test: SSR environment satisfies TEMPLATE_ENV";
-  let _ = (module Solid_ml_ssr.Env : Component.TEMPLATE_ENV) in
+  print_endline "Test: SSR environment satisfies template Env_intf";
+  let _ =
+    (module Solid_ml_ssr.Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV)
+  in
   print_endline "  PASSED"
 
 let test_component_functor_instantiation () =

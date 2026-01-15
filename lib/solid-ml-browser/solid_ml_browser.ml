@@ -107,4 +107,4 @@ module Env = struct
   module Owner = Reactive.Owner
 end
 
-module _ : Solid_ml.Component.TEMPLATE_ENV = Env
+module _ : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV = Env
