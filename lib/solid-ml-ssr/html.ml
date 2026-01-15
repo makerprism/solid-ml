@@ -46,7 +46,8 @@ let escape_html s =
 
 module Template : Solid_ml_template_runtime.TEMPLATE
   with type node := node
-   and type event := event = struct
+   and type event := event
+   and type element = unit = struct
   type template = {
     segments : string array;
     slot_kinds : Solid_ml_template_runtime.slot_kind array;

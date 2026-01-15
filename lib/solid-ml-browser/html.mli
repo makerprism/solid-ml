@@ -57,6 +57,7 @@ val fragment : node list -> node
 module Template : Solid_ml_template_runtime.TEMPLATE
   with type node := node
    and type event := event
+   and type element = Dom.element
 
 (** {1 Document Structure} *)
 
