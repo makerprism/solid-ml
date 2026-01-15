@@ -29,3 +29,7 @@
 (test
   (name test_template)
   (libraries solid-ml solid-ml-ssr))
+
+(test
+  (name test_template_ppx)
+  (libraries ppxlib solid-ml-template-ppx solid-ml-template-runtime))
