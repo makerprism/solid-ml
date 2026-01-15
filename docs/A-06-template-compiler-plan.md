@@ -463,25 +463,54 @@ This approach gives the early-failure guarantee of the extension-node idea, with
 
 Dynamic text:
 
-- `<div>{Tpl.text (fun () -> string_of_int (Signal.get count))}</div>`
+```ocaml
+<div>
+  (Tpl.text (fun () -> string_of_int (Signal.get count)))
+</div>
+```
 
 Dynamic attribute:
 
-- `<a href={Tpl.attr ~name:"href" (fun () -> url ())}>link</a>`
+```ocaml
+<a href=(Tpl.attr ~name:"href" (fun () -> url ()))>
+  "link"
+</a>
+```
 
 Event handler:
 
-- `<button onclick={Tpl.on ~event:"click" (fun _ev -> incr ())}>inc</button>`
+```ocaml
+<button onclick=(Tpl.on ~event:"click" (fun _ev -> incr ()))>
+  "inc"
+</button>
+```
 
 (Exact attribute names depend on MLX’s attribute-to-OCaml mapping; the PPX only needs the post-MLX AST shape.)
 
 ### 5.4 Enabling the compiler
 
-In `dune` stanzas that use templates:
+MLX syntax is supported via a **dune dialect** (MLX is a syntax preprocessor, not a PPX library).
 
-- For MLX authoring, enable the `mlx` dialect in your `dune-project`.
-- In `dune` stanzas that use templates, enable the compiler:
+In your `dune-project`:
+
+```lisp
+(dialect
+ (name mlx)
+ (implementation
+  (extension mlx)
+  (preprocess
+   (run mlx-pp %{input-file}))))
+```
+
+Then, in `dune` stanzas that use templates:
+
+- Enable the template compiler PPX:
   - `(preprocess (pps solid-ml-template-ppx))`
+
+Notes:
+
+- If you also use other PPX rewriters, keep `solid-ml-template-ppx` in the same `(pps ...)` list.
+- For editor support, MLX recommends installing `ocamlmerlin-mlx`.
 
 ---
 
