@@ -33,3 +33,8 @@
 (test
   (name test_template_ppx)
   (libraries ppxlib solid-ml-template-ppx solid-ml-template-runtime))
+
+(test
+  (name test_template_compiler)
+  (libraries solid-ml solid-ml-ssr solid-ml-template-runtime)
+  (preprocess (pps solid-ml-template-ppx)))
