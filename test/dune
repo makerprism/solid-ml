@@ -32,17 +32,11 @@
 
 (test
   (name test_template_ppx)
+  (modules test_template_ppx)
   (libraries ppxlib solid-ml-template-ppx solid-ml-template-runtime))
 
-; MLX integration: generate OCaml from `.mlx` then compile with template PPX
-(rule
- (targets test_template_compiler_mlx.ml)
- (deps test_template_compiler_mlx.mlx)
- (action
-  (with-stdout-to %{targets}
-   (run mlx-pp -print-ml %{deps}))))
-
 (test
-  (name test_template_compiler_mlx)
+  (name test_template_compiler)
+  (modules test_template_compiler)
   (libraries solid-ml solid-ml-ssr solid-ml-template-runtime)
   (preprocess (pps solid-ml-template-ppx)))

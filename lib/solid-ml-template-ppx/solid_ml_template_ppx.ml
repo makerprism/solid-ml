@@ -251,7 +251,7 @@ let impl (structure : Parsetree.structure) : Parsetree.structure =
        Current supported subset: %s.\n\n\
        If you intended to use the template compiler here, ensure this file is built with:\n\
          (preprocess (pps solid-ml-template-ppx))\n\
-       (If you also use MLX syntax, add it before this PPX: (pps mlx solid-ml-template-ppx))"
+       For `.mlx` authoring, enable the `mlx` dialect in your `dune-project` (see MLX README)."
       name supported_subset
 
 let () =

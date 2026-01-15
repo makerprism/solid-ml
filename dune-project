@@ -15,6 +15,15 @@
 
 (generate_opam_files true)
 
+; MLX support (JSX-like syntax)
+; This makes dune treat `.mlx` as OCaml implementation files.
+(dialect
+ (name mlx)
+ (implementation
+  (extension mlx)
+  (preprocess
+   (run mlx-pp %{input-file}))))
+
 ; Internal package - DO NOT use directly
 (package
  (name solid-ml-internal)

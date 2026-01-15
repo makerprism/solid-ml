@@ -455,7 +455,7 @@ Decision (v1): use a **marker-type** design in the runtime library, and **PPX er
      - the unsupported construct
      - the location
      - a hint about the currently supported subset
-     - a fix hint (ensure `(preprocess (pps mlx solid-ml-template-ppx))` is enabled)
+     - a fix hint (ensure `.mlx` support is enabled and `solid-ml-template-ppx` is in `(pps ...)`)
 
 This approach gives the early-failure guarantee of the extension-node idea, without forcing PPX usage inside the shared runtime package.
 
@@ -479,7 +479,9 @@ Event handler:
 
 In `dune` stanzas that use templates:
 
-- `(preprocess (pps mlx solid-ml-template-ppx))`
+- For MLX authoring, enable the `mlx` dialect in your `dune-project`.
+- In `dune` stanzas that use templates, enable the compiler:
+  - `(preprocess (pps solid-ml-template-ppx))`
 
 ---
 
@@ -543,7 +545,7 @@ Decision (v1): support a narrow, explicit subset first:
   - the unsupported construct
   - the location
   - a hint for the supported subset
-  - a fix hint (ensure `(preprocess (pps mlx solid-ml-template-ppx))` is enabled)
+  - a fix hint (ensure `.mlx` support is enabled and `solid-ml-template-ppx` is in `(pps ...)`)
 
 Note: even without PPX errors, the marker-type design ensures `Tpl.*` cannot be silently used as a normal node/attr/event value.
 
