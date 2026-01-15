@@ -23,16 +23,40 @@ let collect_tpl_aliases (structure : Parsetree.structure) : string list =
   let add name =
     if List.exists (String.equal name) !aliases then () else aliases := name :: !aliases
   in
-  List.iter
-    (fun item ->
-      match item.pstr_desc with
-      | Pstr_module { pmb_name = { txt = Some name; _ }; pmb_expr; _ } ->
-        (match pmb_expr.pmod_desc with
-         | Pmod_ident { txt = longident; _ } ->
-           if is_tpl_module_path (longident_to_list longident) then add name
-         | _ -> ())
-      | _ -> ())
-    structure;
+  (* Collect direct aliases to Tpl, then close over simple alias chains.
+
+     This is intentionally shallow: we only look at top-level module aliases of
+     the form [module X = Y]. *)
+  let pass () =
+    let changed = ref false in
+    List.iter
+      (fun item ->
+        match item.pstr_desc with
+        | Pstr_module { pmb_name = { txt = Some name; _ }; pmb_expr; _ } ->
+          (match pmb_expr.pmod_desc with
+           | Pmod_ident { txt = longident; _ } ->
+             (match longident_to_list longident with
+              | path when is_tpl_module_path path ->
+                if not (List.exists (String.equal name) !aliases) then (
+                  add name;
+                  changed := true)
+              | [ alias ] when List.exists (String.equal alias) !aliases ->
+                if not (List.exists (String.equal name) !aliases) then (
+                  add name;
+                  changed := true)
+              | _ -> ())
+           | _ -> ())
+        | _ -> ())
+      structure;
+    !changed
+  in
+  (* Guardrail: avoid pathological alias chains. *)
+  let rec loop remaining =
+    if remaining = 0 then ()
+    else if pass () then loop (remaining - 1)
+    else ()
+  in
+  loop 16;
   !aliases
 
 let tpl_marker_name ~(aliases : string list) (longident : Longident.t) : string option =
@@ -80,20 +104,22 @@ let contains_tpl_markers (structure : Parsetree.structure) : (Location.t * strin
   iter#structure structure;
   !found
 
+let supported_subset = "(none)"
+
 let impl (structure : Parsetree.structure) : Parsetree.structure =
   match contains_tpl_markers structure with
   | None -> structure
   | Some (loc, name) ->
     Location.raise_errorf ~loc
       "solid-ml-template-ppx: found Tpl.%s, but template compilation is not implemented yet.\n\n\
-       Current supported subset: (none).\n\
+       Current supported subset: %s.\n\
        Next steps: implement template compilation for intrinsic tags + Tpl.text.\n\n\
        If you did not intend to use the template compiler here, remove the Tpl.* marker.\n\
        If you intended to use it, ensure this file is built with:\n\
          (preprocess (pps mlx solid-ml-template-ppx))\n\n\
        Note: without the PPX rewrite, Tpl markers will also fail to typecheck\n\
        when used as normal nodes/attrs/events (marker-type design: Tpl.t)."
-      name
+      name supported_subset
 
 let () =
   Driver.register_transformation
