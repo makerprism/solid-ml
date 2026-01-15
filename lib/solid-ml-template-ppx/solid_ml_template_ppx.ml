@@ -105,7 +105,7 @@ let contains_tpl_markers (structure : Parsetree.structure) : (Location.t * strin
   !found
 
 let supported_subset =
-  "Html.<tag> ~children:[Html.text <lit>; Tpl.text <thunk>; ...] () (no props; <tag> in {div,span,p,a,button,ul,li,strong,em,section,main,header,footer,nav,h1..h6})"
+  "Html.<tag> ~children:[Html.text \"<literal>\"; Tpl.text <thunk>; ...] () (no props; <tag> in {div,span,p,a,button,ul,li,strong,em,section,main,header,footer,nav,h1..h6})"
 
 let rec list_of_expr (expr : Parsetree.expression) : Parsetree.expression list option =
   match expr.pexp_desc with
@@ -212,7 +212,7 @@ let compile_tag_with_children ~(loc : Location.t) ~(tag : string)
       | Static_text s ->
         let escaped = escape_html s in
         Buffer.add_string current_segment escaped;
-        if escaped <> "" then incr static_nodes
+        incr static_nodes
       | Text_slot thunk ->
         segments_rev := Buffer.contents current_segment :: !segments_rev;
         Buffer.reset current_segment;
