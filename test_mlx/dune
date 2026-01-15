@@ -1,0 +1,7 @@
+; MLX integration tests
+
+(test
+ (name test_template_compiler_mlx)
+ (modules test_template_compiler_mlx)
+ (libraries solid-ml solid-ml-ssr solid-ml-template-runtime)
+ (preprocess (pps solid-ml-template-ppx)))
