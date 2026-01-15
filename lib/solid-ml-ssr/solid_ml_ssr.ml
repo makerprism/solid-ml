@@ -20,3 +20,22 @@
 
 module Html = Html
 module Render = Render
+
+module Env = struct
+  module Signal = struct
+    type 'a t = 'a Solid_ml.Signal.t
+
+    let create ?equals = Solid_ml.Signal.create ?equals
+    let get = Solid_ml.Signal.get
+    let peek = Solid_ml.Signal.peek
+    let update = Solid_ml.Signal.update
+  end
+
+  type 'a signal = 'a Signal.t
+
+  module Html = Html
+  module Effect = Solid_ml.Effect
+  module Owner = Solid_ml.Owner
+end
+
+module _ : Solid_ml.Component.TEMPLATE_ENV = Env

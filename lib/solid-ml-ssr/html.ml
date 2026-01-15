@@ -4,6 +4,8 @@
     On SSR, events are never instantiated - handlers are ignored. *)
 type event = unit
 
+type 'a signal = 'a Solid_ml.Signal.t
+
 (** Hydration key counter for marking reactive elements *)
 let hydration_key = ref 0
 
