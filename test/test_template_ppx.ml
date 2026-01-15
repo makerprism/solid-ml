@@ -27,6 +27,20 @@ let () =
   in
   assert_some "detect alias T.text" (Solid_ml_template_ppx.contains_tpl_markers s2);
 
+  (* And close over a shallow alias chain. *)
+  let s2b =
+    parse_structure ~filename:"case2b.ml"
+      "module T = Solid_ml_template_runtime.Tpl\nmodule U = T\nlet _ = U.text (fun () -> \"hi\")"
+  in
+  assert_some "detect alias chain U.text" (Solid_ml_template_ppx.contains_tpl_markers s2b);
+
+  (* Also allow aliasing the unqualified Tpl module when in scope. *)
+  let s2c =
+    parse_structure ~filename:"case2c.ml"
+      "open Solid_ml_template_runtime\nmodule V = Tpl\nlet _ = V.text (fun () -> \"hi\")"
+  in
+  assert_some "detect open+alias V.text" (Solid_ml_template_ppx.contains_tpl_markers s2c);
+
   (* Bare identifiers are not considered a marker *use*. *)
   let s3 = parse_structure ~filename:"case3.ml" "let _ = Tpl.text" in
   assert_none "ignore bare Tpl.text ident" (Solid_ml_template_ppx.contains_tpl_markers s3);
