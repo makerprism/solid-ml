@@ -63,4 +63,12 @@ let () =
   in
   assert (attr_html = "<a href=\"/x?y=&lt;z&gt;\">Go World</a>");
 
+  let empty_href, _set_empty_href = Signal.create "" in
+  let empty_html =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module R = C (Solid_ml_ssr.Env) in
+      R.render_a_attr ~href:empty_href ~name ())
+  in
+  assert (empty_html = "<a href=\"\">Go World</a>");
+
   print_endline "  PASSED"
