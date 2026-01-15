@@ -432,18 +432,31 @@ Notes:
 - The event handler argument type is intentionally polymorphic (`'ev`); the PPX emits the backend-specific event type in the rewritten code.
 - The PPX should be able to find these markers by their fully-qualified path (e.g. `Solid_ml_template_runtime.Tpl.text`) to avoid accidental shadowing.
 
-### 5.2 Deliberate failure mode without the template PPX
+### 5.2 Deliberate failure mode ("best of both worlds")
 
 The goal is to avoid the footgun where `Tpl.*` reaches runtime.
 
-Decision (v1): implement `Tpl.*` as a thin wrapper around a PPX-only extension node.
+Decision (v1): use a **marker-type** design in the runtime library, and **PPX error reporting** for unsupported constructs.
 
-Example sketch:
+1. **Marker-type design (works without PPX plumbing in the runtime library)**
 
-- `let text thunk = [%solid_ml_template.uncompiled "Tpl.text" thunk]`
+   `solid-ml-template-runtime` defines `type 'a Tpl.t` and all `Tpl.*` helpers return this marker type.
 
-If `solid-ml-template-ppx` is not enabled, compilation fails because the extension is unknown.
-If the PPX is enabled, it rewrites the entire containing MLX tree and the extension never reaches runtime.
+   - Without the template compiler, any attempt to use a `Tpl.*` marker as a node/attr/handler produces a type error mentioning `Solid_ml_template_runtime.Tpl.t`.
+   - This keeps `solid-ml-template-runtime` free of PPX dependencies and works in byte/native/melange.
+
+2. **PPX-driven errors (more helpful than raw type errors)**
+
+   When `solid-ml-template-ppx` is enabled, it should detect `Tpl.*` markers and:
+
+   - either fully compile the containing MLX tree into `Html.Template.*` calls, or
+   - raise a compiler error with:
+     - the unsupported construct
+     - the location
+     - a hint about the currently supported subset
+     - a fix hint (ensure `(preprocess (pps mlx solid-ml-template-ppx))` is enabled)
+
+This approach gives the early-failure guarantee of the extension-node idea, without forcing PPX usage inside the shared runtime package.
 
 ### 5.3 Minimal authoring examples
 
@@ -529,6 +542,9 @@ Decision (v1): support a narrow, explicit subset first:
   - the unsupported construct
   - the location
   - a hint for the supported subset
+  - a fix hint (ensure `(preprocess (pps mlx solid-ml-template-ppx))` is enabled)
+
+Note: even without PPX errors, the marker-type design ensures `Tpl.*` cannot be silently used as a normal node/attr/event value.
 
 ### 7.3 Code generation shape
 
@@ -555,7 +571,7 @@ The PPX should generate hygienic names (e.g. `__solid_template_1`, `__solid_slot
 
 - `solid-ml-template-runtime`:
   - `Solid_ml_template_runtime.TEMPLATE` (already exists)
-  - `Solid_ml_template_runtime.Tpl` marker module (to add)
+  - `Solid_ml_template_runtime.Tpl` marker module (marker-type design)
 - `solid-ml-template-ppx`:
   - PPX that rewrites MLX output into `Html.Template.*` calls
 
