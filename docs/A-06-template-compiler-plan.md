@@ -418,13 +418,14 @@ Create a `Tpl` module (in `solid-ml-template-runtime`) that is only a **marker s
 
 Proposed API (v1):
 
-- `Tpl.text : (unit -> string) -> _`
-- `Tpl.attr : name:string -> (unit -> string) -> _`
-- `Tpl.attr_opt : name:string -> (unit -> string option) -> _`
-- `Tpl.class_list : (unit -> (string * bool) list) -> _`
-- `Tpl.on : event:string -> ('ev -> unit) -> _`
-- `Tpl.show : when_:(unit -> bool) -> (unit -> _ ) -> _`
-- `Tpl.each_keyed : items:(unit -> 'a list) -> key:('a -> string) -> render:('a -> _) -> _`
+- `type 'a Tpl.t` (marker type)
+- `Tpl.text : (unit -> string) -> 'a Tpl.t`
+- `Tpl.attr : name:string -> (unit -> string) -> 'a Tpl.t`
+- `Tpl.attr_opt : name:string -> (unit -> string option) -> 'a Tpl.t`
+- `Tpl.class_list : (unit -> (string * bool) list) -> 'a Tpl.t`
+- `Tpl.on : event:string -> ('ev -> unit) -> ('ev -> unit) Tpl.t`
+- `Tpl.show : when_:(unit -> bool) -> (unit -> 'a) -> 'a Tpl.t`
+- `Tpl.each_keyed : items:(unit -> 'a list) -> key:('a -> string) -> render:('a -> 'b) -> 'b Tpl.t`
 
 Notes:
 
