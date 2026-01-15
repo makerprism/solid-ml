@@ -46,26 +46,32 @@ let escape_html s =
   ) s;
   Buffer.contents buf
 
+type template_element = template_instance
+
+and template = {
+  segments : string array;
+  slot_kinds : Solid_ml_template_runtime.slot_kind array;
+}
+
+and template_instance = {
+  template : template;
+  values : string array;
+  mutable root_attrs : (string * string) list;
+}
+
 module Template : Solid_ml_template_runtime.TEMPLATE
   with type node := node
    and type event := event
-   and type element = unit = struct
-  type template = {
-    segments : string array;
-    slot_kinds : Solid_ml_template_runtime.slot_kind array;
-  }
-
-  type instance = {
-    template : template;
-    values : string array;
-  }
+   and type element = template_element = struct
+  type nonrec template = template
+  type nonrec instance = template_instance
 
   type text_slot = {
     inst : instance;
     id : int;
   }
 
-  type element = unit
+  type element = template_element
 
   let compile ~segments ~slot_kinds =
     if Array.length segments <> Array.length slot_kinds + 1 then
@@ -74,7 +80,7 @@ module Template : Solid_ml_template_runtime.TEMPLATE
 
   let instantiate template =
     let values = Array.make (Array.length template.slot_kinds) "" in
-    { template; values }
+    { template; values; root_attrs = [] }
 
   let bind_text inst ~id ~path:_ =
     if id < 0 || id >= Array.length inst.values then
@@ -84,13 +90,38 @@ module Template : Solid_ml_template_runtime.TEMPLATE
   let set_text slot value =
     slot.inst.values.(slot.id) <- value
 
-  let bind_element _inst ~id:_ ~path:_ = ()
+  let bind_element inst ~id:_ ~path:_ = inst
 
-  let set_attr () ~name:_ _ = ()
+  let escape_attr_name_local s =
+    let buf = Buffer.create (String.length s) in
+    String.iter
+      (fun c ->
+        match c with
+        | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '-' | '_' | '.' | ':' ->
+          Buffer.add_char buf c
+        | _ -> Buffer.add_char buf '_')
+      s;
+    Buffer.contents buf
 
-  let on_ () ~event:_ _ = ()
+  let set_attr (el : element) ~name (value_opt : string option) =
+    let name = escape_attr_name_local name in
+    el.root_attrs <- List.filter (fun (k, _) -> k <> name) el.root_attrs;
+    match value_opt with
+    | None -> ()
+    | Some v -> el.root_attrs <- el.root_attrs @ [ (name, v) ]
 
-  let hydrate ~root:() template = instantiate template
+  let on_ (_el : element) ~event:_ _ = ()
+
+  let hydrate ~root:_ template = instantiate template
+
+  let attrs_string (attrs : (string * string) list) : string =
+    if attrs = [] then ""
+    else
+      " "
+      ^ String.concat " "
+          (List.map
+             (fun (k, v) -> Printf.sprintf "%s=\"%s\"" k (escape_html v))
+             attrs)
 
   let render (inst : instance) : string =
     let buf = Buffer.create 256 in
@@ -105,7 +136,18 @@ module Template : Solid_ml_template_runtime.TEMPLATE
        | `Text -> Buffer.add_string buf escaped);
       Buffer.add_string buf segments.(i + 1)
     done;
-    Buffer.contents buf
+    let rendered = Buffer.contents buf in
+    match inst.root_attrs with
+    | [] -> rendered
+    | attrs ->
+      (* Inject attributes into the first (root) opening tag. *)
+      let attrs = attrs_string attrs in
+      match String.index_opt rendered '>' with
+      | None -> rendered
+      | Some idx ->
+        let before = String.sub rendered 0 idx in
+        let after = String.sub rendered idx (String.length rendered - idx) in
+        before ^ attrs ^ after
 
   let root inst = Raw (render inst)
 end

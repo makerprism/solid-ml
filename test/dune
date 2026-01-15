@@ -40,3 +40,9 @@
   (modules test_template_compiler)
   (libraries solid-ml solid-ml-ssr solid-ml-template-runtime)
   (preprocess (pps solid-ml-template-ppx)))
+
+(test
+  (name test_template_attr)
+  (modules test_template_attr)
+  (libraries solid-ml solid-ml-ssr solid-ml-template-runtime)
+  (preprocess (pps solid-ml-template-ppx)))
