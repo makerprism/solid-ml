@@ -77,6 +77,26 @@ module type COMPONENT_ENV = sig
   (** Alias for signal type. *)
 end
 
+(** {2 Template Compiler Environment}
+
+    The template compiler needs to generate shared code that attaches
+    fine-grained bindings (effects + cleanup) in addition to reading signals.
+
+    This environment is intentionally small; it is a superset of [COMPONENT_ENV]
+    used only by compiled templates. *)
+
+module type TEMPLATE_ENV = sig
+  include COMPONENT_ENV
+
+  module Effect : sig
+    val create : (unit -> unit) -> unit
+  end
+
+  module Owner : sig
+    val on_cleanup : (unit -> unit) -> unit
+  end
+end
+
 (** {1 SSR Environment}
 
     Pre-built environment for server-side rendering.
