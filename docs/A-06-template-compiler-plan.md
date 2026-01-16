@@ -123,7 +123,7 @@ This matches SolidJS ergonomics (dynamic expressions can reference multiple sign
 **Decision (v1):** dynamic child control-flow is expressed via `bind_nodes + set_nodes` using paired `<!--$-->` markers.
 
 - Browser `set_nodes` mounts/unmounts/replaces DOM between markers.
-- SSR `set_nodes` renders a node list to HTML and splices it into `segments`.
+- SSR `set_nodes` renders a node (often a fragment) to HTML and splices it into `segments`.
 
 ### 2.5 Markers in compiled templates
 
@@ -133,9 +133,9 @@ This matches SolidJS ergonomics (dynamic expressions can reference multiple sign
 - Instead, the template compiler may emit **template-internal** comment placeholders:
   - `<!--#-->` around **text slot** boundaries (`Tpl.text`)
   - `<!--$-->` around **node-region slot** boundaries (dynamic control flow)
-- Browser hydration normalizes only the `#` markers:
-  - remove any SSR-produced text nodes between paired `<!--#-->...<!--#-->` markers before binding elements
-  - never touch nodes between `<!--$-->...<!--$-->` markers (those are the dynamic region)
+- Browser hydration normalizes both marker types so element paths stay CSR-stable:
+  - for `<!--#-->...<!--#-->`: remove any SSR-produced text nodes between the pair
+  - for `<!--$-->...<!--$-->`: clear any SSR-produced nodes between the pair (the region will be re-populated by `set_nodes`)
 
 ### 2.6 What happens if the template PPX can’t compile something?
 
@@ -539,7 +539,7 @@ Minimal IR (v1):
 - `Element { tag : string; static_props : static_prop list; attrs : attr_binding list; children : child list }`
 - `Static_text of string`
 - `Text_slot of { id : int; insertion_path : int array; thunk : unit -> string }`
-- `Nodes_slot of { id : int; insertion_path : int array; thunk : unit -> Html.node list }`
+- `Nodes_slot of { id : int; insertion_path : int array; thunk : unit -> Html.node }`
 
 Notes:
 
@@ -553,7 +553,7 @@ Notes:
 - Slot kinds in `slot_kinds` are used to describe SSR interpolation behavior.
   - v1 requires at least: `` `Text `` and `` `Nodes ``.
   - `Text` values are HTML-escaped.
-  - `Nodes` values are rendered via the SSR renderer for `Html.node list` (no extra escaping).
+  - `Nodes` values are rendered via the SSR renderer for `Html.node` (use fragments for multiple children; no extra escaping).
 
 ### 6.3 Path generation (including marker conventions)
 

@@ -95,6 +95,16 @@ module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
           Html.text "!" ]
       ()
 
+  let render_div_conditional ~flag () =
+    Html.div
+      ~children:
+        [ Solid_ml_template_runtime.Tpl.nodes (fun () ->
+            if Signal.get flag then
+              Html.span ~children:[ Html.text "A" ] ()
+            else
+              Html.span ~children:[ Html.text "B" ] ()) ]
+      ()
+
   (* Simulates MLX formatting whitespace around nested intrinsic tags.
      The outer <div> should be compiled so that formatting whitespace is ignored,
      even though it contains a nested <a>. *)
@@ -228,5 +238,13 @@ let () =
       C.render_div_nested_formatting ~href ~label ())
   in
   assert (html_nested = "<div><a href=\"/a\"><!--#-->Link<!--#--></a></div>");
+
+  let flag, _set_flag = Signal.create true in
+  let html_cond_true =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_div_conditional ~flag ())
+  in
+  assert (html_cond_true = "<div><!--$--><span>A</span><!--$--></div>");
 
   print_endline "  PASSED"

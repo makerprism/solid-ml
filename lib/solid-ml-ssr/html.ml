@@ -75,6 +75,11 @@ module Template : Solid_ml_template_runtime.TEMPLATE
     id : int;
   }
 
+  type nodes_slot = {
+    inst : instance;
+    id : int;
+  }
+
   type element = template_element
 
   let compile ~segments ~slot_kinds =
@@ -86,13 +91,58 @@ module Template : Solid_ml_template_runtime.TEMPLATE
     let values = Array.make (Array.length template.slot_kinds) "" in
     { template; values; attrs_by_path = [] }
 
-  let bind_text inst ~id ~path:_ =
+  let bind_text inst ~id ~path:_ : text_slot =
     if id < 0 || id >= Array.length inst.values then
       invalid_arg "Solid_ml_ssr.Html.Template.bind_text: id out of bounds";
     { inst; id }
 
-  let set_text slot value =
+  let set_text (slot : text_slot) value =
     slot.inst.values.(slot.id) <- value
+
+  let bind_nodes inst ~id ~path:_ : nodes_slot =
+    if id < 0 || id >= Array.length inst.values then
+      invalid_arg "Solid_ml_ssr.Html.Template.bind_nodes: id out of bounds";
+    { inst; id }
+
+  let rec render_node_for_slot (n : node) : string =
+    match n with
+    | Text s -> escape_html s
+    | Raw s -> s
+    | ReactiveText { key; value } ->
+      Printf.sprintf "<!--hk:%d-->%s<!--/hk-->" key (escape_html value)
+    | Fragment children -> String.concat "" (List.map render_node_for_slot children)
+    | Element { tag; attrs; children; self_closing } ->
+      let attrs_str =
+        if attrs = [] then ""
+        else
+          " "
+          ^ String.concat " "
+              (List.map
+                 (fun (k, v) ->
+                    let safe_key =
+                      let buf = Buffer.create (String.length k) in
+                      String.iter
+                        (fun c ->
+                          match c with
+                          | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '-' | '_' | '.' | ':' ->
+                            Buffer.add_char buf c
+                          | _ -> Buffer.add_char buf '_')
+                        k;
+                      Buffer.contents buf
+                    in
+                    if v = "" then safe_key
+                    else Printf.sprintf "%s=\"%s\"" safe_key (escape_html v))
+                 attrs)
+      in
+      if self_closing then Printf.sprintf "<%s%s />" tag attrs_str
+      else
+        let children_str =
+          String.concat "" (List.map render_node_for_slot children)
+        in
+        Printf.sprintf "<%s%s>%s</%s>" tag attrs_str children_str tag
+
+  let set_nodes (slot : nodes_slot) value =
+    slot.inst.values.(slot.id) <- render_node_for_slot value
 
   let bind_element inst ~id:_ ~path = { inst; path = Array.to_list path }
 
@@ -273,8 +323,12 @@ module Template : Solid_ml_template_runtime.TEMPLATE
          so for SSR path purposes we should NOT advance [next_child] here. *)
 
       let raw_value = inst.values.(i) in
-      let escaped = escape_html raw_value in
-      Buffer.add_string buf escaped;
+      let rendered_value =
+        match slot_kinds.(i) with
+        | `Nodes -> raw_value
+        | `Text | `Attr -> escape_html raw_value
+      in
+      Buffer.add_string buf rendered_value;
       scan_segment segments.(i + 1)
     done;
     flush_text_pending ();
@@ -291,10 +345,9 @@ module Template : Solid_ml_template_runtime.TEMPLATE
       Buffer.add_string buf segments.(0);
       for i = 0 to Array.length slot_kinds - 1 do
         let raw_value = inst.values.(i) in
-        let escaped = escape_html raw_value in
         (match slot_kinds.(i) with
-         | `Attr -> Buffer.add_string buf escaped
-         | `Text -> Buffer.add_string buf escaped);
+         | `Nodes -> Buffer.add_string buf raw_value
+         | `Attr | `Text -> Buffer.add_string buf (escape_html raw_value));
         Buffer.add_string buf segments.(i + 1)
       done;
       Buffer.contents buf

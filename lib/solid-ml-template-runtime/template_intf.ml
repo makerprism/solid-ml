@@ -12,9 +12,10 @@
 
     - [`Text] slots represent text-node content
     - [`Attr] slots represent attribute values (already quoted in the template)
+    - [`Nodes] slots represent a dynamic child region (control flow)
 *)
 
-type slot_kind = [ `Text | `Attr ]
+type slot_kind = [ `Text | `Attr | `Nodes ]
 
 module type TEMPLATE = sig
   type node
@@ -24,6 +25,7 @@ module type TEMPLATE = sig
   type instance
 
   type text_slot
+  type nodes_slot
   type element
 
   val compile : segments:string array -> slot_kinds:slot_kind array -> template
@@ -71,6 +73,23 @@ module type TEMPLATE = sig
 
   val set_text : text_slot -> string -> unit
   (** Set the text content for a bound text slot. *)
+
+  val bind_nodes : instance -> id:int -> path:int array -> nodes_slot
+  (** Bind a dynamic child-region slot.
+
+      [path] is an insertion path. The compiler typically points at the *closing*
+      marker node for the region (e.g. the second `<!--$-->`).
+
+      The browser backend should treat the region as everything between the
+      matching marker pair.
+
+      The SSR backend may ignore [path]. *)
+
+  val set_nodes : nodes_slot -> node -> unit
+  (** Replace the region contents with the given node.
+
+      Use a fragment node to insert multiple children, and an empty fragment to
+      clear the region. *)
 
   val bind_element : instance -> id:int -> path:int array -> element
   (** Bind a template element handle.

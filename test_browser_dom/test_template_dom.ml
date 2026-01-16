@@ -59,6 +59,57 @@ let test_hydrate_text_slot () =
   H.Template.set_text slot "Hydrated";
   assert_eq ~name:"hydrate textContent" (get_text_content root) "Hydrated"
 
+let test_instantiate_nodes_slot () =
+  let template =
+    H.Template.compile
+      ~segments:[| "<div><!--$-->"; "<!--$--></div>" |]
+      ~slot_kinds:[| `Nodes |]
+  in
+  let inst = H.Template.instantiate template in
+  let slot = H.Template.bind_nodes inst ~id:0 ~path:[| 1 |] in
+  let value = H.span ~id:"x" ~children:[ H.text "OK" ] () in
+  H.Template.set_nodes slot value;
+  match H.Template.root inst with
+  | H.Element el ->
+    let children = get_child_nodes el in
+    if Array.length children <> 3 then
+      fail ("csr nodes: expected 3 childNodes, got " ^ string_of_int (Array.length children));
+    if not (is_comment children.(0)) then fail "csr nodes: expected opening marker";
+    if not (is_element children.(1)) then fail "csr nodes: expected inserted element";
+    if not (is_comment children.(2)) then fail "csr nodes: expected closing marker";
+    let span = element_of_node children.(1) in
+    assert_eq ~name:"csr nodes inserted" (get_id span) "x";
+    assert_eq ~name:"csr nodes text" (get_text_content el) "OK"
+  | _ -> fail "csr nodes: expected Template.root to be an Element"
+
+let test_hydrate_normalizes_nodes_regions () =
+  (* SSR may render content inside a node slot region. For path-stable hydration we
+     clear it so elements after the region are still addressable by CSR paths. *)
+  let template =
+    H.Template.compile
+      ~segments:[| "<div><!--$-->"; "<!--$--><a id=\"after\"></a></div>" |]
+      ~slot_kinds:[| `Nodes |]
+  in
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  set_inner_html root "<!--$--><span id=\"x\"></span><!--$--><a id=\"after\"></a>";
+
+  let inst = H.Template.hydrate ~root template in
+
+  (* After normalization, <a> should be at index 2: [$, $, <a>] *)
+  let a_el = H.Template.bind_element inst ~id:0 ~path:[| 2 |] in
+  assert_eq ~name:"hydrate nodes normalize binds after" (get_id a_el) "after";
+
+  let slot = H.Template.bind_nodes inst ~id:0 ~path:[| 1 |] in
+  H.Template.set_nodes slot (H.span ~id:"y" ~children:[] ());
+  let children = get_child_nodes root in
+  if Array.length children <> 4 then
+    fail ("hydrate nodes: expected 4 childNodes, got " ^ string_of_int (Array.length children));
+  let inserted = element_of_node children.(1) in
+  assert_eq ~name:"hydrate nodes inserted" (get_id inserted) "y"
+
 let test_hydrate_normalizes_slot_text_nodes () =
   (* Simulate SSR markup for a compiled template where a non-empty text slot
      appears before an element we want to bind.
@@ -379,7 +430,9 @@ let test_text_slot_static_suffix_preserved () =
 let () =
   try
     test_instantiate_text_slot ();
+    test_instantiate_nodes_slot ();
     test_hydrate_text_slot ();
+    test_hydrate_normalizes_nodes_regions ();
     test_hydrate_normalizes_slot_text_nodes ();
     test_hydrate_normalizes_nested_slot_text_nodes ();
     test_hydrate_does_not_remove_non_text_between_markers ();
