@@ -1,6 +1,6 @@
 # A-06: SolidJS-style Template Compiler Plan (MLX + PPX)
 
-**Status:** Plan complete (updated Jan 2026; ready to implement)
+**Status:** In progress (updated Jan 2026; node-slot control flow next)
 
 This document describes a **SolidJS-style template compilation** system for solid-ml, with:
 
@@ -93,10 +93,11 @@ A **path** is an `int array` of `childNodes` indices **from the template root el
 - Paths are interpreted using DOM `childNodes` ordering (elements + text nodes).
 - Paths assume **template normalization** removes whitespace-only text nodes that are purely formatting.
 
-There are two path shapes in the runtime interface:
+There are three path shapes in the runtime interface:
 
 - **Element path** (used by `bind_element`): locates an existing element node.
-- **Insertion path** (used by `bind_text`): all but the last index locate the parent node; the last index is the child insertion index for the (possibly compiler-created) text node.
+- **Text insertion path** (used by `bind_text`): all but the last index locate the parent node; the last index is the child insertion index for the (possibly compiler-created) text node.
+- **Node-region insertion path** (used by `bind_nodes`): same insertion-path convention, but the insertion point is a *region* between paired comment markers (used for control flow and lists).
 
 ### 2.3 How reactivity is expressed in source (no types needed)
 
@@ -119,13 +120,22 @@ This matches SolidJS ergonomics (dynamic expressions can reference multiple sign
 - Browser sets attributes via DOM APIs; for CSR, attribute slots can be emitted as an empty string placeholder (e.g. `href=""`), and bindings set/remove the real value after instantiation.
 - SSR uses `Template.bind_element` to obtain an element handle and `Template.set_attr` to inject attributes into the rendered HTML. In the SSR backend this is implemented by recording attributes per element path and injecting them into the corresponding opening tag during `Template.root` rendering.
 
+**Decision (v1):** dynamic child control-flow is expressed via `bind_nodes + set_nodes` using paired `<!--$-->` markers.
+
+- Browser `set_nodes` mounts/unmounts/replaces DOM between markers.
+- SSR `set_nodes` renders a node list to HTML and splices it into `segments`.
+
 ### 2.5 Markers in compiled templates
 
 **Decision (v1):** compiled templates may inject *template-internal* HTML comment markers to stabilize DOM shape for `Tpl.text`.
 
 - Compiled templates still do **not** use the hydration-key markers (`<!--hk:...-->`) used by `Html.reactive_text`.
-- Instead, the template compiler can emit stable comment placeholders (SolidJS-style, e.g. `<!--#-->`) around text-slot boundaries.
-- This prevents adjacent static text from being merged by HTML parsing, and ensures `bind_text` insertion paths remain stable for both CSR and hydration.
+- Instead, the template compiler may emit **template-internal** comment placeholders:
+  - `<!--#-->` around **text slot** boundaries (`Tpl.text`)
+  - `<!--$-->` around **node-region slot** boundaries (dynamic control flow)
+- Browser hydration normalizes only the `#` markers:
+  - remove any SSR-produced text nodes between paired `<!--#-->...<!--#-->` markers before binding elements
+  - never touch nodes between `<!--$-->...<!--$-->` markers (those are the dynamic region)
 
 ### 2.6 What happens if the template PPX can’t compile something?
 
@@ -363,14 +373,14 @@ Commands:
 
 - Extend `examples/template_counter/` with reactive class and reactive `href`.
 
-### Milestone 6: Conditionals and lists
+### Milestone 6: Dynamic control flow (conditionals, lists)
 
 **Work**
 
-- Add template-level control-flow constructs:
-  - `Tpl.show ~when_:(unit -> bool) (fun () -> <...>)`
-  - `Tpl.each_keyed ~items:(unit -> 'a list) ~key ~render`
-- PPX rewrites these into specialized runtime calls.
+- Extend the template runtime with **node-region slots** (e.g. `bind_nodes` / `set_nodes`) that can mount/unmount/replace a region of children between paired comment markers.
+- Extend the PPX so any unsupported/dynamic child expression inside `~children:[ ... ]` can be lowered to a node-region slot.
+  - This makes `if`/`match`/`List.map` usable inside MLX without requiring special syntax.
+- (Optional v2 optimization) introduce `Tpl.show` / `Tpl.each_keyed` as higher-level markers for keyed reconciliation and mount-preservation.
 
 **Tests (must pass)**
 
@@ -378,8 +388,8 @@ Commands:
   - conditional renders correct branch
   - list renders correct markup
 - Browser tests:
-  - toggling `when_` mounts/unmounts
-  - list updates preserve keyed nodes
+  - toggling a conditional mounts/unmounts
+  - list updates replace the region (keyed preservation is optional v2)
 
 Commands:
 
@@ -427,8 +437,9 @@ Proposed API (v1):
 - `Tpl.attr_opt : name:string -> (unit -> string option) -> 'a Tpl.t`
 - `Tpl.class_list : (unit -> (string * bool) list) -> 'a Tpl.t`
 - `Tpl.on : event:string -> ('ev -> unit) -> ('ev -> unit) Tpl.t`
-- `Tpl.show : when_:(unit -> bool) -> (unit -> 'a) -> 'a Tpl.t`
-- `Tpl.each_keyed : items:(unit -> 'a list) -> key:('a -> string) -> render:('a -> 'b) -> 'b Tpl.t`
+- `Tpl.nodes : (unit -> 'a) -> 'a Tpl.t` (marker for dynamic child regions; lowered to `bind_nodes`/`set_nodes`)
+- `Tpl.show : when_:(unit -> bool) -> (unit -> 'a) -> 'a Tpl.t` (optional v2; can lower to `Tpl.nodes`)
+- `Tpl.each_keyed : items:(unit -> 'a list) -> key:('a -> string) -> render:('a -> 'b) -> 'b Tpl.t` (optional v2)
 
 Notes:
 
@@ -525,28 +536,50 @@ The PPX should lower JSX-shaped AST into a small IR before emitting runtime code
 
 Minimal IR (v1):
 
-- `Element { tag : string; attrs : attr list; children : node list }`
-- `Text of string`
-- `Text_slot of { id : int; insertion_path : int array }`
-- (later) `Attr_binding`, `Event_binding`, `Show`, `Each_keyed`
+- `Element { tag : string; static_props : static_prop list; attrs : attr_binding list; children : child list }`
+- `Static_text of string`
+- `Text_slot of { id : int; insertion_path : int array; thunk : unit -> string }`
+- `Nodes_slot of { id : int; insertion_path : int array; thunk : unit -> Html.node list }`
+
+Notes:
+
+- `Text_slot` is represented in the template HTML as paired markers `<!--#-->...<!--#-->`.
+- `Nodes_slot` is represented in the template HTML as paired markers `<!--$-->...<!--$-->` and is the primitive needed for `if`/`match`/lists.
+- Attribute bindings are not encoded as string slots; they are encoded as element bindings (`bind_element + set_attr`).
 
 ### 6.2 Slot generation
 
 - Slots are assigned ids in a stable traversal order (depth-first, left-to-right) over the **normalized** IR.
-- Each slot also records its kind (`Text` vs `Attr`) for SSR escaping via `slot_kinds`.
+- Slot kinds in `slot_kinds` are used to describe SSR interpolation behavior.
+  - v1 requires at least: `` `Text `` and `` `Nodes ``.
+  - `Text` values are HTML-escaped.
+  - `Nodes` values are rendered via the SSR renderer for `Html.node list` (no extra escaping).
 
-### 6.3 Path generation
+### 6.3 Path generation (including marker conventions)
 
 Paths must be stable across SSR → hydration.
 
 Decision (v1): compiler-emitted paths are always relative to the template’s single root element.
 
 - For `bind_element`: the path locates the element node.
-- For `bind_text`: the path is an insertion path as described in `Solid_ml_template_runtime.TEMPLATE.bind_text`.
+- For `bind_text`: the insertion path points **at the second `#` marker** (insert the text node immediately before it).
+- For `bind_nodes`: the insertion path points **at the second `$` marker** (the region is between the two markers).
+
+Marker counting rules (crucial):
+
+- Both marker comments are real DOM nodes and are counted in `childNodes` indexing.
+- A `Text_slot` consumes *two* child indices (the markers). The actual slot text node exists only after `bind_text` runs.
+- A `Nodes_slot` consumes *two* child indices (the markers). The region content may contain arbitrary nodes.
+
+Hydration normalization rules:
+
+- Before any `bind_element` calls, browser `Template.hydrate` normalizes SSR DOM for `Text_slot` by removing any text nodes found between paired `#` markers.
+- Hydration never normalizes the contents between `$` markers.
 
 Implementation note:
 
-- The current browser `Template.instantiate` returns a fragment root. To make paths stable, the browser backend should expose the *single* root element as the instance root when the template has exactly one root element.
+- Compiled templates assume the instance root is the single root element, not a wrapper fragment.
+- If a backend currently wraps templates in a fragment, it must expose the root element for compiled templates to keep paths stable.
 
 ### 6.4 Normalization rules (v1)
 
@@ -556,6 +589,11 @@ Normalization is what makes paths deterministic even if the author formats MLX a
 - Preserve meaningful whitespace inside text nodes (e.g. "hello world").
 - Canonicalize void elements to a consistent serialization.
 - Canonicalize attribute quoting (always double quotes in `segments`).
+
+Marker-related invariants:
+
+- The compiler may introduce `<!--#-->` and `<!--$-->` markers; normalization must treat them as semantic nodes (never delete or merge them).
+- Adjacent static text nodes should not be relied on for path stability; the compiler should ensure text boundaries are bracketed by marker nodes when dynamics are adjacent.
 
 ---
 
