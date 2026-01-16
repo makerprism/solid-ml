@@ -40,6 +40,11 @@ module Tpl : sig
 
   val on : event:string -> ('ev -> unit) -> ('ev -> unit) t
 
+  val nodes : (unit -> 'a) -> 'a t
+  (** Marker for a dynamic child region (control flow).
+
+      The template PPX rewrites this into `Template.bind_nodes` + `Template.set_nodes`. *)
+
   val show : when_:(unit -> bool) -> (unit -> 'a) -> 'a t
   val each_keyed : items:(unit -> 'a list) -> key:('a -> string) -> render:('a -> 'b) -> 'b t
 
@@ -72,6 +77,9 @@ end = struct
 
   let on ~event (_handler : 'ev -> unit) : ('ev -> unit) t =
     Uncompiled ("on(" ^ event ^ ")")
+
+  let nodes (_thunk : unit -> 'a) : 'a t =
+    Uncompiled "nodes"
 
   let show ~when_:_ (_render : unit -> 'a) : 'a t =
     Uncompiled "show"

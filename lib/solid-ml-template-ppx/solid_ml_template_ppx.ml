@@ -1,7 +1,15 @@
 open Ppxlib
 
 let known_tpl_markers =
-  [ "text"; "attr"; "attr_opt"; "class_list"; "on"; "show"; "each_keyed" ]
+  [ "text";
+    "nodes";
+    "attr";
+    "attr_opt";
+    "class_list";
+    "on";
+    "show";
+    "each_keyed"
+  ]
 
 let is_known_marker fn = List.exists (String.equal fn) known_tpl_markers
 
@@ -184,6 +192,7 @@ type element_node = {
 and node_part =
   | Static_text of string
   | Text_slot of Parsetree.expression
+  | Nodes_slot of Parsetree.expression
   | Element of element_node
 
 let escape_html (s : string) : string =
@@ -267,7 +276,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
 
   (* Build segments + slots by walking the element tree. *)
   let segments_rev = ref [] in
-  let slots_rev : (int * int list * Parsetree.expression) list ref = ref [] in
+  let slots_rev : (int * [ `Text | `Nodes ] * int list * Parsetree.expression) list ref = ref [] in
   let element_bindings_rev : (int * int list * attr_binding list) list ref = ref [] in
 
   let current_segment = Buffer.create 64 in
@@ -306,9 +315,22 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
              [child_index+1]. Insert the slot text immediately before the second
              marker. *)
           slots_rev :=
-            (!slot_id, path_to_element @ [ !child_index + 1 ], thunk) :: !slots_rev;
+            (!slot_id, `Text, path_to_element @ [ !child_index + 1 ], thunk)
+            :: !slots_rev;
           incr slot_id;
           (* Count both markers (the slot text will be inserted at bind time). *)
+          child_index := !child_index + 2
+        | Nodes_slot thunk ->
+          (* Dynamic child region: paired markers that bracket the region. *)
+          Buffer.add_string current_segment "<!--$-->";
+          segments_rev := Buffer.contents current_segment :: !segments_rev;
+          Buffer.reset current_segment;
+          Buffer.add_string current_segment "<!--$-->";
+          (* Insert content immediately before the closing marker. *)
+          slots_rev :=
+            (!slot_id, `Nodes, path_to_element @ [ !child_index + 1 ], thunk)
+            :: !slots_rev;
+          incr slot_id;
           child_index := !child_index + 2)
       el.children;
 
@@ -325,7 +347,12 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
   let segments_expr = pexp_array ~loc (List.map (estring ~loc) segments) in
   let slot_kinds_expr =
     pexp_array ~loc
-      (List.map (fun _ -> pexp_variant ~loc "Text" None) slots)
+      (List.map
+         (fun (_id, kind, _path, _thunk) ->
+           match kind with
+           | `Text -> pexp_variant ~loc "Text" None
+           | `Nodes -> pexp_variant ~loc "Nodes" None)
+         slots)
   in
 
   let compile_call =
@@ -378,23 +405,37 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
       element_bindings
   in
 
-  let text_effects =
+  let slot_effects =
     List.map
-      (fun (id, _path, thunk) ->
-        let slot_var = "__solid_ml_tpl_slot" ^ string_of_int id in
-        let thunk_call = pexp_apply ~loc thunk [ (Nolabel, eunit ~loc) ] in
-        let set_text_call =
+      (fun (id, kind, _path, thunk) ->
+        match kind with
+        | `Text ->
+          let slot_var = "__solid_ml_tpl_slot" ^ string_of_int id in
+          let thunk_call = pexp_apply ~loc thunk [ (Nolabel, eunit ~loc) ] in
+          let set_text_call =
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid "Html.Template.set_text"))
+              [ (Nolabel, evar ~loc slot_var); (Nolabel, thunk_call) ]
+          in
           pexp_apply ~loc
-            (pexp_ident ~loc (lid "Html.Template.set_text"))
-            [ (Nolabel, evar ~loc slot_var); (Nolabel, thunk_call) ]
-        in
-        pexp_apply ~loc
-          (pexp_ident ~loc (lid "Effect.create"))
-          [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) set_text_call) ])
+            (pexp_ident ~loc (lid "Effect.create"))
+            [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) set_text_call) ]
+        | `Nodes ->
+          let slot_var = "__solid_ml_tpl_nodes" ^ string_of_int id in
+          let thunk_call = pexp_apply ~loc thunk [ (Nolabel, eunit ~loc) ] in
+          let set_nodes_call =
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid "Html.Template.set_nodes"))
+              [ (Nolabel, evar ~loc slot_var); (Nolabel, thunk_call) ]
+          in
+          pexp_apply ~loc
+            (pexp_ident ~loc (lid "Effect.create"))
+            [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) set_nodes_call) ]
+)
       slots
   in
 
-  let effects_in_order = attr_effects @ text_effects in
+  let effects_in_order = attr_effects @ slot_effects in
 
   let body =
     List.fold_right (fun eff acc -> pexp_sequence ~loc eff acc) effects_in_order
@@ -404,18 +445,33 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
   (* Bind slots right-to-left to keep insertion indices stable on browser. *)
   let slots_for_binding = List.rev slots in
 
-  let bind_slot acc (id, path, _thunk) =
-    let slot_var = "__solid_ml_tpl_slot" ^ string_of_int id in
-    let bind_text_call =
-      pexp_apply ~loc
-        (pexp_ident ~loc (lid "Html.Template.bind_text"))
-        [ (Nolabel, evar ~loc inst_var);
-          (Labelled "id", eint ~loc id);
-          (Labelled "path", path_expr path) ]
-    in
-    pexp_let ~loc Nonrecursive
-      [ value_binding ~loc ~pat:(pvar ~loc slot_var) ~expr:bind_text_call ]
-      acc
+  let bind_slot acc (id, kind, path, _thunk) =
+    match kind with
+    | `Text ->
+      let slot_var = "__solid_ml_tpl_slot" ^ string_of_int id in
+      let bind_call =
+        pexp_apply ~loc
+          (pexp_ident ~loc (lid "Html.Template.bind_text"))
+          [ (Nolabel, evar ~loc inst_var);
+            (Labelled "id", eint ~loc id);
+            (Labelled "path", path_expr path) ]
+      in
+      pexp_let ~loc Nonrecursive
+        [ value_binding ~loc ~pat:(pvar ~loc slot_var) ~expr:bind_call ]
+        acc
+    | `Nodes ->
+      let slot_var = "__solid_ml_tpl_nodes" ^ string_of_int id in
+      let bind_call =
+        pexp_apply ~loc
+          (pexp_ident ~loc (lid "Html.Template.bind_nodes"))
+          [ (Nolabel, evar ~loc inst_var);
+            (Labelled "id", eint ~loc id);
+            (Labelled "path", path_expr path) ]
+      in
+      pexp_let ~loc Nonrecursive
+        [ value_binding ~loc ~pat:(pvar ~loc slot_var) ~expr:bind_call ]
+        acc
+
   in
 
   let body_with_slots = List.fold_left bind_slot body slots_for_binding in
@@ -498,6 +554,23 @@ let extract_tpl_text_thunk ~(aliases : string list) (expr : Parsetree.expression
         | _ -> None))
   | _ -> None
 
+let extract_tpl_nodes_thunk ~(aliases : string list) (expr : Parsetree.expression)
+    : Parsetree.expression option =
+  match expr.pexp_desc with
+  | Pexp_apply (_fn, args) ->
+    (match head_ident expr with
+     | None -> None
+     | Some longident ->
+       (match tpl_marker_name ~aliases longident with
+        | Some "nodes" ->
+          List.find_map
+            (function
+              | (Asttypes.Nolabel, thunk) -> Some thunk
+              | _ -> None)
+            args
+        | _ -> None))
+  | _ -> None
+
 let transform_structure (structure : Parsetree.structure) : Parsetree.structure =
   let aliases = collect_tpl_aliases structure in
 
@@ -509,7 +582,20 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
     | _ -> None
   in
 
-  let rec parse_element_expr (expr : Parsetree.expression) : (element_node * bool) option =
+  let rec compile_expr_force (expr : Parsetree.expression) : Parsetree.expression =
+    let mapper =
+      object
+        inherit Ast_traverse.map as super
+
+        method! expression expr =
+          match parse_element_expr expr with
+          | Some (root, _dyn) -> compile_element_tree ~loc:expr.pexp_loc ~root
+          | None -> super#expression expr
+      end
+    in
+    mapper#expression expr
+
+  and parse_element_expr (expr : Parsetree.expression) : (element_node * bool) option =
     match expr.pexp_desc with
     | Pexp_apply (_fn, args) ->
       (match head_ident expr with
@@ -588,19 +674,27 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                    | Some lit ->
                      parts_rev := Static_text lit :: !parts_rev;
                      true
-                   | None ->
-                     (match extract_tpl_text_thunk ~aliases child with
-                      | Some thunk ->
-                        has_dynamic := true;
-                        parts_rev := Text_slot thunk :: !parts_rev;
-                        true
-                      | None ->
-                        (match parse_element_expr child with
-                         | Some (child_el, child_dynamic) ->
-                           if child_dynamic then has_dynamic := true;
-                           parts_rev := Element child_el :: !parts_rev;
-                           true
-                         | None -> false))
+                    | None ->
+                      (match extract_tpl_text_thunk ~aliases child with
+                       | Some thunk ->
+                         has_dynamic := true;
+                         parts_rev := Text_slot thunk :: !parts_rev;
+                         true
+                       | None ->
+                         (match extract_tpl_nodes_thunk ~aliases child with
+                          | Some thunk ->
+                            has_dynamic := true;
+                            let thunk = compile_expr_force thunk in
+                            parts_rev := Nodes_slot thunk :: !parts_rev;
+                            true
+                          | None ->
+                            (match parse_element_expr child with
+                             | Some (child_el, child_dynamic) ->
+                               if child_dynamic then has_dynamic := true;
+                               parts_rev := Element child_el :: !parts_rev;
+                               true
+                             | None -> false)))
+
                  in
 
                  if List.for_all add_child children_list then

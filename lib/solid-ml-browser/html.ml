@@ -39,6 +39,12 @@ module Template : Solid_ml_template_runtime.TEMPLATE
 
   type text_slot = text_node
 
+  type nodes_slot = {
+    parent : Dom.element;
+    opening : Dom.node;
+    closing : Dom.node;
+  }
+
   type element = Dom.element
 
   let build_html (segments : string array) (slot_kinds : Solid_ml_template_runtime.slot_kind array) : string =
@@ -47,13 +53,17 @@ module Template : Solid_ml_template_runtime.TEMPLATE
     let buf = Buffer.create 256 in
     Buffer.add_string buf segments.(0);
     for i = 0 to Array.length slot_kinds - 1 do
-      (match slot_kinds.(i) with
-       | `Attr ->
-         (* For CSR, emit an empty attribute value; bindings will set the real value. *)
-         Buffer.add_string buf ""
-       | `Text ->
-         (* Emit nothing; bind_text will create/insert the text node by path. *)
-         ());
+       (match slot_kinds.(i) with
+        | `Attr ->
+          (* For CSR, emit an empty attribute value; bindings will set the real value. *)
+          Buffer.add_string buf ""
+        | `Text ->
+          (* Emit nothing; bind_text will create/insert the text node by path. *)
+          ()
+        | `Nodes ->
+          (* Emit nothing; bind_nodes/set_nodes will manage the region. *)
+          ());
+
       Buffer.add_string buf segments.(i + 1)
     done;
     Buffer.contents buf
@@ -105,8 +115,12 @@ module Template : Solid_ml_template_runtime.TEMPLATE
        During hydration we remove any text nodes between paired "#" markers so
        [bind_element] paths remain consistent with CSR. The slot text will be
        re-inserted by [bind_text] + [set_text]. *)
-    let is_tpl_marker (node : Dom.node) : bool =
+    let is_text_marker (node : Dom.node) : bool =
       is_comment node && comment_data (comment_of_node node) = "#"
+    in
+
+    let is_nodes_marker (node : Dom.node) : bool =
+      is_comment node && comment_data (comment_of_node node) = "$"
     in
 
     let rec normalize_between_markers (parent : Dom.element) : unit =
@@ -116,7 +130,7 @@ module Template : Solid_ml_template_runtime.TEMPLATE
         | Some node ->
           (if is_element node then normalize_between_markers (element_of_node node));
 
-          if is_tpl_marker node then (
+          if is_text_marker node then (
             (* Collect consecutive text siblings immediately after this marker. *)
             let rec collect_texts acc (cur : Dom.node option) =
               match cur with
@@ -126,11 +140,30 @@ module Template : Solid_ml_template_runtime.TEMPLATE
             in
             let texts, after = collect_texts [] (node_next_sibling node) in
             (match (texts, after) with
-             | (_ :: _, Some closing) when is_tpl_marker closing ->
+             | (_ :: _, Some closing) when is_text_marker closing ->
                List.iter remove_node texts
-             | _ -> ()));
+             | _ -> ()))
+          else if is_nodes_marker node then (
+            (* For path-stable hydration we clear any SSR content between paired
+               <!--$--> markers. The region will be re-populated via set_nodes.
 
-          walk (node_next_sibling node)
+               Important: the closing marker is also a <!--$--> comment. We must
+               not treat it as the start of a new region, otherwise we'd delete
+               following siblings. *)
+            let rec remove_until_closing (cur : Dom.node option) : Dom.node option =
+              match cur with
+              | None -> None
+              | Some n when is_nodes_marker n -> Some n
+              | Some n ->
+                let next = node_next_sibling n in
+                remove_node n;
+                remove_until_closing next
+            in
+            match remove_until_closing (node_next_sibling node) with
+            | None -> walk (node_next_sibling node)
+            | Some closing -> walk (node_next_sibling closing))
+          else
+            walk (node_next_sibling node)
       in
       walk (get_first_child parent)
     in
@@ -192,6 +225,72 @@ module Template : Solid_ml_template_runtime.TEMPLATE
 
   let set_text (slot : text_slot) (value : string) =
     text_set_data slot value
+
+  let bind_nodes inst ~id:_ ~path : nodes_slot =
+    (* [path] is an insertion path whose last index points at the closing marker
+       node for the region (typically the second <!--$-->). *)
+    if Array.length path = 0 then
+      invalid_arg "Solid_ml_browser.Html.Template.bind_nodes: empty path";
+    let parent_path = Array.sub path 0 (Array.length path - 1) in
+    let closing_idx = path.(Array.length path - 1) in
+    let parent_node = node_at inst.root_node parent_path in
+    if not (is_element parent_node) then
+      invalid_arg
+        (Printf.sprintf
+           "Solid_ml_browser.Html.Template.bind_nodes: parent is not an element (nodeType=%d)"
+           (node_type parent_node));
+    let parent = element_of_node parent_node in
+    let children = get_child_nodes parent in
+    if closing_idx < 0 || closing_idx >= Array.length children then
+      invalid_arg "Solid_ml_browser.Html.Template.bind_nodes: closing index out of bounds";
+    let closing = children.(closing_idx) in
+    let is_marker (n : Dom.node) =
+      is_comment n && comment_data (comment_of_node n) = "$"
+    in
+    if not (is_marker closing) then
+      invalid_arg "Solid_ml_browser.Html.Template.bind_nodes: closing node is not a <!--$--> marker";
+
+    let opening_idx =
+      let idx = ref (-1) in
+      for i = 0 to closing_idx - 1 do
+        let n = children.(i) in
+        if is_marker n then idx := i
+      done;
+      !idx
+    in
+    if opening_idx < 0 then
+      invalid_arg "Solid_ml_browser.Html.Template.bind_nodes: could not find opening <!--$--> marker";
+    let opening = children.(opening_idx) in
+    { parent; opening; closing }
+
+  let set_nodes (slot : nodes_slot) (value : node) : unit =
+    (* Remove everything between markers. *)
+    let rec clear_between () =
+      match node_next_sibling slot.opening with
+      | None -> ()
+      | Some n when n == slot.closing -> ()
+      | Some n ->
+        remove_node n;
+        clear_between ()
+    in
+    clear_between ();
+
+    let to_dom_node (n : node) : Dom.node option =
+      match n with
+      | Element el -> Some (node_of_element el)
+      | Text txt -> Some (node_of_text txt)
+      | Fragment frag -> Some (node_of_fragment frag)
+      | Empty -> None
+    in
+
+    let insert_one (n : node) =
+      match to_dom_node n with
+      | None -> ()
+      | Some dom_n -> insert_before slot.parent dom_n (Some slot.closing)
+    in
+
+    (* Insert new content before the closing marker. *)
+    insert_one value
 
   let bind_element inst ~id:_ ~path =
     let n = node_at inst.root_node path in
