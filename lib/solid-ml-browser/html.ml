@@ -91,6 +91,51 @@ module Template : Solid_ml_template_runtime.TEMPLATE
         (Printf.sprintf
            "Solid_ml_browser.Html.Template.hydrate: root tag mismatch (expected %s, got %s)."
            template.root_tag actual);
+
+    (* Normalize server-rendered DOM shape for compiled templates.
+
+       The template PPX emits paired SolidJS-style comment markers "<!--#-->" around
+       each text slot. When SSR renders a non-empty slot, the browser parses:
+
+         <!--#-->TEXT<!--#-->
+
+       as [comment, text, comment]. The compiler's path model intentionally counts
+       only the marker nodes (CSR instantiation has no slot text node yet).
+
+       During hydration we remove any text nodes between paired "#" markers so
+       [bind_element] paths remain consistent with CSR. The slot text will be
+       re-inserted by [bind_text] + [set_text]. *)
+    let is_tpl_marker (node : Dom.node) : bool =
+      is_comment node && comment_data (comment_of_node node) = "#"
+    in
+
+    let rec normalize_between_markers (parent : Dom.element) : unit =
+      let rec walk (node_opt : Dom.node option) : unit =
+        match node_opt with
+        | None -> ()
+        | Some node ->
+          (if is_element node then normalize_between_markers (element_of_node node));
+
+          if is_tpl_marker node then (
+            (* Collect consecutive text siblings immediately after this marker. *)
+            let rec collect_texts acc (cur : Dom.node option) =
+              match cur with
+              | Some n when is_text n ->
+                collect_texts (n :: acc) (node_next_sibling n)
+              | other -> (List.rev acc, other)
+            in
+            let texts, after = collect_texts [] (node_next_sibling node) in
+            (match (texts, after) with
+             | (_ :: _, Some closing) when is_tpl_marker closing ->
+               List.iter remove_node texts
+             | _ -> ()));
+
+          walk (node_next_sibling node)
+      in
+      walk (get_first_child parent)
+    in
+
+    normalize_between_markers root;
     { root_node = node_of_element root; root_repr = `Element root }
 
   let root inst =

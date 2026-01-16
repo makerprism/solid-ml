@@ -59,6 +59,90 @@ let test_hydrate_text_slot () =
   H.Template.set_text slot "Hydrated";
   assert_eq ~name:"hydrate textContent" (get_text_content root) "Hydrated"
 
+let test_hydrate_normalizes_slot_text_nodes () =
+  (* Simulate SSR markup for a compiled template where a non-empty text slot
+     appears before an element we want to bind.
+
+     Without normalization, the slot text node would shift child indices and
+     [bind_element] would locate the wrong node during hydration. *)
+  let template =
+    H.Template.compile
+      ~segments:[| "<div><!--#-->"; "<!--#--><a id=\"link\"></a></div>" |]
+      ~slot_kinds:[| `Text |]
+  in
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  set_inner_html root "<!--#-->Hello<!--#--><a id=\"link\"></a>";
+
+  let inst = H.Template.hydrate ~root template in
+
+  (* After normalization, <a> should be the 3rd child: [#, #, <a>] *)
+  let a_el = H.Template.bind_element inst ~id:0 ~path:[| 2 |] in
+  assert_eq ~name:"hydrate normalize binds a" (get_id a_el) "link";
+
+  (* Slot insertion is still between the markers. *)
+  let slot = H.Template.bind_text inst ~id:0 ~path:[| 1 |] in
+  H.Template.set_text slot "Hydrated";
+  assert_eq ~name:"hydrate normalize textContent" (get_text_content root) "Hydrated"
+
+let test_hydrate_normalizes_nested_slot_text_nodes () =
+  (* Same scenario as above, but nested inside an element, to ensure
+     normalization walks the subtree. *)
+  let template =
+    H.Template.compile
+      ~segments:
+        [| "<div><p><!--#-->"; "<!--#--><a id=\"link\"></a></p></div>" |]
+      ~slot_kinds:[| `Text |]
+  in
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  set_inner_html root "<p><!--#-->Hello<!--#--><a id=\"link\"></a></p>";
+
+  let inst = H.Template.hydrate ~root template in
+
+  (* root -> p -> [#, #, <a>] after normalization *)
+  let a_el = H.Template.bind_element inst ~id:0 ~path:[| 0; 2 |] in
+  assert_eq ~name:"hydrate normalize nested binds a" (get_id a_el) "link";
+
+  let slot = H.Template.bind_text inst ~id:0 ~path:[| 0; 1 |] in
+  H.Template.set_text slot "Hydrated";
+  assert_eq ~name:"hydrate normalize nested textContent" (get_text_content root) "Hydrated"
+
+let test_hydrate_does_not_remove_non_text_between_markers () =
+  (* Normalization must only remove text nodes between paired markers.
+     If an element sits between the markers, it should remain intact. *)
+  let template =
+    H.Template.compile
+      ~segments:[| "<div></div>" |]
+      ~slot_kinds:[||]
+  in
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  set_inner_html root "A<!--#--><span id=\"x\"></span><!--#-->B";
+
+  let _inst = H.Template.hydrate ~root template in
+
+  let children = get_child_nodes root in
+  if Array.length children <> 5 then
+    fail ("hydrate negative: expected 5 childNodes, got " ^ string_of_int (Array.length children));
+
+  if not (is_text children.(0)) then fail "hydrate negative: expected text[0]";
+  if not (is_comment children.(1)) then fail "hydrate negative: expected comment[1]";
+  if not (is_element children.(2)) then fail "hydrate negative: expected element[2]";
+  if not (is_comment children.(3)) then fail "hydrate negative: expected comment[3]";
+  if not (is_text children.(4)) then fail "hydrate negative: expected text[4]";
+
+  assert_eq ~name:"hydrate negative prefix" (Option.value (node_text_content children.(0)) ~default:"") "A";
+  let span = element_of_node children.(2) in
+  assert_eq ~name:"hydrate negative span id" (get_id span) "x";
+  assert_eq ~name:"hydrate negative suffix" (Option.value (node_text_content children.(4)) ~default:"") "B"
+
 module Link (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Env
 
@@ -76,6 +160,34 @@ module Link (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         (Solid_ml_template_runtime.Tpl.attr ~name:"href" (fun () -> Signal.get href))
       ~children:
         [ Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get label) ]
+      ()
+
+  (* Regression case: static text + slot + static text must not get its static
+     suffix overwritten when binding the slot. *)
+  let render_static_slot_static ~label () =
+    Html.p
+      ~children:
+        [ Html.text "Hello ";
+          Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get label);
+          Html.text "!" ]
+      ()
+
+  (* Simulates MLX formatting whitespace around a nested intrinsic <a>. *)
+  let render_nested_formatting ~href ~label () =
+    Html.div
+      ~children:
+        [ Html.text "\n  ";
+          Html.a
+            ~href:
+              (Solid_ml_template_runtime.Tpl.attr
+                 ~name:"href"
+                 (fun () -> Signal.get href))
+            ~children:
+              [ Html.text "\n    ";
+                Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get label);
+                Html.text "\n  " ]
+            ();
+          Html.text "\n" ]
       ()
 end
 
@@ -189,13 +301,93 @@ let test_compiled_attr_nested () =
 
   dispose ()
 
+let test_compiled_nested_intrinsic_formatting () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  let href, set_href = Solid_ml_browser.Env.Signal.create "/a" in
+  let label, set_label = Solid_ml_browser.Env.Signal.create "Link" in
+
+  let module C = Link (Solid_ml_browser.Env) in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      let node = C.render_nested_formatting ~href ~label () in
+      Html.append_to_element root node)
+  in
+
+  (* root -> div (compiled) -> [a] (no formatting whitespace) *)
+  let children = get_child_nodes root in
+  if Array.length children <> 1 then fail "nested formatting: expected one child";
+  let div_el = element_of_node children.(0) in
+  let div_children = get_child_nodes div_el in
+  if Array.length div_children <> 1 then
+    fail
+      ("nested formatting: expected one <a> child, got " ^ string_of_int (Array.length div_children));
+  let a_el = element_of_node div_children.(0) in
+
+  assert_eq ~name:"nested formatting href initial" (Option.value (get_attribute a_el "href") ~default:"") "/a";
+
+  set_href "/b";
+  assert_eq ~name:"nested formatting href updated" (Option.value (get_attribute a_el "href") ~default:"") "/b";
+
+  set_label "Next";
+  assert_eq ~name:"nested formatting text updated" (Option.value (node_text_content (node_of_element a_el)) ~default:"") "Next";
+
+  dispose ()
+
+let test_text_slot_static_suffix_preserved () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  let label, set_label = Solid_ml_browser.Env.Signal.create "World" in
+  let module C = Link (Solid_ml_browser.Env) in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      let node = C.render_static_slot_static ~label () in
+      Html.append_to_element root node)
+  in
+
+  let children = get_child_nodes root in
+  if Array.length children <> 1 then fail "slot static: expected one child";
+  let p_el = element_of_node children.(0) in
+
+  (* Expect: ["Hello ", <!--#-->, "World", <!--#-->, "!"] *)
+  let p_children = get_child_nodes p_el in
+  if Array.length p_children <> 5 then
+    fail ("slot static: expected 5 childNodes, got " ^ string_of_int (Array.length p_children));
+
+  if not (is_text p_children.(0)) then fail "slot static: expected text[0]";
+  if not (is_comment p_children.(1)) then fail "slot static: expected comment[1]";
+  if not (is_text p_children.(2)) then fail "slot static: expected text[2]";
+  if not (is_comment p_children.(3)) then fail "slot static: expected comment[3]";
+  if not (is_text p_children.(4)) then fail "slot static: expected text[4]";
+
+  assert_eq ~name:"slot static prefix" (Option.value (node_text_content p_children.(0)) ~default:"") "Hello ";
+  assert_eq ~name:"slot static value" (Option.value (node_text_content p_children.(2)) ~default:"") "World";
+  assert_eq ~name:"slot static suffix" (Option.value (node_text_content p_children.(4)) ~default:"") "!";
+
+  set_label "Ada";
+  assert_eq ~name:"slot static updated" (Option.value (node_text_content p_children.(2)) ~default:"") "Ada";
+  assert_eq ~name:"slot static suffix stays" (Option.value (node_text_content p_children.(4)) ~default:"") "!";
+
+  dispose ()
+
 let () =
   try
     test_instantiate_text_slot ();
     test_hydrate_text_slot ();
+    test_hydrate_normalizes_slot_text_nodes ();
+    test_hydrate_normalizes_nested_slot_text_nodes ();
+    test_hydrate_does_not_remove_non_text_between_markers ();
     test_compiled_attr_opt ();
     test_compiled_attr ();
     test_compiled_attr_nested ();
+    test_compiled_nested_intrinsic_formatting ();
+    test_text_slot_static_suffix_preserved ();
     set_result "PASS" "PASS"
   with exn ->
     let err_msg = exn_to_string exn in
