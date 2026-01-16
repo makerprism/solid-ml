@@ -92,77 +92,77 @@ let () =
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div ~name ())
   in
-  assert (html = "<div>World</div>");
+  assert (html = "<div><!--#-->World<!--#--></div>");
 
   let html_props =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_props ~name ())
   in
-  assert (html_props = "<div id=\"root\" class=\"c1 c2\">World</div>");
+  assert (html_props = "<div id=\"root\" class=\"c1 c2\"><!--#-->World<!--#--></div>");
 
   let html_span =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_span ~name ())
   in
-  assert (html_span = "<span>World</span>");
+  assert (html_span = "<span><!--#-->World<!--#--></span>");
 
   let html_p =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p ~name ())
   in
-  assert (html_p = "<p>World</p>");
+  assert (html_p = "<p><!--#-->World<!--#--></p>");
 
   let html_p_static =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_static ~name ())
   in
-  assert (html_p_static = "<p>Hello World!</p>");
+  assert (html_p_static = "<p>Hello <!--#-->World<!--#-->!</p>");
 
   let html_p_formatting =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_formatting ~name ())
   in
-  assert (html_p_formatting = "<p>Hello World!</p>");
+  assert (html_p_formatting = "<p>Hello <!--#-->World<!--#-->!</p>");
 
   let html_p_space =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_space ~name ())
   in
-  assert (html_p_space = "<p> World</p>");
+  assert (html_p_space = "<p> <!--#-->World<!--#--></p>");
 
   let html_p_double_space =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_double_space ~name ())
   in
-  assert (html_p_double_space = "<p>  World</p>");
+  assert (html_p_double_space = "<p>  <!--#-->World<!--#--></p>");
 
   let html_p_tab_formatting =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_tab_formatting ~name ())
   in
-  assert (html_p_tab_formatting = "<p>Hello World</p>");
+  assert (html_p_tab_formatting = "<p>Hello <!--#-->World<!--#--></p>");
 
   let html_pre_formatting =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_pre_formatting ~name ())
   in
-  assert (html_pre_formatting = "<pre>\n  World\n</pre>");
+  assert (html_pre_formatting = "<pre>\n  <!--#-->World<!--#-->\n</pre>");
 
   let html_code_formatting =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_code_formatting ~name ())
   in
-  assert (html_code_formatting = "<code>\n  World\n</code>");
+  assert (html_code_formatting = "<code>\n  <!--#-->World<!--#-->\n</code>");
 
   let first, _set_first = Signal.create "Ada" in
   let last, _set_last = Signal.create "Lovelace" in
@@ -171,6 +171,6 @@ let () =
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_two_slots ~first ~last ())
   in
-  assert (html_p_two = "<p>Hello Ada, Lovelace!</p>");
+  assert (html_p_two = "<p>Hello <!--#-->Ada<!--#-->, <!--#-->Lovelace<!--#-->!</p>");
 
   print_endline "  PASSED"

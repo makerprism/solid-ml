@@ -94,7 +94,40 @@ module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
           Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get last);
           Html.text "!" ]
       ()
+
+  (* Simulates MLX formatting whitespace around nested intrinsic tags.
+     The outer <div> should be compiled so that formatting whitespace is ignored,
+     even though it contains a nested <a>. *)
+  let render_div_nested_formatting ~href ~label () =
+    Html.div
+      ~children:
+        [ Html.text "\n  ";
+          Html.a
+            ~href:
+              (Solid_ml_template_runtime.Tpl.attr
+                 ~name:"href"
+                 (fun () -> Signal.get href))
+            ~children:
+              [ Html.text "\n    ";
+                Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get label);
+                Html.text "\n  " ]
+            ();
+          Html.text "\n" ]
+      ()
 end
+
+let count_substring (s : string) (needle : string) : int =
+  let rec loop acc i =
+    match String.index_from_opt s i needle.[0] with
+    | None -> acc
+    | Some j ->
+      if j + String.length needle <= String.length s
+         && String.sub s j (String.length needle) = needle
+      then loop (acc + 1) (j + String.length needle)
+      else loop acc (j + 1)
+  in
+  if needle = "" then invalid_arg "count_substring: empty needle";
+  loop 0 0
 
 let () =
   print_endline "Test: Template PPX compiles Tpl.text (non-MLX)";
@@ -104,77 +137,78 @@ let () =
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div ~name ())
   in
-  assert (html = "<div>World</div>");
+  assert (html = "<div><!--#-->World<!--#--></div>");
 
   let html_props =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_props ~name ())
   in
-  assert (html_props = "<div id=\"root\" class=\"c1 c2\">World</div>");
+  assert (html_props = "<div id=\"root\" class=\"c1 c2\"><!--#-->World<!--#--></div>");
 
   let html_span =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_span ~name ())
   in
-  assert (html_span = "<span>World</span>");
+  assert (html_span = "<span><!--#-->World<!--#--></span>");
 
   let html_p =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p ~name ())
   in
-  assert (html_p = "<p>World</p>");
+  assert (html_p = "<p><!--#-->World<!--#--></p>");
 
   let html_p_static =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_static ~name ())
   in
-  assert (html_p_static = "<p>Hello World!</p>");
+  assert (html_p_static = "<p>Hello <!--#-->World<!--#-->!</p>");
+  assert (count_substring html_p_static "<!--#-->" = 2);
 
   let html_p_formatting =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_formatting ~name ())
   in
-  assert (html_p_formatting = "<p>Hello World!</p>");
+  assert (html_p_formatting = "<p>Hello <!--#-->World<!--#-->!</p>");
 
   let html_p_space =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_space ~name ())
   in
-  assert (html_p_space = "<p> World</p>");
+  assert (html_p_space = "<p> <!--#-->World<!--#--></p>");
 
   let html_p_double_space =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_double_space ~name ())
   in
-  assert (html_p_double_space = "<p>  World</p>");
+  assert (html_p_double_space = "<p>  <!--#-->World<!--#--></p>");
 
   let html_p_tab_formatting =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_tab_formatting ~name ())
   in
-  assert (html_p_tab_formatting = "<p>Hello World</p>");
+  assert (html_p_tab_formatting = "<p>Hello <!--#-->World<!--#--></p>");
 
   let html_pre_formatting =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_pre_formatting ~name ())
   in
-  assert (html_pre_formatting = "<pre>\n  World\n</pre>");
+  assert (html_pre_formatting = "<pre>\n  <!--#-->World<!--#-->\n</pre>");
 
   let html_code_formatting =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_code_formatting ~name ())
   in
-  assert (html_code_formatting = "<code>\n  World\n</code>");
+  assert (html_code_formatting = "<code>\n  <!--#-->World<!--#-->\n</code>");
 
   let first, _set_first = Signal.create "Ada" in
   let last, _set_last = Signal.create "Lovelace" in
@@ -183,6 +217,16 @@ let () =
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_two_slots ~first ~last ())
   in
-  assert (html_p_two = "<p>Hello Ada, Lovelace!</p>");
+  assert (html_p_two = "<p>Hello <!--#-->Ada<!--#-->, <!--#-->Lovelace<!--#-->!</p>");
+  assert (count_substring html_p_two "<!--#-->" = 4);
+
+  let href, _set_href = Signal.create "/a" in
+  let label, _set_label = Signal.create "Link" in
+  let html_nested =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_div_nested_formatting ~href ~label ())
+  in
+  assert (html_nested = "<div><a href=\"/a\"><!--#-->Link<!--#--></a></div>");
 
   print_endline "  PASSED"
