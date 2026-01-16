@@ -179,13 +179,24 @@ serve: browser-examples
 browser-tests:
 	@echo "Running browser tests (Node.js, no DOM)..."
 	@dune build @test_browser/melange
+	@# Melange emits ES modules; tell Node to treat output (and runtime) as ESM.
+	@printf '{ "type": "module" }\n' > _build/default/test_browser/output/package.json
+	@for d in _build/default/test_browser/output/node_modules/*; do \
+		if [ -d "$$d" ]; then printf '{ "type": "module" }\n' > "$$d/package.json"; fi; \
+	done
 	@node _build/default/test_browser/output/test_browser/test_reactive.js
 
 # Run browser tests in a real headless browser (requires Chrome)
 browser-tests-headless:
 	@echo "Running browser DOM tests (headless Chrome)..."
+	@# Guard against accidentally committing diff markers in the test file.
+	@if grep -n '^[+][l][e][t][ ]' test_browser_dom/test_template_dom.ml >/dev/null; then \
+		echo "Error: found leading '+' diff markers in test_browser_dom/test_template_dom.ml"; \
+		grep -n '^[+][l][e][t][ ]' test_browser_dom/test_template_dom.ml | sed -n '1,5p'; \
+		exit 1; \
+	fi
 	@dune build @test_browser_dom/melange
-	@npx esbuild _build/default/test_browser_dom/output/test_browser_dom/test_template_dom.js --bundle --format=iife --target=es2020 --outfile=_build/default/test_browser_dom/test_template_dom_bundle.js
+	@npx --yes esbuild _build/default/test_browser_dom/output/test_browser_dom/test_template_dom.js --bundle --format=iife --target=es2020 --outfile=_build/default/test_browser_dom/test_template_dom_bundle.js
 	@tmp_dom="$$(mktemp)"; tmp_err="$$(mktemp)"; tmp_png="$$(mktemp --suffix=.png)"; \
 	  artifacts_dir="_build/default/test_browser_dom/artifacts"; \
 	  mkdir -p "$$artifacts_dir"; \
