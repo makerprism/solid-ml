@@ -46,7 +46,10 @@ let escape_html s =
   ) s;
   Buffer.contents buf
 
-type template_element = template_instance
+type template_element = {
+  inst : template_instance;
+  path : int list;
+}
 
 and template = {
   segments : string array;
@@ -56,7 +59,8 @@ and template = {
 and template_instance = {
   template : template;
   values : string array;
-  mutable root_attrs : (string * string) list;
+  (* Escaped attribute values stored by element path. *)
+  mutable attrs_by_path : (int list * (string * string) list) list;
 }
 
 module Template : Solid_ml_template_runtime.TEMPLATE
@@ -80,7 +84,7 @@ module Template : Solid_ml_template_runtime.TEMPLATE
 
   let instantiate template =
     let values = Array.make (Array.length template.slot_kinds) "" in
-    { template; values; root_attrs = [] }
+    { template; values; attrs_by_path = [] }
 
   let bind_text inst ~id ~path:_ =
     if id < 0 || id >= Array.length inst.values then
@@ -90,7 +94,7 @@ module Template : Solid_ml_template_runtime.TEMPLATE
   let set_text slot value =
     slot.inst.values.(slot.id) <- value
 
-  let bind_element inst ~id:_ ~path:_ = inst
+  let bind_element inst ~id:_ ~path = { inst; path = Array.to_list path }
 
   let escape_attr_name_local s =
     let buf = Buffer.create (String.length s) in
@@ -103,51 +107,251 @@ module Template : Solid_ml_template_runtime.TEMPLATE
       s;
     Buffer.contents buf
 
+  let path_equal (a : int list) (b : int list) : bool =
+    List.length a = List.length b && List.for_all2 Int.equal a b
+
+  let update_attrs_by_path (inst : instance) ~(path : int list) ~(name : string)
+      (value_opt : string option) : unit =
+    let rec update = function
+      | [] ->
+        (match value_opt with
+         | None -> []
+         | Some v -> [ (path, [ (name, v) ]) ])
+      | (p, attrs) :: rest when path_equal p path ->
+        let attrs = List.filter (fun (k, _) -> k <> name) attrs in
+        let attrs =
+          match value_opt with
+          | None -> attrs
+          | Some v -> attrs @ [ (name, v) ]
+        in
+        if attrs = [] then rest else (p, attrs) :: rest
+      | x :: rest -> x :: update rest
+    in
+    inst.attrs_by_path <- update inst.attrs_by_path
+
   let set_attr (el : element) ~name (value_opt : string option) =
     let name = escape_attr_name_local name in
-    el.root_attrs <- List.filter (fun (k, _) -> k <> name) el.root_attrs;
-    match value_opt with
-    | None -> ()
-    | Some v -> el.root_attrs <- el.root_attrs @ [ (name, v) ]
+    let value_opt = Option.map escape_html value_opt in
+    update_attrs_by_path el.inst ~path:el.path ~name value_opt
 
   let on_ (_el : element) ~event:_ _ = ()
 
   let hydrate ~root:_ template = instantiate template
+
+  type frame = {
+    path : int list;
+    mutable next_child : int;
+  }
 
   let attrs_string (attrs : (string * string) list) : string =
     if attrs = [] then ""
     else
       " "
       ^ String.concat " "
-          (List.map
-             (fun (k, v) -> Printf.sprintf "%s=\"%s\"" k (escape_html v))
-             attrs)
+          (List.map (fun (k, v) -> Printf.sprintf "%s=\"%s\"" k v) attrs)
 
-  let render (inst : instance) : string =
-    let buf = Buffer.create 256 in
+  let build_rendered_and_open_tag_ends (inst : instance) : string * (int list * int) list =
     let segments = inst.template.segments in
     let slot_kinds = inst.template.slot_kinds in
-    Buffer.add_string buf segments.(0);
+    let buf = Buffer.create 256 in
+    let open_tag_ends_rev = ref [] in
+
+    let stack : frame list ref = ref [] in
+    let text_pending = ref false in
+
+    let flush_text_pending () =
+      if !text_pending && !stack <> [] then (
+        let top = List.hd !stack in
+        top.next_child <- top.next_child + 1);
+      text_pending := false
+    in
+
+    let is_name_char = function
+      | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '-' | '_' | ':' -> true
+      | _ -> false
+    in
+
+    let rec find_tag_close (s : string) i quote =
+      if i >= String.length s then None
+      else
+        let c = s.[i] in
+        match quote with
+        | Some q when c = q -> find_tag_close s (i + 1) None
+        | Some _ -> find_tag_close s (i + 1) quote
+        | None ->
+          (match c with
+           | '"' | '\'' -> find_tag_close s (i + 1) (Some c)
+           | '>' -> Some i
+           | _ -> find_tag_close s (i + 1) None)
+    in
+
+    let rec parse_tag_name (s : string) i =
+      if i >= String.length s then i
+      else if is_name_char s.[i] then parse_tag_name s (i + 1)
+      else i
+    in
+
+    let is_self_closing (s : string) close_idx =
+      let rec prev_non_ws j =
+        if j <= 0 then 0
+        else
+          match s.[j] with
+          | ' ' | '\n' | '\r' | '\t' -> prev_non_ws (j - 1)
+          | _ -> j
+      in
+      let j = prev_non_ws (close_idx - 1) in
+      j > 0 && s.[j] = '/'
+    in
+
+    let scan_segment (seg : string) : unit =
+      let base = Buffer.length buf in
+      let len = String.length seg in
+      let rec loop i =
+        if i >= len then ()
+        else if seg.[i] <> '<' then (
+          if !stack <> [] then text_pending := true;
+          loop (i + 1))
+        else (
+          flush_text_pending ();
+          if i + 1 >= len then loop (i + 1)
+          else
+            match seg.[i + 1] with
+            | '/' ->
+              (* End tag. *)
+              (match find_tag_close seg (i + 2) None with
+               | None -> loop (i + 1)
+               | Some close_idx ->
+                 (match !stack with
+                  | [] -> ()
+                  | _ :: rest -> stack := rest);
+                 loop (close_idx + 1))
+            | '!' ->
+              (* Comment/doctype. Comments are real childNodes inside elements,
+                 so they must increment the current child index. *)
+              (match find_tag_close seg (i + 2) None with
+               | None -> loop (i + 1)
+               | Some close_idx ->
+                 (match !stack with
+                  | [] -> ()
+                  | top :: _ -> top.next_child <- top.next_child + 1);
+                 loop (close_idx + 1))
+            | _ ->
+              (* Start tag. *)
+              let name_start = i + 1 in
+              let name_end = parse_tag_name seg name_start in
+              if name_end = name_start then (
+                if !stack <> [] then text_pending := true;
+                loop (i + 1))
+              else
+                match find_tag_close seg name_end None with
+                | None -> loop (i + 1)
+                | Some close_idx ->
+                  let path =
+                    match !stack with
+                    | [] -> []
+                    | top :: _ ->
+                      let idx = top.next_child in
+                      top.next_child <- top.next_child + 1;
+                      top.path @ [ idx ]
+                  in
+                  open_tag_ends_rev := (path, base + close_idx) :: !open_tag_ends_rev;
+                  if not (is_self_closing seg close_idx) then
+                    stack := { path; next_child = 0 } :: !stack;
+                  loop (close_idx + 1))
+      in
+      loop 0;
+      Buffer.add_string buf seg
+    in
+
+    scan_segment segments.(0);
     for i = 0 to Array.length slot_kinds - 1 do
+      flush_text_pending ();
+      (* With SolidJS-style paired comment markers around text slots, the SSR HTML
+         contains the markers but no dedicated text node for the slot.
+
+         The browser backend inserts a text node between the markers at bind time,
+         so for SSR path purposes we should NOT advance [next_child] here. *)
+
       let raw_value = inst.values.(i) in
       let escaped = escape_html raw_value in
-      (match slot_kinds.(i) with
-       | `Attr -> Buffer.add_string buf escaped
-       | `Text -> Buffer.add_string buf escaped);
-      Buffer.add_string buf segments.(i + 1)
+      Buffer.add_string buf escaped;
+      scan_segment segments.(i + 1)
     done;
-    let rendered = Buffer.contents buf in
-    match inst.root_attrs with
-    | [] -> rendered
-    | attrs ->
-      (* Inject attributes into the first (root) opening tag. *)
-      let attrs = attrs_string attrs in
-      match String.index_opt rendered '>' with
-      | None -> rendered
-      | Some idx ->
-        let before = String.sub rendered 0 idx in
-        let after = String.sub rendered idx (String.length rendered - idx) in
-        before ^ attrs ^ after
+    flush_text_pending ();
+
+    (Buffer.contents buf, List.rev !open_tag_ends_rev)
+
+  let render (inst : instance) : string =
+    match inst.attrs_by_path with
+    | [] ->
+      (* Fast path: no element-bound attrs to inject. *)
+      let buf = Buffer.create 256 in
+      let segments = inst.template.segments in
+      let slot_kinds = inst.template.slot_kinds in
+      Buffer.add_string buf segments.(0);
+      for i = 0 to Array.length slot_kinds - 1 do
+        let raw_value = inst.values.(i) in
+        let escaped = escape_html raw_value in
+        (match slot_kinds.(i) with
+         | `Attr -> Buffer.add_string buf escaped
+         | `Text -> Buffer.add_string buf escaped);
+        Buffer.add_string buf segments.(i + 1)
+      done;
+      Buffer.contents buf
+    | attrs_by_path ->
+      let string_of_path (path : int list) : string =
+        match path with
+        | [] -> "[]"
+        | _ -> "[" ^ String.concat ";" (List.map string_of_int path) ^ "]"
+      in
+
+      let rendered, open_tag_ends = build_rendered_and_open_tag_ends inst in
+
+      let find_path_end path =
+        List.find_map
+          (fun (p, idx) -> if path_equal p path then Some idx else None)
+          open_tag_ends
+      in
+
+      let take_n n xs =
+        let rec go acc n = function
+          | [] -> List.rev acc
+          | _ when n <= 0 -> List.rev acc
+          | x :: rest -> go (x :: acc) (n - 1) rest
+        in
+        go [] n xs
+      in
+
+      let available_paths_preview =
+        open_tag_ends
+        |> List.map fst
+        |> List.sort_uniq Stdlib.compare
+        |> take_n 12
+        |> fun paths -> String.concat ", " (List.map string_of_path paths)
+      in
+
+      let injections =
+        List.filter_map
+          (fun (path, attrs) ->
+            match find_path_end path with
+            | None ->
+              invalid_arg
+                (Printf.sprintf
+                   "Solid_ml_ssr.Html.Template: path out of bounds for element %s (available paths: %s)"
+                   (string_of_path path) available_paths_preview)
+            | Some idx ->
+              if attrs = [] then None else Some (idx, attrs_string attrs))
+          attrs_by_path
+      in
+      let injections =
+        List.sort (fun (a, _) (b, _) -> Int.compare b a) injections
+      in
+      List.fold_left
+        (fun acc (idx, ins) ->
+          let before = String.sub acc 0 idx in
+          let after = String.sub acc idx (String.length acc - idx) in
+          before ^ ins ^ after)
+        rendered injections
 
   let root inst = Raw (render inst)
 end

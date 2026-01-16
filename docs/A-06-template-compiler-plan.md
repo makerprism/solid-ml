@@ -19,8 +19,8 @@ This repo already contains foundational work for the template direction:
 
 - `solid-ml-template-runtime` (shared module types)
   - Signature: `lib/solid-ml-template-runtime/solid_ml_template_runtime.ml`
-- `solid-ml-template-ppx` (PPX stub)
-  - Stub: `lib/solid-ml-template-ppx/solid_ml_template_ppx.ml`
+- `solid-ml-template-ppx` (PPX implementation)
+  - Implementation: `lib/solid-ml-template-ppx/solid_ml_template_ppx.ml`
 - `Html_intf.S` requires a `Template` submodule
   - Interface: `lib/solid-ml/html_intf.ml`
 - SSR and Browser Html implement `Template`
@@ -114,17 +114,18 @@ This matches SolidJS ergonomics (dynamic expressions can reference multiple sign
 - **SSR:** slots are filled by string interpolation using `slot_kinds` to escape correctly.
 - **Browser (CSR/hydration):** bindings locate nodes by path and set properties/attrs/text.
 
-**Decision:** attribute dynamics are expressed via `bind_element + set_attr` (browser) rather than a dedicated “attr slot” handle.
+**Decision:** attribute dynamics are expressed via `bind_element + set_attr` rather than a dedicated “attr slot” handle.
 
-- SSR still uses string interpolation for `\`Attr` slots (segments include surrounding quotes).
 - Browser sets attributes via DOM APIs; for CSR, attribute slots can be emitted as an empty string placeholder (e.g. `href=""`), and bindings set/remove the real value after instantiation.
+- SSR uses `Template.bind_element` to obtain an element handle and `Template.set_attr` to inject attributes into the rendered HTML. In the SSR backend this is implemented by recording attributes per element path and injecting them into the corresponding opening tag during `Template.root` rendering.
 
-### 2.5 No internal markers in compiled templates
+### 2.5 Markers in compiled templates
 
-**Decision:** compiled templates do not inject `<!--hk:...-->` markers or required internal attributes.
+**Decision (v1):** compiled templates may inject *template-internal* HTML comment markers to stabilize DOM shape for `Tpl.text`.
 
-- Existing `Html.reactive_text` marker-based hydration remains supported for non-compiled code.
-- Compiled templates use paths and normalization instead.
+- Compiled templates still do **not** use the hydration-key markers (`<!--hk:...-->`) used by `Html.reactive_text`.
+- Instead, the template compiler can emit stable comment placeholders (SolidJS-style, e.g. `<!--#-->`) around text-slot boundaries.
+- This prevents adjacent static text from being merged by HTML parsing, and ensures `bind_text` insertion paths remain stable for both CSR and hydration.
 
 ### 2.6 What happens if the template PPX can’t compile something?
 
@@ -290,6 +291,8 @@ Commands:
 - Given `<div>{slot}</div>`, the compiler should emit `bind_text ~path:[|0|]` (insert text at child index 0 of the root element), and hydration should update that node without querying selectors.
 
 ### Milestone 4: PPX — compile a minimal template (intrinsics + Tpl.text)
+
+**Update (Jan 2026):** the PPX now supports nested intrinsic tags (not just flat children lists), and can bind `Tpl.attr`/`Tpl.attr_opt` on nested elements by computing element paths.
 
 **Work**
 
