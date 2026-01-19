@@ -39,17 +39,15 @@ module type TEMPLATE = sig
   val instantiate : template -> instance
   (** Instantiate (clone) a template for client-side rendering. *)
 
-  val hydrate : root:element -> template -> instance
-  (** Adopt existing DOM for hydration.
+  (* Note: hydration adoption is intentionally not exposed here.
 
-      On the browser, [root] is the DOM element that corresponds to the
-      template's single root element.
+     Compiled templates should be adopted via the framework-level hydration entrypoint
+     (e.g. [Solid_ml_browser.Render.hydrate]), which establishes a structured
+     hydration lifetime and configures adoption state.
 
-      Compiled templates are expected to have exactly one root element so that
-      paths are interpreted relative to the same node for CSR (instantiate) and
-      hydration (hydrate).
-
-      On SSR, this is a no-op wrapper around [instantiate]. *)
+     Template instantiation/binding APIs must work correctly when called within
+     hydration mode, but the operation of "adopting" an existing DOM subtree is
+     framework-specific. *)
 
   val root : instance -> node
   (** Return the root node for the instance.
@@ -105,4 +103,20 @@ module type TEMPLATE = sig
   (** Attach an event handler.
 
       On SSR, event handlers are ignored. *)
+
+  val off_ : element -> event:string -> (event -> unit) -> unit
+  (** Detach an event handler.
+
+      This is primarily used by compiled templates for cleanup.
+      On SSR, this is a no-op. *)
+
+  val set_nodes_keyed :
+    nodes_slot -> key:('a -> string) -> render:('a -> node * (unit -> unit)) -> 'a list -> unit
+  (** Set a nodes region to a keyed list.
+
+      Browser backends should reconcile DOM nodes by key when possible.
+      SSR backends may render the list to HTML and replace the region.
+
+      Note: disposal of per-item reactive resources is managed by the caller
+      (typically the template compiler) via the owner tree. *)
 end

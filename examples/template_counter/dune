@@ -1,0 +1,16 @@
+; Template Counter example
+;
+; This builds a browser demo (Melange) from MLX templates compiled by solid-ml-template-ppx,
+; and a native SSR executable that prints HTML.
+
+(executable
+ (name ssr)
+ (modules ssr)
+ (libraries solid-ml solid-ml-ssr template_counter_shared))
+
+(melange.emit
+ (target output)
+ (libraries solid-ml-browser template_counter_shared)
+ (preprocess (pps melange.ppx))
+ (module_systems es6)
+ (modules client))

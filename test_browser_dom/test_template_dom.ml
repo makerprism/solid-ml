@@ -2,6 +2,7 @@ open Solid_ml_browser
 open Dom
 
 module H = Html
+module T = Html.Internal_template
 
 let fail msg =
   raise (Failure msg)
@@ -30,46 +31,61 @@ let set_result status ?error ?stack message =
      | Some s -> set_attribute el "data-test-stack" s);
     set_text_content el message
 
+
 let test_instantiate_text_slot () =
   let template =
-    H.Template.compile
+    T.compile
       ~segments:[| "<div>"; "</div>" |]
       ~slot_kinds:[| `Text |]
   in
-  let inst = H.Template.instantiate template in
-  let slot = H.Template.bind_text inst ~id:0 ~path:[| 0 |] in
-  H.Template.set_text slot "Hello";
-  match H.Template.root inst with
+  let inst = T.instantiate template in
+  let slot = T.bind_text inst ~id:0 ~path:[| 0 |] in
+  T.set_text slot "Hello";
+  match T.root inst with
   | H.Element el ->
     assert_eq ~name:"csr textContent" (get_text_content el) "Hello"
   | _ -> fail "csr: expected Template.root to be an Element"
 
 let test_hydrate_text_slot () =
   let template =
-    H.Template.compile
+    T.compile
       ~segments:[| "<div>"; "</div>" |]
       ~slot_kinds:[| `Text |]
   in
   let root = create_element (document ()) "div" in
-  (* attach to DOM so we exercise the real tree *)
   let body : element = [%mel.raw "document.body"] in
   append_child body (node_of_element root);
-  let inst = H.Template.hydrate ~root template in
-  let slot = H.Template.bind_text inst ~id:0 ~path:[| 0 |] in
-  H.Template.set_text slot "Hydrated";
-  assert_eq ~name:"hydrate textContent" (get_text_content root) "Hydrated"
+
+  (* Server DOM: container with one template root element. *)
+  Dom.set_inner_html root "<div></div>";
+
+  let slot_ref = ref None in
+
+  let dispose =
+    Render.hydrate root (fun () ->
+      let inst = T.instantiate template in
+      slot_ref := Some (T.bind_text inst ~id:0 ~path:[| 0 |]);
+      H.empty)
+  in
+
+  (match !slot_ref with
+   | None -> fail "hydrate text slot: did not bind slot"
+   | Some slot -> T.set_text slot "Hydrated");
+
+  assert_eq ~name:"hydrate textContent" (get_text_content root) "Hydrated";
+  dispose ()
 
 let test_instantiate_nodes_slot () =
   let template =
-    H.Template.compile
+    T.compile
       ~segments:[| "<div><!--$-->"; "<!--$--></div>" |]
       ~slot_kinds:[| `Nodes |]
   in
-  let inst = H.Template.instantiate template in
-  let slot = H.Template.bind_nodes inst ~id:0 ~path:[| 1 |] in
+  let inst = T.instantiate template in
+  let slot = T.bind_nodes inst ~id:0 ~path:[| 1 |] in
   let value = H.span ~id:"x" ~children:[ H.text "OK" ] () in
-  H.Template.set_nodes slot value;
-  match H.Template.root inst with
+  T.set_nodes slot value;
+  match T.root inst with
   | H.Element el ->
     let children = get_child_nodes el in
     if Array.length children <> 3 then
@@ -86,7 +102,7 @@ let test_hydrate_normalizes_nodes_regions () =
   (* SSR may render content inside a node slot region. For path-stable hydration we
      clear it so elements after the region are still addressable by CSR paths. *)
   let template =
-    H.Template.compile
+    T.compile
       ~segments:[| "<div><!--$-->"; "<!--$--><a id=\"after\"></a></div>" |]
       ~slot_kinds:[| `Nodes |]
   in
@@ -94,21 +110,44 @@ let test_hydrate_normalizes_nodes_regions () =
   let body : element = [%mel.raw "document.body"] in
   append_child body (node_of_element root);
 
-  set_inner_html root "<!--$--><span id=\"x\"></span><!--$--><a id=\"after\"></a>";
+  (* Server DOM: container with template root element containing region markers. *)
+  set_inner_html root
+    "<div><!--$--><span id=\"x\"></span><!--$--><a id=\"after\"></a></div>";
 
-  let inst = H.Template.hydrate ~root template in
+  let slot_ref = ref None in
 
-  (* After normalization, <a> should be at index 2: [$, $, <a>] *)
-  let a_el = H.Template.bind_element inst ~id:0 ~path:[| 2 |] in
-  assert_eq ~name:"hydrate nodes normalize binds after" (get_id a_el) "after";
+  let dispose =
+    Render.hydrate root (fun () ->
+      let inst = T.instantiate template in
 
-  let slot = H.Template.bind_nodes inst ~id:0 ~path:[| 1 |] in
-  H.Template.set_nodes slot (H.span ~id:"y" ~children:[] ());
+
+      (* After normalization, <a> should be at index 2: [$, $, <a>] *)
+      let a_el = T.bind_element inst ~id:0 ~path:[| 2 |] in
+      assert_eq ~name:"hydrate nodes normalize binds after" (get_id a_el) "after";
+
+      slot_ref := Some (T.bind_nodes inst ~id:0 ~path:[| 1 |]);
+      H.empty)
+  in
+
+  (match !slot_ref with
+   | None -> fail "hydrate nodes: did not bind nodes slot"
+   | Some slot -> T.set_nodes slot (H.span ~id:"y" ~children:[] ()));
+
   let children = get_child_nodes root in
-  if Array.length children <> 4 then
-    fail ("hydrate nodes: expected 4 childNodes, got " ^ string_of_int (Array.length children));
-  let inserted = element_of_node children.(1) in
-  assert_eq ~name:"hydrate nodes inserted" (get_id inserted) "y"
+  if Array.length children <> 1 then
+    fail ("hydrate nodes: expected 1 childNode (template root), got " ^ string_of_int (Array.length children));
+
+  let root_el = element_of_node children.(0) in
+  let root_children = get_child_nodes root_el in
+  if Array.length root_children <> 4 then
+    fail
+      ("hydrate nodes: expected 4 root childNodes, got "
+      ^ string_of_int (Array.length root_children));
+
+  let inserted = element_of_node root_children.(1) in
+  assert_eq ~name:"hydrate nodes inserted" (get_id inserted) "y";
+
+  dispose ()
 
 let test_hydrate_normalizes_slot_text_nodes () =
   (* Simulate SSR markup for a compiled template where a non-empty text slot
@@ -117,7 +156,7 @@ let test_hydrate_normalizes_slot_text_nodes () =
      Without normalization, the slot text node would shift child indices and
      [bind_element] would locate the wrong node during hydration. *)
   let template =
-    H.Template.compile
+    T.compile
       ~segments:[| "<div><!--#-->"; "<!--#--><a id=\"link\"></a></div>" |]
       ~slot_kinds:[| `Text |]
   in
@@ -125,24 +164,36 @@ let test_hydrate_normalizes_slot_text_nodes () =
   let body : element = [%mel.raw "document.body"] in
   append_child body (node_of_element root);
 
-  set_inner_html root "<!--#-->Hello<!--#--><a id=\"link\"></a>";
+  set_inner_html root "<div><!--#-->Hello<!--#--><a id=\"link\"></a></div>";
 
-  let inst = H.Template.hydrate ~root template in
+  let slot_ref = ref None in
 
-  (* After normalization, <a> should be the 3rd child: [#, #, <a>] *)
-  let a_el = H.Template.bind_element inst ~id:0 ~path:[| 2 |] in
-  assert_eq ~name:"hydrate normalize binds a" (get_id a_el) "link";
+  let dispose =
+    Render.hydrate root (fun () ->
+      let inst = T.instantiate template in
 
-  (* Slot insertion is still between the markers. *)
-  let slot = H.Template.bind_text inst ~id:0 ~path:[| 1 |] in
-  H.Template.set_text slot "Hydrated";
-  assert_eq ~name:"hydrate normalize textContent" (get_text_content root) "Hydrated"
+
+      (* After normalization, <a> should be the 3rd child: [#, #, <a>] *)
+      let a_el = T.bind_element inst ~id:0 ~path:[| 2 |] in
+      assert_eq ~name:"hydrate normalize binds a" (get_id a_el) "link";
+
+      (* Slot insertion is still between the markers. *)
+      slot_ref := Some (T.bind_text inst ~id:0 ~path:[| 1 |]);
+      H.empty)
+  in
+
+  (match !slot_ref with
+   | None -> fail "hydrate normalize: did not bind text slot"
+   | Some slot -> T.set_text slot "Hydrated");
+
+  assert_eq ~name:"hydrate normalize textContent" (get_text_content root) "Hydrated";
+  dispose ()
 
 let test_hydrate_normalizes_nested_slot_text_nodes () =
   (* Same scenario as above, but nested inside an element, to ensure
      normalization walks the subtree. *)
   let template =
-    H.Template.compile
+    T.compile
       ~segments:
         [| "<div><p><!--#-->"; "<!--#--><a id=\"link\"></a></p></div>" |]
       ~slot_kinds:[| `Text |]
@@ -151,23 +202,35 @@ let test_hydrate_normalizes_nested_slot_text_nodes () =
   let body : element = [%mel.raw "document.body"] in
   append_child body (node_of_element root);
 
-  set_inner_html root "<p><!--#-->Hello<!--#--><a id=\"link\"></a></p>";
+  set_inner_html root "<div><p><!--#-->Hello<!--#--><a id=\"link\"></a></p></div>";
 
-  let inst = H.Template.hydrate ~root template in
+  let slot_ref = ref None in
 
-  (* root -> p -> [#, #, <a>] after normalization *)
-  let a_el = H.Template.bind_element inst ~id:0 ~path:[| 0; 2 |] in
-  assert_eq ~name:"hydrate normalize nested binds a" (get_id a_el) "link";
+  let dispose =
+    Render.hydrate root (fun () ->
+      let inst = T.instantiate template in
 
-  let slot = H.Template.bind_text inst ~id:0 ~path:[| 0; 1 |] in
-  H.Template.set_text slot "Hydrated";
-  assert_eq ~name:"hydrate normalize nested textContent" (get_text_content root) "Hydrated"
+
+      (* root -> p -> [#, #, <a>] after normalization *)
+      let a_el = T.bind_element inst ~id:0 ~path:[| 0; 2 |] in
+      assert_eq ~name:"hydrate normalize nested binds a" (get_id a_el) "link";
+
+      slot_ref := Some (T.bind_text inst ~id:0 ~path:[| 0; 1 |]);
+      H.empty)
+  in
+
+  (match !slot_ref with
+   | None -> fail "hydrate normalize nested: did not bind text slot"
+   | Some slot -> T.set_text slot "Hydrated");
+
+  assert_eq ~name:"hydrate normalize nested textContent" (get_text_content root) "Hydrated";
+  dispose ()
 
 let test_hydrate_does_not_remove_non_text_between_markers () =
   (* Normalization must only remove text nodes between paired markers.
      If an element sits between the markers, it should remain intact. *)
   let template =
-    H.Template.compile
+    T.compile
       ~segments:[| "<div></div>" |]
       ~slot_kinds:[||]
   in
@@ -175,24 +238,43 @@ let test_hydrate_does_not_remove_non_text_between_markers () =
   let body : element = [%mel.raw "document.body"] in
   append_child body (node_of_element root);
 
-  set_inner_html root "A<!--#--><span id=\"x\"></span><!--#-->B";
+  set_inner_html root "<div>A<!--#--><span id=\"x\"></span><!--#-->B</div>";
 
-  let _inst = H.Template.hydrate ~root template in
+  let dispose =
+    Render.hydrate root (fun () ->
+      let _inst = T.instantiate template in
+      H.empty)
+  in
+  dispose ();
 
   let children = get_child_nodes root in
-  if Array.length children <> 5 then
-    fail ("hydrate negative: expected 5 childNodes, got " ^ string_of_int (Array.length children));
+  if Array.length children <> 1 then
+    fail
+      ("hydrate negative: expected 1 childNode (template root), got "
+      ^ string_of_int (Array.length children));
 
-  if not (is_text children.(0)) then fail "hydrate negative: expected text[0]";
-  if not (is_comment children.(1)) then fail "hydrate negative: expected comment[1]";
-  if not (is_element children.(2)) then fail "hydrate negative: expected element[2]";
-  if not (is_comment children.(3)) then fail "hydrate negative: expected comment[3]";
-  if not (is_text children.(4)) then fail "hydrate negative: expected text[4]";
+  let root_el = element_of_node children.(0) in
+  let root_children = get_child_nodes root_el in
 
-  assert_eq ~name:"hydrate negative prefix" (Option.value (node_text_content children.(0)) ~default:"") "A";
-  let span = element_of_node children.(2) in
+  if Array.length root_children <> 5 then
+    fail
+      ("hydrate negative: expected 5 root childNodes, got "
+      ^ string_of_int (Array.length root_children));
+
+  if not (is_text root_children.(0)) then fail "hydrate negative: expected text[0]";
+  if not (is_comment root_children.(1)) then fail "hydrate negative: expected comment[1]";
+  if not (is_element root_children.(2)) then fail "hydrate negative: expected element[2]";
+  if not (is_comment root_children.(3)) then fail "hydrate negative: expected comment[3]";
+  if not (is_text root_children.(4)) then fail "hydrate negative: expected text[4]";
+
+  assert_eq ~name:"hydrate negative prefix"
+    (Option.value (node_text_content root_children.(0)) ~default:"")
+    "A";
+  let span = element_of_node root_children.(2) in
   assert_eq ~name:"hydrate negative span id" (get_id span) "x";
-  assert_eq ~name:"hydrate negative suffix" (Option.value (node_text_content children.(4)) ~default:"") "B"
+  assert_eq ~name:"hydrate negative suffix"
+    (Option.value (node_text_content root_children.(4)) ~default:"")
+    "B"
 
 module Link (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Env

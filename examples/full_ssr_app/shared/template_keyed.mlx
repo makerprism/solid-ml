@@ -1,0 +1,37 @@
+module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
+  open Env
+
+  module Html = Env.Html
+
+  let view () : Html.node =
+    let items, set_items = Signal.create [ "alpha"; "beta"; "gamma" ] in
+
+    let remove_first () =
+      match Signal.get items with
+      | [] -> ()
+      | _ :: rest -> set_items rest
+    in
+
+    let reverse () = set_items (List.rev (Signal.get items)) in
+
+    <Html.div>
+      <Html.h2>(Html.text "Template-Keyed Hydration")</Html.h2>
+      <Html.p>(Html.text "Tpl.each_keyed: reverse/remove should update without DOM recreation.")</Html.p>
+
+      <Html.div>
+        <Html.button onclick=(Solid_ml_template_runtime.Tpl.on ~event:"click" (fun _ -> reverse ()))>
+          (Html.text "Reverse")
+        </Html.button>
+        <Html.button onclick=(Solid_ml_template_runtime.Tpl.on ~event:"click" (fun _ -> remove_first ()))>
+          (Html.text "Remove first")
+        </Html.button>
+      </Html.div>
+
+      <Html.ul>
+        (Solid_ml_template_runtime.Tpl.each_keyed
+          ~items:(fun () -> Signal.get items)
+          ~key:(fun s -> s)
+          ~render:(fun s -> <Html.li>(Html.text s)</Html.li>))
+      </Html.ul>
+    </Html.div>
+end

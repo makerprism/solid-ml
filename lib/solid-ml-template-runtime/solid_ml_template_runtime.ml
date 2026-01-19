@@ -34,6 +34,7 @@ module Tpl : sig
   type 'a t
 
   val text : (unit -> string) -> 'a t
+  val text_value : string -> 'a t
   val attr : name:string -> (unit -> string) -> 'a t
   val attr_opt : name:string -> (unit -> string option) -> 'a t
   val class_list : (unit -> (string * bool) list) -> 'a t
@@ -65,6 +66,9 @@ end = struct
 
   let text (_thunk : unit -> string) : 'a t =
     Uncompiled "text"
+
+  let text_value (_value : string) : 'a t =
+    Uncompiled "text_value"
 
   let attr ~name (_thunk : unit -> string) : 'a t =
     Uncompiled ("attr(" ^ name ^ ")")

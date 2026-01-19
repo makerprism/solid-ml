@@ -63,7 +63,7 @@ and template_instance = {
   mutable attrs_by_path : (int list * (string * string) list) list;
 }
 
-module Template : Solid_ml_template_runtime.TEMPLATE
+module Internal_template : Solid_ml_template_runtime.TEMPLATE
   with type node := node
    and type event := event
    and type element = template_element = struct
@@ -84,7 +84,7 @@ module Template : Solid_ml_template_runtime.TEMPLATE
 
   let compile ~segments ~slot_kinds =
     if Array.length segments <> Array.length slot_kinds + 1 then
-      invalid_arg "Solid_ml_ssr.Html.Template.compile: segments length must be slot_kinds length + 1";
+      invalid_arg "Solid_ml_ssr.Html.Internal_template.compile: segments length must be slot_kinds length + 1";
     { segments; slot_kinds }
 
   let instantiate template =
@@ -93,7 +93,7 @@ module Template : Solid_ml_template_runtime.TEMPLATE
 
   let bind_text inst ~id ~path:_ : text_slot =
     if id < 0 || id >= Array.length inst.values then
-      invalid_arg "Solid_ml_ssr.Html.Template.bind_text: id out of bounds";
+      invalid_arg "Solid_ml_ssr.Html.Internal_template.bind_text: id out of bounds";
     { inst; id }
 
   let set_text (slot : text_slot) value =
@@ -101,7 +101,7 @@ module Template : Solid_ml_template_runtime.TEMPLATE
 
   let bind_nodes inst ~id ~path:_ : nodes_slot =
     if id < 0 || id >= Array.length inst.values then
-      invalid_arg "Solid_ml_ssr.Html.Template.bind_nodes: id out of bounds";
+      invalid_arg "Solid_ml_ssr.Html.Internal_template.bind_nodes: id out of bounds";
     { inst; id }
 
   let rec render_node_for_slot (n : node) : string =
@@ -185,8 +185,37 @@ module Template : Solid_ml_template_runtime.TEMPLATE
     update_attrs_by_path el.inst ~path:el.path ~name value_opt
 
   let on_ (_el : element) ~event:_ _ = ()
+  let off_ (_el : element) ~event:_ _ = ()
 
-  let hydrate ~root:_ template = instantiate template
+  let set_nodes_keyed (slot : nodes_slot) ~key ~render items =
+    let children, disposers =
+      List.split (List.map render items)
+    in
+    (* In SSR, we render the list immediately. Disposers are invoked eagerly since
+       there is no persistent DOM to keep alive. *)
+    List.iter (fun d -> d ()) disposers;
+
+    (* Match the browser CSR structure and support hydration adoption:
+       each keyed item is wrapped in a start marker carrying the key and a stop
+       marker.
+
+       We hex-encode the key so it is safe to embed in comment text. *)
+    let encode_key (s : string) : string =
+      let buf = Buffer.create (String.length s * 2) in
+      String.iter (fun c -> Buffer.add_string buf (Printf.sprintf "%02x" (Char.code c))) s;
+      Buffer.contents buf
+    in
+
+    let wrap_keyed (k : string) (n : node) : node =
+      let k_enc = encode_key k in
+      Fragment [ Raw ("<!--k:" ^ k_enc ^ "-->"); n; Raw "<!--/k-->" ]
+    in
+
+    let keyed_children =
+      List.map2 (fun item child -> wrap_keyed (key item) child) items children
+    in
+    set_nodes slot (Fragment keyed_children)
+
 
   type frame = {
     path : int list;
@@ -1394,6 +1423,7 @@ let text_ ?id ?class_ ?style ?x ?y ?dx ?dy ?text_anchor ?font_size ?font_family 
 
 (** Fragment *)
 let fragment nodes = Fragment nodes
+let empty = Fragment []
 
 (** Render document *)
 let render_document ?(doctype=true) node =

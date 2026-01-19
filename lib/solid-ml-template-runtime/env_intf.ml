@@ -30,7 +30,16 @@ module type HTML = sig
   type event
   type 'a signal
 
-  module Template : Template_intf.TEMPLATE
+  val text : string -> node
+  val fragment : node list -> node
+  val empty : node
+
+  (* Note: we intentionally do not expose element constructors here.
+     User code using MLX intrinsics should use the platform-specific Html API.
+
+     The only required constructors are [text], [fragment], and [empty]. *)
+
+  module Internal_template : Template_intf.TEMPLATE
     with type node := node
      and type event := event
 end
@@ -43,9 +52,16 @@ module type TEMPLATE_ENV = sig
 
   module Effect : sig
     val create : (unit -> unit) -> unit
+    val create_with_cleanup : (unit -> (unit -> unit)) -> unit
   end
 
   module Owner : sig
     val on_cleanup : (unit -> unit) -> unit
+
+    val run_with_owner : (unit -> 'a) -> 'a * (unit -> unit)
+    (** Run a function under a fresh owner.
+
+        Returns the function result and a disposer that cleans up any effects,
+        event handlers, and other resources registered under that owner. *)
   end
 end

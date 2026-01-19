@@ -52,9 +52,19 @@ val reactive_text_string : string signal -> node
 val fragment : node list -> node
 (** Create a fragment from a list of nodes *)
 
-(** {1 Compiled Templates} *)
+(** {1 Compiled Templates (Internal)}
 
-module Template : Solid_ml_template_runtime.TEMPLATE
+    Compiled templates are an internal mechanism used by the MLX + template PPX
+    pipeline. Application code should normally:
+
+    - create DOM with the [Html.*] constructors
+    - hydrate SSR markup via {!Solid_ml_browser.Render.hydrate}
+
+    This module remains part of the interface for generated code, but it is not
+    intended to be called directly by applications.
+*)
+
+module Internal_template : Solid_ml_template_runtime.TEMPLATE
   with type node := node
    and type event := event
    and type element = Dom.element

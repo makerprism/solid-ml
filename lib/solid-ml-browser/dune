@@ -13,4 +13,5 @@
  (public_name solid-ml-browser)
  (modes melange)
  (preprocess (pps melange.ppx))
+ (private_modules hydration)
  (libraries solid-ml-internal melange.js solid-ml-template-runtime))

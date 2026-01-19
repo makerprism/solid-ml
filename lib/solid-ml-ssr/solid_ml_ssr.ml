@@ -33,9 +33,19 @@ module Env = struct
 
   type 'a signal = 'a Signal.t
 
-  module Html = Html
-  module Effect = Solid_ml.Effect
-  module Owner = Solid_ml.Owner
+  module Html = struct
+    include Html
+    module Internal_template = Html.Internal_template
+  end
+  module Effect = struct
+    let create = Solid_ml.Effect.create
+    let create_with_cleanup = Solid_ml.Effect.create_with_cleanup
+  end
+
+  module Owner = struct
+    let on_cleanup = Solid_ml.Owner.on_cleanup
+    let run_with_owner = Solid_ml.Owner.run_with_owner
+  end
 end
 
 module _ : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV = Env

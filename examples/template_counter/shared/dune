@@ -1,7 +1,6 @@
 (library
- (name shared_components)
- (package full_ssr_app)
- (modules platform_intf components template_keyed)
+ (name template_counter_shared)
+ (modules components)
  (libraries solid-ml solid-ml-template-runtime)
  (modes byte native melange)
  (preprocess (pps solid-ml-template-ppx)))
