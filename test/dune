@@ -27,8 +27,8 @@
   (libraries solid-ml solid-ml-ssr))
 
 (test
-  (name test_template)
-  (libraries solid-ml solid-ml-ssr))
+   (name test_template)
+   (libraries solid-ml solid-ml-ssr))
 
 (test
   (name test_template_ppx)

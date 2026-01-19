@@ -509,6 +509,146 @@ let test_text_slot_static_suffix_preserved () =
 
   dispose ()
 
+let test_multiple_hydration_contexts_isolated () =
+  (* Verify that multiple Render.hydrate contexts don't interfere with each other *)
+  let template =
+    T.compile
+      ~segments:[| "<div>"; "</div>" |]
+      ~slot_kinds:[| `Text |]
+  in
+  let root1 = create_element (document ()) "div" in
+  let root2 = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root1);
+  append_child body (node_of_element root2);
+
+  set_inner_html root1 "<div>A</div>";
+  set_inner_html root2 "<div>B</div>";
+
+  let slot_ref1 = ref None in
+  let slot_ref2 = ref None in
+
+  let dispose1 =
+    Render.hydrate root1 (fun () ->
+      let inst = T.instantiate template in
+      slot_ref1 := Some (T.bind_text inst ~id:0 ~path:[| 0 |]);
+      H.empty)
+  in
+
+  let dispose2 =
+    Render.hydrate root2 (fun () ->
+      let inst = T.instantiate template in
+      slot_ref2 := Some (T.bind_text inst ~id:0 ~path:[| 0 |]);
+      H.empty)
+  in
+
+  (match !slot_ref1 with
+   | None -> fail "multi-hydrate: did not bind slot1"
+   | Some slot1 ->
+       T.set_text slot1 "Updated1";
+       assert_eq ~name:"multi-hydrate root1" (get_text_content root1) "Updated1");
+
+  (match !slot_ref2 with
+   | None -> fail "multi-hydrate: did not bind slot2"
+   | Some slot2 ->
+       T.set_text slot2 "Updated2";
+       assert_eq ~name:"multi-hydrate root2" (get_text_content root2) "Updated2");
+
+  (* Ensure disposal is independent *)
+  dispose1 ();
+  assert_eq ~name:"multi-hydrate after dispose1 root2" (get_text_content root2) "Updated2";
+
+  dispose2 ()
+
+let test_cleanup_removes_listeners () =
+  (* Verify that cleanup properly removes reactive listeners *)
+  let template =
+    T.compile
+      ~segments:[| "<div>"; "</div>" |]
+      ~slot_kinds:[| `Text |]
+  in
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  set_inner_html root "<div>Initial</div>";
+
+  let label, set_label = Solid_ml_browser.Env.Signal.create "World" in
+  let slot_ref = ref None in
+
+  let dispose =
+    Render.hydrate root (fun () ->
+      let inst = T.instantiate template in
+      slot_ref := Some (T.bind_text inst ~id:0 ~path:[| 0 |]);
+      H.empty)
+  in
+
+  (match !slot_ref with
+   | None -> fail "cleanup: did not bind slot"
+   | Some slot ->
+       (* Set up reactive update *)
+       let (_signal, dispose) =
+         Reactive_core.create_root (fun () ->
+           T.set_text slot (Signal.get label))
+       in
+       set_label "Hello";
+       assert_eq ~name:"cleanup reactive update" (get_text_content root) "Hello";
+       dispose ();
+       (* After dispose, signal changes should not affect DOM *)
+       set_label "Goodbye";
+       assert_eq ~name:"cleanup after dispose" (get_text_content root) "Hello");
+
+  dispose ()
+
+let test_hydration_error_context_clears () =
+  (* Verify that hydration context is properly cleared even on error *)
+  let template =
+    T.compile
+      ~segments:[| "<div>"; "</div>" |]
+      ~slot_kinds:[| `Text |]
+  in
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  set_inner_html root "<div>Initial</div>";
+
+  (* First hydration succeeds *)
+  let dispose1 =
+    Render.hydrate root (fun () ->
+      let inst = T.instantiate template in
+      let slot = T.bind_text inst ~id:0 ~path:[| 0 |] in
+      T.set_text slot "First";
+      H.empty)
+  in
+
+  assert_eq ~name:"error clear first" (get_text_content root) "First";
+  dispose1 ();
+
+  (* Second hydration with error *)
+  try
+    let _dispose2 =
+      Render.hydrate root (fun () ->
+        let inst = T.instantiate template in
+        fail "Intentional error for context clear test")
+    in
+    fail "Expected exception not raised"
+  with Failure _ ->
+    (* Expected - context should be cleared *)
+    ();
+
+  (* Third hydration should work normally *)
+  let dispose3 =
+    Render.hydrate root (fun () ->
+      let inst = T.instantiate template in
+      let slot = T.bind_text inst ~id:0 ~path:[| 0 |] in
+      T.set_text slot "Third";
+      H.empty)
+  in
+
+  assert_eq ~name:"error clear third" (get_text_content root) "Third";
+  dispose3 ()
+
 let () =
   try
     test_instantiate_text_slot ();
@@ -523,6 +663,9 @@ let () =
     test_compiled_attr_nested ();
     test_compiled_nested_intrinsic_formatting ();
     test_text_slot_static_suffix_preserved ();
+    test_multiple_hydration_contexts_isolated ();
+    test_cleanup_removes_listeners ();
+    test_hydration_error_context_clears ();
     set_result "PASS" "PASS"
   with exn ->
     let err_msg = exn_to_string exn in
