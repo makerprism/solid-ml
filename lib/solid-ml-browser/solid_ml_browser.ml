@@ -49,8 +49,6 @@ module Event = Event
 (** Rendering and hydration *)
 module Render = Render
 
-(** Hydration state and utilities (internal) *)
-module Hydration = Hydration
 
 (** Browser-optimized reactive core - use Reactive module for higher-level API *)
 module Reactive_core = Reactive_core
@@ -102,9 +100,20 @@ module Env = struct
       Reactive_core.update_signal s f
   end
 
-  module Html = Html
-  module Effect = Reactive.Effect
-  module Owner = Reactive.Owner
+  module Html = struct
+    include Html
+    module Internal_template = Html.Internal_template
+  end
+
+  module Effect = struct
+    let create = Reactive.Effect.create
+    let create_with_cleanup = Reactive.Effect.create_with_cleanup
+  end
+
+  module Owner = struct
+    let on_cleanup = Reactive.Owner.on_cleanup
+    let run_with_owner = Reactive_core.run_with_owner
+  end
 end
 
 module _ : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV = Env

@@ -34,7 +34,7 @@ let reset_hydration_keys () =
 
 (** Element cursor tracks position in the DOM tree during element adoption. *)
 type element_cursor = {
-  mutable parent : element;
+  parent : element;
   mutable child_index : int;
 }
 
@@ -47,6 +47,8 @@ type hydration_context = {
   text_nodes : (int, text_node) js_map;
   (** Stack of element cursors for nested element adoption *)
   mutable cursor_stack : element_cursor list;
+  (** Stack of roots for compiled template adoption *)
+  mutable template_root_stack : element list;
 }
 
 (** Create a fresh hydration context.
@@ -55,6 +57,7 @@ let create_context () : hydration_context = {
   is_hydrating = false;
   text_nodes = js_map_create ();
   cursor_stack = [];
+  template_root_stack = [];
 }
 
 (** The current hydration context.
@@ -73,6 +76,7 @@ let start_hydration () =
     failwith "solid-ml: start_hydration called while already hydrating";
   !current_context.is_hydrating <- true;
   !current_context.cursor_stack <- [];
+  !current_context.template_root_stack <- [];
   js_map_clear !current_context.text_nodes
 
 (** End hydration mode.
@@ -82,6 +86,7 @@ let end_hydration () =
     failwith "solid-ml: end_hydration called while not hydrating";
   !current_context.is_hydrating <- false;
   !current_context.cursor_stack <- [];
+  !current_context.template_root_stack <- [];
   js_map_clear !current_context.text_nodes
 
 (** {1 Element Adoption}
@@ -96,6 +101,26 @@ let start_element_hydration (root : element) =
   let ctx = !current_context in
   if ctx.is_hydrating then
     ctx.cursor_stack <- [{ parent = root; child_index = 0 }]
+
+
+let push_template_root (root : element) : unit =
+  let ctx = !current_context in
+  if ctx.is_hydrating then
+    ctx.template_root_stack <- root :: ctx.template_root_stack
+
+let pop_template_root () : element option =
+  let ctx = !current_context in
+  match ctx.template_root_stack with
+  | [] -> None
+  | x :: xs ->
+    ctx.template_root_stack <- xs;
+    Some x
+
+let peek_template_root () : element option =
+  let ctx = !current_context in
+  match ctx.template_root_stack with
+  | [] -> None
+  | x :: _ -> Some x
 
 (** Try to adopt an existing element during hydration.
     Returns Some element if we're hydrating and the next child matches the tag. *)
@@ -226,13 +251,4 @@ let remove_hydration_markers root =
   (* Remove all marked nodes *)
   List.iter remove_node !markers_to_remove
 
-(** {1 Testing Support} *)
 
-(** Reset the hydration context.
-    Only use this for testing to ensure clean state between tests. *)
-let reset_for_testing () =
-  current_context := create_context ()
-
-(** Get current cursor depth (for debugging) *)
-let cursor_depth () =
-  List.length !current_context.cursor_stack

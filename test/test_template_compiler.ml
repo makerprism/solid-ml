@@ -98,11 +98,9 @@ module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   let render_div_conditional ~flag () =
     Html.div
       ~children:
-        [ Solid_ml_template_runtime.Tpl.nodes (fun () ->
-            if Signal.get flag then
-              Html.span ~children:[ Html.text "A" ] ()
-            else
-              Html.span ~children:[ Html.text "B" ] ()) ]
+        [ Solid_ml_template_runtime.Tpl.show
+            ~when_:(fun () -> Signal.get flag)
+            (fun () -> Html.text "A") ]
       ()
 
   (* Simulates MLX formatting whitespace around nested intrinsic tags.
@@ -245,6 +243,6 @@ let () =
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_conditional ~flag ())
   in
-  assert (html_cond_true = "<div><!--$--><span>A</span><!--$--></div>");
+  assert (html_cond_true = "<div><!--$-->A<!--$--></div>");
 
   print_endline "  PASSED"

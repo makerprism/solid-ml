@@ -102,15 +102,30 @@ let () =
   let (_result, _dispose) = Reactive_core.create_root (fun () ->
     let path = Dom.get_pathname () in
     Dom.log ("Hydrating page: " ^ path);
-    
+
     if path = "/counter" then
       hydrate_counter ()
     else if path = "/todos" then
-      hydrate_todos ();
-    
+      hydrate_todos ()
+    else if path = "/keyed" then (
+      match get_element "app" with
+      | None -> ()
+      | Some app_el ->
+        (* True hydration: adopt existing DOM. *)
+        let node = Shared.keyed_demo () in
+        ignore (Render.hydrate app_el (fun () -> Obj.magic node) ())
+    )
+    else if path = "/template-keyed" then (
+      match get_element "app" with
+      | None -> ()
+      | Some app_el ->
+        let module T = Shared_components.Template_keyed.Make (Solid_ml_browser.Env) in
+        ignore (Render.hydrate app_el (fun () -> T.view ()) ())
+    );
+
     setup_navigation ();
     show_hydration_status ();
-    
+
     Dom.log "Hydration complete!"
   ) in
   ()

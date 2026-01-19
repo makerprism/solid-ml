@@ -167,7 +167,7 @@ module type S = sig
       This is intentionally backend-specific:
       - On SSR, instantiation produces an HTML node rendered efficiently
       - On the browser, instantiation clones a DOM subtree and bindings update it *)
-  module Template : Solid_ml_template_runtime.TEMPLATE
+  module Internal_template : Solid_ml_template_runtime.TEMPLATE
     with type node := node
      and type event := event
 end

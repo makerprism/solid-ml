@@ -23,7 +23,7 @@ type node =
   | Fragment of document_fragment
   | Empty
 
-module Template : Solid_ml_template_runtime.TEMPLATE
+module Internal_template : Solid_ml_template_runtime.TEMPLATE
   with type node := node
    and type event := event
    and type element = Dom.element = struct
@@ -39,17 +39,31 @@ module Template : Solid_ml_template_runtime.TEMPLATE
 
   type text_slot = text_node
 
+  type keyed_item = {
+    start_ : Dom.node;
+    stop : Dom.node;
+    root_el : Dom.element option;
+    mutable dispose : unit -> unit;
+    mutable attached : bool;
+  }
+
+  type keyed_state = {
+    map : (string, keyed_item) Dom.js_map;
+    mutable order : string list;
+  }
+
   type nodes_slot = {
     parent : Dom.element;
     opening : Dom.node;
     closing : Dom.node;
+    keyed : keyed_state option ref;
   }
 
   type element = Dom.element
 
   let build_html (segments : string array) (slot_kinds : Solid_ml_template_runtime.slot_kind array) : string =
     if Array.length segments <> Array.length slot_kinds + 1 then
-      invalid_arg "Solid_ml_browser.Html.Template.compile: segments length must be slot_kinds length + 1";
+      invalid_arg "Solid_ml_browser.Html.Internal_template.compile: segments length must be slot_kinds length + 1";
     let buf = Buffer.create 256 in
     Buffer.add_string buf segments.(0);
     for i = 0 to Array.length slot_kinds - 1 do
@@ -78,29 +92,18 @@ module Template : Solid_ml_template_runtime.TEMPLATE
     if Array.length children <> 1 || not (is_element children.(0)) then
       invalid_arg
         (Printf.sprintf
-           "Solid_ml_browser.Html.Template.compile: expected exactly one root element (got %d). Hint: compiled templates cannot have fragments or top-level text nodes."
+           "Solid_ml_browser.Html.Internal_template.compile: expected exactly one root element (got %d). Hint: compiled templates cannot have fragments or top-level text nodes."
            (Array.length children));
     let root_el = element_of_node children.(0) in
     { container = el; root_tag = get_tag_name root_el }
 
-  let instantiate template =
-    let clone = clone_node template.container true in
-    let children = get_child_nodes clone in
-    if Array.length children <> 1 || not (is_element children.(0)) then
-      invalid_arg
-        (Printf.sprintf
-           "Solid_ml_browser.Html.Template.instantiate: expected exactly one root element (got %d)."
-           (Array.length children));
-    let root = children.(0) in
-    { root_node = root; root_repr = `Element (element_of_node root) }
-
-  let hydrate ~root template =
+  let rec normalize_for_hydration ~(root : Dom.element) ~(expected_tag : string) : unit =
     let actual = get_tag_name root in
-    if actual <> template.root_tag then
+    if actual <> expected_tag then
       invalid_arg
         (Printf.sprintf
-           "Solid_ml_browser.Html.Template.hydrate: root tag mismatch (expected %s, got %s)."
-           template.root_tag actual);
+           "Solid_ml_browser.Html.Template: root tag mismatch (expected %s, got %s)."
+           expected_tag actual);
 
     (* Normalize server-rendered DOM shape for compiled templates.
 
@@ -144,22 +147,15 @@ module Template : Solid_ml_template_runtime.TEMPLATE
                List.iter remove_node texts
              | _ -> ()))
           else if is_nodes_marker node then (
-            (* For path-stable hydration we clear any SSR content between paired
-               <!--$--> markers. The region will be re-populated via set_nodes.
-
-               Important: the closing marker is also a <!--$--> comment. We must
-               not treat it as the start of a new region, otherwise we'd delete
-               following siblings. *)
-            let rec remove_until_closing (cur : Dom.node option) : Dom.node option =
+            (* Do not clear SSR content for node regions; keep it for adoption.
+               Just skip to the closing marker. *)
+            let rec find_closing (cur : Dom.node option) : Dom.node option =
               match cur with
               | None -> None
               | Some n when is_nodes_marker n -> Some n
-              | Some n ->
-                let next = node_next_sibling n in
-                remove_node n;
-                remove_until_closing next
+              | Some n -> find_closing (node_next_sibling n)
             in
-            match remove_until_closing (node_next_sibling node) with
+            match find_closing (node_next_sibling node) with
             | None -> walk (node_next_sibling node)
             | Some closing -> walk (node_next_sibling closing))
           else
@@ -168,25 +164,119 @@ module Template : Solid_ml_template_runtime.TEMPLATE
       walk (get_first_child parent)
     in
 
-    normalize_between_markers root;
-    { root_node = node_of_element root; root_repr = `Element root }
+    normalize_between_markers root
+
+  and instantiate template =
+    if Hydration.is_hydrating () then (
+      (* Prefer an explicitly provided root (used for keyed-item attachment).
+         Otherwise adopt from the element hydration cursor.
+
+         Important: in hydration mode, silently cloning a new subtree defeats the
+         purpose of hydration and can cause duplicate DOM. We fail loudly if we
+         cannot adopt. *)
+      let adopted_root_opt =
+        match Hydration.pop_template_root () with
+        | Some root -> Some root
+        | None -> Hydration.adopt_element template.root_tag
+      in
+       match adopted_root_opt with
+       | Some root ->
+         normalize_for_hydration ~root ~expected_tag:template.root_tag;
+         { root_node = node_of_element root; root_repr = `Element root }
+       | None ->
+         invalid_arg
+           (Printf.sprintf
+              "Solid_ml_browser.Html.Internal_template.instantiate: hydration mode but could not adopt a <%s> root element"
+              template.root_tag))
+    else
+      let clone = clone_node template.container true in
+      let children = get_child_nodes clone in
+      if Array.length children <> 1 || not (is_element children.(0)) then
+        invalid_arg
+          (Printf.sprintf
+             "Solid_ml_browser.Html.Internal_template.instantiate: expected exactly one root element (got %d)."
+             (Array.length children));
+      let root = children.(0) in
+      { root_node = root; root_repr = `Element (element_of_node root) }
 
   let root inst =
     match inst.root_repr with
     | `Fragment frag -> Fragment frag
     | `Element el -> Element el
 
+  let is_nodes_marker (node : Dom.node) : bool =
+    is_comment node && comment_data (comment_of_node node) = "$"
+
+  (* Virtual child indexing for compiled templates.
+
+     Compiled templates model node-region slots using paired <!--$--> markers.
+     During CSR there are no nodes between those markers; during hydration there
+     may be SSR-rendered content (including keyed list item markers).
+
+     To keep compiler-generated paths stable, we treat all nodes between paired
+     <!--$--> markers as invisible for indexing purposes, while still keeping
+     them in the DOM for adoption. *)
+  let virtual_child_at (children : Dom.node array) (target_idx : int) : Dom.node option =
+    let v = ref 0 in
+    let i = ref 0 in
+    let len = Array.length children in
+
+    let in_region = ref false in
+    let closing_idx = ref (-1) in
+
+    let find_next_nodes_marker from_idx =
+      let j = ref from_idx in
+      while !j < len && not (is_nodes_marker children.(!j)) do
+        incr j
+      done;
+      !j
+    in
+
+    let result = ref None in
+    while !i < len && !result = None do
+      let n = children.(!i) in
+      if !v = target_idx then result := Some n;
+
+      if is_nodes_marker n then (
+        if (not !in_region) then (
+          (* Opening marker: count it, then jump to the closing marker without
+             counting any interior nodes. *)
+          in_region := true;
+          let close = find_next_nodes_marker (!i + 1) in
+          closing_idx := close;
+          incr v;
+          if close < len then i := close else i := len
+        ) else if !i = !closing_idx then (
+          (* Closing marker: count it and continue normally. *)
+          in_region := false;
+          closing_idx := -1;
+          incr v;
+          incr i
+        ) else (
+          (* Unexpected marker inside region; treat as a normal node. *)
+          incr v;
+          incr i
+        )
+      ) else (
+        incr v;
+        incr i
+      )
+    done;
+
+    !result
+
   let node_at (root : Dom.node) (path : int array) : Dom.node =
     let current = ref root in
-    for i = 0 to Array.length path - 1 do
+    for depth = 0 to Array.length path - 1 do
       let children = node_child_nodes !current in
-      let idx = path.(i) in
-      if idx < 0 || idx >= Array.length children then
-        invalid_arg
-          (Printf.sprintf
-             "Solid_ml_browser.Html.Template: path out of bounds at depth %d (idx=%d, children=%d)"
-             i idx (Array.length children));
-      current := children.(idx)
+      let idx = path.(depth) in
+      (match virtual_child_at children idx with
+       | None ->
+         invalid_arg
+           (Printf.sprintf
+              "Solid_ml_browser.Html.Template: path out of bounds at depth %d (idx=%d)"
+              depth idx)
+       | Some n -> current := n)
     done;
     !current
 
@@ -194,32 +284,27 @@ module Template : Solid_ml_template_runtime.TEMPLATE
     (* [path] is an insertion path. All but the last index locate the parent.
        The last index is the insertion position for the text node. *)
     if Array.length path = 0 then
-      invalid_arg "Solid_ml_browser.Html.Template.bind_text: empty path";
+      invalid_arg "Solid_ml_browser.Html.Internal_template.bind_text: empty path";
     let parent_path = Array.sub path 0 (Array.length path - 1) in
     let insert_idx = path.(Array.length path - 1) in
     let parent_node = node_at inst.root_node parent_path in
     if not (is_element parent_node) then
       invalid_arg
         (Printf.sprintf
-           "Solid_ml_browser.Html.Template.bind_text: parent is not an element (nodeType=%d)"
+           "Solid_ml_browser.Html.Internal_template.bind_text: parent is not an element (nodeType=%d)"
            (node_type parent_node));
     let parent_el = element_of_node parent_node in
     let children = get_child_nodes parent_el in
     let existing =
-      if insert_idx >= 0 && insert_idx < Array.length children then
-        let n = children.(insert_idx) in
-        if is_text n then Some (text_of_node n) else None
-      else
-        None
+      match virtual_child_at children insert_idx with
+      | Some n when is_text n -> Some (text_of_node n)
+      | _ -> None
     in
     match existing with
     | Some t -> t
     | None ->
       let t = create_text_node (document ()) "" in
-      let ref_node =
-        if insert_idx >= 0 && insert_idx < Array.length children then Some children.(insert_idx)
-        else None
-      in
+      let ref_node = virtual_child_at children insert_idx in
       insert_before parent_el (node_of_text t) ref_node;
       t
 
@@ -230,40 +315,63 @@ module Template : Solid_ml_template_runtime.TEMPLATE
     (* [path] is an insertion path whose last index points at the closing marker
        node for the region (typically the second <!--$-->). *)
     if Array.length path = 0 then
-      invalid_arg "Solid_ml_browser.Html.Template.bind_nodes: empty path";
+      invalid_arg "Solid_ml_browser.Html.Internal_template.bind_nodes: empty path";
     let parent_path = Array.sub path 0 (Array.length path - 1) in
     let closing_idx = path.(Array.length path - 1) in
     let parent_node = node_at inst.root_node parent_path in
     if not (is_element parent_node) then
       invalid_arg
         (Printf.sprintf
-           "Solid_ml_browser.Html.Template.bind_nodes: parent is not an element (nodeType=%d)"
+           "Solid_ml_browser.Html.Internal_template.bind_nodes: parent is not an element (nodeType=%d)"
            (node_type parent_node));
     let parent = element_of_node parent_node in
     let children = get_child_nodes parent in
-    if closing_idx < 0 || closing_idx >= Array.length children then
-      invalid_arg "Solid_ml_browser.Html.Template.bind_nodes: closing index out of bounds";
-    let closing = children.(closing_idx) in
+    let closing =
+      match virtual_child_at children closing_idx with
+      | None -> invalid_arg "Solid_ml_browser.Html.Internal_template.bind_nodes: closing index out of bounds"
+      | Some n -> n
+    in
     let is_marker (n : Dom.node) =
       is_comment n && comment_data (comment_of_node n) = "$"
     in
     if not (is_marker closing) then
-      invalid_arg "Solid_ml_browser.Html.Template.bind_nodes: closing node is not a <!--$--> marker";
+      invalid_arg "Solid_ml_browser.Html.Internal_template.bind_nodes: closing node is not a <!--$--> marker";
 
     let opening_idx =
-      let idx = ref (-1) in
-      for i = 0 to closing_idx - 1 do
-        let n = children.(i) in
-        if is_marker n then idx := i
-      done;
-      !idx
+      (* Find the previous <!--$--> marker before [closing]. *)
+      let closing_real_idx =
+        let idx = ref (-1) in
+        for i = 0 to Array.length children - 1 do
+          if children.(i) == closing then idx := i
+        done;
+        !idx
+      in
+      if closing_real_idx < 0 then -1
+      else
+        let idx = ref (-1) in
+        for i = 0 to closing_real_idx - 1 do
+          if is_marker children.(i) then idx := i
+        done;
+        !idx
     in
     if opening_idx < 0 then
-      invalid_arg "Solid_ml_browser.Html.Template.bind_nodes: could not find opening <!--$--> marker";
+      invalid_arg "Solid_ml_browser.Html.Internal_template.bind_nodes: could not find opening <!--$--> marker";
     let opening = children.(opening_idx) in
-    { parent; opening; closing }
+    { parent; opening; closing; keyed = ref None }
 
   let set_nodes (slot : nodes_slot) (value : node) : unit =
+    (* Clear keyed state: we are no longer managing this region as a keyed list. *)
+    (match !(slot.keyed) with
+     | None -> ()
+     | Some st ->
+       List.iter
+         (fun k ->
+           match Dom.js_map_get_opt st.map k with
+           | None -> ()
+           | Some item -> item.dispose ())
+         st.order;
+       Dom.js_map_clear st.map;
+       slot.keyed := None);
     (* Remove everything between markers. *)
     let rec clear_between () =
       match node_next_sibling slot.opening with
@@ -297,7 +405,7 @@ module Template : Solid_ml_template_runtime.TEMPLATE
     if not (is_element n) then
       invalid_arg
         (Printf.sprintf
-           "Solid_ml_browser.Html.Template.bind_element: node is not an element (nodeType=%d)"
+           "Solid_ml_browser.Html.Internal_template.bind_element: node is not an element (nodeType=%d)"
            (node_type n));
     element_of_node n
 
@@ -308,6 +416,223 @@ module Template : Solid_ml_template_runtime.TEMPLATE
 
   let on_ (el : element) ~event handler =
     add_event_listener el event handler
+
+  let off_ (el : element) ~event handler =
+    remove_event_listener el event handler
+
+  let set_nodes_keyed (slot : nodes_slot) ~key ~(render : 'a -> node * (unit -> unit)) (items : 'a list) : unit =
+    let state, is_new_state =
+      match !(slot.keyed) with
+      | Some s -> (s, false)
+      | None ->
+        let s = { map = Dom.js_map_create (); order = [] } in
+        slot.keyed := Some s;
+        (s, true)
+    in
+
+    let rec clear_between_markers opening closing =
+      match node_next_sibling opening with
+      | None -> ()
+      | Some n when n == closing -> ()
+      | Some n ->
+        remove_node n;
+        clear_between_markers opening closing
+    in
+
+    let rec nodes_in_range acc (cur : Dom.node option) (stop : Dom.node) =
+      match cur with
+      | None -> List.rev acc
+      | Some n ->
+        let acc = n :: acc in
+        if n == stop then List.rev acc
+        else nodes_in_range acc (node_next_sibling n) stop
+    in
+
+    let encode_key (s : string) : string =
+      let buf = Buffer.create (String.length s * 2) in
+      String.iter
+        (fun c -> Buffer.add_string buf (Printf.sprintf "%02x" (Char.code c)))
+        s;
+      Buffer.contents buf
+    in
+
+    let make_item_markers (k_enc : string) : Dom.node * Dom.node =
+      let doc = Dom.document () in
+      let start_ = Dom.node_of_comment (Dom.create_comment doc ("k:" ^ k_enc)) in
+      let stop = Dom.node_of_comment (Dom.create_comment doc "/k") in
+      (start_, stop)
+    in
+
+     let is_keyed_start (node : Dom.node) : string option =
+       if not (is_comment node) then None
+       else
+         let d = comment_data (comment_of_node node) in
+         if String.length d >= 2 && String.sub d 0 2 = "k:" then
+           Some (String.sub d 2 (String.length d - 2))
+         else
+           None
+     in
+
+     let is_keyed_stop (node : Dom.node) : bool =
+       is_comment node && comment_data (comment_of_node node) = "/k"
+     in
+
+    let adopt_existing_keyed_ranges () : unit =
+      (* Parse existing SSR content between $ markers into keyed_item ranges.
+         We recognize: <!--k:HEXKEY--> ... <!--/k--> pairs.
+
+         We also *remove* any stray nodes inside the region that are not part of
+         a keyed range, so the first reactive reconciliation produces a clean
+         region with predictable structure. *)
+      let order_rev = ref [] in
+      let rec walk cur =
+        match cur with
+        | None -> ()
+        | Some n when n == slot.closing -> ()
+        | Some n ->
+          (match is_keyed_start n with
+           | Some k_enc ->
+             let rec find_stop c =
+               match c with
+               | None -> None
+               | Some x when x == slot.closing -> None
+               | Some x when is_keyed_stop x -> Some x
+               | Some x -> find_stop (node_next_sibling x)
+             in
+             (match find_stop (node_next_sibling n) with
+              | None ->
+                (* Broken marker pair; drop the start marker and continue. *)
+                let next = node_next_sibling n in
+                remove_node n;
+                walk next
+              | Some stop ->
+                order_rev := k_enc :: !order_rev;
+                 let rec find_root (cur : Dom.node option) : Dom.element option =
+                   match cur with
+                   | None -> None
+                   | Some x when x == stop -> None
+                   | Some x -> if Dom.is_element x then Some (Dom.element_of_node x) else find_root (Dom.node_next_sibling x)
+                 in
+                 let root_el = find_root (Dom.node_next_sibling n) in
+                 Dom.js_map_set_ state.map k_enc { start_ = n; stop; root_el; dispose = (fun () -> ()); attached = false };
+
+                walk (node_next_sibling stop))
+           | None ->
+             (* Stray node (not within keyed markers); remove it. *)
+             let next = node_next_sibling n in
+             remove_node n;
+             walk next)
+      in
+      walk (node_next_sibling slot.opening);
+      state.order <- List.rev !order_rev
+    in
+
+
+
+    let move_range_before_closing (item : keyed_item) =
+      let nodes = nodes_in_range [] (Some item.start_) item.stop in
+      List.iter (fun n -> Dom.insert_before slot.parent n (Some slot.closing)) nodes
+    in
+
+    let remove_range (item : keyed_item) =
+      let nodes = nodes_in_range [] (Some item.start_) item.stop in
+      List.iter Dom.remove_node nodes
+    in
+
+    let insert_value_before_closing (value : node) =
+      match value with
+      | Empty -> ()
+      | Element el -> Dom.insert_before slot.parent (Dom.node_of_element el) (Some slot.closing)
+      | Text t -> Dom.insert_before slot.parent (Dom.node_of_text t) (Some slot.closing)
+      | Fragment frag ->
+        let children = Array.to_list (Dom.fragment_child_nodes frag) in
+        List.iter (fun n -> Dom.insert_before slot.parent n (Some slot.closing)) children
+    in
+
+    (* If we are switching from an unkeyed region (set_nodes) to a keyed region:
+       - during CSR, the region should be empty
+       - during hydration, SSR content may exist; adopt it instead of clearing
+         so we can preserve DOM nodes and avoid flicker. *)
+    if is_new_state then (
+      adopt_existing_keyed_ranges ();
+      if Dom.js_map_size state.map = 0 then clear_between_markers slot.opening slot.closing);
+
+    let new_keys = List.map (fun x -> encode_key (key x)) items in
+    let new_key_set : (string, bool) Dom.js_map = Dom.js_map_create () in
+    List.iter (fun k_enc -> Dom.js_map_set_ new_key_set k_enc true) new_keys;
+
+    (* Remove items that disappeared (including their marker range). *)
+    List.iter
+      (fun old_k ->
+        if not (Dom.js_map_has new_key_set old_k) then
+          match Dom.js_map_get_opt state.map old_k with
+          | None -> ()
+          | Some it ->
+            remove_range it;
+            it.dispose ();
+            ignore (Dom.js_map_delete state.map old_k))
+      state.order;
+
+     (* Ensure all new keys exist, creating marker ranges for new items. *)
+     List.iter
+       (fun item ->
+         let k_enc = encode_key (key item) in
+         match Dom.js_map_get_opt state.map k_enc with
+         | Some _ -> ()
+         | None ->
+           let value, dispose = render item in
+           let start_, stop = make_item_markers k_enc in
+           Dom.insert_before slot.parent start_ (Some slot.closing);
+           insert_value_before_closing value;
+           Dom.insert_before slot.parent stop (Some slot.closing);
+           Dom.js_map_set_ state.map k_enc { start_; stop; root_el = None; dispose; attached = true })
+       items;
+
+     (* Attach per-item ownership for adopted items.
+
+        For items adopted from SSR, we have DOM already but no disposer.
+        To bind cleanup semantics, we run [render] once under hydration with the
+        adopted root pushed onto the template stack. If [render] does not adopt
+        the expected root element, we immediately dispose it to avoid leaks. *)
+     if Hydration.is_hydrating () then
+       List.iter
+         (fun item ->
+           let k_enc = encode_key (key item) in
+           match Dom.js_map_get_opt state.map k_enc with
+           | None -> ()
+           | Some it when it.attached -> ()
+           | Some it ->
+             (match it.root_el with
+              | None -> it.attached <- true
+               | Some root_el ->
+                 Hydration.push_template_root root_el;
+                 let v, dispose = render item in
+                 (* If [render] did not consume the template root (by calling
+                    Internal_template.instantiate), pop it to avoid leaking stack state.
+                    If it did consume it, the stack top will differ. *)
+                 (match Hydration.peek_template_root () with
+                  | Some top when top == root_el -> ignore (Hydration.pop_template_root ())
+                  | _ -> ());
+                 (match v with
+                  | Element el when el == root_el -> it.dispose <- dispose
+                  | _ -> dispose ());
+                 it.attached <- true)
+         )
+         items;
+
+
+
+
+    (* Reorder items to match new order by moving ranges. *)
+    List.iter
+      (fun k_enc ->
+        match Dom.js_map_get_opt state.map k_enc with
+        | None -> ()
+        | Some it -> move_range_before_closing it)
+      new_keys;
+
+    state.order <- new_keys
+
 end
 
 (** {1 Node Conversion} *)

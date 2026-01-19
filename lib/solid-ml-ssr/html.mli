@@ -257,6 +257,7 @@ val text_ : ?id:string -> ?class_:string -> ?style:string -> ?x:string ->
 (** {2 Other} *)
 
 val fragment : node list -> node
+val empty : node
 
 (** {1 Compiled Templates} *)
 
@@ -266,7 +267,7 @@ type template_element
     On SSR this is an internal handle that allows [Template.set_attr] to affect
     the rendered output. *)
 
-module Template : Solid_ml_template_runtime.TEMPLATE
+module Internal_template : Solid_ml_template_runtime.TEMPLATE
   with type node := node
    and type event := event
    and type element = template_element

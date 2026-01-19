@@ -42,18 +42,26 @@ let render_append root component =
 
 (** {1 Hydration} *)
 
+let with_hydration root (f : unit -> 'a) : 'a =
+  (* Hydration is a structured phase: always tear down. *)
+  if Hydration.is_hydrating () then
+    failwith "solid-ml: Render.with_hydration called while already hydrating";
+
+  Hydration.start_hydration ();
+  Hydration.start_element_hydration root;
+
+  match f () with
+  | v ->
+    Hydration.end_hydration ();
+    v
+  | exception exn ->
+    (if Hydration.is_hydrating () then Hydration.end_hydration ());
+    raise exn
+
 (** Hydrate server-rendered HTML.
 
     This function "adopts" existing DOM nodes rendered by the server and
     attaches reactive bindings without re-rendering.
-
-    How it works:
-    1. Parse hydration markers to find existing text nodes
-    2. Enable hydration mode
-    3. Initialize element cursor at the root
-    4. Run the component to set up the reactive graph (adopting elements and text)
-    5. Clean up hydration markers from the DOM
-    6. Disable hydration mode
 
     For hydration to work correctly:
     - The component must produce the same structure as the server render
@@ -70,29 +78,18 @@ let hydrate root component =
   (* Parse hydration markers and store text node references *)
   Hydration.parse_hydration_markers root;
 
-  (* Enable hydration mode *)
-  Hydration.start_hydration ();
+  let dispose =
+    with_hydration root (fun () ->
+      let (_, dispose) =
+        Reactive_core.create_root (fun () ->
+          let _node = component () in
+          ())
+      in
 
-  (* Initialize element cursor at root for element adoption *)
-  Hydration.start_element_hydration root;
-
-  let (_, dispose) = Reactive_core.create_root (fun () ->
-    (* Run the component to set up the reactive graph.
-
-       During hydration mode:
-       - Elements are adopted from existing DOM by matching tag name and position
-       - Reactive text functions adopt text nodes via hydration markers
-       - Effects are set up to update adopted nodes when signals change
-       - Event handlers are attached to adopted elements *)
-    let _node = component () in
-    ()
-  ) in
-
-  (* Clean up hydration markers from the DOM *)
-  Hydration.remove_hydration_markers root;
-
-  (* Disable hydration mode *)
-  Hydration.end_hydration ();
+      (* Clean up hydration markers from the DOM while still in hydration mode. *)
+      Hydration.remove_hydration_markers root;
+      dispose)
+  in
 
   dispose
 

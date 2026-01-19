@@ -161,8 +161,20 @@ example-browser-router:
 	@echo ""
 	@echo "Build complete! Run 'make serve' then open http://localhost:8000/browser_router/"
 
+# Build template compiler example
+example-template-counter:
+	@echo "Building template compiler counter example..."
+	@dune build @examples/template_counter/melange
+	@mkdir -p examples/template_counter/dist
+	@rm -f examples/template_counter/dist/template_counter.js
+	@echo "Bundling with esbuild..."
+	@cd _build/default/examples/template_counter/output/examples/template_counter && \
+		npx esbuild client.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/template_counter/dist/template_counter.js --format=esm 2>/dev/null
+	@echo ""
+	@echo "Build complete! Run 'make serve' then open http://localhost:8000/template_counter/"
+
 # Build all browser examples
-browser-examples: example-browser example-browser-router
+browser-examples: example-browser example-browser-router example-template-counter
 	@echo ""
 	@echo "All browser examples built! Run 'make serve' to view them."
 

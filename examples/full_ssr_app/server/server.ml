@@ -110,8 +110,8 @@ let layout ~title:page_title ~children () =
         </style>|};
       ] ();
       body ~children:[
-        (* We wrap the content in app_layout via the shared component *)
-        Html.fragment children_list;
+        (* App root for true hydration *)
+        Html.div ~id:"app" ~children:children_list ();
         
         (* Hydration script *)
         script ~src:"/static/client.js" ~type_:"module" ~children:[] ();
@@ -175,6 +175,29 @@ let handle_home _req =
   let html = Render.to_document home_page in
   Dream.html html
 
+let handle_keyed _req =
+  let html =
+    Render.to_document (fun () ->
+      layout ~title:"Keyed - solid-ml SSR" ~children:(
+        Shared.app_layout ~children:(
+          Shared.keyed_demo ()
+        ) ()
+      ) ())
+  in
+  Dream.html html
+
+let handle_template_keyed _req =
+  let module T = Shared_components.Template_keyed.Make (Solid_ml_ssr.Env) in
+  let html =
+    Render.to_document (fun () ->
+      layout ~title:"Template-Keyed - solid-ml SSR" ~children:(
+        Shared.app_layout ~children:(
+          T.view ()
+        ) ()
+      ) ())
+  in
+  Dream.html html
+
 let handle_counter req =
   let initial = 
     Dream.query req "count"
@@ -221,6 +244,8 @@ let () =
     Dream.get "/" handle_home;
     Dream.get "/counter" handle_counter;
     Dream.get "/todos" handle_todos;
+    Dream.get "/keyed" handle_keyed;
+    Dream.get "/template-keyed" handle_template_keyed;
     Dream.get "/static/**" (Dream.static "examples/full_ssr_app/static");
     Dream.any "/**" handle_not_found;
   ]

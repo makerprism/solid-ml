@@ -84,7 +84,7 @@ This section converts “open questions” into explicit decisions so the plan i
 **Additional decision (v1): the template instance “root” for path purposes is the template root element.**
 
 - This is required for stable paths between CSR (`instantiate`) and hydration (`hydrate`).
-- Concretely, the browser `Template.instantiate` implementation should expose the single root element as the instance root (not a wrapper fragment) when used by compiled templates.
+- Concretely, the browser template instantiation implementation should expose the single root element as the instance root (not a wrapper fragment) when used by compiled templates.
 
 ### 2.2 What is a “path”?
 
@@ -274,20 +274,20 @@ Commands:
 
 **Work**
 
-- Strengthen browser `Template.hydrate` semantics:
+- Strengthen browser hydration semantics (via `Render.hydrate`):
   - validate that the hydrated `root` matches the template root tag (best-effort)
   - ensure `bind_text` insertion paths work for both CSR and hydration
 
 Likely files:
 
-- `lib/solid-ml-browser/html.ml` (`Template.hydrate`, `bind_text`, optional validation)
+- `lib/solid-ml-browser/html.ml` (normalization, `bind_text`, optional validation)
 - `test_browser/` (DOM-based hydration tests)
 
 **Tests (must pass)**
 
 - Add browser tests under `test_browser/` that:
   - render SSR HTML string into a DOM root
-  - run `Template.hydrate`
+  - hydrate via `Render.hydrate`
   - bind a text slot via an insertion path
   - update the slot and assert DOM updates
 
@@ -315,7 +315,8 @@ Commands:
     - `Tpl.text` dynamic text slots
   - emit:
     - `let template = Html.Template.compile ...`
-    - `let inst = Html.Template.instantiate template` (CSR) or `Html.Template.hydrate ~root template` (hydration)
+    - `let inst = Html.Template.instantiate template` (CSR)
+    - Hydration happens under `Render.hydrate root (fun () -> ...)` and compiled templates are adopted via `instantiate` in hydration mode
     - `let slot = Html.Template.bind_text inst ~id ~path`
     - `Env.Effect.create (fun () -> Html.Template.set_text slot (thunk ()))`
 
@@ -573,7 +574,7 @@ Marker counting rules (crucial):
 
 Hydration normalization rules:
 
-- Before any `bind_element` calls, browser `Template.hydrate` normalizes SSR DOM for `Text_slot` by removing any text nodes found between paired `#` markers.
+- Before any `bind_element` calls during hydration, the browser normalizes SSR DOM for `Text_slot` by removing any text nodes found between paired `#` markers.
 - Hydration never normalizes the contents between `$` markers.
 
 Implementation note:
@@ -627,7 +628,7 @@ For each compiled template expression, emit (conceptually):
   - `let template = Html.Template.compile ~segments ~slot_kinds`
 - an instantiation path:
   - CSR: `let inst = Html.Template.instantiate template`
-  - Hydration: `let inst = Html.Template.hydrate ~root template`
+  - Hydration: `Render.hydrate root (fun () -> ignore (Html.Template.instantiate template))`
 - bindings:
   - `let slot = Html.Template.bind_text inst ~id ~path`
   - `Env.Effect.create (fun () -> Html.Template.set_text slot (thunk ()))`

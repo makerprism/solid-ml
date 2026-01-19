@@ -14,6 +14,36 @@ type todo = {
 module Make (P : Platform_intf.S) = struct
   open P
 
+  (** Keyed list demo (SSR + hydrate adoption) *)
+  let keyed_demo () =
+    let items, set_items = Signal.create [ "alpha"; "beta"; "gamma" ] in
+
+    let remove_first () =
+      match Signal.get items with
+      | [] -> ()
+      | _ :: rest -> set_items rest
+    in
+
+    let reverse () =
+      set_items (List.rev (Signal.get items))
+    in
+
+    Html.div ~children:[
+      Html.h2 ~children:[ Html.text "Keyed Hydration Demo" ] ();
+      Html.p ~children:[ Html.text "Try reverse/remove; DOM nodes should be adopted and reordered." ] ();
+
+      Html.div ~class_:"buttons" ~children:[
+        Html.button ~class_:"btn" ~onclick:(fun _ -> reverse ()) ~children:[ Html.text "Reverse" ] ();
+        Html.button ~class_:"btn btn-secondary" ~onclick:(fun _ -> remove_first ()) ~children:[ Html.text "Remove first" ] ();
+      ] ();
+
+      Html.ul ~children:[
+        For.list items (fun s ->
+          Html.li ~id:("k-" ^ s) ~children:[ Html.text s ] ()
+        )
+      ] ()
+    ] ()
+
   (** Counter Component *)
   let counter ~initial () =
     let count, _ = Signal.create initial in
@@ -79,6 +109,10 @@ module Make (P : Platform_intf.S) = struct
         Router.link ~href:"/counter" ~class_:"nav-link" ~children:[Html.text "Counter"] ();
         Html.span ~children:[Html.text " | "] ();
         Router.link ~href:"/todo" ~class_:"nav-link" ~children:[Html.text "Todo"] ();
+        Html.span ~children:[Html.text " | "] ();
+        Router.link ~href:"/keyed" ~class_:"nav-link" ~children:[Html.text "Keyed"] ();
+        Html.span ~children:[Html.text " | "] ();
+        Router.link ~href:"/template-keyed" ~class_:"nav-link" ~children:[Html.text "Template-Keyed"] ();
       ] ();
       Html.div ~class_:"content" ~children:[
         children
