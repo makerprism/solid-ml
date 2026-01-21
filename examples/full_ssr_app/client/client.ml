@@ -53,17 +53,16 @@ let hydrate_counter () =
       | None -> 0
     in
     
-    (* Clear the static content before "hydrating" (re-rendering) 
-       Note: Real hydration would reuse nodes. For this proof of concept,
-       we re-render into the container. *)
-    Dom.set_inner_html app_el "";
-    
-    (* Mount the shared component *)
+    (* Hydrate the shared component. *)
     (* We need to cast the node type because strict typing separates
        Client_platform.Html.node from Solid_ml_browser.Html.node
        even though they are the same underlying type *)
-    let node = Shared.counter ~initial () in
-    let _disposer = Render.render app_el (fun () -> Obj.magic node) in
+    let _disposer =
+      Render.render app_el (fun () ->
+        Shared.app_layout
+          ~children:(Shared.counter_content ~initial ())
+          ())
+    in
     
     Dom.log "Counter hydrated!"
   | _ -> ()
@@ -80,12 +79,13 @@ let hydrate_todos () =
        { id = 4; text = "Deploy to production"; completed = false };
     ] in
     
-    (* Clear static content *)
-    Dom.set_inner_html app_el "";
-    
-    (* Mount the shared component *)
-    let node = Shared.todo_list ~initial_todos () in
-    let _disposer = Render.render app_el (fun () -> Obj.magic node) in
+    (* Hydrate the shared component *)
+    let _disposer =
+      Render.render app_el (fun () ->
+        Shared.app_layout
+          ~children:(Shared.todos_content ~initial_todos ())
+          ())
+    in
     
     Dom.log "Todos hydrated!"
   | None -> ()
@@ -112,15 +112,22 @@ let () =
       | None -> ()
       | Some app_el ->
         (* True hydration: adopt existing DOM. *)
-        let node = Shared.keyed_demo () in
-        ignore (Render.hydrate app_el (fun () -> Obj.magic node) ())
+        let _dispose =
+          Render.render app_el (fun () ->
+            Shared.app_layout ~children:(Shared.keyed_demo ()) ())
+        in
+        ()
     )
     else if path = "/template-keyed" then (
       match get_element "app" with
       | None -> ()
       | Some app_el ->
         let module T = Shared_components.Template_keyed.Make (Solid_ml_browser.Env) in
-        ignore (Render.hydrate app_el (fun () -> T.view ()) ())
+        let _dispose =
+          Render.render app_el (fun () ->
+            Shared.app_layout ~children:(T.view ()) ())
+        in
+        ()
     );
 
     setup_navigation ();

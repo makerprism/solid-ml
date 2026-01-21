@@ -9,15 +9,13 @@
     {[
       (* In a Dream handler *)
       let handler _req =
-        let html = Runtime.run (fun () ->
-          Render.to_string my_component
-        ) in
+      let html = Render.to_string my_component in
         Dream.html html
 
       (* Or with explicit domain parallelism *)
       let results = Array.init 4 (fun i ->
         Domain.spawn (fun () ->
-          Runtime.run (fun () ->
+          Runtime.run (fun _token ->
             (* Each domain has independent reactive state *)
             ...
           )
@@ -34,6 +32,9 @@
 (** The runtime state for a reactive execution context (opaque) *)
 type t = Reactive.runtime
 
+(** Token required for strict APIs *)
+type token
+
 (** An owner node in the reactive tree (opaque) *)
 type owner = Reactive.owner
 
@@ -47,12 +48,16 @@ val get_current_opt : unit -> t option
     This is the primary entry point for reactive code.
     
     {[
-      Runtime.run (fun () ->
-        let count, set = Signal.create 0 in
-        Effect.create (fun () ->
+      Runtime.run (fun token ->
+        let count = Signal.create token 0 in
+        Effect.create token (fun () ->
           print_int (Signal.get count)
         );
-        set 1
+        Signal.set count 1
       )
     ]} *)
-val run : (unit -> 'a) -> 'a
+val run : (token -> 'a) -> 'a
+
+module Unsafe : sig
+  val run : (unit -> 'a) -> 'a
+end

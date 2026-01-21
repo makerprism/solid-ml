@@ -17,8 +17,8 @@ open Solid_ml_ssr
 (** Simulate a component that uses signals and memos *)
 let render_component ~id ~delay_ms () =
   (* Each domain has its own isolated runtime state *)
-  let counter, _set_counter = Signal.create id in
-  let squared = Memo.create (fun () ->
+  let counter, _set_counter = Signal.Unsafe.create id in
+  let squared = Memo.Unsafe.create (fun () ->
     let n = Signal.get counter in
     n * n
   ) in
@@ -80,10 +80,10 @@ let demonstrate_isolation () =
   
   (* Spawn two domains that each create their own signals *)
   let domain1 = Domain.spawn (fun () ->
-    Runtime.run (fun () ->
-      let value, set_value = Signal.create "Domain 1 Value" in
+    Runtime.Unsafe.run (fun () ->
+      let value, set_value = Signal.Unsafe.create "Domain 1 Value" in
       (* This signal is completely isolated to this domain/runtime *)
-      Effect.create (fun () ->
+      Effect.Unsafe.create (fun () ->
         Printf.printf "[Domain 1] Signal value: %s\n" (Signal.get value)
       );
       set_value "Domain 1 Updated";
@@ -92,10 +92,10 @@ let demonstrate_isolation () =
   ) in
   
   let domain2 = Domain.spawn (fun () ->
-    Runtime.run (fun () ->
-      let value, set_value = Signal.create "Domain 2 Value" in
+    Runtime.Unsafe.run (fun () ->
+      let value, set_value = Signal.Unsafe.create "Domain 2 Value" in
       (* Completely independent from Domain 1's signal *)
-      Effect.create (fun () ->
+      Effect.Unsafe.create (fun () ->
         Printf.printf "[Domain 2] Signal value: %s\n" (Signal.get value)
       );
       set_value "Domain 2 Updated";

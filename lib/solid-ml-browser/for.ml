@@ -46,12 +46,31 @@ type 'a item_state = {
 
 (** {1 Helper Functions} *)
 
+let is_js_string : Obj.t -> bool =
+  [%mel.raw {|
+    function (x) { return typeof x === "string"; }
+  |}]
+
+let object_ids : (Obj.t, int) js_map = js_map_create ()
+let next_object_id = ref 0
+
+let get_object_id obj =
+  match js_map_get_opt object_ids obj with
+  | Some id -> id
+  | None ->
+    let id = !next_object_id in
+    incr next_object_id;
+    js_map_set_ object_ids obj id;
+    id
+
 let key_of_item (type a) (item : a) : string =
   let obj = Obj.repr item in
   if Obj.is_int obj then
     "i:" ^ string_of_int (Obj.obj obj)
+  else if is_js_string obj then
+    "s:" ^ (Obj.magic obj : string)
   else
-    "o:" ^ string_of_int (Obj.magic obj : int)
+    "o:" ^ string_of_int (get_object_id obj)
 
 (** {1 For Component} *)
 
@@ -60,39 +79,51 @@ let create (type a) (props : a for_props) : Html.node =
   let open Dom in
   
   let items_ref : a item_state list ref = ref [] in
-  let placeholder = create_comment (document ()) "for" in
-  let placeholder_node = node_of_comment placeholder in
+  let placeholder = create_text_node (document ()) "" in
+  let placeholder_node = node_of_text placeholder in
   let current_items_ref : a list ref = ref [] in
-  
-  Effect.create (fun () ->
-    let new_items = Signal.get props.each in
+
+  let build_state index item =
+    let html_node = props.children item (fun () -> index) in
+    let node = Html.to_dom_node html_node in
+    ({ item; node; index }, html_node)
+  in
+
+  let initial_items = Signal.peek props.each in
+  let initial_states, initial_nodes =
+    List.mapi build_state initial_items
+    |> List.split
+  in
+  items_ref := initial_states;
+  current_items_ref := initial_items;
+
+  let update_items new_items =
     let old_items = !current_items_ref in
-    
     if old_items == new_items then
       ()
     else
       begin
         current_items_ref := new_items;
-        
+
         let key_to_state = js_map_create () in
         List.iter (fun state ->
           let key = key_of_item state.item in
           js_map_set_ key_to_state key state
         ) !items_ref;
-        
+
         let parent = match node_parent_node placeholder_node with
           | Some parent -> element_of_node parent
-          | None -> assert false
+          | None -> raise (Failure "solid-ml: For placeholder not mounted")
         in
-        
+
         let new_states = ref [] in
         let processed_keys = js_map_create () in
-        
+
         List.iteri (fun new_index new_item ->
           let key = key_of_item new_item in
-          
+
           let state = match js_map_get_opt key_to_state key with
-            | Some existing -> 
+            | Some existing ->
               existing.index <- new_index;
               js_map_set_ processed_keys key existing;
               existing
@@ -104,7 +135,7 @@ let create (type a) (props : a for_props) : Html.node =
           in
           new_states := state :: !new_states
         ) new_items;
-        
+
         List.iter (fun old_state ->
           let key = key_of_item old_state.item in
           if not (js_map_has processed_keys key) then
@@ -113,14 +144,18 @@ let create (type a) (props : a for_props) : Html.node =
               items_ref := List.filter (fun s -> s != old_state) !items_ref
             end
         ) !items_ref;
-        
+
         items_ref := List.rev !new_states;
-        
+
         let item_nodes = List.map (fun s -> s.node) !items_ref in
         List.iter (fun node -> remove_node node) item_nodes;
         List.iter (fun node -> insert_before parent node (Some placeholder_node)) item_nodes
       end
-  );
+  in
+
+  Effect.create_deferred
+    ~track:(fun () -> Signal.get props.each)
+    ~run:update_items;
   
   Owner.on_cleanup (fun () ->
     List.iter (fun state -> Dom.remove_node state.node) !items_ref
@@ -129,22 +164,25 @@ let create (type a) (props : a for_props) : Html.node =
   match props.fallback with
   | Some fb ->
     let fallback_node = Html.to_dom_node fb in
-    let fallback_placeholder = create_comment (document ()) "for-fallback" in
-    
-    Effect.create (fun () ->
-      let items = Signal.get props.each in
-      let parent = element_of_node (Option.get (node_parent_node placeholder_node)) in
-      if items = [] then
-        insert_before parent fallback_node (Some placeholder_node)
-      else
-        Dom.remove_node fallback_node
-    );
+    let _fallback_placeholder = create_comment (document ()) "for-fallback" in
+
+    Effect.create_deferred
+      ~track:(fun () -> Signal.get props.each)
+      ~run:(fun items ->
+        let parent = match node_parent_node placeholder_node with
+          | Some parent -> element_of_node parent
+          | None -> raise (Failure "solid-ml: For fallback not mounted")
+        in
+        if items = [] then
+          insert_before parent fallback_node (Some placeholder_node)
+        else
+          Dom.remove_node fallback_node);
     
     Owner.on_cleanup (fun () -> Dom.remove_node fallback_node);
     
-    Text (create_text_node (document ()) "")
+    Html.fragment (initial_nodes @ [Text placeholder])
   | None ->
-    Text (create_text_node (document ()) "")
+    Html.fragment (initial_nodes @ [Text placeholder])
 
 (** {1 Shorthand} *)
 

@@ -4,10 +4,11 @@
     signal they read changes.
     
     {[
-      let count, set_count = Signal.create 0
+      (* token comes from Runtime.run *)
+      let count, set_count = Signal.create token 0
       
       (* This effect re-runs whenever count changes *)
-      Effect.create (fun () ->
+      Effect.create token (fun () ->
         print_endline ("Count is: " ^ string_of_int (Signal.get count))
       )
       
@@ -21,33 +22,35 @@
     signal read during execution changes.
     
     {[
-      Effect.create (fun () ->
+      Effect.create token (fun () ->
         (* Any Signal.get calls here are tracked *)
         let value = Signal.get some_signal in
         do_something_with value
       )
     ]}
 *)
-val create : (unit -> unit) -> unit
+type token = Runtime.token
+
+val create : token -> (unit -> unit) -> unit
 
 (** Create an effect that returns a cleanup function.
     The cleanup runs before each re-execution and on disposal.
     
     {[
-      Effect.create_with_cleanup (fun () ->
+      Effect.create_with_cleanup token (fun () ->
         let subscription = subscribe_to_something () in
         (* Return cleanup function *)
         fun () -> unsubscribe subscription
       )
     ]}
 *)
-val create_with_cleanup : (unit -> (unit -> unit)) -> unit
+val create_with_cleanup : token -> (unit -> (unit -> unit)) -> unit
 
 (** Run a function without tracking any signal reads.
     Useful when you want to read a signal without subscribing.
     
     {[
-      Effect.create (fun () ->
+      Effect.create token (fun () ->
         let tracked = Signal.get signal_a in
         let untracked = Effect.untrack (fun () -> Signal.get signal_b) in
         (* Effect only re-runs when signal_a changes, not signal_b *)
@@ -55,7 +58,7 @@ val create_with_cleanup : (unit -> (unit -> unit)) -> unit
       )
     ]}
 *)
-val untrack : (unit -> 'a) -> 'a
+val untrack : token -> (unit -> 'a) -> 'a
 
 (** Create an effect that skips the side effect on first execution.
     Useful when initial values are set directly and only updates need the effect.
@@ -72,14 +75,14 @@ val untrack : (unit -> 'a) -> 'a
       Dom.set_text_content el (Signal.peek label);
       
       (* Effect only updates on changes, not initial render *)
-      Effect.create_deferred
+      Effect.create_deferred token
         ~track:(fun () -> Signal.get label)
         ~run:(fun label -> Dom.set_text_content el label)
     ]}
     
     @param track Function that reads signals to track (auto-tracked)
     @param run Side effect function, receives the tracked value *)
-val create_deferred : track:(unit -> 'a) -> run:('a -> unit) -> unit
+val create_deferred : token -> track:(unit -> 'a) -> run:('a -> unit) -> unit
 
 (** Create an effect with explicit dependencies (like SolidJS's `on`).
     
@@ -88,8 +91,8 @@ val create_deferred : track:(unit -> 'a) -> run:('a -> unit) -> unit
     The body of [fn] is NOT tracked - only [deps] is tracked.
     
     {[
-      let count, set_count = Signal.create 0 in
-      let name, set_name = Signal.create "Alice" in
+      let count, set_count = Signal.create token 0 in
+      let name, set_name = Signal.create token "Alice" in
       
       (* Only re-runs when count changes, NOT when name changes *)
       Effect.on
@@ -103,4 +106,12 @@ val create_deferred : track:(unit -> 'a) -> run:('a -> unit) -> unit
     @param defer If true, skip the first execution (default: false)
     @param deps Function that reads signals to track
     @param fn Callback receiving ~value (current) and ~prev (previous dep value) *)
-val on : ?defer:bool -> (unit -> 'a) -> (value:'a -> prev:'a -> unit) -> unit
+val on : token -> ?defer:bool -> (unit -> 'a) -> (value:'a -> prev:'a -> unit) -> unit
+
+module Unsafe : sig
+  val create : (unit -> unit) -> unit
+  val create_with_cleanup : (unit -> (unit -> unit)) -> unit
+  val untrack : (unit -> 'a) -> 'a
+  val create_deferred : track:(unit -> 'a) -> run:('a -> unit) -> unit
+  val on : ?defer:bool -> (unit -> 'a) -> (value:'a -> prev:'a -> unit) -> unit
+end

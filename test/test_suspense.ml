@@ -1,13 +1,14 @@
 (** Tests for Suspense and ErrorBoundary *)
 
 open Solid_ml
+
 open Solid_ml_router
 
 (* Test utilities *)
 let test name f =
   Printf.printf "Test: %s\n%!" name;
   try
-    Runtime.run f;
+    Runtime.Unsafe.run f;
     Printf.printf "  PASSED\n%!"
   with e ->
     Printf.printf "  FAILED: %s\n%!" (Printexc.to_string e)
@@ -57,8 +58,8 @@ let () = test "Suspense transitions from fallback to content when resource resol
   let resource = Resource.create_loading () in
   let results = ref [] in
   
-  let _dispose = Owner.create_root (fun () ->
-    Effect.create (fun () ->
+  let _dispose = Owner.Unsafe.create_root (fun () ->
+    Effect.Unsafe.create (fun () ->
       let result = Suspense.boundary
         ~fallback:(fun () -> "loading...")
         (fun () ->
@@ -85,8 +86,8 @@ let () = test "Suspense with multiple resources waits for all" (fun () ->
   let resource2 = Resource.create_loading () in
   let results = ref [] in
   
-  let _dispose = Owner.create_root (fun () ->
-    Effect.create (fun () ->
+  let _dispose = Owner.Unsafe.create_root (fun () ->
+    Effect.Unsafe.create (fun () ->
       let result = Suspense.boundary
         ~fallback:(fun () -> "loading...")
         (fun () ->
@@ -137,8 +138,8 @@ let () = test "Nested Suspense boundaries work independently" (fun () ->
   let inner_resource = Resource.create_loading () in
   let results = ref [] in
   
-  let _dispose = Owner.create_root (fun () ->
-    Effect.create (fun () ->
+  let _dispose = Owner.Unsafe.create_root (fun () ->
+    Effect.Unsafe.create (fun () ->
       let result = Suspense.boundary
         ~fallback:(fun () -> "outer loading")
         (fun () ->
@@ -182,7 +183,7 @@ let () = test "Nested Suspense boundaries work independently" (fun () ->
 let () = print_endline "\n=== ErrorBoundary Tests ===\n"
 
 let () = test "ErrorBoundary renders children when no error" (fun () ->
-  let result = ErrorBoundary.make
+  let result = ErrorBoundary.Unsafe.make
     ~fallback:(fun ~error ~reset:_ -> "error: " ^ error)
     (fun () -> "success")
   in
@@ -191,7 +192,7 @@ let () = test "ErrorBoundary renders children when no error" (fun () ->
 )
 
 let () = test "ErrorBoundary catches exception and shows fallback" (fun () ->
-  let result = ErrorBoundary.make
+  let result = ErrorBoundary.Unsafe.make
     ~fallback:(fun ~error ~reset:_ -> "caught: " ^ error)
     (fun () -> failwith "test error")
   in
@@ -203,7 +204,7 @@ let () = test "ErrorBoundary catches exception and shows fallback" (fun () ->
 let () = test "ErrorBoundary catches Resource error" (fun () ->
   let resource = Resource.of_error "resource failed" in
   
-  let result = ErrorBoundary.make
+  let result = ErrorBoundary.Unsafe.make
     ~fallback:(fun ~error ~reset:_ -> "error: " ^ error)
     (fun () ->
       let _data = Resource.read_suspense ~default:"" resource in
@@ -216,7 +217,7 @@ let () = test "ErrorBoundary catches Resource error" (fun () ->
 )
 
 let () = test "ErrorBoundary.make_simple works" (fun () ->
-  let result = ErrorBoundary.make_simple
+  let result = ErrorBoundary.Unsafe.make_simple
     ~fallback:(fun error -> "simple error: " ^ error)
     (fun () -> failwith "oops")
   in
@@ -229,8 +230,8 @@ let () = test "ErrorBoundary reset re-renders children" (fun () ->
   let should_fail = ref true in
   let reset_fn = ref (fun () -> ()) in
   
-  let _dispose = Owner.create_root (fun () ->
-    let _result = ErrorBoundary.make
+  let _dispose = Owner.Unsafe.create_root (fun () ->
+    let _result = ErrorBoundary.Unsafe.make
       ~fallback:(fun ~error:_ ~reset -> 
         reset_fn := reset;
         "error state"
@@ -263,9 +264,9 @@ let () = test "ErrorBoundary wrapping Suspense catches resource errors" (fun () 
   let resource = Resource.create_loading () in
   let results = ref [] in
   
-  let _dispose = Owner.create_root (fun () ->
-    Effect.create (fun () ->
-      let result = ErrorBoundary.make
+  let _dispose = Owner.Unsafe.create_root (fun () ->
+    Effect.Unsafe.create (fun () ->
+      let result = ErrorBoundary.Unsafe.make
         ~fallback:(fun ~error ~reset:_ -> "error: " ^ error)
         (fun () ->
           Suspense.boundary

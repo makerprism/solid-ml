@@ -3,23 +3,31 @@
 module Server_Platform : (Shared_components.Platform_intf.S 
   with type Html.node = Solid_ml_ssr.Html.node 
   and type Html.event = unit) = struct
-  module Signal = struct 
-    include Solid_ml.Signal 
-    let create v = create v 
+  module Signal = struct
+    type 'a t = 'a Solid_ml.Signal.t
+
+    let create v = Solid_ml.Signal.Unsafe.create v
+    let get = Solid_ml.Signal.get
+    let set = Solid_ml.Signal.set
+    let update = Solid_ml.Signal.update
+    let peek = Solid_ml.Signal.peek
   end
-  module Memo = struct 
-    include Solid_ml.Memo
-    let create f = create f
+  module Memo = struct
+    type 'a t = 'a Solid_ml.Memo.t
+
+    let create f = Solid_ml.Memo.Unsafe.create f
+    let get = Solid_ml.Memo.Unsafe.get
+
     (* Convert Memo to read-only Signal via a computed *)
-    let as_signal m = 
+    let as_signal m =
       let initial = get m in
-      let s, set_s = Solid_ml.Signal.create initial in
-      Solid_ml.Effect.create (fun () ->
+      let s, set_s = Solid_ml.Signal.Unsafe.create initial in
+      Solid_ml.Effect.Unsafe.create (fun () ->
         set_s (get m)
       );
       s
   end
-  module Effect = Solid_ml.Effect
+  module Effect = Solid_ml.Effect.Unsafe
   
   module Html = struct
     include Solid_ml_ssr.Html
@@ -59,10 +67,10 @@ module Server_Platform : (Shared_components.Platform_intf.S
     let li ?id ?class_ ?(children=[]) () =
       li ?id ?class_ ~children ()
 
-    let input ?type_ ?checked ?oninput ?onchange () =
+    let input ?id ?type_ ?value ?checked ?oninput ?onchange () =
       let _ = oninput in
       let _ = onchange in
-      input ?type_ ?checked ()
+      input ?id ?type_ ?value ?checked ()
   end
 
   module For = struct

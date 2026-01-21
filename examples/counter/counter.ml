@@ -15,17 +15,17 @@ open Solid_ml
 (** Helper to run example within a runtime *)
 let run_example name fn =
   print_endline ("=== " ^ name ^ " ===\n");
-  Runtime.run (fun () ->
-    let dispose = Owner.create_root fn in
+  Runtime.run (fun token ->
+    let dispose = Owner.create_root token (fun () -> fn token) in
     dispose ()
   );
   print_endline ""
 
 (** Simple counter with derived values *)
 let counter_example () =
-  run_example "Counter Example" (fun () ->
+  run_example "Counter Example" (fun token ->
     (* Create a signal for the count *)
-    let count, set_count = Signal.create 0 in
+    let count, _set_count = Signal.create token 0 in
 
     (* Idiomatic: use plain function for simple derived state *)
     (* Only use Memo.create for expensive computations that need explicit caching *)
@@ -39,16 +39,16 @@ let counter_example () =
     in
 
     (* Effect that prints whenever the message changes *)
-    Effect.create (fun () ->
+    Effect.create token (fun () ->
       print_endline (message ())
     );
 
     (* Increment the counter *)
     print_endline "\n[Incrementing...]";
-    set_count 1;
+    Signal.set count 1;
 
     print_endline "\n[Incrementing...]";
-    set_count 2;
+    Signal.set count 2;
 
     print_endline "\n[Setting to 10...]";
     Signal.set count 10;
@@ -60,33 +60,35 @@ let counter_example () =
 (** Example with cleanup *)
 let cleanup_example () =
   print_endline "=== Cleanup Example ===\n";
-  
-  Runtime.run (fun () ->
+
+  Runtime.run (fun token ->
     (* Signal lives outside the disposable root *)
-    let count, set_count = Signal.create 0 in
-    
+    let count, _set_count = Signal.create token 0 in
+
     (* Create a root that owns the effect *)
-    let dispose = Owner.create_root (fun () ->
-      Effect.create_with_cleanup (fun () ->
-        let c = Signal.get count in
-        print_endline (Printf.sprintf "Effect running, count = %d" c);
-        (* Return cleanup function *)
-        fun () ->
-          print_endline (Printf.sprintf "  Cleaning up from count = %d" c)
+    let dispose =
+      Owner.create_root token (fun () ->
+        Effect.create_with_cleanup token (fun () ->
+          let c = Signal.get count in
+          print_endline (Printf.sprintf "Effect running, count = %d" c);
+          (* Return cleanup function *)
+          fun () ->
+            print_endline (Printf.sprintf "  Cleaning up from count = %d" c)
+        )
       )
-    ) in
-    
+    in
+
     print_endline "\n[Updating count...]";
-    set_count 1;
-    
+    Signal.set count 1;
+
     print_endline "\n[Updating count again...]";
-    set_count 2;
-    
+    Signal.set count 2;
+
     print_endline "\n[Disposing root...]";
     dispose ();
-    
+
     print_endline "\n[Updating after dispose (no effect)...]";
-    set_count 3;
+    Signal.set count 3;
     print_endline "(Effect no longer runs)"
   );
   
@@ -94,13 +96,13 @@ let cleanup_example () =
 
 (** Example with conditional dependencies *)
 let conditional_example () =
-  run_example "Conditional Dependencies Example" (fun () ->
-    let use_celsius, set_use_celsius = Signal.create true in
-    let celsius, set_celsius = Signal.create 20.0 in
-    let fahrenheit, set_fahrenheit = Signal.create 68.0 in
+  run_example "Conditional Dependencies Example" (fun token ->
+    let use_celsius, _set_use_celsius = Signal.create token true in
+    let celsius, _set_celsius = Signal.create token 20.0 in
+    let fahrenheit, _set_fahrenheit = Signal.create token 68.0 in
     
     (* This effect only tracks the currently active temperature *)
-    Effect.create (fun () ->
+    Effect.create token (fun () ->
       let temp =
         if Signal.get use_celsius then
           Printf.sprintf "%.1f°C" (Signal.get celsius)
@@ -111,26 +113,26 @@ let conditional_example () =
     );
     
     print_endline "\n[Changing Celsius (tracked)...]";
-    set_celsius 25.0;
+    Signal.set celsius 25.0;
     
     print_endline "\n[Changing Fahrenheit (NOT tracked while in Celsius mode)...]";
-    set_fahrenheit 100.0;
+    Signal.set fahrenheit 100.0;
     print_endline "(No output - Fahrenheit not tracked)";
     
     print_endline "\n[Switching to Fahrenheit mode...]";
-    set_use_celsius false;
+    Signal.set use_celsius false;
     
     print_endline "\n[Changing Fahrenheit (now tracked)...]";
-    set_fahrenheit 72.0;
+    Signal.set fahrenheit 72.0;
     
     print_endline "\n[Changing Celsius (no longer tracked)...]";
-    set_celsius 30.0;
+    Signal.set celsius 30.0;
     print_endline "(No output - Celsius no longer tracked)"
   )
 
 (** Example with context *)
 let context_example () =
-  run_example "Context Example" (fun () ->
+  run_example "Context Example" (fun _token ->
     (* Create a "theme" context *)
     let theme_context = Context.create "light" in
     
@@ -155,9 +157,9 @@ let context_example () =
 
 (** Example with batching *)
 let batch_example () =
-  run_example "Batch Example" (fun () ->
-    let first_name, set_first = Signal.create "John" in
-    let last_name, set_last = Signal.create "Doe" in
+  run_example "Batch Example" (fun token ->
+    let first_name, _set_first_name = Signal.create token "John" in
+    let last_name, _set_last_name = Signal.create token "Doe" in
 
     let effect_count = ref 0 in
 
@@ -166,19 +168,19 @@ let batch_example () =
       Signal.get first_name ^ " " ^ Signal.get last_name
     in
 
-    Effect.create (fun () ->
+    Effect.create token (fun () ->
       incr effect_count;
       print_endline (Printf.sprintf "[Run %d] Full name: %s" !effect_count (full_name ()))
     );
 
     print_endline "\n[Without batch - two separate updates:]";
-    set_first "Jane";
-    set_last "Smith";
+    Signal.set first_name "Jane";
+    Signal.set last_name "Smith";
 
     print_endline "\n[With batch - single update:]";
-    Batch.run (fun () ->
-      set_first "Bob";
-      set_last "Johnson"
+    Batch.run token (fun () ->
+      Signal.set first_name "Bob";
+      Signal.set last_name "Johnson"
     );
 
     print_endline "";

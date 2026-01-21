@@ -11,10 +11,11 @@
     
     {[
       (* Create a root that owns everything inside *)
-      let dispose = Owner.create_root (fun () ->
-        let count, _set_count = Signal.create 0 in
+      (* token comes from Runtime.run *)
+      let dispose = Owner.create_root token (fun () ->
+        let count, _set_count = Signal.create token 0 in
         
-        Effect.create (fun () ->
+        Effect.create token (fun () ->
           print_endline (string_of_int (Signal.get count))
         );
         
@@ -29,26 +30,28 @@
 (** An ownership scope that tracks child computations (opaque) *)
 type t = Reactive.owner
 
+type token = Runtime.token
+
 (** Create a new root ownership scope.
     Returns a dispose function that cleans up all owned computations.
     
     If called outside a runtime, creates a temporary one.
     
     {[
-      let dispose = Owner.create_root (fun () ->
+      let dispose = Owner.create_root token (fun () ->
         (* Effects created here are owned by this root *)
-        Effect.create (fun () -> ...)
+        Effect.create token (fun () -> ...)
       ) in
       dispose ()  (* Cleans up everything *)
     ]}
 *)
-val create_root : (unit -> unit) -> (unit -> unit)
+val create_root : token -> (unit -> unit) -> (unit -> unit)
 
 (** Run a function within a new ownership scope.
     The scope is a child of the current owner (if any).
     Returns the result and a dispose function.
 *)
-val run_with_owner : (unit -> 'a) -> 'a * (unit -> unit)
+val run_with_owner : token -> (unit -> 'a) -> 'a * (unit -> unit)
 
 (** Get the current owner (if any).
     Returns None if not inside any ownership scope.
@@ -86,3 +89,10 @@ val on_cleanup : (unit -> unit) -> unit
     @param handler Error handler that returns a fallback value
     @return Result of [fn], or handler's fallback if [fn] threw *)
 val catch_error : (unit -> 'a) -> (exn -> 'a) -> 'a
+
+module Unsafe : sig
+  val create_root : (unit -> unit) -> (unit -> unit)
+  val run_with_owner : (unit -> 'a) -> 'a * (unit -> unit)
+  val on_cleanup : (unit -> unit) -> unit
+  val get_owner : unit -> t option
+end

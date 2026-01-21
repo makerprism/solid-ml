@@ -45,7 +45,7 @@ module type S = sig
     val h1 : ?children:node list -> unit -> node
     val h2 : ?children:node list -> unit -> node
     val button : ?id:string -> ?class_:string -> ?onclick:(event -> unit) -> children:node list -> unit -> node
-    val input : ?type_:string -> ?checked:bool -> ?oninput:(event -> unit) -> ?onchange:(event -> unit) -> unit -> node
+    val input : ?id:string -> ?type_:string -> ?value:string -> ?checked:bool -> ?oninput:(event -> unit) -> ?onchange:(event -> unit) -> unit -> node
     val ul : ?id:string -> ?class_:string -> ?children:node list -> unit -> node
     val li : ?id:string -> ?class_:string -> ?children:node list -> unit -> node
     val a : ?href:string -> ?class_:string -> ?onclick:(event -> unit) -> children:node list -> unit -> node

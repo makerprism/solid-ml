@@ -12,12 +12,13 @@
 *)
 
 open Solid_ml_browser
-open Reactive
+
+module Strict = Reactive.Strict
 
 (** Simple counter component *)
-let counter () =
-  let count, set_count = Signal.create 0 in
-  let doubled = Memo.create (fun () -> Signal.get count * 2) in
+let counter token =
+  let count, set_count = Strict.create_signal token 0 in
+  let doubled = Strict.create_memo token (fun () -> Strict.get_signal token count * 2) in
   
   Html.(
     div ~id:"counter" ~class_:"counter-app" ~children:[
@@ -37,12 +38,12 @@ let counter () =
       div ~class_:"buttons" ~children:[
         button 
           ~class_:"btn" 
-          ~onclick:(fun _ -> Signal.update count (fun n -> n - 1))
+          ~onclick:(fun _ -> Strict.update_signal token count (fun n -> n - 1))
           ~children:[text "-"] 
           ();
         button 
           ~class_:"btn" 
-          ~onclick:(fun _ -> Signal.update count (fun n -> n + 1))
+          ~onclick:(fun _ -> Strict.update_signal token count (fun n -> n + 1))
           ~children:[text "+"] 
           ();
         button 
@@ -62,26 +63,26 @@ type todo = {
 }
 
 (** Todo list component *)
-let todo_list () =
-  let todos, _set_todos = Signal.create [
+let todo_list token =
+  let todos, _set_todos = Strict.create_signal token [
     { id = 0; text = "Learn solid-ml"; completed = false };
     { id = 1; text = "Build something cool"; completed = false };
   ] in
   let next_id = ref 2 in
-  let new_todo_text, set_new_todo_text = Signal.create "" in
+  let new_todo_text, set_new_todo_text = Strict.create_signal token "" in
   
   let add_todo () =
-    let text = Signal.get new_todo_text in
+    let text = Strict.get_signal token new_todo_text in
     if String.length text > 0 then begin
       let id = !next_id in
       incr next_id;
-      Signal.update todos (fun ts -> ts @ [{ id; text; completed = false }]);
+      Strict.update_signal token todos (fun ts -> ts @ [{ id; text; completed = false }]);
       set_new_todo_text ""
     end
   in
   
   let toggle_todo id =
-    Signal.update todos (fun ts ->
+    Strict.update_signal token todos (fun ts ->
       List.map (fun t ->
         if t.id = id then { t with completed = not t.completed }
         else t
@@ -90,13 +91,13 @@ let todo_list () =
   in
   
   let remove_todo id =
-    Signal.update todos (fun ts ->
+    Strict.update_signal token todos (fun ts ->
       List.filter (fun t -> t.id <> id) ts
     )
   in
   
-  let incomplete_count = Memo.create (fun () ->
-    List.filter (fun t -> not t.completed) (Signal.get todos)
+  let incomplete_count = Strict.create_memo token (fun () ->
+    List.filter (fun t -> not t.completed) (Strict.get_signal token todos)
     |> List.length
   ) in
   
@@ -146,7 +147,7 @@ let todo_list () =
             span ~children:[text todo.text] ();
             button 
               ~class_:"delete" 
-              ~onclick:(fun _ -> remove_todo todo.id)
+          ~onclick:(fun _ -> remove_todo todo.id)
               ~children:[text "x"] 
               ();
           ] ()
@@ -159,14 +160,13 @@ let todo_list () =
 let () =
   match Dom.get_element_by_id (Dom.document ()) "app" with
   | Some root ->
-    let _dispose = Render.render root (fun () ->
+    let _dispose = Render.render_strict root (fun token ->
       Html.fragment [
-        counter ();
+        counter token;
         Html.hr ();
-        todo_list ();
+        todo_list token;
       ]
     ) in
     Dom.log "solid-ml app mounted!"
   | None ->
     Dom.error "Could not find #app element"
-
