@@ -1,4 +1,4 @@
 (melange.emit
  (target client_output)
- (libraries solid-ml-browser)
+ (libraries solid-ml-browser ssr_hydration_shared)
  (module_systems es6))

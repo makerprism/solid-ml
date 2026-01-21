@@ -3,24 +3,27 @@ module C (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Env
 
   module Html = Env.Html
+  open Html
+
+  let _ = empty
 
   let render_a_some ~name () =
-    <Html.a href=(Solid_ml_template_runtime.Tpl.attr_opt ~name:"href" (fun () -> Some "/x?y=<z>"))>
-      (Html.text "Go ")
+    <a href=(Solid_ml_template_runtime.Tpl.attr_opt ~name:"href" (fun () -> Some "/x?y=<z>"))>
+      (text "Go ")
       (Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name))
-    </Html.a>
+    </a>
 
   let render_a_none ~name () =
-    <Html.a href=(Solid_ml_template_runtime.Tpl.attr_opt ~name:"href" (fun () -> None))>
-      (Html.text "Go ")
+    <a href=(Solid_ml_template_runtime.Tpl.attr_opt ~name:"href" (fun () -> None))>
+      (text "Go ")
       (Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name))
-    </Html.a>
+    </a>
 
   let render_a_attr ~href ~name () =
-    <Html.a href=(Solid_ml_template_runtime.Tpl.attr ~name:"href" (fun () -> Signal.get href))>
-      (Html.text "Go ")
+    <a href=(Solid_ml_template_runtime.Tpl.attr ~name:"href" (fun () -> Signal.get href))>
+      (text "Go ")
       (Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name))
-    </Html.a>
+    </a>
 end
 
 let () =

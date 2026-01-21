@@ -1007,7 +1007,7 @@ let form ?id ?class_ ?action ?method_ ?enctype ?onsubmit ?(attrs=[]) ~children (
 
 let input ?id ?class_ ?type_ ?name ?value ?placeholder ?accept ?min ?max ?step
     ?(required=false) ?(disabled=false) ?(checked=false) ?(autofocus=false) ?(readonly=false)
-    ?tabindex ?oninput ?onchange ?onkeydown ?(data=[]) ?(attrs=[]) () =
+    ?tabindex ?oninput ?onchange ?onkeydown ?(data=[]) ?(attrs=[]) ?children:_children () =
   make_element_with_attrs "input" ?id ?class_ ?oninput ?onchange ?onkeydown ~attrs (fun el ->
     set_opt_attr el "type" type_;
     set_opt_attr el "name" name;
@@ -1152,7 +1152,7 @@ let portal ?target ?(is_svg=false) ~(children : node) () : node =
 (** {1 SVG Elements} *)
 
 module Svg = struct
-  let svg ?id ?class_ ?style ?viewBox ?width ?height ?fill ?onclick ?(attrs=[]) ~children () =
+  let svg ?xmlns:_xmlns ?id ?class_ ?style ?viewBox ?width ?height ?fill ?onclick ?(attrs=[]) ~children () =
     let el = create_element_ns (document ()) svg_namespace "svg" in
     set_opt_attr el "id" id;
     set_opt_attr el "class" class_;
@@ -1442,8 +1442,8 @@ module Svg = struct
     Element el
 end
 
-let svg ?id ?class_ ?style ?viewBox ?width ?height ?fill ?onclick ?attrs ~children () =
-  Svg.svg ?id ?class_ ?style ?viewBox ?width ?height ?fill ?onclick ?attrs ~children ()
+let svg ?xmlns ?id ?class_ ?style ?viewBox ?width ?height ?fill ?onclick ?attrs ~children () =
+  Svg.svg ?xmlns ?id ?class_ ?style ?viewBox ?width ?height ?fill ?onclick ?attrs ~children ()
 
 let g ?id ?class_ ?style ?transform ?fill ?stroke ?onclick ?attrs ~children () =
   Svg.g ?id ?class_ ?style ?transform ?fill ?stroke ?onclick ?attrs ~children ()

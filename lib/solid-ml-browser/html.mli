@@ -137,7 +137,7 @@ val input : ?id:string -> ?class_:string -> ?type_:string -> ?name:string ->
   ?value:string -> ?placeholder:string -> ?accept:string -> ?min:string -> ?max:string -> ?step:string ->
   ?required:bool -> ?disabled:bool -> ?checked:bool -> ?autofocus:bool -> ?readonly:bool ->
   ?tabindex:int -> ?oninput:(event -> unit) -> ?onchange:(event -> unit) ->
-  ?onkeydown:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> unit -> node
+  ?onkeydown:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> ?children:node list -> unit -> node
 
 val textarea : ?id:string -> ?class_:string -> ?name:string -> ?placeholder:string ->
   ?rows:int -> ?cols:int -> ?required:bool -> ?disabled:bool -> ?autofocus:bool -> ?readonly:bool ->
@@ -166,7 +166,7 @@ val img : ?id:string -> ?class_:string -> ?src:string -> ?alt:string ->
 
 module Svg : sig
   (** Browser SVG helpers using namespaced DOM creation. *)
-  val svg : ?id:string -> ?class_:string -> ?style:string -> ?viewBox:string -> ?width:string -> ?height:string -> ?fill:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
+  val svg : ?xmlns:bool -> ?id:string -> ?class_:string -> ?style:string -> ?viewBox:string -> ?width:string -> ?height:string -> ?fill:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
   val g : ?id:string -> ?class_:string -> ?style:string -> ?transform:string -> ?fill:string -> ?stroke:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
   val circle : ?id:string -> ?class_:string -> ?style:string -> ?cx:string ->
     ?cy:string -> ?r:string -> ?fill:string -> ?stroke:string -> ?stroke_width:string ->
@@ -212,7 +212,7 @@ module Svg : sig
     ?width:string -> ?height:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
 end
 
-val svg : ?id:string -> ?class_:string -> ?style:string -> ?viewBox:string ->
+val svg : ?xmlns:bool -> ?id:string -> ?class_:string -> ?style:string -> ?viewBox:string ->
   ?width:string -> ?height:string -> ?fill:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val g : ?id:string -> ?class_:string -> ?style:string -> ?transform:string ->
   ?fill:string -> ?stroke:string -> ?onclick:(event -> unit) -> ?attrs:(string * string) list -> children:node list -> unit -> node

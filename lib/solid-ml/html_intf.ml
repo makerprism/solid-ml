@@ -134,7 +134,7 @@ module type S = sig
     ?value:string -> ?placeholder:string -> ?accept:string -> ?min:string -> ?max:string -> ?step:string ->
     ?required:bool -> ?disabled:bool -> ?checked:bool -> ?autofocus:bool -> ?readonly:bool ->
     ?tabindex:int -> ?oninput:(event -> unit) -> ?onchange:(event -> unit) ->
-    ?onkeydown:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> unit -> node
+    ?onkeydown:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> ?children:node list -> unit -> node
   
   val textarea : ?id:string -> ?class_:string -> ?name:string -> ?placeholder:string ->
     ?rows:int -> ?cols:int -> ?required:bool -> ?disabled:bool -> ?autofocus:bool -> ?readonly:bool ->

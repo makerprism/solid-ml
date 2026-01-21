@@ -1,0 +1,97 @@
+type todo = {
+  id : int;
+  text : string;
+  completed : bool;
+}
+
+let sample_todos = [
+  { id = 1; text = "Learn OCaml"; completed = true };
+  { id = 2; text = "Build solid-ml app"; completed = false };
+  { id = 3; text = "Add client-side hydration"; completed = false };
+  { id = 4; text = "Deploy to production"; completed = false };
+]
+
+module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
+  open Env
+
+  module Html = Env.Html
+  open Html
+
+  type page =
+    | Home
+    | Counter of int
+    | Todos of todo list
+
+  let navigation () : Html.node =
+    <nav>
+      <a href="/">(Html.text "Home")</a>
+      <a href="/counter">(Html.text "Counter")</a>
+      <a href="/todos">(Html.text "Todos")</a>
+    </nav>
+
+  let home_content () : Html.node =
+    <div>
+      <h1>(Html.text "solid-ml SSR Demo")</h1>
+      <p>(Html.text "This is a server-side rendered page using solid-ml-html.")</p>
+      <p>
+        (Html.text "Each page request creates an isolated runtime, making it safe for concurrent requests.")
+      </p>
+      <h2>(Html.text "Features Demonstrated")</h2>
+      <ul>
+        <li>(Html.text "Server-side HTML rendering")</li>
+        <li>(Html.text "Thread-safe runtime isolation")</li>
+        <li>(Html.text "Reactive signals (server-evaluated)")</li>
+        <li>(Html.text "Component composition")</li>
+      </ul>
+    </div>
+
+  let counter_content ~initial () : Html.node =
+    let count, _set_count = Signal.create initial in
+
+    <div class_="counter">
+      <h1>(Html.text "Server-Rendered Counter")</h1>
+      <p>(Html.text "Initial count from URL parameter:")</p>
+      <div class_="count">
+        (Solid_ml_template_runtime.Tpl.text (fun () -> Int.to_string (Signal.get count)))
+      </div>
+      <p>
+        (Html.text "Doubled: ")
+        (Solid_ml_template_runtime.Tpl.text (fun () -> Int.to_string (Signal.get count * 2)))
+      </p>
+      <p>
+        <em>(Html.text "(In a full app, this would become interactive after hydration)")</em>
+      </p>
+      <input id="initial-count" type_="hidden" value=(string_of_int initial) />
+    </div>
+
+  let todos_content ~todos () : Html.node =
+    let incomplete = List.filter (fun t -> not t.completed) todos in
+    let count_signal, _ = Signal.create (List.length incomplete) in
+
+    <div>
+      <h1>(Html.text "Server-Rendered Todos")</h1>
+      <p>
+        (Solid_ml_template_runtime.Tpl.text (fun () -> Int.to_string (Signal.get count_signal)))
+        (Html.text " items remaining")
+      </p>
+      <div>
+        (fragment
+           (List.map
+              (fun todo ->
+                <div class_="todo-item">
+                  <input type_="checkbox" />
+                  <span>(Html.text (" " ^ todo.text))</span>
+                </div>)
+              todos))
+      </div>
+    </div>
+
+  let app ~page () : Html.node =
+    <main id="app">
+      (navigation ())
+      (match page with
+       | Home -> home_content ()
+       | Counter initial -> counter_content ~initial ()
+       | Todos todos -> todos_content ~todos ())
+    </main>
+end

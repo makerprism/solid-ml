@@ -15,8 +15,9 @@
     If it's not available, this file serves as documentation of the pattern.
 *)
 
-open Solid_ml
 open Solid_ml_ssr
+
+module C = Ssr_server_shared.Components.App (Solid_ml_ssr.Env)
 
 (** Page layout component *)
 let layout ~title:page_title ~children () =
@@ -41,114 +42,13 @@ let layout ~title:page_title ~children () =
     ] ()
   )
 
-(** Navigation component *)
-let navigation () =
-  Html.(
-    nav ~children:[
-      a ~href:"/" ~children:[text "Home"] ();
-      a ~href:"/counter" ~children:[text "Counter"] ();
-      a ~href:"/todos" ~children:[text "Todos"] ();
-    ] ()
-  )
-
-(** Home page component *)
-let home_page () =
-  layout ~title:"solid-ml SSR Demo" ~children:[
-    navigation ();
-    Html.(
-      fragment [
-        h1 ~children:[text "solid-ml SSR Demo"] ();
-        p ~children:[text "This is a server-side rendered page using solid-ml-html."] ();
-        p ~children:[
-          text "Each page request creates an isolated runtime, making it safe for concurrent requests."
-        ] ();
-        h2 ~children:[text "Features Demonstrated"] ();
-        ul ~children:[
-          li ~children:[text "Server-side HTML rendering"] ();
-          li ~children:[text "Thread-safe runtime isolation"] ();
-          li ~children:[text "Reactive signals (server-evaluated)"] ();
-          li ~children:[text "Component composition"] ();
-        ] ();
-      ]
-    )
-  ] ()
-
-(** Counter page - demonstrates signals in SSR *)
-let counter_page ~initial () =
-  (* Create a signal - on server, we just read the initial value *)
-  let count, _set_count = Signal.create initial in
-  let doubled = Memo.create (fun () -> Signal.get count * 2) in
-  
-  layout ~title:"Counter - solid-ml" ~children:[
-    navigation ();
-    Html.(
-      div ~class_:"counter" ~children:[
-        h1 ~children:[text "Server-Rendered Counter"] ();
-        p ~children:[text "Initial count from URL parameter:"] ();
-        div ~class_:"count" ~children:[
-          (* Use signal_text for hydration markers *)
-          signal_text count
-        ] ();
-        p ~children:[
-          text "Doubled: ";
-          (* For SSR, we read the memo value directly *)
-          text (string_of_int (Memo.get doubled));
-        ] ();
-        p ~children:[
-          em ~children:[
-            text "(In a full app, this would become interactive after hydration)"
-          ] ()
-        ] ();
-      ] ()
-    )
-  ] ()
-
-(** Todo type *)
-type todo = {
-  id : int;  (* Used for keying in a real app *)
-  text : string;
-  completed : bool;
-} [@@warning "-69"]
-
-(** Todos page - demonstrates list rendering *)
-let todos_page ~todos () =
-  let incomplete = List.filter (fun t -> not t.completed) todos in
-  let count_signal, _ = Signal.create (List.length incomplete) in
-  
-  layout ~title:"Todos - solid-ml" ~children:[
-    navigation ();
-    Html.(
-      fragment [
-        h1 ~children:[text "Server-Rendered Todos"] ();
-        p ~children:[
-          signal_text count_signal;
-          text " items remaining";
-        ] ();
-        div ~children:(
-          List.map (fun todo ->
-            div ~class_:(if todo.completed then "todo-item completed" else "todo-item")
-              ~children:[
-                input ~type_:"checkbox" ~checked:todo.completed ();
-                span ~children:[text (" " ^ todo.text)] ();
-              ] ()
-          ) todos
-        ) ()
-      ]
-    )
-  ] ()
-
-(** Sample todos for demo *)
-let sample_todos = [
-  { id = 1; text = "Learn OCaml"; completed = true };
-  { id = 2; text = "Build solid-ml app"; completed = false };
-  { id = 3; text = "Add client-side hydration"; completed = false };
-  { id = 4; text = "Deploy to production"; completed = false };
-]
-
 (** Dream request handlers *)
 
 let handle_home _req =
-  let html = Render.to_document home_page in
+  let html = Render.to_document (fun () ->
+    layout ~title:"solid-ml SSR Demo" ~children:[
+      C.app ~page:C.Home ()
+    ] ())
   Dream.html html
 
 let handle_counter req =
@@ -159,11 +59,17 @@ let handle_counter req =
     |> Option.join
     |> Option.value ~default:0
   in
-  let html = Render.to_document (fun () -> counter_page ~initial ()) in
+  let html = Render.to_document (fun () ->
+    layout ~title:"Counter - solid-ml" ~children:[
+      C.app ~page:(C.Counter initial) ()
+    ] ())
   Dream.html html
 
 let handle_todos _req =
-  let html = Render.to_document (fun () -> todos_page ~todos:sample_todos ()) in
+  let html = Render.to_document (fun () ->
+    layout ~title:"Todos - solid-ml" ~children:[
+      C.app ~page:(C.Todos Ssr_server_shared.sample_todos) ()
+    ] ())
   Dream.html html
 
 (** Main server *)

@@ -7,4 +7,4 @@
   (name server)
   (modules server)
   (enabled_if false)
-  (libraries solid-ml solid-ml-ssr dream))
+  (libraries solid-ml solid-ml-ssr dream ssr_hydration_shared))

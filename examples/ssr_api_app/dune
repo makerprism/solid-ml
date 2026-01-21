@@ -9,4 +9,4 @@
 (executable
  (name server)
  (enabled_if false)
- (libraries solid-ml solid-ml-ssr dream cohttp-lwt-unix yojson))
+ (libraries solid-ml solid-ml-ssr dream cohttp-lwt-unix yojson ssr_api_shared))

@@ -940,7 +940,7 @@ let form ?id ?class_ ?action ?method_ ?enctype ?onsubmit:_ ?(attrs=[]) ~children
 
 let input ?id ?class_ ?type_ ?name ?value ?placeholder ?accept ?min ?max ?step
     ?(required=false) ?(disabled=false) ?(checked=false) ?(autofocus=false) ?(readonly=false)
-    ?tabindex ?oninput:_ ?onchange:_ ?onkeydown:_ ?(data=[]) ?(attrs=[]) () =
+    ?tabindex ?oninput:_ ?onchange:_ ?onkeydown:_ ?(data=[]) ?(attrs=[]) ?children:_children () =
   let attrs = []
     |> add_opt "id" id
     |> add_opt "class" class_
