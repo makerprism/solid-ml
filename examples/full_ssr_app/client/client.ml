@@ -5,7 +5,8 @@
 *)
 
 open Solid_ml_browser
-module Shared = Shared_components.Components.Make(Client_platform.Client_Platform)
+module Shared = Shared_components.Components.Make(Solid_ml_browser.Env)
+module Routes = Shared_components.Routes
 
 (** {1 Shared Data Types} *)
 (* open Shared_components *)
@@ -31,13 +32,6 @@ let setup_navigation () =
 
 (** {1 Hydration Logic} *)
 
-(** Extract todo ID from element id like "todo-123" *)
-let extract_todo_id el =
-  match Dom.get_attribute el "id" with
-  | Some id_str when String.length id_str > 5 && String.sub id_str 0 5 = "todo-" ->
-    (try Some (int_of_string (String.sub id_str 5 (String.length id_str - 5))) with _ -> None)
-  | _ -> None
-
 let hydrate_counter () =
   match get_element "app", get_element "initial-count" with
   | Some app_el, Some initial_el ->
@@ -48,13 +42,10 @@ let hydrate_counter () =
       | None -> 0
     in
     
-    (* Hydrate the shared component. *)
-    (* We need to cast the node type because strict typing separates
-       Client_platform.Html.node from Solid_ml_browser.Html.node
-       even though they are the same underlying type *)
     let _disposer =
       Render.render app_el (fun () ->
         Shared.app_layout
+          ~current_path:(Routes.path Routes.Counter)
           ~children:(Shared.counter_content ~initial ())
           ())
     in
@@ -67,17 +58,18 @@ let hydrate_todos () =
   | Some app_el ->
     (* For simplicity in this demo, we recreate the initial state manually
        In a real app, we'd serialize the state to JSON in the HTML *)
-    let initial_todos = Shared_components.Components.[
-       { id = 1; text = "Learn solid-ml"; completed = true };
-       { id = 2; text = "Build an SSR app"; completed = false };
-       { id = 3; text = "Add hydration"; completed = false };
-       { id = 4; text = "Deploy to production"; completed = false };
+    let initial_todos = [
+       Shared_components.Components.{ id = 1; text = "Learn solid-ml"; completed = true };
+       Shared_components.Components.{ id = 2; text = "Build an SSR app"; completed = false };
+       Shared_components.Components.{ id = 3; text = "Add hydration"; completed = false };
+       Shared_components.Components.{ id = 4; text = "Deploy to production"; completed = false };
     ] in
     
     (* Hydrate the shared component *)
     let _disposer =
       Render.render app_el (fun () ->
         Shared.app_layout
+          ~current_path:(Routes.path Routes.Todos)
           ~children:(Shared.todos_content ~initial_todos ())
           ())
     in
@@ -98,29 +90,35 @@ let () =
     let path = Dom.get_pathname () in
     Dom.log ("Hydrating page: " ^ path);
 
-    if path = "/counter" then
+    if path = Routes.path Routes.Counter then
       hydrate_counter ()
-    else if path = "/todos" then
+    else if path = Routes.path Routes.Todos then
       hydrate_todos ()
-    else if path = "/keyed" then (
+    else if path = Routes.path Routes.Keyed then (
       match get_element "app" with
       | None -> ()
       | Some app_el ->
         (* True hydration: adopt existing DOM. *)
         let _dispose =
           Render.render app_el (fun () ->
-            Shared.app_layout ~children:(Shared.keyed_demo ()) ())
+            Shared.app_layout
+              ~current_path:(Routes.path Routes.Keyed)
+              ~children:(Shared.keyed_demo ())
+              ())
         in
         ()
     )
-    else if path = "/template-keyed" then (
+    else if path = Routes.path Routes.Template_keyed then (
       match get_element "app" with
       | None -> ()
       | Some app_el ->
         let module T = Shared_components.Template_keyed.Make (Solid_ml_browser.Env) in
         let _dispose =
           Render.render app_el (fun () ->
-            Shared.app_layout ~children:(T.view ()) ())
+            Shared.app_layout
+              ~current_path:(Routes.path Routes.Template_keyed)
+              ~children:(T.view ())
+              ())
         in
         ()
     );
