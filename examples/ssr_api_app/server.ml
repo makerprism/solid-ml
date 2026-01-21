@@ -19,6 +19,7 @@ open Solid_ml_ssr
 
 module Shared = Ssr_api_shared.Components
 module C = Shared.App (Solid_ml_ssr.Env)
+module Routes = Ssr_api_shared.Routes
 
 (** {1 Data Types} *)
 
@@ -168,6 +169,7 @@ let layout ~title:page_title ~current_path:_ ~children () =
           }
           .nav-link:hover { background: #f0f0f0; color: #333; }
           .nav-link.active { background: #2563eb; color: white; }
+          .nav-divider { color: #cbd5f5; }
           main {
             background: white;
             padding: 24px;
@@ -710,12 +712,12 @@ let handle_posts _req =
   match result with
   | Ok posts ->
     let html = Render.to_document (fun () ->
-      render_page ~current_path:"/" (Shared.Posts_page (Shared.Ready posts)))
+    render_page ~current_path:(Routes.path Routes.Posts) (Shared.Posts_page (Shared.Ready posts)))
     in
     Dream.html html
   | Error e ->
     let html = Render.to_document (fun () ->
-      render_page ~current_path:"/" (Shared.Posts_page (Shared.Error e)))
+    render_page ~current_path:(Routes.path Routes.Posts) (Shared.Posts_page (Shared.Error e)))
     in
     Dream.html ~status:`Internal_Server_Error html
 
@@ -725,12 +727,12 @@ let handle_users _req =
   match result with
   | Ok users ->
     let html = Render.to_document (fun () ->
-      render_page ~current_path:"/users" (Shared.Users_page (Shared.Ready users)))
+    render_page ~current_path:(Routes.path Routes.Users) (Shared.Users_page (Shared.Ready users)))
     in
     Dream.html html
   | Error e ->
     let html = Render.to_document (fun () ->
-      render_page ~current_path:"/users" (Shared.Users_page (Shared.Error e)))
+    render_page ~current_path:(Routes.path Routes.Users) (Shared.Users_page (Shared.Error e)))
     in
     Dream.html ~status:`Internal_Server_Error html
 
@@ -743,7 +745,7 @@ let handle_user req =
   match id with
   | None ->
     let html = Render.to_document (fun () ->
-      render_page ~current_path:"/users" (Shared.Not_found "Invalid user ID"))
+    render_page ~current_path:(Routes.path Routes.Users) (Shared.Not_found "Invalid user ID"))
     in
     Dream.html ~status:`Bad_Request html
   | Some id ->
@@ -752,13 +754,13 @@ let handle_user req =
     match user_result, posts_result with
     | Ok user, Ok posts ->
       let html = Render.to_document (fun () ->
-        render_page ~current_path:("/users/" ^ string_of_int user.id)
+        render_page ~current_path:(Routes.path (Routes.User user.id))
           (Shared.User_page (Shared.Ready user, Shared.Ready posts)))
       in
       Dream.html html
     | Error e, _ | _, Error e ->
       let html = Render.to_document (fun () ->
-        render_page ~current_path:("/users/" ^ string_of_int id)
+        render_page ~current_path:(Routes.path (Routes.User id))
           (Shared.User_page (Shared.Error e, Shared.Error e)))
       in
       Dream.html ~status:`Internal_Server_Error html
@@ -772,7 +774,7 @@ let handle_post req =
   match id with
   | None ->
     let html = Render.to_document (fun () ->
-      render_page ~current_path:"/" (Shared.Not_found "Invalid post ID"))
+    render_page ~current_path:(Routes.path Routes.Posts) (Shared.Not_found "Invalid post ID"))
     in
     Dream.html ~status:`Bad_Request html
   | Some id ->
@@ -780,7 +782,7 @@ let handle_post req =
     match post_result with
     | Error e ->
       let html = Render.to_document (fun () ->
-        render_page ~current_path:("/posts/" ^ string_of_int id)
+        render_page ~current_path:(Routes.path (Routes.Post id))
           (Shared.Post_page (Shared.Error e, Shared.Error e)))
       in
       Dream.html ~status:`Internal_Server_Error html
@@ -789,13 +791,13 @@ let handle_post req =
       match comments_result with
       | Ok comments ->
         let html = Render.to_document (fun () ->
-          render_page ~current_path:("/posts/" ^ string_of_int post.id)
+          render_page ~current_path:(Routes.path (Routes.Post post.id))
             (Shared.Post_page (Shared.Ready post, Shared.Ready comments)))
         in
         Dream.html html
       | Error e ->
         let html = Render.to_document (fun () ->
-          render_page ~current_path:("/posts/" ^ string_of_int post.id)
+          render_page ~current_path:(Routes.path (Routes.Post post.id))
             (Shared.Post_page (Shared.Error e, Shared.Error e)))
         in
         Dream.html ~status:`Internal_Server_Error html

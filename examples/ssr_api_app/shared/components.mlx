@@ -38,6 +38,7 @@ type page =
 
 module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   module Html = Env.Html
+  module Routes = Routes
   open Html
 
   let loading_block () =
@@ -170,14 +171,24 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   let not_found msg =
     <div class_="error">(Html.text msg)</div>
 
-  let app ~current_path:_current_path ~page () : Html.node =
+  let app ~current_path ~page () : Html.node =
+    let nav_children =
+      Routes.nav_items
+      |> List.mapi (fun index route ->
+        let href = Routes.path route in
+        let class_ =
+          if Routes.is_nav_active ~current_path route then "nav-link active" else "nav-link"
+        in
+        let link = <a href=href class_=class_>(Html.text (Routes.label route))</a> in
+        if index = 0 then [ link ] else [ <span class_="nav-divider">(Html.text " ")</span>; link ])
+      |> List.concat
+    in
     <div id="app">
       <header>
         <h1>(Html.text "solid-ml SSR API Demo")</h1>
         <p class_="subtitle">(Html.text "Server-rendered data with client-side navigation")</p>
         <nav>
-          <a href="/" class_="nav-link">(Html.text "Posts")</a>
-          <a href="/users" class_="nav-link">(Html.text "Users")</a>
+          (Html.fragment nav_children)
         </nav>
       </header>
       <section>

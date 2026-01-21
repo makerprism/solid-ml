@@ -1,6 +1,6 @@
 (library
  (name ssr_api_shared)
- (modules components)
+ (modules routes components)
  (libraries solid-ml solid-ml-template-runtime)
  (modes byte native melange)
  (preprocess (pps solid-ml-template-ppx)))
