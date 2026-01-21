@@ -37,6 +37,8 @@ module Env = struct
     include Html
     module Internal_template = Html.Internal_template
   end
+
+  module Tpl = Solid_ml_template_runtime.Tpl
   module Effect = struct
     let create = Solid_ml.Effect.Unsafe.create
     let create_with_cleanup = Solid_ml.Effect.Unsafe.create_with_cleanup

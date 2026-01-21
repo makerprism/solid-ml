@@ -24,7 +24,7 @@ let parse_count () =
        with _ -> 0)
     | None -> 0
 
-let render_page root path =
+let rec render_page root path =
   let page =
     if String.length path >= 8 && String.sub path 0 8 = "/counter" then
       C.Counter (parse_count ())
@@ -34,23 +34,13 @@ let render_page root path =
       C.Home
   in
   let _dispose = Render.render root (fun () -> C.app ~page ()) in
-  ()
+  bind_links root
 
-let setup_links root =
-  let links = Dom.query_selector_all (Dom.document ()) "a[href]" in
-  List.iter (fun link ->
-    match Dom.get_attribute link "data-setup" with
-    | Some _ -> ()
-    | None ->
-      Dom.set_attribute link "data-setup" "true";
-      Dom.add_event_listener link "click" (fun evt ->
-        match Dom.get_attribute link "href" with
-        | Some href when String.length href > 0 && href.[0] = '/' ->
-          Dom.prevent_default evt;
-          Dom.push_state href;
-          render_page root href
-        | _ -> ())
-  ) links
+and bind_links root =
+  let _dispose =
+    Navigation.bind_links ~root ~on_navigate:(fun href -> render_page root href) ()
+  in
+  ()
 
 let () =
   match get_element "app" with
@@ -58,9 +48,9 @@ let () =
   | Some root ->
     let path = Dom.get_pathname () in
     render_page root path;
-    setup_links root;
-    Dom.on_popstate (fun _evt ->
-      let next_path = Dom.get_pathname () in
-      render_page root next_path;
-      setup_links root
-    )
+    let _dispose =
+      Navigation.bind_popstate ~on_navigate:(fun next_path ->
+        render_page root next_path
+      ) ()
+    in
+    ()

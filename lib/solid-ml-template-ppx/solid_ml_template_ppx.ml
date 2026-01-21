@@ -67,6 +67,63 @@ let collect_tpl_aliases (structure : Parsetree.structure) : string list =
   loop 16;
   !aliases
 
+let collect_html_opens (structure : Parsetree.structure) : bool =
+  let opened = ref false in
+  let is_html longident =
+    match List.rev (longident_to_list longident) with
+    | "Html" :: _ -> true
+    | _ -> false
+  in
+  let iter =
+    object
+      inherit Ast_traverse.iter as super
+
+      method! structure_item item =
+        (match item.pstr_desc with
+         | Pstr_open { popen_expr = { pmod_desc = Pmod_ident { txt = longident; _ }; _ }; _ } ->
+           if is_html longident then opened := true
+         | _ -> ());
+        super#structure_item item
+    end
+  in
+  iter#structure structure;
+  !opened
+
+let structure_defines_text (structure : Parsetree.structure) : bool =
+  let defines = ref false in
+  let rec has_text_pattern (pat : Parsetree.pattern) : bool =
+    match pat.ppat_desc with
+    | Ppat_var { txt = "text"; _ } -> true
+    | Ppat_alias (inner, { txt = "text"; _ }) -> has_text_pattern inner || true
+    | Ppat_tuple pats -> List.exists has_text_pattern pats
+    | Ppat_record (fields, _) -> List.exists (fun (_, p) -> has_text_pattern p) fields
+    | Ppat_array pats -> List.exists has_text_pattern pats
+    | Ppat_construct (_, Some (_args, p)) -> has_text_pattern p
+    | Ppat_or (p1, p2) -> has_text_pattern p1 || has_text_pattern p2
+    | Ppat_constraint (p, _) -> has_text_pattern p
+    | Ppat_lazy p -> has_text_pattern p
+    | _ -> false
+  in
+  let iter =
+    object
+      inherit Ast_traverse.iter as super
+
+      method! value_binding vb =
+        if has_text_pattern vb.pvb_pat then defines := true;
+        super#value_binding vb
+
+      method! expression expr =
+        (match expr.pexp_desc with
+         | Pexp_let (_, bindings, _) ->
+           if List.exists (fun vb -> has_text_pattern vb.pvb_pat) bindings then
+             defines := true
+         | _ -> ());
+        super#expression expr
+    end
+  in
+  iter#structure structure;
+  !defines
+
 let tpl_marker_name ~(aliases : string list) (longident : Longident.t) : string option =
   match longident_to_list longident with
   | [ "Solid_ml_template_runtime"; "Tpl"; fn ] when is_known_marker fn -> Some fn
@@ -229,10 +286,10 @@ let escape_html (s : string) : string =
     s;
   Buffer.contents b
 
-let is_html_text_longident (longident : Longident.t) : bool =
+let is_html_text_longident ~(allow_unqualified_text : bool) (longident : Longident.t) : bool =
   match List.rev (longident_to_list longident) with
   | "text" :: "Html" :: _ -> true
-  | [ "text" ] -> true
+  | [ "text" ] -> allow_unqualified_text
   | _ -> false
 
 let is_whitespace_char = function
@@ -253,21 +310,35 @@ let is_formatting_whitespace (s : string) : bool =
   in
   has_linebreak && String.for_all is_whitespace_char s
 
-let extract_html_text_arg (expr : Parsetree.expression) : Parsetree.expression option =
+let extract_html_text_arg ~(allow_unqualified_text : bool) ~(shadowed_text : bool)
+    (expr : Parsetree.expression)
+    : Parsetree.expression option =
   match expr.pexp_desc with
   | Pexp_apply (_fn, args) ->
     (match head_ident expr with
-     | Some longident when is_html_text_longident longident ->
-       List.find_map
-         (function
-           | (Asttypes.Nolabel, e) -> Some e
-           | _ -> None)
-         args
+     | Some longident ->
+        (match List.rev (longident_to_list longident) with
+         | [ "text" ] when not allow_unqualified_text ->
+           Location.raise_errorf ~loc:expr.pexp_loc
+             "solid-ml-template-ppx: unqualified text requires [open Html]. Use Html.text or add open Html.";
+         | [ "text" ] when shadowed_text ->
+           Location.raise_errorf ~loc:expr.pexp_loc
+             "solid-ml-template-ppx: text is shadowed in this module. Use Html.text to avoid ambiguity.";
+         | _ -> ());
+       if is_html_text_longident ~allow_unqualified_text longident then
+         List.find_map
+           (function
+             | (Asttypes.Nolabel, e) -> Some e
+             | _ -> None)
+           args
+       else None
      | _ -> None)
   | _ -> None
 
-let extract_static_text_literal (expr : Parsetree.expression) : string option =
-  match extract_html_text_arg expr with
+let extract_static_text_literal ~(allow_unqualified_text : bool) ~(shadowed_text : bool)
+    (expr : Parsetree.expression)
+    : string option =
+  match extract_html_text_arg ~allow_unqualified_text ~shadowed_text expr with
   | Some { pexp_desc = Pexp_constant (Pconst_string (s, _, _)); _ } -> Some s
   | _ -> None
 
@@ -868,6 +939,8 @@ let extract_tpl_class_list ~(aliases : string list) (expr : Parsetree.expression
 
 let transform_structure (structure : Parsetree.structure) : Parsetree.structure =
   let aliases = collect_tpl_aliases structure in
+  let allow_unqualified_text = collect_html_opens structure in
+  let shadowed_text = structure_defines_text structure in
 
   let extract_static_prop = function
     | (Asttypes.Labelled "id", { pexp_desc = Pexp_constant (Pconst_string (s, _, _)); _ }) ->
@@ -883,14 +956,21 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
         inherit Ast_traverse.map as super
 
         method! expression expr =
-          match parse_element_expr ~allow_dynamic_html_text:true expr with
+          match parse_element_expr
+                  ~allow_dynamic_html_text:true
+                  ~allow_unqualified_text
+                  ~shadowed_text
+                  expr
+          with
           | Some (root, _dyn) -> compile_element_tree ~loc:expr.pexp_loc ~root
           | None -> super#expression expr
       end
     in
     mapper#expression expr
 
-  and parse_element_expr ~(allow_dynamic_html_text : bool) (expr : Parsetree.expression)
+  and parse_element_expr ~(allow_dynamic_html_text : bool) ~(allow_unqualified_text : bool)
+      ~(shadowed_text : bool)
+      (expr : Parsetree.expression)
       : (element_node * bool) option =
     match expr.pexp_desc with
     | Pexp_apply (_fn, args) ->
@@ -985,7 +1065,7 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                 in
 
                 let add_child (child : Parsetree.expression) : bool =
-                  match extract_static_text_literal child with
+                  match extract_static_text_literal ~allow_unqualified_text ~shadowed_text child with
                   | Some lit
                     when allow_whitespace_normalization && is_formatting_whitespace lit ->
                     true
@@ -999,10 +1079,14 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                         parts_rev := Text_slot thunk :: !parts_rev;
                         true
                       | None ->
-                         (match extract_html_text_arg child with
-                          | Some arg
-                            when allow_dynamic_html_text
-                                 && not (Option.is_some (extract_static_text_literal child)) ->
+                          (match extract_html_text_arg ~allow_unqualified_text ~shadowed_text child with
+                           | Some arg
+                             when allow_dynamic_html_text
+                                 && not (Option.is_some
+                                          (extract_static_text_literal
+                                             ~allow_unqualified_text
+                                             ~shadowed_text
+                                             child)) ->
                             has_dynamic := true;
                             parts_rev :=
                               Text_slot
@@ -1059,8 +1143,12 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                                 parts_rev := Nodes_slot thunk :: !parts_rev;
                                 true
                               | None ->
-                                 (match parse_element_expr ~allow_dynamic_html_text child with
-                                 | Some (child_el, child_dynamic) ->
+                                 (match parse_element_expr
+                                          ~allow_dynamic_html_text
+                                          ~allow_unqualified_text
+                                          ~shadowed_text
+                                          child with
+                                  | Some (child_el, child_dynamic) ->
                                    if child_dynamic then has_dynamic := true;
                                    parts_rev := Element child_el :: !parts_rev;
                                    true
@@ -1096,7 +1184,12 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
       inherit Ast_traverse.map as super
 
       method! expression expr =
-        match parse_element_expr ~allow_dynamic_html_text:false expr with
+        match parse_element_expr
+                ~allow_dynamic_html_text:false
+                ~allow_unqualified_text
+                ~shadowed_text
+                expr
+        with
         | Some (root, true) ->
           compile_element_tree ~loc:expr.pexp_loc ~root
         | _ -> super#expression expr

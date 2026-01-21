@@ -180,11 +180,28 @@ module type HTML = sig
      and type event := event
 end
 
+module type TPL = sig
+  type 'a t
+
+  val text : (unit -> string) -> 'a t
+  val text_value : string -> 'a t
+  val attr : name:string -> (unit -> string) -> 'a t
+  val attr_opt : name:string -> (unit -> string option) -> 'a t
+  val class_list : (unit -> (string * bool) list) -> 'a t
+  val on : event:string -> ('ev -> unit) -> ('ev -> unit) t
+  val nodes : (unit -> 'a) -> 'a t
+  val show : when_:(unit -> bool) -> (unit -> 'a) -> 'a t
+  val each_keyed : items:(unit -> 'a list) -> key:('a -> string) -> render:('a -> 'b) -> 'b t
+  val unreachable : 'a t -> 'a
+end
+
 module type TEMPLATE_ENV = sig
   module Signal : SIGNAL
   type 'a signal = 'a Signal.t
 
   module Html : HTML with type 'a signal = 'a Signal.t
+
+  module Tpl : TPL
 
   module Effect : sig
     val create : (unit -> unit) -> unit

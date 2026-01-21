@@ -20,7 +20,6 @@ type comment = Shared.comment
 (** {1 DOM Helpers} *)
 
 let get_element id = Dom.get_element_by_id (Dom.document ()) id
-let query_selector_all sel = Dom.query_selector_all (Dom.document ()) sel
 
 (** {1 Fetch API via Raw JS} *)
 
@@ -134,13 +133,22 @@ let fetch_comments id on_ok on_err =
 
 let current_path = ref "/"
 
-let render_app app_el page =
+let rec render_app app_el page =
   let _dispose = Render.render app_el (fun () ->
     C.app ~current_path:!current_path ~page ()
   ) in
+  bind_links app_el
+
+and bind_links app_el =
+  let _dispose =
+    Navigation.bind_links ~root:app_el ~on_navigate:(fun href ->
+      current_path := href;
+      render_page href
+    ) ()
+  in
   ()
 
-let render_posts_page app_el =
+and render_posts_page app_el =
   Dom.log "Rendering posts page...";
   render_app app_el (Shared.Posts_page Shared.Loading);
   fetch_posts
@@ -149,7 +157,7 @@ let render_posts_page app_el =
     (fun err ->
       render_app app_el (Shared.Posts_page (Shared.Error ("Failed to load posts: " ^ err))))
 
-let render_users_page app_el =
+and render_users_page app_el =
   Dom.log "Rendering users page...";
   render_app app_el (Shared.Users_page Shared.Loading);
   fetch_users
@@ -158,7 +166,7 @@ let render_users_page app_el =
     (fun err ->
       render_app app_el (Shared.Users_page (Shared.Error ("Failed to load users: " ^ err))))
 
-let render_user_page app_el user_id =
+and render_user_page app_el user_id =
   Dom.log ("Rendering user page for ID: " ^ string_of_int user_id);
   render_app app_el (Shared.User_page (Shared.Loading, Shared.Loading));
   fetch_user user_id
@@ -172,7 +180,7 @@ let render_user_page app_el user_id =
     (fun err ->
       render_app app_el (Shared.User_page (Shared.Loading, Shared.Error ("Failed to load posts: " ^ err))))
 
-let render_post_page app_el post_id =
+and render_post_page app_el post_id =
   Dom.log ("Rendering post page for ID: " ^ string_of_int post_id);
   render_app app_el (Shared.Post_page (Shared.Loading, Shared.Loading));
   fetch_post post_id
@@ -186,7 +194,7 @@ let render_post_page app_el post_id =
     (fun err ->
       render_app app_el (Shared.Post_page (Shared.Loading, Shared.Error ("Failed to load comments: " ^ err))))
 
-let render_page path =
+and render_page path =
   Dom.log ("Rendering page: " ^ path);
   match get_element "app" with
   | None -> Dom.log "Error: #app element not found"
@@ -208,40 +216,21 @@ let render_page path =
     else
       render_app app_el (Shared.Not_found ("Page not found: " ^ path))
 
-(** {1 Navigation Helpers} *)
-
-let setup_links () =
-  let links = query_selector_all "a[href]" in
-  List.iter (fun link ->
-    match Dom.get_attribute link "data-setup" with
-    | Some _ -> ()
-    | None ->
-      Dom.set_attribute link "data-setup" "true";
-      Dom.add_event_listener link "click" (fun evt ->
-        match Dom.get_attribute link "href" with
-        | Some href when String.length href > 0 && href.[0] = '/' ->
-          Dom.prevent_default evt;
-          Dom.push_state href;
-          current_path := href;
-          render_page href
-        | _ -> ())
-  ) links
-
-let setup_navigation () =
-  Dom.on_popstate (fun _evt ->
-    let path = Dom.get_pathname () in
-    current_path := path;
-    render_page path
-  );
-  setup_links ()
-
 (** {1 Main Entry Point} *)
 
 let () =
   let (_result, _dispose) = Reactive_core.create_root (fun () ->
     let path = Dom.get_pathname () in
     current_path := path;
-    setup_navigation ();
-    render_page path
+     (match get_element "app" with
+      | None -> Dom.log "Error: #app element not found"
+      | Some _ ->
+        let _dispose =
+          Navigation.bind_popstate ~on_navigate:(fun next_path ->
+            current_path := next_path;
+            render_page next_path
+          ) ()
+        in
+        render_page path)
   ) in
   ()
