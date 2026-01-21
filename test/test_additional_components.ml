@@ -5,11 +5,12 @@
 
 open Solid_ml
 
+
 (** {1 Helper Functions} *)
 
 let with_runtime fn =
-  Runtime.run (fun () ->
-    let dispose = Owner.create_root fn in
+  Runtime.Unsafe.run (fun () ->
+    let dispose = Owner.Unsafe.create_root fn in
     dispose ()
   )
 
@@ -18,7 +19,7 @@ let with_runtime fn =
 let test_store_basic_operations () =
   print_endline "Test: Store basic create and get";
   with_runtime (fun () ->
-    let store = Store.create 42 in
+    let store = Store.Unsafe.create 42 in
     assert (Store.get store = 42);
     ignore store
   );
@@ -27,7 +28,7 @@ let test_store_basic_operations () =
 let test_store_updates () =
   print_endline "Test: Store updates via set";
   with_runtime (fun () ->
-    let store = Store.create 10 in
+    let store = Store.Unsafe.create 10 in
     assert (Store.get store = 10);
     Store.set store 20;
     assert (Store.get store = 20);
@@ -38,7 +39,7 @@ let test_store_updates () =
 let test_store_produce () =
   print_endline "Test: Store.produce returns current value";
   with_runtime (fun () ->
-    let store = Store.create [1; 2; 3] in
+    let store = Store.Unsafe.create [1; 2; 3] in
     let result = Store.produce (fun _ -> ()) store in
     assert (result = [1; 2; 3]);
     ignore result
@@ -49,7 +50,7 @@ let test_store_reconcile () =
   print_endline "Test: Store.reconcile returns data";
   with_runtime (fun () ->
     let new_data = [1; 4; 3; 5] in
-    let result = Store.reconcile new_data (Store.create [1; 2; 3]) in
+    let result = Store.reconcile new_data (Store.Unsafe.create [1; 2; 3]) in
     assert (result = [1; 4; 3; 5]);
     ignore result
   );
@@ -60,7 +61,7 @@ let test_store_reconcile () =
 let test_resource_creates () =
   print_endline "Test: Resource creates with fetcher";
   with_runtime (fun () ->
-    let resource = Resource.create (fun () -> "data") in
+    let resource = Resource.Unsafe.create (fun () -> "data") in
     match Resource.peek resource with
     | Resource.Ready v -> assert (v = "data")
     | _ -> ()  (* May still be loading *)
@@ -70,7 +71,7 @@ let test_resource_creates () =
 let test_resource_read_state () =
   print_endline "Test: Resource state transitions";
   with_runtime (fun () ->
-    let resource = Resource.of_value "initial" in
+    let resource = Resource.Unsafe.of_value "initial" in
     assert (Resource.loading resource = false);
     assert (Resource.errored resource = false);
     match Resource.peek resource with
@@ -82,7 +83,7 @@ let test_resource_read_state () =
 let test_resource_mutate () =
   print_endline "Test: Resource.mutate for optimistic updates";
   with_runtime (fun () ->
-    let resource = Resource.of_value 10 in
+    let resource = Resource.Unsafe.of_value 10 in
     assert (Resource.get resource = 10);
     Resource.mutate resource (fun _ -> 20);
     assert (Resource.get resource = 20)
@@ -92,7 +93,7 @@ let test_resource_mutate () =
 let test_resource_render () =
   print_endline "Test: Resource.render helper";
   with_runtime (fun () ->
-    let resource = Resource.of_value "test" in
+    let resource = Resource.Unsafe.of_value "test" in
     let result = Resource.render
       ~loading:(fun () -> "loading")
       ~error:(fun _ -> "error")

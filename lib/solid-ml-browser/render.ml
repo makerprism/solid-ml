@@ -27,6 +27,17 @@ let render root component =
   ) in
   dispose
 
+let render_strict root component =
+  Reactive.reset_hydration_keys ();
+
+  let dispose =
+    Reactive.Strict.create_root (fun token ->
+      Dom.set_inner_html root "";
+      let node = component token in
+      Html.append_to_element root node)
+  in
+  dispose
+
 (** Render a component, appending to existing content.
     
     Returns a dispose function. *)
@@ -75,11 +86,10 @@ let hydrate root component =
   (* Reset hydration keys to match server's ordering *)
   Reactive.reset_hydration_keys ();
 
-  (* Parse hydration markers and store text node references *)
-  Hydration.parse_hydration_markers root;
-
   let dispose =
     with_hydration root (fun () ->
+      (* Parse hydration markers and store text node references. *)
+      Hydration.parse_hydration_markers root;
       let (_, dispose) =
         Reactive_core.create_root (fun () ->
           let _node = component () in

@@ -25,13 +25,33 @@ type 'a t = {
   set_value : 'a -> unit;
 }
 
+type token = Runtime.token
+
 type ('a, 'b) setter = 'a t -> 'b -> unit
 
 (** {1 Store Creation} *)
 
-let create (initial : 'a) : 'a t =
-  let signal, set = Signal.create initial in
+let create (token : token) (initial : 'a) : 'a t =
+  let signal, set = Signal.create token initial in
   { value = signal; set_value = set }
+
+module Unsafe = struct
+  let create (initial : 'a) : 'a t =
+    let signal, set = Signal.Unsafe.create initial in
+    { value = signal; set_value = set }
+
+  let get (store : 'a t) : 'a =
+    Signal.Unsafe.get store.value
+
+  let peek (store : 'a t) : 'a =
+    Signal.Unsafe.peek store.value
+
+  let set (store : 'a t) (value : 'a) : unit =
+    store.set_value value
+
+  let update (store : 'a t) (fn : 'a -> 'a) : unit =
+    store.set_value (fn (Signal.Unsafe.get store.value))
+end
 
 (** {1 Reading} *)
 

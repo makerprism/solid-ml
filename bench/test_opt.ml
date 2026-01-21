@@ -8,8 +8,8 @@ let benchmark_optimization () =
   
   (* Original: slow updates with structural equality *)
   let run_slow () =
-    Solid_ml.Runtime.run (fun () ->
-      let _, set_signal = Solid_ml.Signal.create "" in
+    Solid_ml.Runtime.Unsafe.run (fun () ->
+      let _, set_signal = Solid_ml.Signal.Unsafe.create "" in
       for i = 1 to 100000 do
         set_signal (string_of_int i)
       done
@@ -18,8 +18,8 @@ let benchmark_optimization () =
   
   (* Optimized: physical equality for strings *)
   let run_fast () =
-    Solid_ml.Runtime.run (fun () ->
-      let _, set_signal = Solid_ml.Signal.create_physical "" in
+    Solid_ml.Runtime.Unsafe.run (fun () ->
+      let _, set_signal = Solid_ml.Signal.Unsafe.create_physical "" in
       for i = 1 to 100000 do
         set_signal (string_of_int i)
       done

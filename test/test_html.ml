@@ -2,6 +2,8 @@
 
 open Solid_ml_ssr
 
+module Signal = Solid_ml.Signal.Unsafe
+
 (** Helper to check if string contains substring *)
 let contains s sub =
   let len = String.length sub in
@@ -11,6 +13,20 @@ let contains s sub =
     else check (i + 1)
   in
   check 0
+
+let find_index s sub =
+  let len = String.length sub in
+  let rec check i =
+    if i + len > String.length s then None
+    else if String.sub s i len = sub then Some i
+    else check (i + 1)
+  in
+  check 0
+
+let require_index name value =
+  match value with
+  | Some idx -> idx
+  | None -> failwith (name ^ " not found")
 
 (* ============ HTML Element Tests ============ *)
 
@@ -212,7 +228,7 @@ let test_render_to_document () =
 
 let test_render_with_signals () =
   print_endline "Test: Render with signals";
-  let count, _set_count = Solid_ml.Signal.create 42 in
+  let count, _set_count = Signal.create 42 in
   let html = Render.to_string (fun () ->
     Html.(div ~children:[
       text "Count: ";
@@ -237,7 +253,7 @@ let test_hydration_script () =
 
 let test_reactive_text () =
   print_endline "Test: reactive_text renders int signal with hydration markers";
-  let count, _set_count = Solid_ml.Signal.create 42 in
+  let count, _set_count = Signal.create 42 in
   let html = Render.to_string (fun () ->
     Html.(div ~children:[reactive_text count] ())
   ) in
@@ -249,7 +265,7 @@ let test_reactive_text () =
 
 let test_reactive_text_of () =
   print_endline "Test: reactive_text_of with custom formatter";
-  let data, _set_data = Solid_ml.Signal.create {|hello|} in
+  let data, _set_data = Signal.create {|hello|} in
   let html = Render.to_string (fun () ->
     Html.(div ~children:[
       reactive_text_of String.uppercase_ascii data
@@ -261,7 +277,7 @@ let test_reactive_text_of () =
 
 let test_reactive_text_string () =
   print_endline "Test: reactive_text_string renders string signal";
-  let msg, _set_msg = Solid_ml.Signal.create "world" in
+  let msg, _set_msg = Signal.create "world" in
   let html = Render.to_string (fun () ->
     Html.(div ~children:[reactive_text_string msg] ())
   ) in
@@ -269,9 +285,21 @@ let test_reactive_text_string () =
   assert (contains html "<!--hk:");
   print_endline "  PASSED"
 
+let test_reactive_text_marker_sequence () =
+  print_endline "Test: reactive_text_string markers wrap text";
+  let msg, _set_msg = Signal.create "world" in
+  let html = Render.to_string (fun () ->
+    Html.(div ~children:[reactive_text_string msg] ())
+  ) in
+  let open_idx = require_index "open marker" (find_index html "<!--hk:") in
+  let value_idx = require_index "value" (find_index html "world") in
+  let close_idx = require_index "close marker" (find_index html "<!--/hk-->") in
+  assert (open_idx < value_idx && value_idx < close_idx);
+  print_endline "  PASSED"
+
 let test_signal_text_alias () =
   print_endline "Test: signal_text is alias for reactive_text";
-  let count, _set_count = Solid_ml.Signal.create 99 in
+  let count, _set_count = Signal.create 99 in
   let html = Render.to_string (fun () ->
     Html.(div ~children:[signal_text count] ())
   ) in
@@ -322,7 +350,7 @@ let test_form_handlers_ignored () =
 
 let test_counter_component () =
   print_endline "Test: Counter component renders";
-  let count, _set_count = Solid_ml.Signal.create 0 in
+  let count, _set_count = Signal.create 0 in
   let html = Render.to_string (fun () ->
     Html.(div ~class_:"counter" ~children:[
       p ~children:[text "Count: "; reactive_text count] ();
@@ -714,6 +742,7 @@ let () =
   test_reactive_text ();
   test_reactive_text_of ();
   test_reactive_text_string ();
+  test_reactive_text_marker_sequence ();
   test_signal_text_alias ();
 
   print_endline "\n-- Event Handler Tests --";

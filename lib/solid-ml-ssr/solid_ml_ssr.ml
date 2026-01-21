@@ -25,7 +25,7 @@ module Env = struct
   module Signal = struct
     type 'a t = 'a Solid_ml.Signal.t
 
-    let create ?equals = Solid_ml.Signal.create ?equals
+    let create ?equals = Solid_ml.Signal.Unsafe.create ?equals
     let get = Solid_ml.Signal.get
     let peek = Solid_ml.Signal.peek
     let update = Solid_ml.Signal.update
@@ -38,13 +38,13 @@ module Env = struct
     module Internal_template = Html.Internal_template
   end
   module Effect = struct
-    let create = Solid_ml.Effect.create
-    let create_with_cleanup = Solid_ml.Effect.create_with_cleanup
+    let create = Solid_ml.Effect.Unsafe.create
+    let create_with_cleanup = Solid_ml.Effect.Unsafe.create_with_cleanup
   end
 
   module Owner = struct
     let on_cleanup = Solid_ml.Owner.on_cleanup
-    let run_with_owner = Solid_ml.Owner.run_with_owner
+    let run_with_owner = Solid_ml.Owner.Unsafe.run_with_owner
   end
 end
 

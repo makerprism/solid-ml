@@ -1,5 +1,3 @@
-open Solid_ml
-
 module C (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Env
 
@@ -53,7 +51,7 @@ end
 
 let () =
   print_endline "Test: Template PPX compiles Tpl.attr_opt";
-  let name, _set_name = Signal.create "World" in
+  let name, _set_name = Solid_ml_ssr.Env.Signal.create "World" in
 
   let some_html =
     Solid_ml_ssr.Render.to_string (fun () ->
@@ -69,7 +67,7 @@ let () =
   in
   assert (none_html = "<a>Go <!--#-->World<!--#--></a>");
 
-  let href, _set_href = Signal.create "/x?y=<z>" in
+  let href, _set_href = Solid_ml_ssr.Env.Signal.create "/x?y=<z>" in
   let attr_html =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module R = C (Solid_ml_ssr.Env) in
@@ -77,7 +75,7 @@ let () =
   in
   assert (attr_html = "<a href=\"/x?y=&lt;z&gt;\">Go <!--#-->World<!--#--></a>");
 
-  let empty_href, _set_empty_href = Signal.create "" in
+  let empty_href, _set_empty_href = Solid_ml_ssr.Env.Signal.create "" in
   let empty_html =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module R = C (Solid_ml_ssr.Env) in
@@ -94,9 +92,9 @@ let () =
 
   (* Regression: nested element paths must remain stable even when a preceding
      text slot renders an empty string on SSR. *)
-  let prefix, _set_prefix = Signal.create "" in
-  let href2, _set_href2 = Signal.create "/p" in
-  let label2, _set_label2 = Signal.create "X" in
+  let prefix, _set_prefix = Solid_ml_ssr.Env.Signal.create "" in
+  let href2, _set_href2 = Solid_ml_ssr.Env.Signal.create "/p" in
+  let label2, _set_label2 = Solid_ml_ssr.Env.Signal.create "X" in
   let nested_after_empty_text =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module R = C (Solid_ml_ssr.Env) in

@@ -15,7 +15,9 @@ module Make (B : Backend.S) = struct
   let get_runtime () =
     match B.get_runtime () with
     | Some rt -> rt
-    | None -> failwith "No reactive runtime active. Use Runtime.run or create_root."
+    | None ->
+      failwith
+        "No reactive runtime active. Wrap usage in Runtime.run/create_root or use Reactive.Strict to enforce this at compile time."
   
   let get_runtime_opt () = B.get_runtime ()
   

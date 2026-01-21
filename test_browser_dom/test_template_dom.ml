@@ -1,4 +1,5 @@
 open Solid_ml_browser
+module Signal = Reactive.Signal
 open Dom
 
 module H = Html
@@ -63,9 +64,9 @@ let test_hydrate_text_slot () =
 
   let dispose =
     Render.hydrate root (fun () ->
-      let inst = T.instantiate template in
-      slot_ref := Some (T.bind_text inst ~id:0 ~path:[| 0 |]);
-      H.empty)
+        let inst = T.instantiate template in
+        slot_ref := Some (T.bind_text inst ~id:0 ~path:[| 0 |]);
+        H.empty)
   in
 
   (match !slot_ref with
@@ -73,6 +74,26 @@ let test_hydrate_text_slot () =
    | Some slot -> T.set_text slot "Hydrated");
 
   assert_eq ~name:"hydrate textContent" (get_text_content root) "Hydrated";
+  dispose ()
+
+let test_hydrate_reactive_text_marker_adoption () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  set_inner_html root "<div><!--hk:0-->Hello<!--/hk--></div>";
+
+  let text_signal, set_text = Solid_ml_browser.Env.Signal.create "Hello" in
+
+  let dispose =
+    Render.hydrate root (fun () ->
+      Html.div
+        ~children:[ Html.reactive_text_string text_signal ]
+        ())
+  in
+
+  set_text "Updated";
+  assert_eq ~name:"hydrate reactive text updated" (get_text_content root) "Updated";
   dispose ()
 
 let test_instantiate_nodes_slot () =
@@ -629,7 +650,7 @@ let test_hydration_error_context_clears () =
   try
     let _dispose2 =
       Render.hydrate root (fun () ->
-        let inst = T.instantiate template in
+        let _inst = T.instantiate template in
         fail "Intentional error for context clear test")
     in
     fail "Expected exception not raised"
@@ -654,6 +675,7 @@ let () =
     test_instantiate_text_slot ();
     test_instantiate_nodes_slot ();
     test_hydrate_text_slot ();
+    test_hydrate_reactive_text_marker_adoption ();
     test_hydrate_normalizes_nodes_regions ();
     test_hydrate_normalizes_slot_text_nodes ();
     test_hydrate_normalizes_nested_slot_text_nodes ();

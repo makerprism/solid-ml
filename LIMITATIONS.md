@@ -43,18 +43,21 @@ make serve
 **Example browser code:**
 ```ocaml
 open Solid_ml_browser
+open Reactive
 
 let counter () =
-  Runtime.run (fun () ->
-    let count, set_count = Signal.create 0 in
-    let root = Html.div [] [
-      Html.p [] [Reactive.text (fun () -> string_of_int (Signal.get count))];
-      Html.button 
-        [Html.on_click (fun _ -> Signal.update count succ)] 
-        [Html.text "+"]
-    ] in
-    Render.hydrate root (Dom.get_element_by_id "app")
-  )
+  let count, set_count = Signal.create 0 in
+  Html.div [] [
+    Html.p [] [Reactive.text count];
+    Html.button 
+      [Html.on_click (fun _ -> Signal.update count succ)] 
+      [Html.text "+"]
+  ]
+
+let () =
+  match Dom.get_element_by_id (Dom.document ()) "app" with
+  | Some root -> ignore (Render.render root counter)
+  | None -> Dom.error "No #app element found"
 ```
 
 ---
@@ -73,10 +76,10 @@ let counter () =
 ```ocaml
 (* DON'T DO THIS - signal from one runtime used in another *)
 let global_count, set_global = 
-  Runtime.run (fun () -> Signal.create 0)  (* Signal created here *)
+  Runtime.run (fun token -> Signal.create token 0)  (* Signal created here *)
 
 let handler () =
-  Runtime.run (fun () ->
+  Runtime.run (fun _token ->
     Signal.get global_count  (* ERROR: wrong runtime context! *)
   )
 ```
@@ -85,8 +88,8 @@ let handler () =
 ```ocaml
 (* Each request creates its own signals *)
 let handler () =
-  Runtime.run (fun () ->
-    let count, set_count = Signal.create 0 in
+  Runtime.run (fun token ->
+    let count, set_count = Signal.create token 0 in
     (* Use count within this runtime only *)
     ...
   )
@@ -141,8 +144,8 @@ let user_page () =
 
 **Correct usage:**
 ```ocaml
-let dispose = Owner.create_root (fun () ->
-  Effect.create (fun () -> ...)
+let dispose = Owner.create_root token (fun () ->
+  Effect.create token (fun () -> ...)
 ) in
 (* Later, when done: *)
 dispose ()

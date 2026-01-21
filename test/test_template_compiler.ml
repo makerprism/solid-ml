@@ -1,5 +1,3 @@
-open Solid_ml
-
 module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Env
 
@@ -139,7 +137,7 @@ let count_substring (s : string) (needle : string) : int =
 
 let () =
   print_endline "Test: Template PPX compiles Tpl.text (non-MLX)";
-  let name, _set_name = Signal.create "World" in
+  let name, _set_name = Solid_ml_ssr.Env.Signal.create "World" in
   let html =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
@@ -218,8 +216,8 @@ let () =
   in
   assert (html_code_formatting = "<code>\n  <!--#-->World<!--#-->\n</code>");
 
-  let first, _set_first = Signal.create "Ada" in
-  let last, _set_last = Signal.create "Lovelace" in
+  let first, _set_first = Solid_ml_ssr.Env.Signal.create "Ada" in
+  let last, _set_last = Solid_ml_ssr.Env.Signal.create "Lovelace" in
   let html_p_two =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
@@ -228,8 +226,8 @@ let () =
   assert (html_p_two = "<p>Hello <!--#-->Ada<!--#-->, <!--#-->Lovelace<!--#-->!</p>");
   assert (count_substring html_p_two "<!--#-->" = 4);
 
-  let href, _set_href = Signal.create "/a" in
-  let label, _set_label = Signal.create "Link" in
+  let href, _set_href = Solid_ml_ssr.Env.Signal.create "/a" in
+  let label, _set_label = Solid_ml_ssr.Env.Signal.create "Link" in
   let html_nested =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in
@@ -237,7 +235,7 @@ let () =
   in
   assert (html_nested = "<div><a href=\"/a\"><!--#-->Link<!--#--></a></div>");
 
-  let flag, _set_flag = Signal.create true in
+  let flag, _set_flag = Solid_ml_ssr.Env.Signal.create true in
   let html_cond_true =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module C = Hello (Solid_ml_ssr.Env) in

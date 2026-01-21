@@ -23,6 +23,9 @@
 
 open Solid_ml
 
+module Signal = Signal.Unsafe
+module Memo = Memo.Unsafe
+
 (** {1 Types} *)
 
 (** The state of a resource *)

@@ -6,6 +6,17 @@
 
 open Solid_ml
 
+module Unsafe = struct
+  module Signal = Signal.Unsafe
+  module Effect = Effect.Unsafe
+  module Memo = Memo.Unsafe
+  module Batch = Batch.Unsafe
+  module Owner = Owner.Unsafe
+  module Runtime = Runtime.Unsafe
+end
+
+open Unsafe
+
 (** Helper to run test within a reactive runtime *)
 let with_runtime fn =
   Runtime.run (fun () ->

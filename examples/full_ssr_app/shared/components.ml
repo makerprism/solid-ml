@@ -67,6 +67,15 @@ module Make (P : Platform_intf.S) = struct
       ] ()
     ] ()
 
+  let counter_content ~initial () =
+    Html.fragment [
+      counter ~initial ();
+      Html.input ~type_:"hidden" ~id:"initial-count" ~value:(string_of_int initial) ();
+      Html.div ~id:"hydration-status" ~class_:"hydration-status" ~children:[
+        Html.text "Hydrated! Counter is now interactive."
+      ] ();
+    ]
+
   (** Todo List Component *)
   let todo_list ~initial_todos () =
     let todos, _ = Signal.create initial_todos in
@@ -100,6 +109,14 @@ module Make (P : Platform_intf.S) = struct
       ] ()
     ] ()
 
+  let todos_content ~initial_todos () =
+    Html.fragment [
+      todo_list ~initial_todos ();
+      Html.div ~id:"hydration-status" ~class_:"hydration-status" ~children:[
+        Html.text "Hydrated! Todos are now interactive."
+      ] ();
+    ]
+
   (** App Layout with Navigation *)
   let app_layout ~children () =
     Html.div ~class_:"app-container" ~children:[
@@ -108,7 +125,7 @@ module Make (P : Platform_intf.S) = struct
         Html.span ~children:[Html.text " | "] ();
         Router.link ~href:"/counter" ~class_:"nav-link" ~children:[Html.text "Counter"] ();
         Html.span ~children:[Html.text " | "] ();
-        Router.link ~href:"/todo" ~class_:"nav-link" ~children:[Html.text "Todo"] ();
+        Router.link ~href:"/todos" ~class_:"nav-link" ~children:[Html.text "Todos"] ();
         Html.span ~children:[Html.text " | "] ();
         Router.link ~href:"/keyed" ~class_:"nav-link" ~children:[Html.text "Keyed"] ();
         Html.span ~children:[Html.text " | "] ();

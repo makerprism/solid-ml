@@ -789,10 +789,14 @@ let make_element tag ?id ?class_ ?style ?onclick ?oninput ?onchange ?onkeydown ?
     (* Only append children to non-adopted elements *)
     List.iter (append_to_element el) children
   else
-    (* For adopted elements, still process children to set up reactive bindings *)
+    (* For adopted elements, still handle text placeholders created in the client. *)
     List.iter (fun child ->
       match child with
-      | Text _ | Empty -> () (* Text nodes already adopted via hydration markers *)
+      | Text txt ->
+        let node = Dom.node_of_text txt in
+        if Dom.node_parent_node node = None && Dom.text_data txt = "" then
+          Dom.append_child el node
+      | Empty -> ()
       | Element _ | Fragment _ ->
         (* Child elements will adopt themselves via recursive make_element calls *)
         ()

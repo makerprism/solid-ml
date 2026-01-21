@@ -10,6 +10,8 @@ module Internal = Solid_ml_internal
 (** Owner type (opaque to users) *)
 type t = Reactive.owner
 
+type token = Runtime.token
+
 (** Get the current owner, if any *)
 let get_owner () =
   match Reactive.get_runtime_opt () with
@@ -25,19 +27,13 @@ let on_cleanup = Reactive.on_cleanup
     to clean up the root and all its descendants.
     
     Note: create_root passes the dispose function to fn. *)
-let create_root fn =
-  match Reactive.get_runtime_opt () with
-  | Some _ ->
-    Reactive.create_root (fun dispose -> fn (); dispose)
-  | None ->
-    Reactive.run (fun () ->
-      Reactive.create_root (fun dispose -> fn (); dispose)
-    )
+let create_root (_token : token) fn =
+  Reactive.create_root (fun dispose -> fn (); dispose)
 
 (** Run a function with a new owner scope.
     
     Returns a tuple of (result, dispose_fn). *)
-let run_with_owner fn =
+let run_with_owner (_token : token) fn =
   Reactive.create_root (fun dispose ->
     let result = fn () in
     (result, dispose)
@@ -65,3 +61,23 @@ let run_with_owner fn =
 let catch_error (fn : unit -> 'a) (handler : exn -> 'a) : 'a =
   try fn ()
   with exn -> handler exn
+
+module Unsafe = struct
+  let create_root fn =
+    match Reactive.get_runtime_opt () with
+    | Some _ ->
+      Reactive.create_root (fun dispose -> fn (); dispose)
+    | None ->
+      Reactive.run (fun () ->
+        Reactive.create_root (fun dispose -> fn (); dispose)
+      )
+
+  let run_with_owner fn =
+    Reactive.create_root (fun dispose ->
+      let result = fn () in
+      (result, dispose)
+    )
+
+  let on_cleanup = Reactive.on_cleanup
+  let get_owner = Reactive.get_owner
+end

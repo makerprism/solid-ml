@@ -14,12 +14,12 @@ let benchmark_signal_with_observers () =
   printf "\n=== Signal with 50 observers ===\n";
   
   let run_with_observers () =
-    Solid_ml.Runtime.run (fun () ->
-      let signal, set_signal = Solid_ml.Signal.create 0 in
+    Solid_ml.Runtime.Unsafe.run (fun () ->
+      let signal, set_signal = Solid_ml.Signal.Unsafe.create 0 in
       
       (* Create 50 effects observing signal *)
       for _i = 1 to 50 do
-        ignore @@ Solid_ml.Effect.create (fun () ->
+        ignore @@ Solid_ml.Effect.Unsafe.create (fun () ->
           let _ = Solid_ml.Signal.get signal in
           ()
         )

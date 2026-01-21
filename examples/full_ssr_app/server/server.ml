@@ -131,14 +131,7 @@ let home_page () =
 let counter_page ~initial () =
   layout ~title:"Counter - solid-ml SSR" ~children:(
     Shared.app_layout ~children:(
-      Html.fragment [
-        Shared.counter ~initial ();
-        (* Hydration data/status *)
-        Html.input ~type_:"hidden" ~id:"initial-count" ~value:(string_of_int initial) ();
-        Html.div ~id:"hydration-status" ~class_:"hydration-status" ~children:[
-          Html.text "Hydrated! Counter is now interactive."
-        ] ();
-      ]
+      Shared.counter_content ~initial ()
     ) ()
   ) ()
 
@@ -146,13 +139,7 @@ let counter_page ~initial () =
 let todos_page ~todos () =
   layout ~title:"Todos - solid-ml SSR" ~children:(
     Shared.app_layout ~children:(
-      Html.fragment [
-        Shared.todo_list ~initial_todos:todos ();
-        (* Hydration status *)
-        Html.div ~id:"hydration-status" ~class_:"hydration-status" ~children:[
-          Html.text "Hydrated! Todos are now interactive."
-        ] ();
-      ]
+      Shared.todos_content ~initial_todos:todos ()
     ) ()
   ) ()
 

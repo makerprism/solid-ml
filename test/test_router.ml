@@ -3,6 +3,7 @@
 open Solid_ml_router
 open Solid_ml
 
+
 let passed = ref 0
 let failed = ref 0
 
@@ -451,7 +452,7 @@ let test_router_provider () =
       Route.create ~path:"/" ~data:() ();
       Route.create ~path:"/users/:id" ~data:() ();
     ] in
-    Runtime.run (fun () ->
+    Runtime.Unsafe.run (fun () ->
       Components.Link.provide ~initial_path:"/users/123" ~routes (fun () ->
         let path = Router.use_path () in
         assert_equal path "/users/123"
@@ -463,7 +464,7 @@ let test_router_provider () =
     let routes = [
       Route.create ~path:"/users/:id" ~data:() ();
     ] in
-    Runtime.run (fun () ->
+    Runtime.Unsafe.run (fun () ->
       Components.Link.provide ~initial_path:"/users/456" ~routes (fun () ->
         let id = Router.use_param "id" in
         assert_equal id (Some "456")
@@ -473,7 +474,7 @@ let test_router_provider () =
   
   test "provide parses query string" (fun () ->
     let routes = [Route.create ~path:"/search" ~data:() ()] in
-    Runtime.run (fun () ->
+    Runtime.Unsafe.run (fun () ->
       Components.Link.provide ~initial_path:"/search?q=test&page=2" ~routes (fun () ->
         (* Query parsing is tested via URL parsing tests *)
         let path = Router.use_path () in
@@ -487,7 +488,7 @@ let test_router_provider () =
       Route.create ~path:"/" ~data:() ();
       Route.create ~path:"/about" ~data:() ();
     ] in
-    Runtime.run (fun () ->
+    Runtime.Unsafe.run (fun () ->
       Components.Link.provide ~initial_path:"/" ~routes (fun () ->
         assert_equal (Router.use_path ()) "/";
         Router.navigate "/about";
@@ -497,7 +498,7 @@ let test_router_provider () =
   );
   
   test "use_path outside context raises" (fun () ->
-    Runtime.run (fun () ->
+    Runtime.Unsafe.run (fun () ->
       try
         let _ = Router.use_path () in
         failwith "should have raised"
@@ -511,7 +512,7 @@ let test_link_component () =
   print_endline "\n=== Link Component ===";
   
   test "link renders anchor tag" (fun () ->
-    Runtime.run (fun () ->
+    Runtime.Unsafe.run (fun () ->
       Components.Link.provide ~initial_path:"/" (fun () ->
         let node = Components.Link.link ~href:"/about" ~children:[Solid_ml_ssr.Html.text "About"] () in
         let html = Solid_ml_ssr.Html.to_string node in
@@ -522,7 +523,7 @@ let test_link_component () =
   );
   
   test "link with class" (fun () ->
-    Runtime.run (fun () ->
+    Runtime.Unsafe.run (fun () ->
       Components.Link.provide ~initial_path:"/" (fun () ->
         let node = Components.Link.link ~class_:"nav-link" ~href:"/about" ~children:[Solid_ml_ssr.Html.text "About"] () in
         let html = Solid_ml_ssr.Html.to_string node in
@@ -532,7 +533,7 @@ let test_link_component () =
   );
   
   test "nav_link adds active class when exact match" (fun () ->
-    Runtime.run (fun () ->
+    Runtime.Unsafe.run (fun () ->
       Components.Link.provide ~initial_path:"/about" (fun () ->
         let node = Components.Link.nav_link ~exact:true ~href:"/about" ~children:[Solid_ml_ssr.Html.text "About"] () in
         let html = Solid_ml_ssr.Html.to_string node in
@@ -550,7 +551,7 @@ let test_link_component () =
   );
   
   test "nav_link partial match (default)" (fun () ->
-    Runtime.run (fun () ->
+    Runtime.Unsafe.run (fun () ->
       Components.Link.provide ~initial_path:"/users/123" (fun () ->
         (* /users should be active when viewing /users/123 *)
         let node = Components.Link.nav_link ~href:"/users" ~children:[Solid_ml_ssr.Html.text "Users"] () in
@@ -566,7 +567,7 @@ let test_link_component () =
   );
   
   test "nav_link exact match does not match partial" (fun () ->
-    Runtime.run (fun () ->
+    Runtime.Unsafe.run (fun () ->
       Components.Link.provide ~initial_path:"/users/123" (fun () ->
         (* With exact=true, /users should NOT be active when viewing /users/123 *)
         let node = Components.Link.nav_link ~exact:true ~href:"/users" ~children:[Solid_ml_ssr.Html.text "Users"] () in
@@ -590,7 +591,7 @@ let test_outlet_component () =
       Route.create ~path:"/" ~data:home_component ();
       Route.create ~path:"/about" ~data:about_component ();
     ] in
-    Runtime.run (fun () ->
+    Runtime.Unsafe.run (fun () ->
       Components.Link.provide ~initial_path:"/" (fun () ->
         let node = Components.Link.outlet ~routes () in
         let html = Solid_ml_ssr.Html.to_string node in
@@ -603,7 +604,7 @@ let test_outlet_component () =
     let routes = [
       Route.create ~path:"/" ~data:(fun () -> Solid_ml_ssr.Html.text "Home") ();
     ] in
-    Runtime.run (fun () ->
+    Runtime.Unsafe.run (fun () ->
       Components.Link.provide ~initial_path:"/unknown" (fun () ->
         let not_found () = Solid_ml_ssr.Html.text "404 Not Found" in
         let node = Components.Link.outlet ~routes ~not_found () in
@@ -854,8 +855,8 @@ let test_resource () =
   print_endline "\n=== Resource ===";
   
   test "resource starts loading then ready" (fun () ->
-    Runtime.run (fun () ->
-      let r = Resource.create (fun () -> 42) in
+    Runtime.Unsafe.run (fun () ->
+      let r = Resource.Unsafe.create (fun () -> 42) in
       match Resource.read r with
       | Resource.Ready v -> assert_equal v 42
       | _ -> failwith "expected Ready"
@@ -863,8 +864,8 @@ let test_resource () =
   );
   
   test "resource of_value is ready" (fun () ->
-    Runtime.run (fun () ->
-      let r = Resource.of_value "hello" in
+    Runtime.Unsafe.run (fun () ->
+      let r = Resource.Unsafe.of_value "hello" in
       match Resource.read r with
       | Resource.Ready v -> assert_equal v "hello"
       | _ -> failwith "expected Ready"
@@ -872,8 +873,8 @@ let test_resource () =
   );
   
   test "resource of_error is error" (fun () ->
-    Runtime.run (fun () ->
-      let r = Resource.of_error "something went wrong" in
+    Runtime.Unsafe.run (fun () ->
+      let r = Resource.Unsafe.of_error "something went wrong" in
       match Resource.read r with
       | Resource.Error msg -> assert_equal msg "something went wrong"
       | _ -> failwith "expected Error"
@@ -881,8 +882,8 @@ let test_resource () =
   );
   
   test "resource create_loading is pending" (fun () ->
-    Runtime.run (fun () ->
-      let r = Resource.create_loading () in
+    Runtime.Unsafe.run (fun () ->
+      let r = Resource.Unsafe.create_loading () in
       match Resource.read r with
       | Resource.Pending -> ()
       | _ -> failwith "expected Pending"
@@ -890,8 +891,8 @@ let test_resource () =
   );
   
   test "resource set transitions to ready" (fun () ->
-    Runtime.run (fun () ->
-      let r = Resource.create_loading () in
+    Runtime.Unsafe.run (fun () ->
+      let r = Resource.Unsafe.create_loading () in
       Resource.set r 99;
       match Resource.read r with
       | Resource.Ready v -> assert_equal v 99
@@ -900,8 +901,8 @@ let test_resource () =
   );
   
   test "resource set_error transitions to error" (fun () ->
-    Runtime.run (fun () ->
-      let r = Resource.of_value 1 in
+    Runtime.Unsafe.run (fun () ->
+      let r = Resource.Unsafe.of_value 1 in
       Resource.set_error r "failed";
       match Resource.read r with
       | Resource.Error msg -> assert_equal msg "failed"
@@ -910,8 +911,8 @@ let test_resource () =
   );
   
   test "resource is_loading" (fun () ->
-    Runtime.run (fun () ->
-      let r = Resource.create_loading () in
+    Runtime.Unsafe.run (fun () ->
+      let r = Resource.Unsafe.create_loading () in
       assert (Resource.is_loading r);
       assert (not (Resource.is_ready r));
       assert (not (Resource.is_error r))
@@ -919,8 +920,8 @@ let test_resource () =
   );
   
   test "resource is_ready" (fun () ->
-    Runtime.run (fun () ->
-      let r = Resource.of_value 1 in
+    Runtime.Unsafe.run (fun () ->
+      let r = Resource.Unsafe.of_value 1 in
       assert (Resource.is_ready r);
       assert (not (Resource.is_loading r));
       assert (not (Resource.is_error r))
@@ -928,8 +929,8 @@ let test_resource () =
   );
   
   test "resource is_error" (fun () ->
-    Runtime.run (fun () ->
-      let r = Resource.of_error "err" in
+    Runtime.Unsafe.run (fun () ->
+      let r = Resource.Unsafe.of_error "err" in
       assert (Resource.is_error r);
       assert (not (Resource.is_loading r));
       assert (not (Resource.is_ready r))
@@ -937,26 +938,26 @@ let test_resource () =
   );
   
   test "resource get_data" (fun () ->
-    Runtime.run (fun () ->
-      let r = Resource.of_value 123 in
+    Runtime.Unsafe.run (fun () ->
+      let r = Resource.Unsafe.of_value 123 in
       assert_equal (Resource.get_data r) (Some 123);
-      let r2 = Resource.create_loading () in
+      let r2 = Resource.Unsafe.create_loading () in
       assert_none (Resource.get_data r2)
     )
   );
   
   test "resource get_error" (fun () ->
-    Runtime.run (fun () ->
-      let r = Resource.of_error "oops" in
+    Runtime.Unsafe.run (fun () ->
+      let r = Resource.Unsafe.of_error "oops" in
       assert_equal (Resource.get_error r) (Some "oops");
-      let r2 = Resource.of_value 1 in
+      let r2 = Resource.Unsafe.of_value 1 in
       assert_none (Resource.get_error r2)
     )
   );
   
   test "resource map on ready" (fun () ->
-    Runtime.run (fun () ->
-      let r = Resource.of_value 10 in
+    Runtime.Unsafe.run (fun () ->
+      let r = Resource.Unsafe.of_value 10 in
       match Resource.map (fun x -> x * 2) r with
       | Resource.Ready v -> assert_equal v 20
       | _ -> failwith "expected Ready"
@@ -964,8 +965,8 @@ let test_resource () =
   );
   
   test "resource map on loading" (fun () ->
-    Runtime.run (fun () ->
-      let r = Resource.create_loading () in
+    Runtime.Unsafe.run (fun () ->
+      let r = Resource.Unsafe.create_loading () in
       match Resource.map (fun x -> x * 2) r with
       | Resource.Pending -> ()
       | _ -> failwith "expected Pending"
@@ -973,10 +974,10 @@ let test_resource () =
   );
 
   test "resource combine both ready" (fun () ->
-    Runtime.run (fun () ->
-      let r1 = Resource.of_value 1 in
-      let r2 = Resource.of_value 2 in
-      let combined = Resource.combine r1 r2 in
+    Runtime.Unsafe.run (fun () ->
+      let r1 = Resource.Unsafe.of_value 1 in
+      let r2 = Resource.Unsafe.of_value 2 in
+      let combined = Resource.Unsafe.combine r1 r2 in
       match Resource.read combined with
       | Resource.Ready (a, b) -> 
         assert_equal a 1;
@@ -986,10 +987,10 @@ let test_resource () =
   );
   
   test "resource combine one loading" (fun () ->
-    Runtime.run (fun () ->
-      let r1 = Resource.of_value 1 in
-      let r2 = Resource.create_loading () in
-      let combined = Resource.combine r1 r2 in
+    Runtime.Unsafe.run (fun () ->
+      let r1 = Resource.Unsafe.of_value 1 in
+      let r2 = Resource.Unsafe.create_loading () in
+      let combined = Resource.Unsafe.combine r1 r2 in
       match Resource.read combined with
       | Resource.Pending -> ()
       | _ -> failwith "expected Pending"
@@ -997,10 +998,10 @@ let test_resource () =
   );
   
   test "resource combine one error" (fun () ->
-    Runtime.run (fun () ->
-      let r1 = Resource.of_value 1 in
-      let r2 = Resource.of_error "fail" in
-      let combined = Resource.combine r1 r2 in
+    Runtime.Unsafe.run (fun () ->
+      let r1 = Resource.Unsafe.of_value 1 in
+      let r2 = Resource.Unsafe.of_error "fail" in
+      let combined = Resource.Unsafe.combine r1 r2 in
       match Resource.read combined with
       | Resource.Error msg -> assert_equal msg "fail"
       | _ -> failwith "expected Error"
@@ -1008,11 +1009,11 @@ let test_resource () =
   );
   
   test "resource combine_all" (fun () ->
-    Runtime.run (fun () ->
-      let r1 = Resource.of_value 1 in
-      let r2 = Resource.of_value 2 in
-      let r3 = Resource.of_value 3 in
-      let combined = Resource.combine_all [r1; r2; r3] in
+    Runtime.Unsafe.run (fun () ->
+      let r1 = Resource.Unsafe.of_value 1 in
+      let r2 = Resource.Unsafe.of_value 2 in
+      let r3 = Resource.Unsafe.of_value 3 in
+      let combined = Resource.Unsafe.combine_all [r1; r2; r3] in
       match Resource.read combined with
       | Resource.Ready lst -> assert_equal lst [1; 2; 3]
       | _ -> failwith "expected Ready"
@@ -1020,8 +1021,8 @@ let test_resource () =
   );
   
   test "resource fetcher exception becomes error" (fun () ->
-    Runtime.run (fun () ->
-      let r = Resource.create (fun () -> failwith "boom") in
+    Runtime.Unsafe.run (fun () ->
+      let r = Resource.Unsafe.create (fun () -> failwith "boom") in
       match Resource.read r with
       | Resource.Error _ -> ()
       | _ -> failwith "expected Error"

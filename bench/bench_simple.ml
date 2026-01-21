@@ -15,8 +15,8 @@ let benchmark_signal_updates () =
   
   (* Test 1: Simple signal updates *)
   let run_simple_updates () =
-    Solid_ml.Runtime.run (fun () ->
-      let _, set_signal = Solid_ml.Signal.create 0 in
+    Solid_ml.Runtime.Unsafe.run (fun () ->
+      let _, set_signal = Solid_ml.Signal.Unsafe.create 0 in
       for i = 1 to 10000 do
         set_signal i
       done
@@ -30,14 +30,14 @@ let benchmark_memo_chains () =
   
   (* Test 1: Deep memo chain *)
   let run_deep_chain () =
-    Solid_ml.Runtime.run (fun () ->
-      let root_signal, set_root = Solid_ml.Signal.create 1 in
+    Solid_ml.Runtime.Unsafe.run (fun () ->
+      let root_signal, set_root = Solid_ml.Signal.Unsafe.create 1 in
       
       (* Build chain of 50 memos and return chain function *)
       let rec build_chain depth signal_fn =
         if depth = 0 then signal_fn
         else
-          let memo = Solid_ml.Memo.create (fun () ->
+          let memo = Solid_ml.Memo.Unsafe.create (fun () ->
             let v = signal_fn () in
             v + depth
           ) in
