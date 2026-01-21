@@ -18,24 +18,34 @@ let label = function
 
 let nav_items = [ Posts; Users ]
 
+let normalize_path path =
+  let len = String.length path in
+  if len > 1 && path.[len - 1] = '/' then
+    String.sub path 0 (len - 1)
+  else
+    path
+
 let of_path path =
-  if String.equal path "/" then Some Posts
-  else if String.equal path "/users" then Some Users
-  else if String.length path > 7 && String.sub path 0 7 = "/posts/" then
-    let id_str = String.sub path 7 (String.length path - 7) in
+  let normalized = normalize_path path in
+  if String.equal normalized "/" then Some Posts
+  else if String.equal normalized "/users" then Some Users
+  else if String.length normalized > 7 && String.sub normalized 0 7 = "/posts/" then
+    let id_str = String.sub normalized 7 (String.length normalized - 7) in
     Option.map (fun id -> Post id) (int_of_string_opt id_str)
-  else if String.length path > 7 && String.sub path 0 7 = "/users/" then
-    let id_str = String.sub path 7 (String.length path - 7) in
+  else if String.length normalized > 7 && String.sub normalized 0 7 = "/users/" then
+    let id_str = String.sub normalized 7 (String.length normalized - 7) in
     Option.map (fun id -> User id) (int_of_string_opt id_str)
   else
     None
 
-let is_nav_active ~current_path = function
+let is_nav_active ~current_path =
+  let normalized = normalize_path current_path in
+  function
   | Posts ->
-    String.equal current_path "/"
-    || (String.length current_path > 7 && String.sub current_path 0 7 = "/posts/")
+    String.equal normalized "/"
+    || (String.length normalized > 7 && String.sub normalized 0 7 = "/posts/")
   | Users ->
-    String.equal current_path "/users"
-    || (String.length current_path > 7 && String.sub current_path 0 7 = "/users/")
+    String.equal normalized "/users"
+    || (String.length normalized > 7 && String.sub normalized 0 7 = "/users/")
   | Post _
   | User _ -> false
