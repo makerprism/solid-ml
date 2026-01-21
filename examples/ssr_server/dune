@@ -9,4 +9,4 @@
 (executable
  (name server)
  (enabled_if false)
- (libraries solid-ml solid-ml-ssr dream))
+ (libraries solid-ml solid-ml-ssr dream ssr_server_shared))

@@ -1,0 +1,195 @@
+type user = {
+  id : int;
+  name : string;
+  username : string;
+  email : string;
+  phone : string;
+  website : string;
+  company : string;
+  city : string;
+}
+
+type post = {
+  id : int;
+  user_id : int;
+  title : string;
+  body : string;
+}
+
+type comment = {
+  id : int;
+  post_id : int;
+  name : string;
+  email : string;
+  body : string;
+}
+
+type 'a data_state =
+  | Loading
+  | Error of string
+  | Ready of 'a
+
+type page =
+  | Posts_page of post list data_state
+  | Users_page of user list data_state
+  | Post_page of post data_state * comment list data_state
+  | User_page of user data_state * post list data_state
+  | Not_found of string
+
+module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
+  module Html = Env.Html
+  open Html
+
+  let loading_block () =
+    <div class_="loading">(Html.text "Loading...")</div>
+
+  let error_block msg =
+    <div class_="error">(Html.text msg)</div>
+
+  let render_state state ~ready =
+    match state with
+    | Loading -> loading_block ()
+    | Error msg -> error_block msg
+    | Ready value -> ready value
+
+  let post_card ?(show_user=true) (post : post) =
+    <div class_="card post-card">
+      <h3>
+        (Html.text post.title)
+      </h3>
+      <p>(Html.text post.body)</p>
+      (if show_user then
+         <div class_="meta">
+           (Html.text "View author")
+         </div>
+       else
+           Html.empty)
+    </div>
+
+  let user_card (u : user) =
+    <div class_="card user-card">
+      <h3>
+        (Html.text u.name)
+      </h3>
+      <p>(Html.text ("@" ^ u.username))</p>
+      <p>(Html.text u.email)</p>
+      <p>(Html.text (u.company ^ " · " ^ u.city))</p>
+    </div>
+
+  let comment_card (c : comment) =
+    <div class_="card comment-card">
+      <h4>(Html.text c.name)</h4>
+      <p class_="meta">(Html.text c.email)</p>
+      <p>(Html.text c.body)</p>
+    </div>
+
+  let posts_page state =
+    <div>
+      <div class_="section-title">
+        <h2>(Html.text "Recent Posts")</h2>
+        <span class_="count">
+          (match state with
+           | Ready posts -> Html.text
+               (string_of_int (List.length posts) ^ " posts")
+           | Loading -> Html.text "Loading..."
+           | Error _ -> Html.text "")
+        </span>
+      </div>
+      <p>(Html.text "Click on a post to view details and comments, or click on a user to see their profile.")</p>
+      <div id="content-list">
+        (render_state state ~ready:(fun posts ->
+           Html.fragment (List.map (post_card ~show_user:true) posts)))
+      </div>
+    </div>
+
+  let users_page state =
+    <div>
+      <div class_="section-title">
+        <h2>(Html.text "All Users")</h2>
+        <span class_="count">
+          (match state with
+           | Ready users -> Html.text
+               (string_of_int (List.length users) ^ " users")
+           | Loading -> Html.text "Loading..."
+           | Error _ -> Html.text "")
+        </span>
+      </div>
+      <p>(Html.text "Click on a user to view their profile and posts.")</p>
+      <div id="content-list">
+        (render_state state ~ready:(fun users ->
+           Html.fragment (List.map user_card users)))
+      </div>
+    </div>
+
+  let user_page user_state posts_state =
+    <div>
+      <div class_="section-title">
+        <h2>(Html.text "User Profile")</h2>
+      </div>
+      <div id="user-profile">
+        (render_state user_state ~ready:(fun (u : user) ->
+           <div class_="card user-detail">
+             <h3>(Html.text u.name)</h3>
+             <p>(Html.text ("@" ^ u.username))</p>
+             <p>(Html.text u.email)</p>
+             <p>(Html.text u.phone)</p>
+             <p>(Html.text u.website)</p>
+             <p>(Html.text (u.company ^ " · " ^ u.city))</p>
+           </div>))
+      </div>
+      <div class_="section-title">
+        <h3>(Html.text "Posts")</h3>
+      </div>
+      <div id="content-list">
+        (render_state posts_state ~ready:(fun posts ->
+           Html.fragment (List.map (post_card ~show_user:false) posts)))
+      </div>
+    </div>
+
+  let post_page post_state comments_state =
+    <div>
+      <div class_="section-title">
+        <h2>(Html.text "Post Detail")</h2>
+      </div>
+      <div id="post-detail">
+        (render_state post_state ~ready:(fun post ->
+           <div class_="card post-detail">
+             <h3>(Html.text post.title)</h3>
+             <p>(Html.text post.body)</p>
+           </div>))
+      </div>
+      <div class_="section-title">
+        <h3>(Html.text "Comments")</h3>
+      </div>
+      <div id="comments-list">
+        (render_state comments_state ~ready:(fun comments ->
+           Html.fragment (List.map comment_card comments)))
+      </div>
+    </div>
+
+  let not_found msg =
+    <div class_="error">(Html.text msg)</div>
+
+  let app ~current_path:_current_path ~page () : Html.node =
+    <div id="app">
+      <header>
+        <h1>(Html.text "solid-ml SSR API Demo")</h1>
+        <p class_="subtitle">(Html.text "Server-rendered data with client-side navigation")</p>
+        <nav>
+          <a href="/" class_="nav-link">(Html.text "Posts")</a>
+          <a href="/users" class_="nav-link">(Html.text "Users")</a>
+        </nav>
+      </header>
+      <section>
+        (match page with
+         | Posts_page state -> posts_page state
+         | Users_page state -> users_page state
+         | Post_page (post_state, comments_state) -> post_page post_state comments_state
+         | User_page (user_state, posts_state) -> user_page user_state posts_state
+         | Not_found msg -> not_found msg)
+      </section>
+      <div id="hydration-status" class_="hydration-status">
+        (Html.text "Hydrated! Client-side navigation enabled.")
+      </div>
+    </div>
+end

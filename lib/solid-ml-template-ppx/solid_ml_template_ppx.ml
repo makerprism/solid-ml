@@ -113,7 +113,7 @@ let contains_tpl_markers (structure : Parsetree.structure) : (Location.t * strin
   !found
 
 let supported_subset =
-   "Html.<tag> ~children:[Html.text \"<literal>\"; Tpl.text <thunk>; Tpl.text_value <value>; Tpl.show ...; Tpl.each_keyed ...; Html.<tag> ...; ...] ()\n\
+   "<tag> (or Html.<tag>) ~children:[text/Html.text \"<literal>\"; Tpl.text <thunk>; Tpl.text_value <value>; Tpl.show ...; Tpl.each_keyed ...; <tag>/Html.<tag> ...; ...] ()\n\
     - supports nested intrinsic tags in children\n\
     - emits `<!--#-->` comment markers before text slots (SolidJS-style) to stabilize DOM paths\n\
     - emits `<!--$-->` markers for dynamic node regions\n\
@@ -232,6 +232,7 @@ let escape_html (s : string) : string =
 let is_html_text_longident (longident : Longident.t) : bool =
   match List.rev (longident_to_list longident) with
   | "text" :: "Html" :: _ -> true
+  | [ "text" ] -> true
   | _ -> false
 
 let is_whitespace_char = function

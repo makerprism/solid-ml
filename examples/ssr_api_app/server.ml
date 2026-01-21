@@ -17,37 +17,18 @@
 
 open Solid_ml_ssr
 
+module Shared = Ssr_api_shared.Components
+module C = Shared.App (Solid_ml_ssr.Env)
+
 (** {1 Data Types} *)
 
-type user = {
-  id : int;
-  name : string;
-  username : string;
-  email : string;
-  phone : string;
-  website : string;
-  company_name : string;
-  city : string;
-}
-
-type post = {
-  id : int;
-  user_id : int;
-  title : string;
-  body : string;
-}
-
-type comment = {
-  id : int;
-  post_id : int;
-  name : string;
-  email : string;
-  body : string;
-}
+type user = Shared.user
+type post = Shared.post
+type comment = Shared.comment
 
 (** {1 JSON Parsing} *)
 
-let parse_user json =
+let parse_user json : user =
   let open Yojson.Basic.Util in
   {
     id = json |> member "id" |> to_int;
@@ -56,7 +37,7 @@ let parse_user json =
     email = json |> member "email" |> to_string;
     phone = json |> member "phone" |> to_string;
     website = json |> member "website" |> to_string;
-    company_name = json |> member "company" |> member "name" |> to_string;
+    company = json |> member "company" |> member "name" |> to_string;
     city = json |> member "address" |> member "city" |> to_string;
   }
 
@@ -151,20 +132,7 @@ let fetch_comments post_id =
 (** {1 Components} *)
 
 (** Page layout with navigation *)
-let layout ~title:page_title ~current_path ~children () =
-  let is_active path =
-    if path = "/" then current_path = "/"
-    else String.length current_path >= String.length path && 
-         String.sub current_path 0 (String.length path) = path
-  in
-  let nav_link href link_text =
-    Html.(
-      a ~href 
-        ~class_:(if is_active href then "nav-link active" else "nav-link")
-        ~children:[text link_text] ()
-    )
-  in
-  
+let layout ~title:page_title ~current_path:_ ~children () =
   Html.(
     html ~lang:"en" ~children:[
       head ~children:[
@@ -370,32 +338,28 @@ let layout ~title:page_title ~current_path ~children () =
         </style>|};
       ] ();
       body ~children:[
-        header ~children:[
-          h1 ~children:[text "API Explorer"] ();
-          p ~class_:"subtitle" ~children:[
-            text "SSR + client-side navigation demo"
+        children @ [
+          footer ~children:[
+            p ~children:[
+              text "Data from ";
+              a ~href:"https://jsonplaceholder.typicode.com" ~target:"_blank" 
+                ~children:[text "JSONPlaceholder"] ();
+              text " | Powered by ";
+              a ~href:"https://github.com/makerprism/solid-ml" 
+                ~children:[text "solid-ml"] ();
+            ] ();
           ] ();
-          nav ~children:[
-            nav_link "/" "Posts";
-            nav_link "/users" "Users";
-          ] ();
-        ] ();
-        main ~id:"app" ~children ();
-        footer ~children:[
-          p ~children:[
-            text "Data from ";
-            a ~href:"https://jsonplaceholder.typicode.com" ~target:"_blank" 
-              ~children:[text "JSONPlaceholder"] ();
-            text " | Powered by ";
-            a ~href:"https://github.com/makerprism/solid-ml" 
-              ~children:[text "solid-ml"] ();
-          ] ();
-        ] ();
-        (* Hydration script *)
-        script ~src:"/static/client.js" ~type_:"module" ~children:[] ();
-      ] ()
+          (* Hydration script *)
+          script ~src:"/static/client.js" ~type_:"module" ~children:[] ();
+        ]
+      ) ()
     ] ()
   )
+
+let render_page ~current_path page =
+  layout ~title:"API Explorer" ~current_path ~children:[
+    C.app ~current_path ~page ()
+  ] ()
 
 (** Breadcrumb navigation *)
 let breadcrumb items =
@@ -535,7 +499,7 @@ let user_page ~(user : user) ~posts () =
               ] ()
             ] ();
             span ~children:[text ("Location: " ^ user.city)] ();
-            span ~children:[text ("Company: " ^ user.company_name)] ();
+            span ~children:[text ("Company: " ^ user.company)] ();
           ] ();
         ] ();
       ] ();
@@ -634,7 +598,7 @@ let handle_api_users _req =
         ("email", `String u.email);
         ("phone", `String u.phone);
         ("website", `String u.website);
-        ("company", `String u.company_name);
+        ("company", `String u.company);
         ("city", `String u.city);
       ]
     ) users) in
@@ -656,7 +620,7 @@ let handle_api_user req =
       ("email", `String user.email);
       ("phone", `String user.phone);
       ("website", `String user.website);
-      ("company", `String user.company_name);
+      ("company", `String user.company);
       ("city", `String user.city);
     ] in
     Dream.json (Yojson.Basic.to_string json)
@@ -745,10 +709,14 @@ let handle_posts _req =
   let* result = fetch_posts () in
   match result with
   | Ok posts ->
-    let html = Render.to_document (fun () -> posts_page ~posts ()) in
+    let html = Render.to_document (fun () ->
+      render_page ~current_path:"/" (Shared.Posts_page (Shared.Ready posts)))
+    in
     Dream.html html
   | Error e ->
-    let html = Render.to_document (fun () -> error_page ~message:e ()) in
+    let html = Render.to_document (fun () ->
+      render_page ~current_path:"/" (Shared.Posts_page (Shared.Error e)))
+    in
     Dream.html ~status:`Internal_Server_Error html
 
 let handle_users _req =
@@ -756,10 +724,14 @@ let handle_users _req =
   let* result = fetch_users () in
   match result with
   | Ok users ->
-    let html = Render.to_document (fun () -> users_page ~users ()) in
+    let html = Render.to_document (fun () ->
+      render_page ~current_path:"/users" (Shared.Users_page (Shared.Ready users)))
+    in
     Dream.html html
   | Error e ->
-    let html = Render.to_document (fun () -> error_page ~message:e ()) in
+    let html = Render.to_document (fun () ->
+      render_page ~current_path:"/users" (Shared.Users_page (Shared.Error e)))
+    in
     Dream.html ~status:`Internal_Server_Error html
 
 let handle_user req =
@@ -770,17 +742,25 @@ let handle_user req =
   in
   match id with
   | None ->
-    let html = Render.to_document (fun () -> error_page ~message:"Invalid user ID" ()) in
+    let html = Render.to_document (fun () ->
+      render_page ~current_path:"/users" (Shared.Not_found "Invalid user ID"))
+    in
     Dream.html ~status:`Bad_Request html
   | Some id ->
     let* user_result = fetch_user id in
     let* posts_result = fetch_user_posts id in
     match user_result, posts_result with
     | Ok user, Ok posts ->
-      let html = Render.to_document (fun () -> user_page ~user ~posts ()) in
+      let html = Render.to_document (fun () ->
+        render_page ~current_path:("/users/" ^ string_of_int user.id)
+          (Shared.User_page (Shared.Ready user, Shared.Ready posts)))
+      in
       Dream.html html
     | Error e, _ | _, Error e ->
-      let html = Render.to_document (fun () -> error_page ~message:e ()) in
+      let html = Render.to_document (fun () ->
+        render_page ~current_path:("/users/" ^ string_of_int id)
+          (Shared.User_page (Shared.Error e, Shared.Error e)))
+      in
       Dream.html ~status:`Internal_Server_Error html
 
 let handle_post req =
@@ -791,28 +771,40 @@ let handle_post req =
   in
   match id with
   | None ->
-    let html = Render.to_document (fun () -> error_page ~message:"Invalid post ID" ()) in
+    let html = Render.to_document (fun () ->
+      render_page ~current_path:"/" (Shared.Not_found "Invalid post ID"))
+    in
     Dream.html ~status:`Bad_Request html
   | Some id ->
     let* post_result = fetch_post id in
     match post_result with
     | Error e ->
-      let html = Render.to_document (fun () -> error_page ~message:e ()) in
+      let html = Render.to_document (fun () ->
+        render_page ~current_path:("/posts/" ^ string_of_int id)
+          (Shared.Post_page (Shared.Error e, Shared.Error e)))
+      in
       Dream.html ~status:`Internal_Server_Error html
     | Ok post ->
-      let* author_result = fetch_user post.user_id in
       let* comments_result = fetch_comments id in
-      match author_result, comments_result with
-      | Ok author, Ok comments ->
-        let html = Render.to_document (fun () -> post_page ~post ~comments ~author ()) in
+      match comments_result with
+      | Ok comments ->
+        let html = Render.to_document (fun () ->
+          render_page ~current_path:("/posts/" ^ string_of_int post.id)
+            (Shared.Post_page (Shared.Ready post, Shared.Ready comments)))
+        in
         Dream.html html
-      | Error e, _ | _, Error e ->
-        let html = Render.to_document (fun () -> error_page ~message:e ()) in
+      | Error e ->
+        let html = Render.to_document (fun () ->
+          render_page ~current_path:("/posts/" ^ string_of_int post.id)
+            (Shared.Post_page (Shared.Error e, Shared.Error e)))
+        in
         Dream.html ~status:`Internal_Server_Error html
 
 let handle_not_found req =
   let path = Dream.target req in
-  let html = Render.to_document (fun () -> not_found_page ~request_path:path ()) in
+  let html = Render.to_document (fun () ->
+    render_page ~current_path:path (Shared.Not_found ("Page not found: " ^ path)))
+  in
   Dream.html ~status:`Not_Found html
 
 (** {1 Main Server} *)

@@ -4,6 +4,6 @@
 
 (melange.emit
  (target output)
- (libraries solid-ml-browser)
+ (libraries solid-ml-browser ssr_api_shared)
  (preprocess (pps melange.ppx))
  (module_systems es6))

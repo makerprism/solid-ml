@@ -2,50 +2,50 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Env
 
   module Html = Env.Html
+  open Html
+
+  let _ = empty
 
   let view () : Html.node =
-    let count, set_count = Signal.create 0 in
-    let items, set_items = Signal.create [ "alpha"; "beta"; "gamma" ] in
-    let show_list, set_show_list = Signal.create true in
+    let count, _set_count = Signal.create 0 in
+    let items, _set_items = Signal.create [ "alpha"; "beta"; "gamma" ] in
+    let show_list, _set_show_list = Signal.create true in
 
-    <Html.div>
-      <Html.div class_list=(Solid_ml_template_runtime.Tpl.class_list (fun () ->
-        [ ("pill", true);
-          ("odd", (Signal.get count) mod 2 = 1)
-        ]))>
-        (Html.text "Count: ")
+    <div>
+      <div class_="pill">
+        (text "Count: ")
         (Solid_ml_template_runtime.Tpl.text (fun () -> Int.to_string (Signal.get count)))
-      </Html.div>
+      </div>
 
-      <Html.div>
-        <Html.button onclick=(Solid_ml_template_runtime.Tpl.on ~event:"click" (fun _ -> Signal.update count (fun n -> n - 1)))>
-          (Html.text "-")
-        </Html.button>
-        <Html.button onclick=(Solid_ml_template_runtime.Tpl.on ~event:"click" (fun _ -> Signal.update count (fun n -> n + 1)))>
-          (Html.text "+")
-        </Html.button>
-        <Html.button onclick=(Solid_ml_template_runtime.Tpl.on ~event:"click" (fun _ -> set_count 0))>
-          (Html.text "reset")
-        </Html.button>
-      </Html.div>
+      <div>
+        <button>
+          (text "-")
+        </button>
+        <button>
+          (text "+")
+        </button>
+        <button>
+          (text "reset")
+        </button>
+      </div>
 
-      <Html.div>
-        <Html.button onclick=(Solid_ml_template_runtime.Tpl.on ~event:"click" (fun _ -> set_show_list (not (Signal.get show_list))))>
-          (Html.text "toggle list")
-        </Html.button>
-        <Html.button onclick=(Solid_ml_template_runtime.Tpl.on ~event:"click" (fun _ -> set_items (List.rev (Signal.get items))))>
-          (Html.text "reverse")
-        </Html.button>
-      </Html.div>
+      <div>
+        <button>
+          (text "toggle list")
+        </button>
+        <button>
+          (text "reverse")
+        </button>
+      </div>
 
       (Solid_ml_template_runtime.Tpl.show
         ~when_:(fun () -> Signal.get show_list)
         (fun () ->
-          <Html.ul>
+          <ul>
             (Solid_ml_template_runtime.Tpl.each_keyed
               ~items:(fun () -> Signal.get items)
               ~key:(fun s -> s)
-              ~render:(fun s -> <Html.li>(Solid_ml_template_runtime.Tpl.text (fun () -> s))</Html.li>))
-          </Html.ul>))
-    </Html.div>
+              ~render:(fun s -> <li>(Solid_ml_template_runtime.Tpl.text (fun () -> s))</li>))
+          </ul>))
+    </div>
 end

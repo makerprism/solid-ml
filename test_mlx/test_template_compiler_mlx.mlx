@@ -3,84 +3,87 @@ module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Env
 
   module Html = Env.Html
+  open Html
+
+  let _ = empty
 
   let render_div ~name () =
-    <Html.div>
+    <div>
       (Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name))
-    </Html.div>
+    </div>
 
   let render_div_props ~name () =
-    <Html.div id="root" class_="c1 c2">
+    <div id="root" class_="c1 c2">
       (Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name))
-    </Html.div>
+    </div>
 
   let render_span ~name () =
-    <Html.span>
+    <span>
       (Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name))
-    </Html.span>
+    </span>
 
   let render_p ~name () =
-    <Html.p>
+    <p>
       (Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name))
-    </Html.p>
+    </p>
 
   let render_p_static ~name () =
-    <Html.p>
-      (Html.text "Hello ")
+    <p>
+      (text "Hello ")
       (Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name))
-      (Html.text "!")
-    </Html.p>
+      (text "!")
+    </p>
 
   let render_p_formatting ~name () =
-    <Html.p>
-      (Html.text "\n  ")
-      (Html.text "Hello ")
+    <p>
+      (text "\n  ")
+      (text "Hello ")
       (Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name))
-      (Html.text "!")
-      (Html.text "\n")
-    </Html.p>
+      (text "!")
+      (text "\n")
+    </p>
 
   let render_p_space ~name () =
-    <Html.p>
-      (Html.text " ")
+    <p>
+      (text " ")
       (Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name))
-    </Html.p>
+    </p>
 
   let render_p_double_space ~name () =
-    <Html.p>
-      (Html.text "  ")
+    <p>
+      (text "  ")
       (Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name))
-    </Html.p>
+    </p>
 
   let render_p_tab_formatting ~name () =
-    <Html.p>
-      (Html.text "\t")
-      (Html.text "Hello ")
+    <p>
+      (text "\t")
+      (text "Hello ")
       (Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name))
-    </Html.p>
+    </p>
 
   let render_pre_formatting ~name () =
-    <Html.pre>
-      (Html.text "\n  ")
+    <pre>
+      (text "\n  ")
       (Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name))
-      (Html.text "\n")
-    </Html.pre>
+      (text "\n")
+    </pre>
 
   let render_code_formatting ~name () =
-    <Html.code>
-      (Html.text "\n  ")
+    <code>
+      (text "\n  ")
       (Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get name))
-      (Html.text "\n")
-    </Html.code>
+      (text "\n")
+    </code>
 
   let render_p_two_slots ~first ~last () =
-    <Html.p>
-      (Html.text "Hello ")
+    <p>
+      (text "Hello ")
       (Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get first))
-      (Html.text ", ")
+      (text ", ")
       (Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get last))
-      (Html.text "!")
-    </Html.p>
+      (text "!")
+    </p>
 end
 
 let () =
