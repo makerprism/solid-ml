@@ -12,6 +12,7 @@ open Solid_ml_browser
 
 module Shared = Ssr_api_shared.Components
 module C = Shared.App (Solid_ml_browser.Env)
+module Routes = Ssr_api_shared.Routes
 
 type user = Shared.user
 type post = Shared.post
@@ -199,22 +200,12 @@ and render_page path =
   match get_element "app" with
   | None -> Dom.log "Error: #app element not found"
   | Some app_el ->
-    if path = "/" then
-      render_posts_page app_el
-    else if path = "/users" then
-      render_users_page app_el
-    else if String.length path > 7 && String.sub path 0 7 = "/posts/" then
-      let id_str = String.sub path 7 (String.length path - 7) in
-      (match int_of_string_opt id_str with
-       | Some id -> render_post_page app_el id
-       | None -> render_app app_el (Shared.Not_found "Invalid post ID"))
-    else if String.length path > 7 && String.sub path 0 7 = "/users/" then
-      let id_str = String.sub path 7 (String.length path - 7) in
-      (match int_of_string_opt id_str with
-       | Some id -> render_user_page app_el id
-       | None -> render_app app_el (Shared.Not_found "Invalid user ID"))
-    else
-      render_app app_el (Shared.Not_found ("Page not found: " ^ path))
+    match Routes.of_path path with
+    | Some Routes.Posts -> render_posts_page app_el
+    | Some Routes.Users -> render_users_page app_el
+    | Some (Routes.Post id) -> render_post_page app_el id
+    | Some (Routes.User id) -> render_user_page app_el id
+    | None -> render_app app_el (Shared.Not_found ("Page not found: " ^ path))
 
 (** {1 Main Entry Point} *)
 
