@@ -8,5 +8,5 @@
 
 (executable
  (name server)
- (enabled_if false)
+ (enabled_if %{env:ENABLE_SSR_API_APP=true})
  (libraries solid-ml solid-ml-ssr dream cohttp-lwt-unix yojson ssr_api_shared))

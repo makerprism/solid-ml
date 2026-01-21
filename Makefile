@@ -12,8 +12,10 @@
         example-counter example-todo example-router example-parallel example-ssr-server example-ssr-server-docker \
         example-browser example-browser-router browser-examples browser-tests browser-tests-headless serve \
         example-full-ssr example-full-ssr-client example-full-ssr-docker \
-        example-ssr-api example-ssr-api-client \
+        example-ssr-api example-ssr-api-client example-ssr-api-local example-ssr-api-docker \
         example-ssr-hydration-docker
+
+PORT ?= 8080
 
 # ==============================================================================
 # Development
@@ -110,14 +112,28 @@ example-ssr-api-client:
 	@echo "Client built: examples/ssr_api_app/static/client.js"
 
 # Run SSR API example (server + client with REST API fetching)
-example-ssr-api: example-ssr-api-client
+example-ssr-api: example-ssr-api-docker
+
+# Run SSR API example locally (requires dream/cohttp/yojson installed)
+example-ssr-api-local: example-ssr-api-client
 	@echo ""
-	@echo "=== Starting SSR API Example ==="
-	@echo "Visit http://localhost:8080"
+	@echo "=== Starting SSR API Example (local) ==="
+	@echo "Visit http://localhost:$(PORT)"
 	@echo "This app fetches data from JSONPlaceholder API"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	@dune exec examples/ssr_api_app/server.exe || stty sane
+	@ENABLE_SSR_API_APP=true PORT=$(PORT) dune exec examples/ssr_api_app/server.exe || stty sane
+
+# Run SSR API example via Docker
+example-ssr-api-docker:
+	@echo "=== Building Docker image: solid-ml-ssr-api ==="
+	@docker build -t solid-ml-ssr-api -f examples/ssr_api_app/Dockerfile .
+	@echo ""
+	@echo "=== Running container ==="
+	@echo "Visit http://localhost:$(PORT)"
+	@echo "Press Ctrl+C to stop (container will be removed)"
+	@echo ""
+	@docker run --rm -p $(PORT):$(PORT) -e PORT=$(PORT) solid-ml-ssr-api || stty sane
 
 # Build and run the Docker-based SSR + hydration demo
 example-ssr-hydration-docker:
