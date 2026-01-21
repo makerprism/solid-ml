@@ -52,11 +52,11 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       <h1>(Html.text "Server-Rendered Counter")</h1>
       <p>(Html.text "Initial count from URL parameter:")</p>
       <div class_="count">
-        (Solid_ml_template_runtime.Tpl.text (fun () -> Int.to_string (Signal.get count)))
+        (Tpl.text (fun () -> Int.to_string (Signal.get count)))
       </div>
       <p>
         (Html.text "Doubled: ")
-        (Solid_ml_template_runtime.Tpl.text (fun () -> Int.to_string (Signal.get count * 2)))
+        (Tpl.text (fun () -> Int.to_string (Signal.get count * 2)))
       </p>
       <p>
         <em>(Html.text "(In a full app, this would become interactive after hydration)")</em>
@@ -71,7 +71,7 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     <div>
       <h1>(Html.text "Server-Rendered Todos")</h1>
       <p>
-        (Solid_ml_template_runtime.Tpl.text (fun () -> Int.to_string (Signal.get count_signal)))
+        (Tpl.text (fun () -> Int.to_string (Signal.get count_signal)))
         (Html.text " items remaining")
       </p>
       <div>

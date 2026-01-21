@@ -14,7 +14,7 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     <div>
       <div class_="pill">
         (text "Count: ")
-        (Solid_ml_template_runtime.Tpl.text (fun () -> Int.to_string (Signal.get count)))
+        (Tpl.text (fun () -> Int.to_string (Signal.get count)))
       </div>
 
       <div>
@@ -38,14 +38,14 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         </button>
       </div>
 
-      (Solid_ml_template_runtime.Tpl.show
+      (Tpl.show
         ~when_:(fun () -> Signal.get show_list)
         (fun () ->
           <ul>
-            (Solid_ml_template_runtime.Tpl.each_keyed
+            (Tpl.each_keyed
               ~items:(fun () -> Signal.get items)
               ~key:(fun s -> s)
-              ~render:(fun s -> <li>(Solid_ml_template_runtime.Tpl.text (fun () -> s))</li>))
+              ~render:(fun s -> <li>(Tpl.text (fun () -> s))</li>))
           </ul>))
     </div>
 end

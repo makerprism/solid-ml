@@ -31,7 +31,7 @@ let () =
   match Dom.query_selector (Dom.document ()) "main.app" with
   | None -> Dom.warn "No main.app element found for hydration"
   | Some main_el ->
-    let _dispose = Render.hydrate main_el (fun () ->
+    let _dispose = Render.hydrate_with main_el ~default:initial (fun initial ->
       C.view ~initial ()
     ) in
     Dom.log "solid-ml counter hydrated"

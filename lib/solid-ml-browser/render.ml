@@ -112,6 +112,18 @@ let hydrate root component =
 let get_hydration_data () =
   Js.Nullable.toOption (Dom.get_hydration_data ())
 
+let hydrate_with root ?decode ~default component =
+  let state =
+    match decode, get_hydration_data () with
+    | None, _ -> default
+    | Some decode_fn, Some json ->
+      (match decode_fn json with
+       | Some v -> v
+       | None -> default)
+    | Some _, None -> default
+  in
+  hydrate root (fun () -> component state)
+
 (** {1 Hot Module Replacement Support} *)
 
 (** State for HMR - tracks the current dispose function *)

@@ -26,6 +26,17 @@ val hydrate : Dom.element -> (unit -> Html.node) -> (unit -> unit)
     The component must produce the same structure as the server render.
     Returns a dispose function. *)
 
+val hydrate_with :
+  Dom.element ->
+  ?decode:(Js.Json.t -> 'a option) ->
+  default:'a ->
+  ('a -> Html.node) ->
+  (unit -> unit)
+(** [hydrate_with root ~default component] hydrates using server-provided data.
+
+    If [decode] is provided, it is applied to [get_hydration_data ()]. When
+    decoding fails or no data is present, [default] is used. *)
+
 val get_hydration_data : unit -> Js.Json.t option
 (** Get hydration data embedded by the server in window.__SOLID_ML_DATA__ *)
 

@@ -15,24 +15,19 @@ module Shared = Shared_components.Components.Make(Client_platform.Client_Platfor
 let get_element id =
   Dom.get_element_by_id (Dom.document ()) id
 
-let query_selector_all selector =
-  Dom.query_selector_all (Dom.document ()) selector
 
 (** {1 Client-Side Navigation} *)
 
 (** Set up client-side navigation for all nav links *)
 let setup_navigation () =
-  let nav_links = query_selector_all "nav a.nav-link" in
-  List.iter (fun link ->
-    let href = Dom.get_attribute link "href" in
-    match href with
-    | Some path ->
-      Dom.add_event_listener link "click" (fun evt ->
-        Dom.prevent_default evt;
-        Dom.set_location path
-      )
-    | None -> ()
-  ) nav_links
+  let _dispose =
+    Navigation.bind_links
+      ~selector:"nav a.nav-link"
+      ~history:`None
+      ~on_navigate:Dom.set_location
+      ()
+  in
+  ()
 
 (** {1 Hydration Logic} *)
 

@@ -49,6 +49,9 @@ module Event = Event
 (** Rendering and hydration *)
 module Render = Render
 
+(** Navigation helpers for SPA-style links *)
+module Navigation = Navigation
+
 
 (** Browser-optimized reactive core - use Reactive module for higher-level API *)
 module Reactive_core = Reactive_core
@@ -104,6 +107,8 @@ module Env = struct
     include Html
     module Internal_template = Html.Internal_template
   end
+
+  module Tpl = Solid_ml_template_runtime.Tpl
 
   module Effect = struct
     let create = Reactive.Effect.create
