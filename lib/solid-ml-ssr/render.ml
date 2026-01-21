@@ -15,6 +15,16 @@ let to_string component =
     result
   )
 
+let to_string_strict token component =
+  reset ();
+  let node = ref (Html.text "") in
+  let dispose = Solid_ml.Owner.create_root token (fun () ->
+    node := component token
+  ) in
+  let result = Html.to_string !node in
+  dispose ();
+  result
+
 let to_document component =
   Solid_ml.Runtime.Unsafe.run (fun () ->
     reset ();
@@ -26,6 +36,16 @@ let to_document component =
     dispose ();
     result
   )
+
+let to_document_strict token component =
+  reset ();
+  let node = ref (Html.text "") in
+  let dispose = Solid_ml.Owner.create_root token (fun () ->
+    node := component token
+  ) in
+  let result = Html.render_document !node in
+  dispose ();
+  result
 
 let get_hydration_script () =
   (* For now, return empty script. Will be populated when we add state serialization *)

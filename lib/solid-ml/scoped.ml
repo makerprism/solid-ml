@@ -1,0 +1,96 @@
+type token = Runtime.token
+
+module type S = sig
+  module Signal : sig
+    type 'a t
+
+    val create : ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
+    val create_eq : equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
+    val create_physical : 'a -> 'a t * ('a -> unit)
+    val get : 'a t -> 'a
+    val set : 'a t -> 'a -> unit
+    val update : 'a t -> ('a -> 'a) -> unit
+    val peek : 'a t -> 'a
+    val subscribe : 'a t -> (unit -> unit) -> (unit -> unit)
+  end
+
+  module Memo : sig
+    type 'a t
+
+    val create : ?equals:('a -> 'a -> bool) -> (unit -> 'a) -> 'a t
+    val create_with_equals : eq:('a -> 'a -> bool) -> (unit -> 'a) -> 'a t
+    val get : 'a t -> 'a
+    val peek : 'a t -> 'a
+  end
+
+  module Effect : sig
+    val create : (unit -> unit) -> unit
+    val create_with_cleanup : (unit -> (unit -> unit)) -> unit
+    val create_deferred : track:(unit -> 'a) -> run:('a -> unit) -> unit
+    val untrack : (unit -> 'a) -> 'a
+    val on : ?defer:bool -> (unit -> 'a) -> (value:'a -> prev:'a -> unit) -> unit
+  end
+
+  module Batch : sig
+    val run : (unit -> 'a) -> 'a
+    val is_batching : unit -> bool
+  end
+
+  module Owner : sig
+    val create_root : (unit -> unit) -> (unit -> unit)
+    val run_with_owner : (unit -> 'a) -> 'a * (unit -> unit)
+    val on_cleanup : (unit -> unit) -> unit
+    val get_owner : unit -> Runtime.owner option
+    val catch_error : (unit -> 'a) -> (exn -> 'a) -> 'a
+  end
+end
+
+let with_token token f =
+  let module Scoped = struct
+    module Signal = struct
+      type 'a t = 'a Signal.t
+
+      let create ?equals value = Signal.create token ?equals value
+      let create_eq ~equals value = Signal.create_eq token ~equals value
+      let create_physical value = Signal.create_physical token value
+      let get = Signal.get
+      let set = Signal.set
+      let update = Signal.update
+      let peek = Signal.peek
+      let subscribe signal callback = Signal.subscribe token signal callback
+    end
+
+    module Memo = struct
+      type 'a t = 'a Memo.t
+
+      let create ?equals f = Memo.create token ?equals f
+      let create_with_equals ~eq f = Memo.create_with_equals token ~eq f
+      let get = Memo.get
+      let peek = Memo.peek
+    end
+
+    module Effect = struct
+      let create f = Effect.create token f
+      let create_with_cleanup f = Effect.create_with_cleanup token f
+      let create_deferred ~track ~run = Effect.create_deferred token ~track ~run
+      let untrack f = Effect.untrack token f
+      let on ?defer deps fn = Effect.on token ?defer deps fn
+    end
+
+    module Batch = struct
+      let run f = Batch.run token f
+      let is_batching = Batch.is_batching
+    end
+
+    module Owner = struct
+      let create_root f = Owner.create_root token f
+      let run_with_owner f = Owner.run_with_owner token f
+      let on_cleanup = Owner.on_cleanup
+      let get_owner = Owner.get_owner
+      let catch_error = Owner.catch_error
+    end
+  end in
+  f (module Scoped : S)
+
+let run f =
+  Runtime.run (fun token -> with_token token f)
