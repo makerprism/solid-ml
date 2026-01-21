@@ -83,6 +83,18 @@ SSR helpers like `Solid_ml_ssr.Render.to_string` create and dispose a runtime
 internally and therefore do not expose a token. Prefer strict APIs in app code,
 and only rely on `Unsafe` modules when integrating with those helpers.
 
+For less token plumbing, you can use the scoped helper to bind a token once:
+
+```ocaml
+Scoped.run (fun (module R) ->
+  let count, set_count = R.Signal.create 0 in
+  R.Effect.create (fun () ->
+    Printf.printf "Count: %d\n" (R.Signal.get count)
+  );
+  set_count 1
+)
+```
+
 ### Signals
 
 ```ocaml
