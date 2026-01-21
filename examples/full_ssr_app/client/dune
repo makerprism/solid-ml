@@ -4,7 +4,6 @@
 
 (melange.emit
   (target client_output)
-  (libraries solid-ml-browser solid-ml-router shared_components)
+  (libraries solid-ml-browser shared_components)
   (module_systems es6)
-  (modules client client_platform))
-
+  (modules client))

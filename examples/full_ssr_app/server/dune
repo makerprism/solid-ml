@@ -2,5 +2,5 @@
  (name server)
  (public_name full_ssr_server)
  (package full_ssr_app)
- (libraries dream solid-ml solid-ml-ssr solid-ml-router shared_components)
- (modules server server_platform))
+ (libraries dream solid-ml solid-ml-ssr shared_components)
+ (modules server))

@@ -11,8 +11,8 @@
 
 open Solid_ml_ssr
 
-(* We instantiate the shared components with the server platform *)
-module Shared = Shared_components.Components.Make(Server_platform.Server_Platform)
+module Shared = Shared_components.Components.Make(Solid_ml_ssr.Env)
+module Routes = Shared_components.Routes
 
 let sample_todos = Shared_components.Components.[
   { id = 1; text = "Learn solid-ml"; completed = true };
@@ -60,6 +60,10 @@ let layout ~title:page_title ~children () =
             font-weight: bold;
           }
           .nav-link:hover { text-decoration: underline; }
+          .nav-link.active {
+            color: #1f5c9c;
+            text-decoration: underline;
+          }
           .counter-display { 
             font-size: 48px; 
             font-weight: bold; 
@@ -120,33 +124,33 @@ let layout ~title:page_title ~children () =
   )
 
 (** Home page *)
-let home_page () =
+let home_page ~current_path () =
   layout ~title:"Home - solid-ml SSR" ~children:(
-    Shared.app_layout ~children:(
+    Shared.app_layout ~current_path ~children:(
       Shared.home_page ()
     ) ()
   ) ()
 
 (** Counter page - uses Shared.counter *)
-let counter_page ~initial () =
+let counter_page ~current_path ~initial () =
   layout ~title:"Counter - solid-ml SSR" ~children:(
-    Shared.app_layout ~children:(
+    Shared.app_layout ~current_path ~children:(
       Shared.counter_content ~initial ()
     ) ()
   ) ()
 
 (** Todos page - uses Shared.todo_list *)
-let todos_page ~todos () =
+let todos_page ~current_path ~todos () =
   layout ~title:"Todos - solid-ml SSR" ~children:(
-    Shared.app_layout ~children:(
+    Shared.app_layout ~current_path ~children:(
       Shared.todos_content ~initial_todos:todos ()
     ) ()
   ) ()
 
 (** 404 page *)
-let not_found_page ~request_path () =
+let not_found_page ~current_path ~request_path () =
   layout ~title:"Not Found - solid-ml SSR" ~children:(
-    Shared.app_layout ~children:(
+    Shared.app_layout ~current_path ~children:(
       Html.div ~children:[
         Html.h2 ~children:[Html.text "404 - Page Not Found"] ();
         Html.p ~children:[
@@ -158,15 +162,17 @@ let not_found_page ~request_path () =
 
 (** {1 Request Handlers} *)
 
-let handle_home _req =
-  let html = Render.to_document home_page in
+let handle_home req =
+  let html = Render.to_document (fun () ->
+    home_page ~current_path:(Dream.target req) ())
+  in
   Dream.html html
 
 let handle_keyed _req =
   let html =
     Render.to_document (fun () ->
       layout ~title:"Keyed - solid-ml SSR" ~children:(
-        Shared.app_layout ~children:(
+        Shared.app_layout ~current_path:(Routes.path Routes.Keyed) ~children:(
           Shared.keyed_demo ()
         ) ()
       ) ())
@@ -178,7 +184,7 @@ let handle_template_keyed _req =
   let html =
     Render.to_document (fun () ->
       layout ~title:"Template-Keyed - solid-ml SSR" ~children:(
-        Shared.app_layout ~children:(
+        Shared.app_layout ~current_path:(Routes.path Routes.Template_keyed) ~children:(
           T.view ()
         ) ()
       ) ())
@@ -192,16 +198,22 @@ let handle_counter req =
     |> Option.join
     |> Option.value ~default:0
   in
-  let html = Render.to_document (fun () -> counter_page ~initial ()) in
+  let html = Render.to_document (fun () ->
+    counter_page ~current_path:(Routes.path Routes.Counter) ~initial ())
+  in
   Dream.html html
 
 let handle_todos _req =
-  let html = Render.to_document (fun () -> todos_page ~todos:sample_todos ()) in
+  let html = Render.to_document (fun () ->
+    todos_page ~current_path:(Routes.path Routes.Todos) ~todos:sample_todos ())
+  in
   Dream.html html
 
 let handle_not_found req =
   let path = Dream.target req in
-  let html = Render.to_document (fun () -> not_found_page ~request_path:path ()) in
+  let html = Render.to_document (fun () ->
+    not_found_page ~current_path:path ~request_path:path ())
+  in
   Dream.html ~status:`Not_Found html
 
 (** {1 Main Server} *)
