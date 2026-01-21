@@ -94,6 +94,19 @@ let () =
       hydrate_counter ()
     else if path = Routes.path Routes.Todos then
       hydrate_todos ()
+    else if path = Routes.path Routes.Home then (
+      match get_element "app" with
+      | None -> ()
+      | Some app_el ->
+        let _dispose =
+          Render.render app_el (fun () ->
+            Shared.app_layout
+              ~current_path:(Routes.path Routes.Home)
+              ~children:(Shared.home_page ())
+              ())
+        in
+        ()
+    )
     else if path = Routes.path Routes.Keyed then (
       match get_element "app" with
       | None -> ()
