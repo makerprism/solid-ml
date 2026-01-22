@@ -137,6 +137,8 @@ let fetch_comments post_id =
 
 (** Page layout with navigation *)
 let layout ~title:page_title ~current_path:_ ~children () =
+  (* Ignore unused children warning for now *)
+  let _ = (children : 'a list) in
   Html.(
     html ~lang:"en" ~children:[
       head ~children:[
@@ -343,20 +345,18 @@ let layout ~title:page_title ~current_path:_ ~children () =
         </style>|};
       ] ();
       body ~children:[
-        children @ [
-          footer ~children:[
-            p ~children:[
-              text "Data from ";
-              a ~href:"https://jsonplaceholder.typicode.com" ~target:"_blank" 
-                ~children:[text "JSONPlaceholder"] ();
-              text " | Powered by ";
-              a ~href:"https://github.com/makerprism/solid-ml" 
-                ~children:[text "solid-ml"] ();
-            ] ();
+        footer ~children:[
+          p ~children:[
+            text "Data from ";
+            a ~href:"https://jsonplaceholder.typicode.com" ~target:"_blank"
+              ~children:[text "JSONPlaceholder"] ();
+            text " | Powered by ";
+            a ~href:"https://github.com/makerprism/solid-ml"
+              ~children:[text "solid-ml"] ();
           ] ();
-          (* Hydration script *)
-          script ~src:"/static/client.js" ~type_:"module" ~children:[] ();
-        ]
+        ] ();
+        (* Hydration script *)
+        script ~src:"/static/client.js" ~type_:"module" ~children:[] ();
       ] ()
     ] ()
   )
@@ -442,7 +442,6 @@ let comment_view (comment : comment) =
 
 (** {1 Page Components} *)
 
-(** Home page - list of posts *)
 let posts_page ~posts () =
   layout ~title:"Posts - API Explorer" ~current_path:"/" ~children:(
     Html.[
@@ -462,7 +461,6 @@ let posts_page ~posts () =
     ]
   ) ()
 
-(** Users list page *)
 let users_page ~users () =
   layout ~title:"Users - API Explorer" ~current_path:"/users" ~children:(
     Html.[
@@ -482,7 +480,6 @@ let users_page ~users () =
     ]
   ) ()
 
-(** User detail page *)
 let user_page ~(user : user) ~posts () =
   let initial = String.sub user.name 0 1 in
   layout ~title:(user.name ^ " - API Explorer") 
@@ -523,7 +520,6 @@ let user_page ~(user : user) ~posts () =
     ]
   ) ()
 
-(** Post detail page *)
 let post_page ~(post : post) ~comments ~(author : user) () =
   layout ~title:(post.title ^ " - API Explorer") 
     ~current_path:("/posts/" ^ string_of_int post.id) ~children:(
@@ -558,7 +554,6 @@ let post_page ~(post : post) ~comments ~(author : user) () =
     ]
   ) ()
 
-(** Error page *)
 let error_page ~message () =
   layout ~title:"Error - API Explorer" ~current_path:"" ~children:(
     Html.[
@@ -572,7 +567,6 @@ let error_page ~message () =
     ]
   ) ()
 
-(** 404 page *)
 let not_found_page ~request_path () =
   layout ~title:"Not Found - API Explorer" ~current_path:request_path ~children:(
     Html.[
@@ -853,3 +847,7 @@ let () =
     (* 404 fallback *)
     Dream.any "/**" handle_not_found;
   ]
+
+(* Suppress unused warnings for example page components *)
+(* These are provided as examples for potential future use *)
+let _ = (posts_page, users_page, user_page, post_page, error_page, not_found_page)

@@ -24,4 +24,6 @@
   (solid-ml (>= 0.1.0))
   (solid-ml-ssr (>= 0.1.0))
   (solid-ml-router (>= 0.1.0))
-  (solid-ml-browser (>= 0.1.0))))
+  (solid-ml-browser (>= 0.1.0))
+  (cohttp-lwt-unix (>= 2.0.0))
+  (yojson (>= 2.0.0))))
