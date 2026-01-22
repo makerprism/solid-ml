@@ -31,15 +31,16 @@ type comment = Shared.comment
 
 let parse_user json : user =
   let open Yojson.Basic.Util in
+  let module S = Ssr_api_shared.Components in
   {
-    id = json |> member "id" |> to_int;
-    name = json |> member "name" |> to_string;
-    username = json |> member "username" |> to_string;
-    email = json |> member "email" |> to_string;
-    phone = json |> member "phone" |> to_string;
-    website = json |> member "website" |> to_string;
-    company = json |> member "company" |> member "name" |> to_string;
-    city = json |> member "address" |> member "city" |> to_string;
+    S.id = json |> member "id" |> to_int;
+    S.name = json |> member "name" |> to_string;
+    S.username = json |> member "username" |> to_string;
+    S.email = json |> member "email" |> to_string;
+    S.phone = json |> member "phone" |> to_string;
+    S.website = json |> member "website" |> to_string;
+    S.company = json |> member "company" |> member "name" |> to_string;
+    S.city = json |> member "address" |> member "city" |> to_string;
   }
 
 let parse_users json =
@@ -48,11 +49,12 @@ let parse_users json =
 
 let parse_post json =
   let open Yojson.Basic.Util in
+  let module S = Ssr_api_shared.Components in
   {
-    id = json |> member "id" |> to_int;
-    user_id = json |> member "userId" |> to_int;
-    title = json |> member "title" |> to_string;
-    body = json |> member "body" |> to_string;
+    S.id = json |> member "id" |> to_int;
+    S.user_id = json |> member "userId" |> to_int;
+    S.title = json |> member "title" |> to_string;
+    S.body = json |> member "body" |> to_string;
   }
 
 let parse_posts json =
@@ -61,12 +63,13 @@ let parse_posts json =
 
 let parse_comment json =
   let open Yojson.Basic.Util in
+  let module S = Ssr_api_shared.Components in
   {
-    id = json |> member "id" |> to_int;
-    post_id = json |> member "postId" |> to_int;
-    name = json |> member "name" |> to_string;
-    email = json |> member "email" |> to_string;
-    body = json |> member "body" |> to_string;
+    S.id = json |> member "id" |> to_int;
+    S.post_id = json |> member "postId" |> to_int;
+    S.name = json |> member "name" |> to_string;
+    S.email = json |> member "email" |> to_string;
+    S.body = json |> member "body" |> to_string;
   }
 
 let parse_comments json =
@@ -354,7 +357,7 @@ let layout ~title:page_title ~current_path:_ ~children () =
           (* Hydration script *)
           script ~src:"/static/client.js" ~type_:"module" ~children:[] ();
         ]
-      ) ()
+      ] ()
     ] ()
   )
 
