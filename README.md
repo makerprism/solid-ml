@@ -334,6 +334,22 @@ dune build
 dune runtest
 ```
 
+### Dune Package Management
+
+This project uses **dune package management** with dune installed at `/usr/bin/dune`. All build commands (via Makefile or direct dune invocation) use this fixed path by default.
+
+**Why `/usr/bin/dune`?** This project was configured to use a system-installed dune at `/usr/bin/dune` to avoid issues with opam switch environments, where different dune versions from different switches could be inadvertently picked up. This ensures consistent builds across development environments.
+
+**Override the dune location:** If your dune is installed elsewhere, you can override the default using the `DUNE` environment variable:
+
+```bash
+make DUNE=/custom/path/to/dune build
+make DUNE=/custom/path/to/dune test
+# Or set it globally:
+export DUNE=/custom/path/to/dune
+make build
+```
+
 ## Requirements
 
 - **OCaml 5.0+** (uses Domain-local storage for thread safety)
