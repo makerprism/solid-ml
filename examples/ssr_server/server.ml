@@ -48,12 +48,12 @@ let handle_home _req =
   let html = Render.to_document (fun () ->
     layout ~title:"solid-ml SSR Demo" ~children:[
       C.app ~page:C.Home ()
-    ] ())
+    ] ()) in
   Dream.html html
 
 let handle_counter req =
   (* Get initial count from query parameter, default to 0 *)
-  let initial = 
+  let initial =
     Dream.query req "count"
     |> Option.map int_of_string_opt
     |> Option.join
@@ -62,14 +62,14 @@ let handle_counter req =
   let html = Render.to_document (fun () ->
     layout ~title:"Counter - solid-ml" ~children:[
       C.app ~page:(C.Counter initial) ()
-    ] ())
+    ] ()) in
   Dream.html html
 
 let handle_todos _req =
   let html = Render.to_document (fun () ->
     layout ~title:"Todos - solid-ml" ~children:[
-      C.app ~page:(C.Todos Ssr_server_shared.sample_todos) ()
-    ] ())
+      C.app ~page:(C.Todos Ssr_server_shared.Components.sample_todos) ()
+    ] ()) in
   Dream.html html
 
 (** Main server *)
