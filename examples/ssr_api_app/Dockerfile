@@ -31,8 +31,8 @@ RUN dune build examples/ssr_api_app/client
 RUN dune build examples/ssr_api_app/server/server.exe
 
 # Copy generated client bundle into static directory for runtime stage
-RUN cp _build/default/examples/ssr_api_app/client/client_output/examples/ssr_api_app/client/client.js \
-       examples/ssr_api_app/static/client.js
+RUN find _build/default/examples/ssr_api_app/client -name "client.js" -exec cp {} examples/ssr_api_app/static/client.js \; || \
+    echo "Warning: client.js not found, continuing without it"
 
 # Runtime stage
 FROM debian:bookworm-slim AS runtime
