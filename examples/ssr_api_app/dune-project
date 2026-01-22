@@ -10,11 +10,11 @@
   (preprocess
    (run mlx-pp %{input-file}))))
 
-(name full_ssr_app)
+(name ssr_api_app)
 (version 0.1.0)
 
 (package
- (name full_ssr_app)
+ (name ssr_api_app)
  (synopsis "Example SSR app for solid-ml")
  (description "A full-stack SSR example using Dream and solid-ml.")
  (allow_empty)
