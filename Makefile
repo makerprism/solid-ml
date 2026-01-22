@@ -1,5 +1,11 @@
 # solid-ml Makefile
 #
+# NOTE: This project uses dune 3.20.2 installed at /usr/bin/dune.
+# The dune-project uses (lang dune 3.17) for compatibility.
+# We use a fixed path instead of relying on PATH to avoid issues with opam switch
+# environments where different dune versions could be inadvertently picked up.
+# Override with: make DUNE=/path/to/dune <target>
+#
 # Quick start:
 #   make example-counter    # Run the counter example
 #   make example-router     # Run the router example  
@@ -16,6 +22,7 @@
         example-ssr-hydration-docker
 
 PORT ?= 8080
+DUNE ?= /usr/bin/dune
 
 # ==============================================================================
 # Development
@@ -23,15 +30,15 @@ PORT ?= 8080
 
 # Build all packages
 build:
-	dune build @check --force 2>/dev/null || dune build lib/solid-ml lib/solid-ml-ssr lib/solid-ml-router lib/solid-ml-internal
+	$(DUNE) build @check --force 2>/dev/null || $(DUNE) build lib/solid-ml lib/solid-ml-ssr lib/solid-ml-router lib/solid-ml-internal
 
 # Run all tests
 test:
-	dune runtest
+	$(DUNE) runtest
 
 # Clean all build artifacts
 clean:
-	dune clean
+	$(DUNE) clean
 	rm -rf examples/browser_counter/dist examples/browser_router/dist
 
 # ==============================================================================
@@ -40,26 +47,26 @@ clean:
 
 example-counter:
 	@echo "=== Running Counter Example ==="
-	@dune exec examples/counter/counter.exe
+	@$(DUNE) exec examples/counter/counter.exe
 
 example-todo:
 	@echo "=== Running Todo Example ==="
-	@dune exec examples/todo/todo.exe
+	@$(DUNE) exec examples/todo/todo.exe
 
 example-router:
 	@echo "=== Running Router Example ==="
-	@dune exec examples/router/router.exe
+	@$(DUNE) exec examples/router/router.exe
 
 example-parallel:
 	@echo "=== Running Parallel Domains Example ==="
-	@dune exec examples/parallel/parallel.exe
+	@$(DUNE) exec examples/parallel/parallel.exe
 
 example-ssr-server:
 	@echo "=== Starting SSR Server Example ==="
 	@echo "Set PORT=XXXX to use a different port (default: 8080)"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	@dune exec examples/ssr_server/server.exe || stty sane
+	@$(DUNE) exec examples/ssr_server/server.exe || stty sane
 
 # Build and run SSR server example via Docker
 example-ssr-server-docker:
@@ -75,7 +82,7 @@ example-ssr-server-docker:
 # Build full SSR client
 example-full-ssr-client:
 	@echo "Building full SSR client..."
-	@dune build @examples/full_ssr_app/client/melange
+	@$(DUNE) build @examples/full_ssr_app/client/melange
 	@mkdir -p examples/full_ssr_app/static
 	@echo "Bundling with esbuild..."
 	@npx esbuild _build/default/examples/full_ssr_app/client/client_output/examples/full_ssr_app/client/client.js --bundle --minify --target=es2020 --outfile=examples/full_ssr_app/static/client.js --format=esm 2>/dev/null
@@ -88,7 +95,7 @@ example-full-ssr: example-full-ssr-client
 	@echo "Visit http://localhost:8080"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	@dune exec examples/full_ssr_app/server/server.exe || stty sane
+	@$(DUNE) exec examples/full_ssr_app/server/server.exe || stty sane
 
 # Build and run full SSR example via Docker
 example-full-ssr-docker:
@@ -104,7 +111,7 @@ example-full-ssr-docker:
 # Build SSR API client
 example-ssr-api-client:
 	@echo "Building SSR API client..."
-	@dune build @examples/ssr_api_app/client/melange
+	@$(DUNE) build @examples/ssr_api_app/client/melange
 	@mkdir -p examples/ssr_api_app/static
 	@echo "Bundling with esbuild..."
 	@cd _build/default/examples/ssr_api_app/client/output && \
@@ -122,7 +129,7 @@ example-ssr-api-local: example-ssr-api-client
 	@echo "This app fetches data from JSONPlaceholder API"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	@ENABLE_SSR_API_APP=true PORT=$(PORT) dune exec examples/ssr_api_app/server.exe || stty sane
+	@ENABLE_SSR_API_APP=true PORT=$(PORT) $(DUNE) exec examples/ssr_api_app/server.exe || stty sane
 
 # Run SSR API example via Docker
 example-ssr-api-docker:
@@ -156,7 +163,7 @@ examples: example-counter example-todo example-router example-parallel
 # Build browser counter example
 example-browser:
 	@echo "Building browser counter example..."
-	@dune build @examples/browser_counter/melange
+	@$(DUNE) build @examples/browser_counter/melange
 	@mkdir -p examples/browser_counter/dist
 	@rm -f examples/browser_counter/dist/counter.js
 	@echo "Bundling with esbuild..."
@@ -168,7 +175,7 @@ example-browser:
 # Build browser router example
 example-browser-router:
 	@echo "Building browser router example..."
-	@dune build @examples/browser_router/melange
+	@$(DUNE) build @examples/browser_router/melange
 	@mkdir -p examples/browser_router/dist
 	@rm -f examples/browser_router/dist/router_demo.js
 	@echo "Bundling with esbuild..."
@@ -180,7 +187,7 @@ example-browser-router:
 # Build template compiler example
 example-template-counter:
 	@echo "Building template compiler counter example..."
-	@dune build @examples/template_counter/melange
+	@$(DUNE) build @examples/template_counter/melange
 	@mkdir -p examples/template_counter/dist
 	@rm -f examples/template_counter/dist/template_counter.js
 	@echo "Bundling with esbuild..."
@@ -206,7 +213,7 @@ serve: browser-examples
 # Run browser tests (Node.js only; no DOM)
 browser-tests:
 	@echo "Running browser tests (Node.js, no DOM)..."
-	@dune build @test_browser/melange
+	@$(DUNE) build @test_browser/melange
 	@# Melange emits ES modules; tell Node to treat output (and runtime) as ESM.
 	@printf '{ "type": "module" }\n' > _build/default/test_browser/output/package.json
 	@for d in _build/default/test_browser/output/node_modules/*; do \
@@ -223,7 +230,7 @@ browser-tests-headless:
 		grep -n '^[+][l][e][t][ ]' test_browser_dom/test_template_dom.ml | sed -n '1,5p'; \
 		exit 1; \
 	fi
-	@dune build @test_browser_dom/melange
+	@$(DUNE) build @test_browser_dom/melange
 	@npx --yes esbuild _build/default/test_browser_dom/output/test_browser_dom/test_template_dom.js --bundle --format=iife --target=es2020 --outfile=_build/default/test_browser_dom/test_template_dom_bundle.js
 	@tmp_dom="$$(mktemp)"; tmp_err="$$(mktemp)"; tmp_png="$$(mktemp --suffix=.png)"; \
 	  artifacts_dir="_build/default/test_browser_dom/artifacts"; \
