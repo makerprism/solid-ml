@@ -23,13 +23,13 @@ module Routes = Ssr_api_shared.Routes
 
 (** {1 Data Types} *)
 
-type user = Shared.user
+type user_info = Shared.user_info
 type post = Shared.post
 type comment = Shared.comment
 
 (** {1 JSON Parsing} *)
 
-let parse_user json : user =
+let parse_user json : user_info =
   let open Yojson.Basic.Util in
   let module S = Ssr_api_shared.Components in
   {
@@ -81,15 +81,32 @@ let parse_comments json =
 let api_base = "https://jsonplaceholder.typicode.com"
 
 let fetch_json url =
-  let open Lwt.Syntax in
-  let uri = Uri.of_string url in
-  let* resp, body = Cohttp_lwt_unix.Client.get uri in
-  let status = Cohttp.Response.status resp in
-  if Cohttp.Code.is_success (Cohttp.Code.code_of_status status) then
-    let* body_str = Cohttp_lwt.Body.to_string body in
-    Lwt.return_ok (Yojson.Basic.from_string body_str)
-  else
-    Lwt.return_error (Printf.sprintf "HTTP %d" (Cohttp.Code.code_of_status status))
+  Lwt.wrap (fun () ->
+    try
+      (* Initialize curl handle *)
+      let h = Curl.init () in
+      Curl.set_url h url;
+      (* Use a string buffer to accumulate response *)
+      let buffer = ref "" in
+      Curl.set_writefunction h (fun data ->
+        buffer := !buffer ^ data;
+        String.length data
+      );
+      (* Perform the request *)
+      Curl.perform h;
+      let response = !buffer in
+      let code = Curl.get_httpcode h in
+      Curl.cleanup h;
+      if code >= 200 && code < 300 then
+        Ok (Yojson.Basic.from_string response)
+      else
+        Error (Printf.sprintf "HTTP %d" code)
+    with
+    | Curl.CurlException (curl_code, int_code, msg) ->
+        Error (Printf.sprintf "Curl error %d/%d: %s" (Obj.magic curl_code) int_code msg)
+    | e ->
+        Error (Printf.sprintf "Exception: %s" (Printexc.to_string e))
+  )
 
 let fetch_users () =
   let open Lwt.Syntax in
@@ -107,7 +124,7 @@ let fetch_user id =
 
 let fetch_posts () =
   let open Lwt.Syntax in
-  let* result = fetch_json (api_base ^ "/posts?_limit=10") in
+  let* result = fetch_json (api_base ^ "/posts?_limit=50") in
   match result with
   | Ok json -> Lwt.return_ok (parse_posts json)
   | Error e -> Lwt.return_error e
@@ -137,8 +154,6 @@ let fetch_comments post_id =
 
 (** Page layout with navigation *)
 let layout ~title:page_title ~current_path:_ ~children () =
-  (* Ignore unused children warning for now *)
-  let _ = (children : 'a list) in
   Html.(
     html ~lang:"en" ~children:[
       head ~children:[
@@ -186,11 +201,7 @@ let layout ~title:page_title ~current_path:_ ~children () =
             border-radius: 8px;
             padding: 16px;
             margin-bottom: 12px;
-            transition: all 0.2s;
-          }
-          .card:hover { 
-            border-color: #2563eb;
-            box-shadow: 0 2px 8px rgba(37,99,235,0.1);
+            transition: all 0.2s, transform 0.2s;
           }
           .card h3 { margin: 0 0 8px 0; }
           .card h3 a { 
@@ -342,9 +353,24 @@ let layout ~title:page_title ~current_path:_ ~children () =
           }
           .section-title h2 { margin: 0; }
           .section-title .count { color: #9ca3af; font-size: 14px; }
+          .card-link {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+          }
+          .card-link:hover .card {
+            border-color: #2563eb;
+            box-shadow: 0 2px 8px rgba(37,99,235,0.1);
+            transform: translateY(-2px);
+          }
+          .meta-link {
+            color: #2563eb;
+            text-decoration: none;
+          }
+          .meta-link:hover { text-decoration: underline; }
         </style>|};
       ] ();
-      body ~children:[
+      body ~children:(children @ [
         footer ~children:[
           p ~children:[
             text "Data from ";
@@ -357,7 +383,7 @@ let layout ~title:page_title ~current_path:_ ~children () =
         ] ();
         (* Hydration script *)
         script ~src:"/static/client.js" ~type_:"module" ~children:[] ();
-      ] ()
+      ]) ()
     ] ()
   )
 
@@ -411,7 +437,7 @@ let post_card ?(show_user=true) (post : post) =
   )
 
 (** Render a user card for the list view *)
-let user_card (user : user) =
+let user_card (user : user_info) =
   let initial = String.sub user.name 0 1 in
   Html.(
     div ~class_:"card user-card" ~children:[
@@ -480,7 +506,7 @@ let users_page ~users () =
     ]
   ) ()
 
-let user_page ~(user : user) ~posts () =
+let user_page ~(user : user_info) ~posts () =
   let initial = String.sub user.name 0 1 in
   layout ~title:(user.name ^ " - API Explorer") 
     ~current_path:("/users/" ^ string_of_int user.id) ~children:(
@@ -520,7 +546,7 @@ let user_page ~(user : user) ~posts () =
     ]
   ) ()
 
-let post_page ~(post : post) ~comments ~(author : user) () =
+let post_page ~(post : post) ~comments ~(author : user_info) () =
   layout ~title:(post.title ^ " - API Explorer") 
     ~current_path:("/posts/" ^ string_of_int post.id) ~children:(
     Html.[
@@ -589,7 +615,7 @@ let handle_api_users _req =
   let* result = fetch_users () in
   match result with
   | Ok users ->
-    let json = `List (List.map (fun (u : user) ->
+    let json = `List (List.map (fun (u  : user_info) ->
       `Assoc [
         ("id", `Int u.id);
         ("name", `String u.name);
@@ -705,16 +731,22 @@ let handle_api_comments req =
 
 let handle_posts _req =
   let open Lwt.Syntax in
-  let* result = fetch_posts () in
-  match result with
-  | Ok posts ->
+  let* posts_result = fetch_posts () in
+  let* users_result = fetch_users () in
+  match posts_result, users_result with
+  | Ok posts, Ok users ->
     let html = Render.to_document (fun () ->
-    render_page ~current_path:(Routes.path Routes.Posts) (Shared.Posts_page (Shared.Ready posts)))
+    render_page ~current_path:(Routes.path Routes.Posts) (Shared.Posts_page (Shared.Ready posts, Some users)))
     in
     Dream.html html
-  | Error e ->
+  | Error e, _ ->
     let html = Render.to_document (fun () ->
-    render_page ~current_path:(Routes.path Routes.Posts) (Shared.Posts_page (Shared.Error e)))
+    render_page ~current_path:(Routes.path Routes.Posts) (Shared.Posts_page (Shared.Error e, None)))
+    in
+    Dream.html ~status:`Internal_Server_Error html
+  | _, Error e ->
+    let html = Render.to_document (fun () ->
+    render_page ~current_path:(Routes.path Routes.Posts) (Shared.Posts_page (Shared.Error ("Failed to load users: " ^ e), None)))
     in
     Dream.html ~status:`Internal_Server_Error html
 
@@ -809,14 +841,14 @@ let handle_not_found req =
 (** {1 Main Server} *)
 
 let () =
-  let port = 
+  let port =
     match Sys.getenv_opt "PORT" with
     | Some p -> (try int_of_string p with _ -> 8080)
     | None -> 8080
   in
-  
+
   Printf.printf "=== solid-ml SSR API Demo ===\n";
-  Printf.printf "Server running at http://localhost:%d\n" port;
+  Printf.printf "Server running at http://0.0.0.0:%d\n" port;
   Printf.printf "\n";
   Printf.printf "Pages:\n";
   Printf.printf "  http://localhost:%d/           - All posts\n" port;
@@ -826,8 +858,8 @@ let () =
   Printf.printf "\n";
   Printf.printf "Press Ctrl+C to stop\n";
   flush stdout;
-  
-  Dream.run ~port
+
+  Dream.run ~interface:"0.0.0.0" ~port
   @@ Dream.router [
     (* Health check *)
     Dream.get "/ping" (fun _req -> Dream.respond ~status:`OK "pong");
@@ -844,7 +876,7 @@ let () =
     Dream.get "/users" handle_users;
     Dream.get "/users/:id" handle_user;
     (* Static files *)
-    Dream.get "/static/**" (Dream.static "examples/ssr_api_app/static");
+    Dream.get "/static/**" (Dream.static "static");
     (* 404 fallback *)
     Dream.any "/**" handle_not_found;
   ]

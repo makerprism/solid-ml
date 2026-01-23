@@ -14,7 +14,7 @@ module Shared = Ssr_api_shared.Components
 module C = Shared.App (Solid_ml_browser.Env)
 module Routes = Ssr_api_shared.Routes
 
-type user = Shared.user
+type user_info = Shared.user_info
 type post = Shared.post
 type comment = Shared.comment
 
@@ -66,15 +66,21 @@ let json_array_map json fn =
 
 (** {1 Data Parsing} *)
 
-let parse_user json : user = {
+let parse_user json : user_info = {
   id = json_get_int json "id";
   name = json_get_string json "name";
   username = json_get_string json "username";
   email = json_get_string json "email";
   phone = json_get_string json "phone";
   website = json_get_string json "website";
-  company = json_get_string json "company";
-  city = json_get_string json "city";
+  company = json_get_string json "company" |> (fun company_json ->
+    (* Extract company.name from nested JSON *)
+    json_get_string company_json "name"
+  );
+  city = json_get_string json "address" |> (fun address_json ->
+    (* Extract address.city from nested JSON *)
+    json_get_string address_json "city"
+  );
 }
 
 let parse_post json : post = {
@@ -106,7 +112,7 @@ let fetch_users on_ok on_err =
     on_err
 
 let fetch_posts on_ok on_err =
-  fetch_json_raw (api_base ^ "/posts?_limit=10")
+  fetch_json_raw (api_base ^ "/posts?_limit=50")
     (fun json -> on_ok (parse_posts json))
     on_err
 
@@ -151,12 +157,16 @@ and bind_links app_el =
 
 and render_posts_page app_el =
   Dom.log "Rendering posts page...";
-  render_app app_el (Shared.Posts_page Shared.Loading);
+  render_app app_el (Shared.Posts_page (Shared.Loading, None));
   fetch_posts
     (fun posts ->
-      render_app app_el (Shared.Posts_page (Shared.Ready posts)))
+      fetch_users
+        (fun users ->
+          render_app app_el (Shared.Posts_page (Shared.Ready posts, Some users)))
+        (fun _err ->
+          render_app app_el (Shared.Posts_page (Shared.Ready posts, None))))
     (fun err ->
-      render_app app_el (Shared.Posts_page (Shared.Error ("Failed to load posts: " ^ err))))
+      render_app app_el (Shared.Posts_page (Shared.Error ("Failed to load posts: " ^ err), None)))
 
 and render_users_page app_el =
   Dom.log "Rendering users page...";
@@ -172,28 +182,38 @@ and render_user_page app_el user_id =
   render_app app_el (Shared.User_page (Shared.Loading, Shared.Loading));
   fetch_user user_id
     (fun user ->
-      render_app app_el (Shared.User_page (Shared.Ready user, Shared.Loading)))
+      render_app app_el (Shared.User_page (Shared.Ready user, Shared.Loading));
+      fetch_user_posts user_id
+        (fun posts ->
+          render_app app_el (Shared.User_page (Shared.Ready user, Shared.Ready posts)))
+        (fun err ->
+          render_app app_el (Shared.User_page (Shared.Ready user, Shared.Error ("Failed to load posts: " ^ err)))))
     (fun err ->
-      render_app app_el (Shared.User_page (Shared.Error ("Failed to load user: " ^ err), Shared.Loading)));
-  fetch_user_posts user_id
-    (fun posts ->
-      render_app app_el (Shared.User_page (Shared.Loading, Shared.Ready posts)))
-    (fun err ->
-      render_app app_el (Shared.User_page (Shared.Loading, Shared.Error ("Failed to load posts: " ^ err))))
+      render_app app_el (Shared.User_page (Shared.Error ("Failed to load user: " ^ err), Shared.Loading));
+      fetch_user_posts user_id
+        (fun posts ->
+          render_app app_el (Shared.User_page (Shared.Error ("Failed to load user: " ^ err), Shared.Ready posts)))
+        (fun err2 ->
+          render_app app_el (Shared.User_page (Shared.Error ("Failed to load user: " ^ err), Shared.Error ("Failed to load posts: " ^ err2)))))
 
 and render_post_page app_el post_id =
   Dom.log ("Rendering post page for ID: " ^ string_of_int post_id);
   render_app app_el (Shared.Post_page (Shared.Loading, Shared.Loading));
   fetch_post post_id
     (fun post ->
-      render_app app_el (Shared.Post_page (Shared.Ready post, Shared.Loading)))
+      render_app app_el (Shared.Post_page (Shared.Ready post, Shared.Loading));
+      fetch_comments post_id
+        (fun comments ->
+          render_app app_el (Shared.Post_page (Shared.Ready post, Shared.Ready comments)))
+        (fun err ->
+          render_app app_el (Shared.Post_page (Shared.Ready post, Shared.Error ("Failed to load comments: " ^ err)))))
     (fun err ->
-      render_app app_el (Shared.Post_page (Shared.Error ("Failed to load post: " ^ err), Shared.Loading)));
-  fetch_comments post_id
-    (fun comments ->
-      render_app app_el (Shared.Post_page (Shared.Loading, Shared.Ready comments)))
-    (fun err ->
-      render_app app_el (Shared.Post_page (Shared.Loading, Shared.Error ("Failed to load comments: " ^ err))))
+      render_app app_el (Shared.Post_page (Shared.Error ("Failed to load post: " ^ err), Shared.Loading));
+      fetch_comments post_id
+        (fun comments ->
+          render_app app_el (Shared.Post_page (Shared.Error ("Failed to load post: " ^ err), Shared.Ready comments)))
+        (fun err ->
+          render_app app_el (Shared.Post_page (Shared.Error ("Failed to load post: " ^ err), Shared.Error ("Failed to load comments: " ^ err)))))
 
 and render_page path =
   Dom.log ("Rendering page: " ^ path);
