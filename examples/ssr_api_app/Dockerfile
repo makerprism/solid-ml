@@ -38,7 +38,7 @@ RUN find _build/default/examples/ssr_api_app/client -name "client.js" -exec cp {
 FROM debian:bookworm-slim AS runtime
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libev4 libgmp10 ca-certificates \
+    && apt-get install -y --no-install-recommends libev4 libgmp10 libssl3 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

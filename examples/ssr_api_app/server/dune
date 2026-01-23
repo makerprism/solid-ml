@@ -3,5 +3,4 @@
  (public_name ssr_api_server)
  (package ssr_api_app)
  (libraries dream solid-ml solid-ml-ssr ssr_api_shared cohttp-lwt-unix yojson)
- (modules server)
- (enabled_if %{env:ENABLE_SSR_API_APP=true}))
+ (modules server))

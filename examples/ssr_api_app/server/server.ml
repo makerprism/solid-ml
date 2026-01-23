@@ -828,8 +828,9 @@ let () =
   flush stdout;
   
   Dream.run ~port
-  @@ Dream.logger
   @@ Dream.router [
+    (* Health check *)
+    Dream.get "/ping" (fun _req -> Dream.respond ~status:`OK "pong");
     (* API endpoints for client-side fetching *)
     Dream.get "/api/users" handle_api_users;
     Dream.get "/api/users/:id" handle_api_user;
