@@ -11,6 +11,8 @@ RUN apt-get update \
         pkg-config \
         libev-dev \
         libgmp-dev \
+        libssl-dev \
+        libcurl4-gnutls-dev \
         m4 \
         nodejs \
         npm \
@@ -30,15 +32,18 @@ RUN dune build examples/ssr_api_app/client
 # Build server (no enabled_if, always enabled)
 RUN dune build examples/ssr_api_app/server/server.exe
 
-# Copy generated client bundle into static directory for runtime stage
-RUN find _build/default/examples/ssr_api_app/client -name "client.js" -exec cp {} examples/ssr_api_app/static/client.js \; || \
-    echo "Warning: client.js not found, continuing without it"
+# Bundle client.js with esbuild to resolve module imports
+RUN cd _build/default/examples/ssr_api_app/client/output && \
+    npx esbuild examples/ssr_api_app/client/client.js --bundle --minify --target=es2020 \
+    --outfile=/app/examples/ssr_api_app/static/client.js --format=esm || \
+    (echo "esbuild failed, copying unbundled client.js" && \
+     find .. -name "client.js" -exec cp {} /app/examples/ssr_api_app/static/client.js \;)
 
 # Runtime stage
 FROM debian:bookworm-slim AS runtime
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libev4 libgmp10 libssl3 ca-certificates \
+    && apt-get install -y --no-install-recommends libev4 libgmp10 libssl3 libcurl3-gnutls ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
