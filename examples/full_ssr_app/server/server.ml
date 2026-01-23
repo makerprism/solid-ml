@@ -87,20 +87,31 @@ let layout ~title:page_title ~children () =
           .btn-secondary { background: #888; }
           .btn-secondary:hover { background: #666; }
           .todo-list { list-style: none; padding: 0; }
-          .todo-item {
+          .todo {
             display: flex;
             align-items: center;
             gap: 12px;
             padding: 12px;
             border-bottom: 1px solid #eee;
+            cursor: pointer;
+            user-select: none;
           }
-          .todo-item.completed span { 
-            text-decoration: line-through; 
-            color: #999; 
+          .todo:hover {
+            background-color: #f9f9f9;
           }
-          .todo-item input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
+          .todo .checkbox {
+            display: inline-block;
+            width: 32px;
+            text-align: center;
+            font-family: monospace;
+            font-size: 16px;
+            font-weight: bold;
+            color: #4a90d9;
+            flex-shrink: 0;
+          }
+          .todo.completed {
+            text-decoration: line-through;
+            color: #999;
           }
           .hydration-status {
             padding: 8px 16px;
@@ -114,9 +125,26 @@ let layout ~title:page_title ~children () =
         </style>|};
       ] ();
       body ~children:[
+        (* Import map for Melange runtime and local modules - must come before module scripts *)
+        raw {|<script type="importmap">
+{
+  "imports": {
+    "melange.js/": "/static/melange.js/",
+    "melange/": "/static/node_modules/melange/",
+    "melange.__private__/": "/static/node_modules/melange.__private__/",
+    "full_ssr_app/": "/static/examples/full_ssr_app/",
+    "full_ssr_app.__private__/": "/static/node_modules/full_ssr_app.__private__/",
+    "full_ssr_app.__private__.shared_components/": "/static/node_modules/full_ssr_app.__private__.shared_components/",
+    "solid-ml-browser/": "/static/node_modules/solid-ml-browser/",
+    "solid-ml/": "/static/node_modules/solid-ml/",
+    "solid-ml-internal/": "/static/node_modules/solid-ml-internal/",
+    "solid-ml-template-runtime/": "/static/node_modules/solid-ml-template-runtime/"
+  }
+}
+</script>|};
         (* App root for true hydration *)
         Html.div ~id:"app" ~children:children_list ();
-        
+
         (* Hydration script *)
         script ~src:"/static/client.js" ~type_:"module" ~children:[] ();
       ] ()
@@ -219,12 +247,12 @@ let handle_not_found req =
 (** {1 Main Server} *)
 
 let () =
-  let port = 
+  let port =
     match Sys.getenv_opt "PORT" with
     | Some p -> (try int_of_string p with _ -> 8080)
     | None -> 8080
   in
-  
+
   Printf.printf "=== solid-ml Full SSR Demo ===\n";
   Printf.printf "Server running at http://localhost:%d\n" port;
   Printf.printf "\n";
@@ -236,8 +264,8 @@ let () =
   Printf.printf "Build client with: make example-full-ssr-client\n";
   Printf.printf "Press Ctrl+C to stop\n";
   flush stdout;
-  
-  Dream.run ~port
+
+  Dream.run ~port ~interface:"0.0.0.0"
   @@ Dream.logger
   @@ Dream.router [
     Dream.get "/" handle_home;

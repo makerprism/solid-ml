@@ -56,16 +56,13 @@ let hydrate_counter () =
 let hydrate_todos () =
   match get_element "app" with
   | Some app_el ->
-    (* For simplicity in this demo, we recreate the initial state manually
-       In a real app, we'd serialize the state to JSON in the HTML *)
     let initial_todos = [
        Shared_components.Components.{ id = 1; text = "Learn solid-ml"; completed = true };
        Shared_components.Components.{ id = 2; text = "Build an SSR app"; completed = false };
        Shared_components.Components.{ id = 3; text = "Add hydration"; completed = false };
        Shared_components.Components.{ id = 4; text = "Deploy to production"; completed = false };
     ] in
-    
-    (* Hydrate the shared component *)
+
     let _disposer =
       Render.render app_el (fun () ->
         Shared.app_layout
@@ -73,7 +70,36 @@ let hydrate_todos () =
           ~children:(Shared.todos_content ~initial_todos ())
           ())
     in
-    
+
+    let doc = Dom.document () in
+    (match Dom.query_selector doc ".todo-list" with
+     | Some _list_el ->
+       (* Initialize checkbox states *)
+       let todos = Dom.query_selector_all doc ".todo" in
+       List.iter (fun todo ->
+         let todo_el = todo in
+         let checkbox =
+           match Dom.query_selector_within todo_el ".checkbox" with
+           | Some cb -> cb
+           | None -> todo_el
+         in
+         let initial_text = if Dom.has_class todo_el "completed" then "[X]" else "[ ]" in
+         Dom.set_text_content checkbox initial_text;
+
+         ignore (Dom.add_event_listener todo_el "click" (fun _ev ->
+           let is_complete = Dom.has_class todo_el "completed" in
+           if is_complete then (
+             Dom.remove_class todo_el "completed";
+             Dom.set_text_content checkbox "[ ]"
+           ) else (
+             Dom.add_class todo_el "completed";
+             Dom.set_text_content checkbox "[X]"
+           );
+           ()
+         ))
+       ) todos
+     | None -> ());
+
     Dom.log "Todos hydrated!"
   | None -> ()
 
