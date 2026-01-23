@@ -89,16 +89,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
   (** Todo List Component *)
   let todo_list ~initial_todos () =
-    let todos, set_todos = Signal.create initial_todos in
-
-    let toggle_todo todo_id =
-      set_todos
-        (List.map
-           (fun todo ->
-             if todo.id = todo_id then { todo with completed = not todo.completed }
-             else todo)
-           (Signal.get todos))
-    in
+    let todos, _ = Signal.create initial_todos in
 
     <div class_="todo-list-container">
       <h2>(text "Shared Todo List")</h2>
@@ -117,10 +108,12 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
            ~items:(fun () -> Signal.get todos)
            ~key:(fun todo -> Int.to_string todo.id)
            ~render:(fun todo ->
-             <li class_=(if todo.completed then "todo-item completed" else "todo-item")>
-               <input type_="checkbox" checked=todo.completed onchange=(fun _ -> toggle_todo todo.id) />
-               <span>(text todo.text)</span>
-             </li>))
+             <li class_=("todo" ^ if todo.completed then " completed" else "")>
+               <span class_="checkbox"></span>
+               (text todo.text)
+             </li>
+           )
+        )
       </ul>
     </div>
 

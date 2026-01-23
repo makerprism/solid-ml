@@ -21,11 +21,11 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       <h2>(text "Template-Keyed Hydration")</h2>
       <p>(text "Tpl.each_keyed: reverse/remove should update without DOM recreation.")</p>
 
-      <div>
-        <button>
+      <div class_="buttons">
+        <button class_="btn" onclick=(fun _ -> _reverse ())>
           (text "Reverse")
         </button>
-        <button>
+        <button class_="btn btn-secondary" onclick=(fun _ -> _remove_first ())>
           (text "Remove first")
         </button>
       </div>
