@@ -356,6 +356,103 @@ export DUNE=/custom/path/to/dune
 make build
 ```
 
+## MLX Dialect (JSX-like Syntax)
+
+solid-ml supports **MLX**, a JSX-like syntax that makes building UI components more readable and familiar to React developers. MLX uses the `.mlx` file extension and requires specific configuration.
+
+### Enabling MLX in Your Project
+
+To use MLX syntax, add the following to your `dune-project`:
+
+```scheme
+(lang dune 3.20)
+(using melange 0.1)
+
+; MLX support (JSX-like syntax for .mlx files)
+(dialect
+ (name mlx)
+ (implementation
+  (extension mlx)
+  (preprocess
+   (run mlx-pp %{input-file}))))
+```
+
+### MLX Syntax
+
+Compare the MLX syntax with the standard OCaml HTML DSL:
+
+**MLX (`.mlx` files):**
+```ocaml
+<div class_="container">
+  <h1>(text "Welcome")</h1>
+  <button onclick=(fun _ -> set_count 1)>
+    (text "Increment")
+  </button>
+  <ul>
+    (Tpl.each ~items:items ~item:(fun item ->
+      <li key=(item.id)>(text item.text)</li>
+    ))
+  </ul>
+</div>
+```
+
+**Standard OCaml HTML DSL (`.ml` files):**
+```ocaml
+Html.div
+  ~class_:"container"
+  ~children:[
+    Html.h1 ~children:[Html.text "Welcome"] ();
+    Html.button
+      ~onclick:(fun _ -> set_count 1)
+      ~children:[Html.text "Increment"] ();
+    Html.ul ~children:(List.map (fun item ->
+      Html.li ~key:item.id ~children:[Html.text item.text] ()
+    ) items)
+  ] ()
+```
+
+### MLX Template Compiler
+
+For even more concise JSX syntax, use the `solid-ml-template-ppx` preprocessor with MLX. This allows omitting the `(text ...)` wrapper for string children:
+
+```ocaml
+<div class_="greeting">
+  <h1>Hello, {name}!</h1>
+  <p>Click count: {Signal.get count}</p>
+</div>
+```
+
+The template compiler requires `solid-ml-template-ppx` in your dune `preprocess` field:
+
+```scheme
+(preprocess
+ (pps solid-ml-template-ppx))
+```
+
+**Note:** MLX files must use `(expression)` syntax for all children except strings. The `solid-ml-template-ppx` compiler provides more ergonomic `{expression}` interpolation but is a separate preprocessor.
+
+### See MLX in Action
+
+- `examples/full_ssr_app/shared/*.mlx` - Complete SSR app using MLX
+- `examples/ssr_api_app/shared/*.mlx` - API demo with MLX
+- `test_mlx/test_*.mlx` - Test files demonstrating MLX usage
+
+### Troubleshooting MLX
+
+If your `.mlx` files fail to compile with errors like "Module App doesn't exist":
+
+1. **Verify your `dune-project` has the MLX dialect configuration** (see above)
+2. **Ensure you're using the correct file extension** (`.mlx`, not `.ml`)
+3. **Check that shared libraries are listed** in your dune stanzas for MLX files
+
+Example dune stanza for MLX files:
+```scheme
+(library
+ (name my_components)
+ (modes byte native melange)  ; Important: include melange
+ (libraries solid-ml solid-ml-browser))
+```
+
 ## Requirements
 
 - **OCaml 5.0+** (uses Domain-local storage for thread safety)
