@@ -5,11 +5,120 @@ open Dom
 module H = Html
 module T = Html.Internal_template
 
+type keyed_test_item = {
+  id : string;
+  label : string;
+}
+
 let fail msg =
   raise (Failure msg)
 
 let assert_eq ~name a b =
   if a <> b then fail (name ^ ": expected " ^ b ^ ", got " ^ a)
+
+let decode_int (json : Js.Json.t) : int option =
+  match Js.Json.decodeNumber json with
+  | None -> None
+  | Some v -> Some (int_of_float v)
+
+let set_hydration_data (json : string) : unit =
+  let _ = json in
+  [%mel.raw {| window.__SOLID_ML_DATA__ = JSON.parse(json) |}]
+
+let init_event_replay () : unit =
+  [%mel.raw
+    {| (function(){
+      if (window.__SOLID_ML_EVENT_REPLAY__) return;
+      var queue = [];
+      var types = ['click','input','change','submit','keydown','keyup','pointerdown'];
+      var esc = (window.CSS && CSS.escape) ? CSS.escape : function(s){ return s.replace(/([^\w-])/g,'\\$1'); };
+      var replay = {
+        queue: queue,
+        types: types,
+        handler: function(e){
+          var target = e.target;
+          if (!target) return;
+          var selector = null;
+          if (!target.id) {
+            var parts = [];
+            var node = target;
+            while (node && node.nodeType === 1 && node !== document.body) {
+              var name = node.tagName.toLowerCase();
+              var parent = node.parentElement;
+              if (!parent) break;
+              var index = 1;
+              var siblings = parent.children;
+              for (var i = 0; i < siblings.length; i++) {
+                if (siblings[i] === node) { index = i + 1; break; }
+              }
+              parts.unshift(name + ':nth-child(' + index + ')');
+              node = parent;
+            }
+            selector = parts.length ? parts.join('>') : null;
+          } else {
+            selector = '#' + esc(target.id);
+          }
+          var item = {type:e.type,target:target,selector:selector,value:null,checked:null,key:null,code:null,repeat:false,ctrlKey:false,shiftKey:false,altKey:false,metaKey:false,clientX:null,clientY:null,button:null,buttons:null,pointerId:null,pointerType:null,pressure:null,inputType:null};
+          if (e.type === 'input' || e.type === 'change') { item.value = target.value; item.checked = target.checked; }
+          if (e.type === 'keydown' || e.type === 'keyup') {
+            item.key = e.key || null; item.code = e.code || null; item.repeat = !!e.repeat;
+            item.ctrlKey = !!e.ctrlKey; item.shiftKey = !!e.shiftKey;
+            item.altKey = !!e.altKey; item.metaKey = !!e.metaKey;
+          }
+          if (e.type === 'click' || e.type === 'pointerdown') {
+            item.clientX = typeof e.clientX === 'number' ? e.clientX : null;
+            item.clientY = typeof e.clientY === 'number' ? e.clientY : null;
+            item.button = typeof e.button === 'number' ? e.button : null;
+            item.buttons = typeof e.buttons === 'number' ? e.buttons : null;
+          }
+          if (e.type === 'pointerdown') {
+            item.pointerId = typeof e.pointerId === 'number' ? e.pointerId : null;
+            item.pointerType = e.pointerType || null;
+            item.pressure = typeof e.pressure === 'number' ? e.pressure : null;
+          }
+          queue.push(item);
+        },
+        listen: function(){ types.forEach(function(t){ document.addEventListener(t, replay.handler, true); }); },
+        stop: function(){ types.forEach(function(t){ document.removeEventListener(t, replay.handler, true); }); },
+        resolve: function(item){
+          var target = item.target;
+          if (target && target.isConnected) return target;
+          if (item.selector) {
+            var found = document.querySelector(item.selector);
+            if (found) return found;
+          }
+          return target;
+        },
+        replay: function(){
+          replay.stop();
+          var items = queue.slice();
+          queue.length = 0;
+          items.forEach(function(item){
+            var target = replay.resolve(item);
+            if (!target) return;
+            if (item.value !== null) { try { target.value = item.value; } catch (_e) {} }
+            if (item.checked !== null) { try { target.checked = item.checked; } catch (_e) {} }
+            var evt;
+            if (item.key !== null || item.code !== null) {
+              evt = new KeyboardEvent(item.type, {bubbles:true,cancelable:true,key:item.key||'',code:item.code||'',repeat:item.repeat,ctrlKey:item.ctrlKey,shiftKey:item.shiftKey,altKey:item.altKey,metaKey:item.metaKey});
+            } else if (item.pointerId !== null && typeof PointerEvent !== 'undefined') {
+              evt = new PointerEvent(item.type, {bubbles:true,cancelable:true,clientX:item.clientX||0,clientY:item.clientY||0,button:item.button||0,buttons:item.buttons||0,pointerId:item.pointerId,pointerType:item.pointerType||'mouse',pressure:item.pressure||0});
+            } else if (item.clientX !== null) {
+              evt = new MouseEvent(item.type, {bubbles:true,cancelable:true,clientX:item.clientX||0,clientY:item.clientY||0,button:item.button||0,buttons:item.buttons||0});
+            } else {
+              evt = new Event(item.type, {bubbles:true,cancelable:true});
+            }
+            target.dispatchEvent(evt);
+          });
+        }
+      };
+      window.__SOLID_ML_EVENT_REPLAY__ = replay;
+      replay.listen();
+    })() |}]
+
+let dispatch_click (el : element) : unit =
+  let _ = el in
+  [%mel.raw {| el.dispatchEvent(new Event('click', {bubbles:true,cancelable:true})) |}]
 
 let error_stack : exn -> string option =
   [%mel.raw
@@ -530,6 +639,35 @@ let test_text_slot_static_suffix_preserved () =
 
   dispose ()
 
+let test_keyed_updates_on_value_change () =
+  let template =
+    T.compile
+      ~segments:[| "<ul><!--$-->"; "<!--$--></ul>" |]
+      ~slot_kinds:[| `Nodes |]
+  in
+  let inst = T.instantiate template in
+  let slot = T.bind_nodes inst ~id:0 ~path:[| 1 |] in
+  let disposed = ref 0 in
+  let render (item : keyed_test_item) =
+    let node = H.li ~children:[ H.text item.label ] () in
+    let dispose () = disposed := !disposed + 1 in
+    (node, dispose)
+  in
+  let items1 = [ { id = "a"; label = "Alpha" } ] in
+  let items2 = [ { id = "a"; label = "Beta" } ] in
+  T.set_nodes_keyed slot ~key:(fun item -> item.id) ~render items1;
+  (match T.root inst with
+   | H.Element el ->
+     assert_eq ~name:"keyed initial text" (get_text_content el) "Alpha"
+   | _ -> fail "keyed update: expected Template.root to be an Element");
+  T.set_nodes_keyed slot ~key:(fun item -> item.id) ~render items2;
+  (match T.root inst with
+   | H.Element el ->
+     assert_eq ~name:"keyed updated text" (get_text_content el) "Beta"
+   | _ -> fail "keyed update: expected Template.root to be an Element");
+  if !disposed <> 1 then
+    fail ("keyed update: expected dispose count 1, got " ^ string_of_int !disposed)
+
 let test_multiple_hydration_contexts_isolated () =
   (* Verify that multiple Render.hydrate contexts don't interfere with each other *)
   let template =
@@ -609,15 +747,93 @@ let test_cleanup_removes_listeners () =
    | Some slot ->
        (* Set up reactive update *)
        let (_signal, dispose) =
-         Reactive_core.create_root (fun () ->
-           T.set_text slot (Signal.get label))
-       in
+          Reactive_core.create_root (fun () ->
+            Reactive.Effect.create (fun () ->
+              T.set_text slot (Signal.get label)))
+        in
        set_label "Hello";
        assert_eq ~name:"cleanup reactive update" (get_text_content root) "Hello";
        dispose ();
        (* After dispose, signal changes should not affect DOM *)
        set_label "Goodbye";
        assert_eq ~name:"cleanup after dispose" (get_text_content root) "Hello");
+
+  dispose ()
+
+let test_state_hydration () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  set_inner_html root "<div><!--hk:0-->3<!--/hk--></div>";
+  set_hydration_data "{\"count\":3}";
+
+  let initial =
+    Solid_ml_browser.State.decode
+      ~key:"count"
+      ~decode:decode_int
+      ~default:0
+  in
+  let count, set_count = Solid_ml_browser.Env.Signal.create initial in
+
+  let dispose =
+    Render.hydrate root (fun () ->
+      Html.div
+        ~children:[ Html.reactive_text count ]
+        ())
+  in
+
+  assert_eq ~name:"state hydrate initial" (get_text_content root) "3";
+  set_count 4;
+  assert_eq ~name:"state hydrate update" (get_text_content root) "4";
+
+  dispose ();
+  set_hydration_data "{}"
+
+let test_resource_hydration () =
+  set_hydration_data "{\"resource\":{\"status\":\"ready\",\"data\":5}}";
+  let fetch_called = ref false in
+  let decode_number json =
+    match Js.Json.decodeNumber json with
+    | None -> None
+    | Some v -> Some (int_of_float v)
+  in
+  let resource =
+    Solid_ml_browser.Resource.create_with_hydration
+      ~key:"resource"
+      ~decode:decode_number
+      (fun () -> fetch_called := true; 7)
+  in
+  (match Solid_ml_browser.Resource.get_data resource with
+   | Some v -> if v <> 5 then fail "resource hydrate: expected value 5"
+   | None -> fail "resource hydrate: expected ready state");
+  if !fetch_called then fail "resource hydrate: fetcher should not run";
+  set_hydration_data "{}"
+
+let test_event_replay_click () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+  set_inner_html root "<button id=\"btn\">Click</button>";
+
+  init_event_replay ();
+
+  let clicked = ref 0 in
+  (match query_selector_within root "#btn" with
+   | None -> fail "event replay: missing button"
+   | Some button -> dispatch_click button);
+
+  let dispose =
+    Render.hydrate root (fun () ->
+      Html.button
+        ~id:"btn"
+        ~onclick:(fun _ -> clicked := !clicked + 1)
+        ~children:[Html.text "Click"]
+        ())
+  in
+
+  if !clicked <> 1 then
+    fail ("event replay: expected click count 1, got " ^ string_of_int !clicked);
 
   dispose ()
 
@@ -685,8 +901,12 @@ let () =
     test_compiled_attr_nested ();
     test_compiled_nested_intrinsic_formatting ();
     test_text_slot_static_suffix_preserved ();
+    test_keyed_updates_on_value_change ();
     test_multiple_hydration_contexts_isolated ();
     test_cleanup_removes_listeners ();
+    test_state_hydration ();
+    test_resource_hydration ();
+    test_event_replay_click ();
     test_hydration_error_context_clears ();
     set_result "PASS" "PASS"
   with exn ->

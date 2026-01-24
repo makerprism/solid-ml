@@ -45,9 +45,11 @@ module Reactive = Reactive
 
 (** Event handling utilities *)
 module Event = Event
+module Event_replay = Event_replay
 
 (** Rendering and hydration *)
 module Render = Render
+module State = State
 
 (** Navigation helpers for SPA-style links *)
 module Navigation = Navigation

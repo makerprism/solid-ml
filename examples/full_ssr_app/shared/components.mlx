@@ -81,7 +81,6 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   let counter_content ~initial () =
     Html.fragment [
       counter ~initial ();
-      input ~type_:"hidden" ~id:"initial-count" ~value:(string_of_int initial) ();
       <div id="hydration-status" class_="hydration-status">
         (text "Hydrated! Counter is now interactive.")
       </div>;

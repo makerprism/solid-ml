@@ -45,6 +45,7 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
     root_el : Dom.element option;
     mutable dispose : unit -> unit;
     mutable attached : bool;
+    mutable value : Obj.t option;
   }
 
   type keyed_state = {
@@ -514,7 +515,13 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
                    | Some x -> if Dom.is_element x then Some (Dom.element_of_node x) else find_root (Dom.node_next_sibling x)
                  in
                  let root_el = find_root (Dom.node_next_sibling n) in
-                 Dom.js_map_set_ state.map k_enc { start_ = n; stop; root_el; dispose = (fun () -> ()); attached = false };
+                  Dom.js_map_set_ state.map k_enc
+                    { start_ = n;
+                      stop;
+                      root_el;
+                      dispose = (fun () -> ());
+                      attached = false;
+                      value = None };
 
                 walk (node_next_sibling stop))
            | None ->
@@ -573,20 +580,51 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
             ignore (Dom.js_map_delete state.map old_k))
       state.order;
 
-     (* Ensure all new keys exist, creating marker ranges for new items. *)
-     List.iter
-       (fun item ->
-         let k_enc = encode_key (key item) in
-         match Dom.js_map_get_opt state.map k_enc with
-         | Some _ -> ()
-         | None ->
-           let value, dispose = render item in
-           let start_, stop = make_item_markers k_enc in
-           Dom.insert_before slot.parent start_ (Some slot.closing);
-           insert_value_before_closing value;
-           Dom.insert_before slot.parent stop (Some slot.closing);
-           Dom.js_map_set_ state.map k_enc { start_; stop; root_el = None; dispose; attached = true })
-       items;
+      let item_changed (it : keyed_item) (item : 'a) : bool =
+        match it.value with
+        | None -> false
+        | Some prev ->
+          let prev_value : 'a = Obj.obj prev in
+          not (prev_value = item)
+      in
+
+      (* Ensure all new keys exist, updating items when their values change. *)
+      List.iter
+        (fun item ->
+          let k_enc = encode_key (key item) in
+          match Dom.js_map_get_opt state.map k_enc with
+          | Some it when item_changed it item ->
+            remove_range it;
+            it.dispose ();
+            ignore (Dom.js_map_delete state.map k_enc);
+            let value, dispose = render item in
+            let start_, stop = make_item_markers k_enc in
+            Dom.insert_before slot.parent start_ (Some slot.closing);
+            insert_value_before_closing value;
+            Dom.insert_before slot.parent stop (Some slot.closing);
+            Dom.js_map_set_ state.map k_enc
+              { start_;
+                stop;
+                root_el = None;
+                dispose;
+                attached = true;
+                value = Some (Obj.repr item) }
+          | Some it ->
+            it.value <- Some (Obj.repr item)
+          | None ->
+            let value, dispose = render item in
+            let start_, stop = make_item_markers k_enc in
+            Dom.insert_before slot.parent start_ (Some slot.closing);
+            insert_value_before_closing value;
+            Dom.insert_before slot.parent stop (Some slot.closing);
+            Dom.js_map_set_ state.map k_enc
+              { start_;
+                stop;
+                root_el = None;
+                dispose;
+                attached = true;
+                value = Some (Obj.repr item) })
+        items;
 
      (* Attach per-item ownership for adopted items.
 

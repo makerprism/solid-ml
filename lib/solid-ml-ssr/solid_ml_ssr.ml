@@ -20,6 +20,8 @@
 
 module Html = Html
 module Render = Render
+module State = State
+module Resource_state = Resource_state
 
 module Env = struct
   module Signal = struct

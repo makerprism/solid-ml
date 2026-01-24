@@ -215,6 +215,9 @@ let layout ~title:page_title ~children () =
         (* App root for true hydration *)
         Html.div ~id:"app" ~children:children_list ();
 
+        (* Initial state for hydration *)
+        raw (Render.get_hydration_script ());
+
         (* Hydration script *)
         script ~src:"/static/client.js" ~type_:"module" ~children:[] ();
       ] ()
@@ -304,13 +307,27 @@ let handle_counter req =
     |> Option.join
     |> Option.value ~default:0
   in
+  let counter_key = State.key ~namespace:"full_ssr" "counter" in
   let html = Render.to_document (fun () ->
+    State.set_encoded ~key:counter_key ~encode:State.encode_int initial;
     counter_page ~current_path:(Routes.path Routes.Counter) ~initial ())
   in
   Dream.html html
 
 let handle_todos _req =
+  let todos_key = State.key ~namespace:"full_ssr" "todos" in
   let html = Render.to_document (fun () ->
+    let encode_todo todo =
+      State.encode_object [
+        ("id", State.encode_int todo.id);
+        ("text", State.encode_string todo.text);
+        ("completed", State.encode_bool todo.completed);
+      ]
+    in
+    State.set_encoded
+      ~key:todos_key
+      ~encode:State.encode_list
+      (List.map encode_todo sample_todos);
     todos_page ~current_path:(Routes.path Routes.Todos) ~todos:sample_todos ())
   in
   Dream.html html

@@ -17,6 +17,46 @@ module Filters = Shared_components.Filters.Make(Solid_ml_browser.Env)
 let get_element id =
   Dom.get_element_by_id (Dom.document ()) id
 
+let decode_int (json : Js.Json.t) : int option =
+  match Js.Json.decodeNumber json with
+  | None -> None
+  | Some v -> Some (int_of_float v)
+
+let decode_string (json : Js.Json.t) : string option =
+  Js.Json.decodeString json
+
+let decode_bool (json : Js.Json.t) : bool option =
+  Js.Json.decodeBoolean json
+
+let decode_field obj name decode =
+  match Js.Dict.get obj name with
+  | None -> None
+  | Some value -> decode value
+
+let decode_todo (json : Js.Json.t) : Shared_components.Components.todo option =
+  match Js.Json.decodeObject json with
+  | None -> None
+  | Some obj ->
+    let open Shared_components.Components in
+    (match decode_field obj "id" decode_int,
+           decode_field obj "text" decode_string,
+           decode_field obj "completed" decode_bool with
+     | Some id, Some text, Some completed -> Some { id; text; completed }
+     | _ -> None)
+
+let decode_todos (json : Js.Json.t) : Shared_components.Components.todo list option =
+  match Js.Json.decodeArray json with
+  | None -> None
+  | Some arr ->
+    let rec loop acc idx =
+      if idx < 0 then Some acc
+      else
+        match decode_todo arr.(idx) with
+        | None -> None
+        | Some todo -> loop (todo :: acc) (idx - 1)
+    in
+    loop [] (Array.length arr - 1)
+
 
 (** {1 Client-Side Navigation} *)
 
@@ -34,15 +74,15 @@ let setup_navigation () =
 (** {1 Hydration Logic} *)
 
 let hydrate_counter () =
-  match get_element "app", get_element "initial-count" with
-  | Some app_el, Some initial_el ->
-    (* Get initial value from hidden input *)
-    let initial = 
-      match Dom.get_attribute initial_el "value" with
-      | Some v -> (try int_of_string v with _ -> 0)
-      | None -> 0
+  match get_element "app" with
+  | Some app_el ->
+    let counter_key = Solid_ml_browser.State.key ~namespace:"full_ssr" "counter" in
+    let initial =
+      Solid_ml_browser.State.decode
+        ~key:counter_key
+        ~decode:decode_int
+        ~default:0
     in
-    
     let _disposer =
       Render.render app_el (fun () ->
         Shared.app_layout
@@ -57,12 +97,13 @@ let hydrate_counter () =
 let hydrate_todos () =
   match get_element "app" with
   | Some app_el ->
-    let initial_todos = [
-       Shared_components.Components.{ id = 1; text = "Learn solid-ml"; completed = true };
-       Shared_components.Components.{ id = 2; text = "Build an SSR app"; completed = false };
-       Shared_components.Components.{ id = 3; text = "Add hydration"; completed = false };
-       Shared_components.Components.{ id = 4; text = "Deploy to production"; completed = false };
-    ] in
+    let todos_key = Solid_ml_browser.State.key ~namespace:"full_ssr" "todos" in
+    let initial_todos =
+      Solid_ml_browser.State.decode
+        ~key:todos_key
+        ~decode:decode_todos
+        ~default:[]
+    in
 
     let _disposer =
       Render.render app_el (fun () ->

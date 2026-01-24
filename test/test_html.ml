@@ -241,12 +241,27 @@ let test_render_with_signals () =
 
 let test_hydration_script () =
   print_endline "Test: Hydration script";
-  let _ = Render.to_string (fun () ->
-    Html.(div ~children:[text "Hello"] ())
-  ) in
-  let script = Render.get_hydration_script () in
+  let script =
+    Solid_ml.Runtime.run (fun token ->
+      Solid_ml_ssr.State.reset ();
+      Solid_ml_ssr.State.set_encoded
+        ~key:"count"
+        ~encode:Solid_ml_ssr.State.encode_int
+        3;
+      let resource = Solid_ml.Resource.of_value token 7 in
+      Solid_ml_ssr.Resource_state.set
+        ~key:"resource"
+        ~encode:Solid_ml_ssr.State.encode_int
+        resource;
+      Render.get_hydration_script ())
+  in
   assert (contains script "<script>");
   assert (contains script "</script>");
+  assert (contains script "\"count\"");
+  assert (contains script "3");
+  assert (contains script "__SOLID_ML_EVENT_REPLAY__");
+  assert (contains script "\"resource\"");
+  assert (contains script "\"status\"");
   print_endline "  PASSED"
 
 (* ============ Reactive Text Tests ============ *)
