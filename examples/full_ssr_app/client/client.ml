@@ -7,6 +7,7 @@
 open Solid_ml_browser
 module Shared = Shared_components.Components.Make(Solid_ml_browser.Env)
 module Routes = Shared_components.Routes
+module Filters = Shared_components.Filters.Make(Solid_ml_browser.Env)
 
 (** {1 Shared Data Types} *)
 (* open Shared_components *)
@@ -103,6 +104,80 @@ let hydrate_todos () =
     Dom.log "Todos hydrated!"
   | None -> ()
 
+let hydrate_filters () =
+  match get_element "app" with
+  | Some app_el ->
+    let initial_todos : Shared_components.Filters.todo list = [
+       { id = 1; text = "Learn solid-ml"; completed = true };
+       { id = 2; text = "Build an SSR app"; completed = false };
+       { id = 3; text = "Add hydration"; completed = false };
+       { id = 4; text = "Deploy to production"; completed = false };
+    ] in
+
+    (* Hydrate with Filters view *)
+    let _disposer =
+      Render.render app_el (fun () ->
+        Shared.app_layout
+          ~current_path:(Routes.path Routes.Filters)
+          ~children:(Filters.view ~initial_todos ())
+          ())
+    in
+
+    (* Setup client-side interactivity for filter buttons *)
+    let doc = Dom.document () in
+    (match Dom.query_selector doc ".filter-bar" with
+     | Some _filter_bar ->
+       let filter_buttons = Dom.query_selector_all doc ".filter-btn" in
+       List.iter (fun button ->
+         ignore (Dom.add_event_listener button "click" (fun _ev ->
+           (* Toggle active class manually for now *)
+           let buttons = Dom.query_selector_all doc ".filter-btn" in
+           List.iter (fun b -> Dom.remove_class b "active") buttons;
+           Dom.add_class button "active";
+           ()
+         ))
+       ) filter_buttons
+     | None -> ());
+
+    (* Setup search input *)
+    (match Dom.query_selector doc ".search-input" with
+     | Some input ->
+       ignore (Dom.add_event_listener input "input" (fun _ev ->
+         (* Signal should handle this, but we'll add manual listener for now *)
+         ()
+       ))
+     | None -> ());
+
+    (* Initialize checkboxes in filtered list *)
+    (match Dom.query_selector doc ".todo-list" with
+     | Some _list_el ->
+       let todos = Dom.query_selector_all doc ".todo" in
+       List.iter (fun todo ->
+         let checkbox =
+           match Dom.query_selector_within todo ".checkbox" with
+           | Some cb -> cb
+           | None -> todo
+         in
+         let initial_text = if Dom.has_class todo "completed" then "[X]" else "[ ]" in
+         Dom.set_text_content checkbox initial_text;
+
+         ignore (Dom.add_event_listener todo "click" (fun _ev ->
+           let is_complete = Dom.has_class todo "completed" in
+           if is_complete then (
+             Dom.remove_class todo "completed";
+             Dom.set_text_content checkbox "[ ]"
+           ) else (
+             Dom.add_class todo "completed";
+             Dom.set_text_content checkbox "[X]"
+           );
+           ()
+         ))
+       ) todos
+     | None -> ());
+
+    Dom.log "Filters hydrated!"
+  | None -> ()
+
 let show_hydration_status () =
   match get_element "hydration-status" with
   | Some el -> Dom.add_class el "active"
@@ -120,6 +195,8 @@ let () =
       hydrate_counter ()
     else if path = Routes.path Routes.Todos then
       hydrate_todos ()
+    else if path = Routes.path Routes.Filters then
+      hydrate_filters ()
     else if path = Routes.path Routes.Home then (
       match get_element "app" with
       | None -> ()
