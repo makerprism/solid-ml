@@ -13,8 +13,16 @@ open Solid_ml_ssr
 
 module Shared = Shared_components.Components.Make(Solid_ml_ssr.Env)
 module Routes = Shared_components.Routes
+module Filters = Shared_components.Filters.Make(Solid_ml_ssr.Env)
 
 let sample_todos = Shared_components.Components.[
+  { id = 1; text = "Learn solid-ml"; completed = true };
+  { id = 2; text = "Build an SSR app"; completed = false };
+  { id = 3; text = "Add hydration"; completed = false };
+  { id = 4; text = "Deploy to production"; completed = false };
+]
+
+let sample_todos_filters : Shared_components.Filters.todo list = [
   { id = 1; text = "Learn solid-ml"; completed = true };
   { id = 2; text = "Build an SSR app"; completed = false };
   { id = 3; text = "Add hydration"; completed = false };
@@ -122,6 +130,68 @@ let layout ~title:page_title ~children () =
             display: none;
           }
           .hydration-status.active { display: block; }
+          .filters-container h1 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: #333;
+          }
+          .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+          }
+          .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid #4a90d9;
+            border-radius: 4px;
+            background: white;
+            color: #4a90d9;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+          }
+          .filter-btn:hover {
+            background: #f0f8ff;
+          }
+          .filter-btn.active {
+            background: #4a90d9;
+            color: white;
+          }
+          .search-bar {
+            margin-bottom: 20px;
+          }
+          .search-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+          }
+          .search-input:focus {
+            outline: none;
+            border-color: #4a90d9;
+          }
+          .stats-bar {
+            display: flex;
+            gap: 20px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            margin-bottom: 20px;
+          }
+          .stat {
+            font-weight: bold;
+            color: #555;
+          }
+          .status-bar {
+            margin-top: 20px;
+            padding: 12px;
+            background: #fff3cd;
+            border-radius: 4px;
+            color: #856404;
+            font-weight: bold;
+          }
         </style>|};
       ] ();
       body ~children:[
@@ -172,6 +242,14 @@ let todos_page ~current_path ~todos () =
   layout ~title:"Todos - solid-ml SSR" ~children:(
     Shared.app_layout ~current_path ~children:(
       Shared.todos_content ~initial_todos:todos ()
+    ) ()
+  ) ()
+
+(** Filters page - uses Filters.view *)
+let filters_page ~current_path ~todos () =
+  layout ~title:"Filters - solid-ml SSR" ~children:(
+    Shared.app_layout ~current_path ~children:(
+      Filters.view ~initial_todos:todos ()
     ) ()
   ) ()
 
@@ -237,6 +315,12 @@ let handle_todos _req =
   in
   Dream.html html
 
+let handle_filters _req =
+  let html = Render.to_document (fun () ->
+    filters_page ~current_path:(Routes.path Routes.Filters) ~todos:sample_todos_filters ())
+  in
+  Dream.html html
+
 let handle_not_found req =
   let path = Dream.target req in
   let html = Render.to_document (fun () ->
@@ -260,6 +344,7 @@ let () =
   Printf.printf "  http://localhost:%d/         - Home\n" port;
   Printf.printf "  http://localhost:%d/counter  - Counter\n" port;
   Printf.printf "  http://localhost:%d/todos    - Todos\n" port;
+  Printf.printf "  http://localhost:%d/filters  - Filters\n" port;
   Printf.printf "\n";
   Printf.printf "Build client with: make example-full-ssr-client\n";
   Printf.printf "Press Ctrl+C to stop\n";
@@ -271,6 +356,7 @@ let () =
     Dream.get "/" handle_home;
     Dream.get "/counter" handle_counter;
     Dream.get "/todos" handle_todos;
+    Dream.get "/filters" handle_filters;
     Dream.get "/keyed" handle_keyed;
     Dream.get "/template-keyed" handle_template_keyed;
     Dream.get "/static/**" (Dream.static "examples/full_ssr_app/static");

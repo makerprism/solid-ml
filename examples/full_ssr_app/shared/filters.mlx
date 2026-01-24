@@ -1,0 +1,152 @@
+(**
+    Filters Demo - Derived State and Reactive Expressions
+
+    This example demonstrates:
+    - Derived/computed signals (filteredTodos from todos + filter)
+    - Search text input binding
+    - Filter buttons (All/Active/Completed)
+    - Reactive count display
+    - Tests Tpl.text inside Tpl.each_keyed with derived values
+
+    KNOWN LIMITATION: This currently requires client-side workarounds due to
+    template compiler not supporting Tpl.text inside Tpl.each_keyed render functions.
+*)
+
+type filter_type = All | Active | Completed
+
+type todo = {
+  id : int;
+  text : string;
+  completed : bool;
+}
+
+module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
+  open Env
+  open Env.Html
+  module Tpl = Env.Tpl
+  module Routes = Routes
+
+  (** Helper: Check if haystack contains needle as substring *)
+  let string_contains_substring ~haystack ~needle =
+    let haystack_len = String.length haystack in
+    let needle_len = String.length needle in
+    if needle_len = 0 then true
+    else if needle_len > haystack_len then false
+    else
+      let rec check_pos pos =
+        if pos > haystack_len - needle_len then false
+        else
+          let rec check_offset offset =
+            if offset = needle_len then true
+            else if haystack.[pos + offset] = needle.[offset]
+            then check_offset (offset + 1)
+            else false
+          in
+          if check_offset 0 then true else check_pos (pos + 1)
+      in
+      check_pos 0
+
+  (** Main Filters View *)
+  let view ~initial_todos () =
+    (* Base state signals *)
+    let todos, _ = Signal.create initial_todos in
+    let current_filter, set_filter = Signal.create All in
+    let search_text, _ = Signal.create "" in
+
+    (* Derived: Computed filtered todos *)
+    let filtered_todos () =
+      let filter = Signal.get current_filter in
+      let search = String.lowercase_ascii (Signal.get search_text) in
+      Signal.get todos
+      |> List.filter (fun todo ->
+          match filter with
+          | All -> true
+          | Active -> not todo.completed
+          | Completed -> todo.completed
+        )
+      |> List.filter (fun todo ->
+          String.equal search "" ||
+          string_contains_substring
+            ~haystack:(String.lowercase_ascii todo.text)
+            ~needle:search
+        )
+    in
+
+    (* Derived: Count statistics *)
+    let stats () =
+      let all_todos = Signal.get todos in
+      let active_count =
+        List.length (List.filter (fun t -> not t.completed) all_todos) in
+      let completed_count =
+        List.length (List.filter (fun t -> t.completed) all_todos) in
+      let filtered_count = List.length (filtered_todos ()) in
+      (active_count, completed_count, filtered_count)
+    in
+
+    (* Helper to create filter button class *)
+    let filter_class filter_type =
+      "filter-btn" ^
+      if Signal.get current_filter = filter_type then " active" else ""
+    in
+
+    <div class_="filters-container">
+      <h1>(text "Reactive Filters Demo")</h1>
+
+      (* Filter buttons - inlined *)
+      <div class_="filter-bar">
+        <button class_=(filter_class All) onclick=(fun _ -> set_filter All)>
+          (text "All")
+        </button>
+        <button class_=(filter_class Active) onclick=(fun _ -> set_filter Active)>
+          (text "Active")
+        </button>
+        <button class_=(filter_class Completed) onclick=(fun _ -> set_filter Completed)>
+          (text "Completed")
+        </button>
+      </div>
+
+      (* Search input - simplified without binding for now *)
+      <div class_="search-bar">
+        <input type_="text" placeholder="Search todos..." class_="search-input" />
+      </div>
+
+      (* Statistics display - reactive derived values *)
+      <div class_="stats-bar">
+        <span class_="stat">
+          (text (let (active, _, _) = stats () in
+                 string_of_int active ^ " active"))
+        </span>
+        <span class_="stat">
+          (text (let (_, completed, _) = stats () in
+                 string_of_int completed ^ " completed"))
+        </span>
+        <span class_="stat">
+          (text (let (_, _, filtered) = stats () in
+                 string_of_int filtered ^ " shown"))
+        </span>
+      </div>
+
+      (* Filtered todo list - THIS WILL EXPOSE TEMPLATE LIMITATION *)
+      <ul class_="todo-list">
+        (Tpl.each_keyed
+           ~items:filtered_todos
+           ~key:(fun todo -> Int.to_string todo.id)
+           ~render:(fun todo ->
+             <li class_=("todo" ^ if todo.completed then " completed" else "")>
+               <span class_="checkbox"></span>
+               (text todo.text)
+             </li>
+           )
+        )
+      </ul>
+
+      (* Current filter indicator *)
+      <div class_="status-bar">
+        (text ("Showing: " ^
+              match Signal.get current_filter with
+              | All -> "All items"
+              | Active -> "Active items only"
+              | Completed -> "Completed items only"))
+      </div>
+    </div>
+end
