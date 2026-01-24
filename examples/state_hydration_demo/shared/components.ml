@@ -1,8 +1,8 @@
 (** Shared types for State Hydration Demo.
 
     This file contains type definitions used by both server and client.
-    The actual component implementations are in server/components.ml and client/components.ml
-    to avoid package type issues with functors.
+    Component implementations are in server/main.ml and client/main.ml
+    (inlined to avoid package type issues with functors).
 *)
 
 type user = {

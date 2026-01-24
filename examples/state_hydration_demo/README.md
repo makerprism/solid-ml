@@ -76,7 +76,6 @@ let initial =
       |> Option.map int_of_float
     )
     ~default:0
-    ()
 
 (* 2. Use the state during hydration *)
 let () =
@@ -114,7 +113,7 @@ let decode_user json =
       end
     | _ -> None
 
-let user = State.decode ~key:"user" ~decode:decode_user ~default:default_user ()
+let user = State.decode ~key:"user" ~decode:decode_user ~default:default_user
 
 (* Arrays *)
 let decode_item_array json =
@@ -128,7 +127,7 @@ let decode_item_array json =
     ) arr [] in
     Some items
 
-let items = State.decode ~key:"items" ~decode:decode_item_array ~default:[] ()
+let items = State.decode ~key:"items" ~decode:decode_item_array ~default:[]
 ```
 
 ## Running This Example
