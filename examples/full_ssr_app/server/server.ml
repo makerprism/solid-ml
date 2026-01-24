@@ -14,6 +14,7 @@ open Solid_ml_ssr
 module Shared = Shared_components.Components.Make(Solid_ml_ssr.Env)
 module Routes = Shared_components.Routes
 module Filters = Shared_components.Filters.Make(Solid_ml_ssr.Env)
+module Inline_edit = Shared_components.Inline_edit.Make(Solid_ml_ssr.Env)
 
 let sample_todos = Shared_components.Components.[
   { id = 1; text = "Learn solid-ml"; completed = true };
@@ -27,6 +28,12 @@ let sample_todos_filters : Shared_components.Filters.todo list = [
   { id = 2; text = "Build an SSR app"; completed = false };
   { id = 3; text = "Add hydration"; completed = false };
   { id = 4; text = "Deploy to production"; completed = false };
+]
+
+let sample_todos_inline_edit : Shared_components.Inline_edit.todo list = [
+  { id = 1; text = "Learn solid-ml"; completed = false };
+  { id = 2; text = "Build an SSR app"; completed = false };
+  { id = 3; text = "Add inline editing"; completed = false };
 ]
 
 (** {1 Components} *)
@@ -192,6 +199,81 @@ let layout ~title:page_title ~children () =
             color: #856404;
             font-weight: bold;
           }
+          .inline-edit-container h1 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: #333;
+          }
+          .instructions {
+            font-style: italic;
+            color: #666;
+            margin-bottom: 20px;
+          }
+          .todo-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            user-select: none;
+          }
+          .todo-item.editing {
+            background: #f0f8ff;
+            border-left: 4px solid #4a90d9;
+          }
+          .btn-edit {
+            margin-left: auto;
+            padding: 6px 12px;
+            border: 1px solid #4a90d9;
+            border-radius: 4px;
+            background: white;
+            color: #4a90d9;
+            cursor: pointer;
+            font-size: 14px;
+          }
+          .btn-edit:hover {
+            background: #f0f8ff;
+          }
+          .edit-input {
+            flex: 1;
+            padding: 8px;
+            border: 2px solid #4a90d9;
+            border-radius: 4px;
+            font-size: 16px;
+          }
+          .edit-input:focus {
+            outline: none;
+            border-color: #357abd;
+            box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.1);
+          }
+          .btn-save {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            background: #28a745;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+          }
+          .btn-save:hover {
+            background: #218838;
+          }
+          .btn-cancel {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            background: #dc3545;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+          }
+          .btn-cancel:hover {
+            background: #c82333;
+          }
+          .todo-text.saving {
+            color: #999;
+            font-style: italic;
+          }
         </style>|};
       ] ();
       body ~children:[
@@ -338,6 +420,20 @@ let handle_filters _req =
   in
   Dream.html html
 
+(** Inline-edit page - uses Inline_edit.view *)
+let inline_edit_page ~current_path ~todos () =
+  layout ~title:"Inline Edit - solid-ml SSR" ~children:(
+    Shared.app_layout ~current_path ~children:(
+      Inline_edit.view ~initial_todos:todos ()
+    ) ()
+  ) ()
+
+let handle_inline_edit _req =
+  let html = Render.to_document (fun () ->
+    inline_edit_page ~current_path:(Routes.path Routes.Inline_edit) ~todos:sample_todos_inline_edit ())
+  in
+  Dream.html html
+
 let handle_not_found req =
   let path = Dream.target req in
   let html = Render.to_document (fun () ->
@@ -358,10 +454,11 @@ let () =
   Printf.printf "Server running at http://localhost:%d\n" port;
   Printf.printf "\n";
   Printf.printf "Pages:\n";
-  Printf.printf "  http://localhost:%d/         - Home\n" port;
-  Printf.printf "  http://localhost:%d/counter  - Counter\n" port;
-  Printf.printf "  http://localhost:%d/todos    - Todos\n" port;
-  Printf.printf "  http://localhost:%d/filters  - Filters\n" port;
+  Printf.printf "  http://localhost:%d/             - Home\n" port;
+  Printf.printf "  http://localhost:%d/counter      - Counter\n" port;
+  Printf.printf "  http://localhost:%d/todos        - Todos\n" port;
+  Printf.printf "  http://localhost:%d/filters      - Filters\n" port;
+  Printf.printf "  http://localhost:%d/inline-edit  - Inline-Edit\n" port;
   Printf.printf "\n";
   Printf.printf "Build client with: make example-full-ssr-client\n";
   Printf.printf "Press Ctrl+C to stop\n";
@@ -374,6 +471,7 @@ let () =
     Dream.get "/counter" handle_counter;
     Dream.get "/todos" handle_todos;
     Dream.get "/filters" handle_filters;
+    Dream.get "/inline-edit" handle_inline_edit;
     Dream.get "/keyed" handle_keyed;
     Dream.get "/template-keyed" handle_template_keyed;
     Dream.get "/static/**" (Dream.static "examples/full_ssr_app/static");

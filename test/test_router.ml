@@ -27,6 +27,9 @@ let assert_none = function
   | None -> ()
   | Some _ -> failwith "expected None, got Some"
 
+type resource_error =
+  | Resource_boom of string
+
 (* ========== Pattern Parsing Tests ========== *)
 
 let test_pattern_parsing () =
@@ -1026,6 +1029,20 @@ let test_resource () =
       match Resource.read r with
       | Resource.Error _ -> ()
       | _ -> failwith "expected Error"
+    )
+  )
+  ;
+  test "resource custom error mapping" (fun () ->
+    Runtime.Unsafe.run (fun () ->
+      let r =
+        Resource.Unsafe.create_with_error
+          ~on_error:(fun exn -> Resource_boom (Printexc.to_string exn))
+          (fun () -> failwith "kaboom")
+      in
+      match Resource.read r with
+      | Resource.Error (Resource_boom msg) ->
+        assert (String.length msg > 0)
+      | _ -> failwith "expected custom Error"
     )
   )
 

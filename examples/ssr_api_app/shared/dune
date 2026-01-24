@@ -1,6 +1,6 @@
 (library
  (name ssr_api_shared)
- (modules routes components)
+ (modules routes components error async json_intf decode api)
  (libraries solid-ml solid-ml-template-runtime)
  (modes byte native melange)
  (preprocess (pps solid-ml-template-ppx)))

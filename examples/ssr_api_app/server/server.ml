@@ -20,135 +20,14 @@ open Solid_ml_ssr
 module Shared = Ssr_api_shared.Components
 module C = Shared.App (Solid_ml_ssr.Env)
 module Routes = Ssr_api_shared.Routes
+module Api = Api_server
+module Api_error = Ssr_api_shared.Error
 
 (** {1 Data Types} *)
 
 type user_info = Shared.user_info
 type post = Shared.post
 type comment = Shared.comment
-
-(** {1 JSON Parsing} *)
-
-let parse_user json : user_info =
-  let open Yojson.Basic.Util in
-  let module S = Ssr_api_shared.Components in
-  {
-    S.id = json |> member "id" |> to_int;
-    S.name = json |> member "name" |> to_string;
-    S.username = json |> member "username" |> to_string;
-    S.email = json |> member "email" |> to_string;
-    S.phone = json |> member "phone" |> to_string;
-    S.website = json |> member "website" |> to_string;
-    S.company = json |> member "company" |> member "name" |> to_string;
-    S.city = json |> member "address" |> member "city" |> to_string;
-  }
-
-let parse_users json =
-  let open Yojson.Basic.Util in
-  json |> to_list |> List.map parse_user
-
-let parse_post json =
-  let open Yojson.Basic.Util in
-  let module S = Ssr_api_shared.Components in
-  {
-    S.id = json |> member "id" |> to_int;
-    S.user_id = json |> member "userId" |> to_int;
-    S.title = json |> member "title" |> to_string;
-    S.body = json |> member "body" |> to_string;
-  }
-
-let parse_posts json =
-  let open Yojson.Basic.Util in
-  json |> to_list |> List.map parse_post
-
-let parse_comment json =
-  let open Yojson.Basic.Util in
-  let module S = Ssr_api_shared.Components in
-  {
-    S.id = json |> member "id" |> to_int;
-    S.post_id = json |> member "postId" |> to_int;
-    S.name = json |> member "name" |> to_string;
-    S.email = json |> member "email" |> to_string;
-    S.body = json |> member "body" |> to_string;
-  }
-
-let parse_comments json =
-  let open Yojson.Basic.Util in
-  json |> to_list |> List.map parse_comment
-
-(** {1 API Client} *)
-
-let api_base = "https://jsonplaceholder.typicode.com"
-
-let fetch_json url =
-  Lwt.wrap (fun () ->
-    try
-      (* Initialize curl handle *)
-      let h = Curl.init () in
-      Curl.set_url h url;
-      (* Use a string buffer to accumulate response *)
-      let buffer = ref "" in
-      Curl.set_writefunction h (fun data ->
-        buffer := !buffer ^ data;
-        String.length data
-      );
-      (* Perform the request *)
-      Curl.perform h;
-      let response = !buffer in
-      let code = Curl.get_httpcode h in
-      Curl.cleanup h;
-      if code >= 200 && code < 300 then
-        Ok (Yojson.Basic.from_string response)
-      else
-        Error (Printf.sprintf "HTTP %d" code)
-    with
-    | Curl.CurlException (curl_code, int_code, msg) ->
-        Error (Printf.sprintf "Curl error %d/%d: %s" (Obj.magic curl_code) int_code msg)
-    | e ->
-        Error (Printf.sprintf "Exception: %s" (Printexc.to_string e))
-  )
-
-let fetch_users () =
-  let open Lwt.Syntax in
-  let* result = fetch_json (api_base ^ "/users") in
-  match result with
-  | Ok json -> Lwt.return_ok (parse_users json)
-  | Error e -> Lwt.return_error e
-
-let fetch_user id =
-  let open Lwt.Syntax in
-  let* result = fetch_json (api_base ^ "/users/" ^ string_of_int id) in
-  match result with
-  | Ok json -> Lwt.return_ok (parse_user json)
-  | Error e -> Lwt.return_error e
-
-let fetch_posts () =
-  let open Lwt.Syntax in
-  let* result = fetch_json (api_base ^ "/posts?_limit=50") in
-  match result with
-  | Ok json -> Lwt.return_ok (parse_posts json)
-  | Error e -> Lwt.return_error e
-
-let fetch_user_posts user_id =
-  let open Lwt.Syntax in
-  let* result = fetch_json (api_base ^ "/users/" ^ string_of_int user_id ^ "/posts") in
-  match result with
-  | Ok json -> Lwt.return_ok (parse_posts json)
-  | Error e -> Lwt.return_error e
-
-let fetch_post id =
-  let open Lwt.Syntax in
-  let* result = fetch_json (api_base ^ "/posts/" ^ string_of_int id) in
-  match result with
-  | Ok json -> Lwt.return_ok (parse_post json)
-  | Error e -> Lwt.return_error e
-
-let fetch_comments post_id =
-  let open Lwt.Syntax in
-  let* result = fetch_json (api_base ^ "/posts/" ^ string_of_int post_id ^ "/comments") in
-  match result with
-  | Ok json -> Lwt.return_ok (parse_comments json)
-  | Error e -> Lwt.return_error e
 
 (** {1 Components} *)
 
@@ -612,7 +491,7 @@ let not_found_page ~request_path () =
 
 let handle_api_users _req =
   let open Lwt.Syntax in
-  let* result = fetch_users () in
+  let* result = Api.fetch_users () in
   match result with
   | Ok users ->
     let json = `List (List.map (fun (u  : user_info) ->
@@ -629,13 +508,13 @@ let handle_api_users _req =
     ) users) in
     Dream.json (Yojson.Basic.to_string json)
   | Error e ->
-    Dream.json ~status:`Internal_Server_Error 
-      (Printf.sprintf {|{"error": "%s"}|} e)
+    Dream.json ~status:`Internal_Server_Error
+      (Printf.sprintf {|{"error": "%s"}|} (Api_error.to_string e))
 
 let handle_api_user req =
   let open Lwt.Syntax in
   let id = Dream.param req "id" |> int_of_string in
-  let* result = fetch_user id in
+  let* result = Api.fetch_user id in
   match result with
   | Ok user ->
     let json = `Assoc [
@@ -650,13 +529,13 @@ let handle_api_user req =
     ] in
     Dream.json (Yojson.Basic.to_string json)
   | Error e ->
-    Dream.json ~status:`Internal_Server_Error 
-      (Printf.sprintf {|{"error": "%s"}|} e)
+    Dream.json ~status:`Internal_Server_Error
+      (Printf.sprintf {|{"error": "%s"}|} (Api_error.to_string e))
 
 let handle_api_user_posts req =
   let open Lwt.Syntax in
   let user_id = Dream.param req "id" |> int_of_string in
-  let* result = fetch_user_posts user_id in
+  let* result = Api.fetch_user_posts user_id in
   match result with
   | Ok posts ->
     let json = `List (List.map (fun (p : post) ->
@@ -669,12 +548,12 @@ let handle_api_user_posts req =
     ) posts) in
     Dream.json (Yojson.Basic.to_string json)
   | Error e ->
-    Dream.json ~status:`Internal_Server_Error 
-      (Printf.sprintf {|{"error": "%s"}|} e)
+    Dream.json ~status:`Internal_Server_Error
+      (Printf.sprintf {|{"error": "%s"}|} (Api_error.to_string e))
 
 let handle_api_posts _req =
   let open Lwt.Syntax in
-  let* result = fetch_posts () in
+  let* result = Api.fetch_posts () in
   match result with
   | Ok posts ->
     let json = `List (List.map (fun (p : post) ->
@@ -687,13 +566,13 @@ let handle_api_posts _req =
     ) posts) in
     Dream.json (Yojson.Basic.to_string json)
   | Error e ->
-    Dream.json ~status:`Internal_Server_Error 
-      (Printf.sprintf {|{"error": "%s"}|} e)
+    Dream.json ~status:`Internal_Server_Error
+      (Printf.sprintf {|{"error": "%s"}|} (Api_error.to_string e))
 
 let handle_api_post req =
   let open Lwt.Syntax in
   let id = Dream.param req "id" |> int_of_string in
-  let* result = fetch_post id in
+  let* result = Api.fetch_post id in
   match result with
   | Ok post ->
     let json = `Assoc [
@@ -704,13 +583,13 @@ let handle_api_post req =
     ] in
     Dream.json (Yojson.Basic.to_string json)
   | Error e ->
-    Dream.json ~status:`Internal_Server_Error 
-      (Printf.sprintf {|{"error": "%s"}|} e)
+    Dream.json ~status:`Internal_Server_Error
+      (Printf.sprintf {|{"error": "%s"}|} (Api_error.to_string e))
 
 let handle_api_comments req =
   let open Lwt.Syntax in
   let post_id = Dream.param req "id" |> int_of_string in
-  let* result = fetch_comments post_id in
+  let* result = Api.fetch_comments post_id in
   match result with
   | Ok comments ->
     let json = `List (List.map (fun (c : comment) ->
@@ -724,15 +603,15 @@ let handle_api_comments req =
     ) comments) in
     Dream.json (Yojson.Basic.to_string json)
   | Error e ->
-    Dream.json ~status:`Internal_Server_Error 
-      (Printf.sprintf {|{"error": "%s"}|} e)
+    Dream.json ~status:`Internal_Server_Error
+      (Printf.sprintf {|{"error": "%s"}|} (Api_error.to_string e))
 
 (** {1 Page Handlers} *)
 
 let handle_posts _req =
   let open Lwt.Syntax in
-  let* posts_result = fetch_posts () in
-  let* users_result = fetch_users () in
+  let* posts_result = Api.fetch_posts () in
+  let* users_result = Api.fetch_users () in
   match posts_result, users_result with
   | Ok posts, Ok users ->
     let html = Render.to_document (fun () ->
@@ -741,18 +620,20 @@ let handle_posts _req =
     Dream.html html
   | Error e, _ ->
     let html = Render.to_document (fun () ->
-    render_page ~current_path:(Routes.path Routes.Posts) (Shared.Posts_page (Shared.Error e, None)))
+    render_page ~current_path:(Routes.path Routes.Posts)
+      (Shared.Posts_page (Shared.Error (Api_error.to_string e), None)))
     in
     Dream.html ~status:`Internal_Server_Error html
   | _, Error e ->
     let html = Render.to_document (fun () ->
-    render_page ~current_path:(Routes.path Routes.Posts) (Shared.Posts_page (Shared.Error ("Failed to load users: " ^ e), None)))
+    render_page ~current_path:(Routes.path Routes.Posts)
+      (Shared.Posts_page (Shared.Error ("Failed to load users: " ^ Api_error.to_string e), None)))
     in
     Dream.html ~status:`Internal_Server_Error html
 
 let handle_users _req =
   let open Lwt.Syntax in
-  let* result = fetch_users () in
+  let* result = Api.fetch_users () in
   match result with
   | Ok users ->
     let html = Render.to_document (fun () ->
@@ -761,7 +642,8 @@ let handle_users _req =
     Dream.html html
   | Error e ->
     let html = Render.to_document (fun () ->
-    render_page ~current_path:(Routes.path Routes.Users) (Shared.Users_page (Shared.Error e)))
+    render_page ~current_path:(Routes.path Routes.Users)
+      (Shared.Users_page (Shared.Error (Api_error.to_string e))))
     in
     Dream.html ~status:`Internal_Server_Error html
 
@@ -778,8 +660,8 @@ let handle_user req =
     in
     Dream.html ~status:`Bad_Request html
   | Some id ->
-    let* user_result = fetch_user id in
-    let* posts_result = fetch_user_posts id in
+    let* user_result = Api.fetch_user id in
+    let* posts_result = Api.fetch_user_posts id in
     match user_result, posts_result with
     | Ok user, Ok posts ->
       let html = Render.to_document (fun () ->
@@ -790,7 +672,8 @@ let handle_user req =
     | Error e, _ | _, Error e ->
       let html = Render.to_document (fun () ->
         render_page ~current_path:(Routes.path (Routes.User id))
-          (Shared.User_page (Shared.Error e, Shared.Error e)))
+          (Shared.User_page (Shared.Error (Api_error.to_string e),
+            Shared.Error (Api_error.to_string e))))
       in
       Dream.html ~status:`Internal_Server_Error html
 
@@ -807,16 +690,17 @@ let handle_post req =
     in
     Dream.html ~status:`Bad_Request html
   | Some id ->
-    let* post_result = fetch_post id in
+    let* post_result = Api.fetch_post id in
     match post_result with
     | Error e ->
       let html = Render.to_document (fun () ->
         render_page ~current_path:(Routes.path (Routes.Post id))
-          (Shared.Post_page (Shared.Error e, Shared.Error e)))
+          (Shared.Post_page (Shared.Error (Api_error.to_string e),
+            Shared.Error (Api_error.to_string e))))
       in
       Dream.html ~status:`Internal_Server_Error html
     | Ok post ->
-      let* comments_result = fetch_comments id in
+      let* comments_result = Api.fetch_comments id in
       match comments_result with
       | Ok comments ->
         let html = Render.to_document (fun () ->
@@ -827,7 +711,8 @@ let handle_post req =
       | Error e ->
         let html = Render.to_document (fun () ->
           render_page ~current_path:(Routes.path (Routes.Post post.id))
-            (Shared.Post_page (Shared.Error e, Shared.Error e)))
+            (Shared.Post_page (Shared.Error (Api_error.to_string e),
+              Shared.Error (Api_error.to_string e))))
         in
         Dream.html ~status:`Internal_Server_Error html
 

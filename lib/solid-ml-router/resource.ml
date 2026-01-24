@@ -8,16 +8,31 @@
     
     Usage:
     {[
-      (* Create a resource *)
-      let user_resource = Resource.create (fun () ->
-        Api.fetch_user user_id
-      ) in
+      type user_error =
+        | User_not_found of string
+        | Fetch_failed of string
+
+      let user_error_to_string = function
+        | User_not_found username -> "User not found: " ^ username
+        | Fetch_failed msg -> "Fetch failed: " ^ msg
+
+      (* Create a resource with typed errors *)
+      let user_resource = Resource.create_async_with_error
+        ~on_error:(fun exn -> Fetch_failed (Printexc.to_string exn))
+        (fun ~ok ~error ->
+          match Api.fetch_user user_id with
+          | Ok user -> ok user
+          | Error _ -> error (User_not_found user_id)
+        )
+      in
       
       (* Use in a component *)
-      match Resource.read user_resource with
-      | Loading -> Html.text "Loading..."
-      | Error e -> Html.p ~children:[Html.text ("Error: " ^ e)] ()
-      | Ready user -> User_card.make ~user ()
+      Resource.render
+        ~loading:(fun () -> Html.text "Loading...")
+        ~error:(fun err ->
+          Html.p ~children:[Html.text (user_error_to_string err)] ())
+        ~ready:(fun user -> User_card.make ~user ())
+        user_resource
     ]}
 *)
 
@@ -29,18 +44,18 @@ module Memo = Memo.Unsafe
 (** {1 Types} *)
 
 (** The state of a resource *)
-type 'a state =
+type ('a, 'e) state =
   | Loading
-  | Error of string
+  | Error of 'e
   | Ready of 'a
 
 (** Generate unique IDs for resources (for Suspense tracking) *)
 let next_resource_id = ref 0
 
 (** A resource that tracks async data loading *)
-type 'a t = {
-  state : 'a state Signal.t;
-  set_state : 'a state -> unit;
+type ('a, 'e) t = {
+  state : ('a, 'e) state Signal.t;
+  set_state : ('a, 'e) state -> unit;
   refetch : unit -> unit;
   id : int;  (** Unique ID for Suspense registration tracking *)
 }
@@ -53,10 +68,11 @@ type 'a t = {
     transitions from Loading -> Ready or Loading -> Error.
     
     Note: This is for synchronous initialization. For true async,
-    use [create_async] with a promise-returning function.
+    use [create_async] with a callback-based fetcher.
     
+    @param on_error Function that maps exceptions into error values
     @param fetcher Function that returns the data or raises an exception *)
-let create fetcher =
+let create_with_error ~on_error fetcher =
   let state, set_state = Signal.create Loading in
   let id = !next_resource_id in
   incr next_resource_id;
@@ -67,13 +83,60 @@ let create fetcher =
       let data = fetcher () in
       set_state (Ready data)
     with exn ->
-      set_state (Error (Printexc.to_string exn))
+      set_state (Error (on_error exn))
   in
   
   (* Fetch immediately *)
   do_fetch ();
   
   { state; set_state; refetch = do_fetch; id }
+
+(** Create a resource that immediately starts loading.
+    
+    This version uses [Printexc.to_string] for exceptions. For
+    structured error types, use [create_with_error].
+    
+    @param fetcher Function that returns the data or raises an exception *)
+let create fetcher =
+  create_with_error ~on_error:Printexc.to_string fetcher
+
+(** Create a resource that loads asynchronously.
+    
+    The fetcher receives callbacks for success and error. The resource
+    transitions from Loading -> Ready or Loading -> Error when the
+    callbacks fire.
+    
+    @param on_error Function that maps exceptions into error values
+    @param fetcher Function that triggers async loading
+      (signature: ok:('a -> unit) -> error:('e -> unit) -> unit) *)
+let create_async_with_error ~on_error fetcher =
+  let state, set_state = Signal.create Loading in
+  let id = !next_resource_id in
+  incr next_resource_id;
+
+  let do_fetch () =
+    set_state Loading;
+    try
+      fetcher
+        ~ok:(fun data -> set_state (Ready data))
+        ~error:(fun err -> set_state (Error err))
+    with exn ->
+      set_state (Error (on_error exn))
+  in
+
+  do_fetch ();
+
+  { state; set_state; refetch = do_fetch; id }
+
+(** Create a resource that loads asynchronously.
+    
+    This version uses [Printexc.to_string] for exceptions. For
+    structured error types, use [create_async_with_error].
+    
+    @param fetcher Function that triggers async loading
+      (signature: ok:('a -> unit) -> error:(string -> unit) -> unit) *)
+let create_async fetcher =
+  create_async_with_error ~on_error:Printexc.to_string fetcher
 
 (** Create a resource with an initial value (already ready).
     
@@ -95,9 +158,9 @@ let create_loading () =
 
 (** Create a resource in error state.
     
-    @param message Error message *)
-let of_error message =
-  let state, set_state = Signal.create (Error message) in
+    @param error Error value *)
+let of_error error =
+  let state, set_state = Signal.create (Error error) in
   let id = !next_resource_id in
   incr next_resource_id;
   { state; set_state; refetch = (fun () -> ()); id }
@@ -141,10 +204,10 @@ let get_data resource =
   | Ready data -> Some data
   | _ -> None
 
-(** Get the error message if error, None otherwise *)
+(** Get the error value if error, None otherwise *)
 let get_error resource =
   match peek resource with
-  | Error msg -> Some msg
+  | Error err -> Some err
   | _ -> None
 
 (** {1 Updating} *)
@@ -154,8 +217,8 @@ let set resource data =
   resource.set_state (Ready data)
 
 (** Set the resource to error state *)
-let set_error resource message =
-  resource.set_state (Error message)
+let set_error resource error =
+  resource.set_state (Error error)
 
 (** Set the resource to loading state *)
 let set_loading resource =
@@ -247,16 +310,17 @@ let combine_all resources =
     ]}
     
     @param default Value to return while loading (content won't be shown anyway)
+    @param error_to_string Convert error values into messages for exceptions
     @param resource The resource to read
     @raise Failure if resource is in Error state *)
-let read_suspense ~default resource =
+let read_suspense ?(error_to_string=(fun _ -> "Resource error")) ~default resource =
   (* Always read the signal to create a dependency - this ensures the
      containing effect/memo re-runs when the resource state changes *)
   let current_state = Signal.get resource.state in
   
   match current_state with
   | Ready data -> data
-  | Error msg -> failwith msg
+  | Error err -> failwith (error_to_string err)
   | Loading ->
     (* Try to register with Suspense context *)
     (match Suspense.get_state () with
@@ -274,13 +338,13 @@ let read_suspense ~default resource =
 (** Render based on resource state.
     
     @param loading Function to render loading state
-    @param error Function to render error state (receives message)
+    @param error Function to render error state (receives error value)
     @param ready Function to render ready state (receives data)
     @param resource The resource to render *)
 let render ~loading ~error ~ready resource =
   match read resource with
   | Loading -> loading ()
-  | Error msg -> error msg
+  | Error err -> error err
   | Ready data -> ready data
 
 (** Render with default loading and error states.
@@ -288,13 +352,14 @@ let render ~loading ~error ~ready resource =
     Shows "Loading..." for loading state.
     Shows "Error: {message}" for error state.
     
+    @param error_to_string Convert error values into messages for rendering
     @param ready Function to render ready state
     @param resource The resource to render *)
-let render_simple ~ready resource =
+let render_simple ?(error_to_string=(fun _ -> "Resource error")) ~ready resource =
   render
     ~loading:(fun () -> Solid_ml_ssr.Html.text "Loading...")
-    ~error:(fun msg -> Solid_ml_ssr.Html.p ~children:[
-      Solid_ml_ssr.Html.text ("Error: " ^ msg)
+    ~error:(fun err -> Solid_ml_ssr.Html.p ~children:[
+      Solid_ml_ssr.Html.text ("Error: " ^ error_to_string err)
     ] ())
     ~ready
     resource
