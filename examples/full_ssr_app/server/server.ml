@@ -399,7 +399,7 @@ let handle_counter req =
 let handle_todos _req =
   let todos_key = State.key ~namespace:"full_ssr" "todos" in
   let html = Render.to_document (fun () ->
-    let encode_todo todo =
+    let encode_todo (todo : Shared_components.Components.todo) =
       State.encode_object [
         ("id", State.encode_int todo.id);
         ("text", State.encode_string todo.text);

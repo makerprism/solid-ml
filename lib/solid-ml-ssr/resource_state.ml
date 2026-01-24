@@ -1,4 +1,4 @@
-let set ~key ~encode (resource : 'a Solid_ml.Resource.resource) : unit =
+let set ~key ~encode (resource : ('a, string) Solid_ml.Resource.resource) : unit =
   match Solid_ml.Resource.peek resource with
   | Solid_ml.Resource.Pending ->
     State.set_encoded
