@@ -222,8 +222,13 @@ browser-tests:
 	@node _build/default/test_browser/output/test_browser/test_reactive.js
 
 # Run browser tests in a real headless browser (requires Chrome)
+CHROME_BIN ?= google-chrome
 browser-tests-headless:
 	@echo "Running browser DOM tests (headless Chrome)..."
+	@if ! command -v "$(CHROME_BIN)" >/dev/null; then \
+		echo "Error: Chrome executable not found. Set CHROME_BIN=/path/to/chrome"; \
+		exit 1; \
+	fi
 	@# Guard against accidentally committing diff markers in the test file.
 	@if grep -n '^[+][l][e][t][ ]' test_browser_dom/test_template_dom.ml >/dev/null; then \
 		echo "Error: found leading '+' diff markers in test_browser_dom/test_template_dom.ml"; \
@@ -231,16 +236,17 @@ browser-tests-headless:
 		exit 1; \
 	fi
 	@$(DUNE) build @test_browser_dom/melange
-	@npx --yes esbuild _build/default/test_browser_dom/output/test_browser_dom/test_template_dom.js --bundle --format=iife --target=es2020 --outfile=_build/default/test_browser_dom/test_template_dom_bundle.js
+	@NODE_NO_WARNINGS=1 npx --yes esbuild _build/default/test_browser_dom/output/test_browser_dom/test_template_dom.js --bundle --format=iife --target=es2020 --outfile=_build/default/test_browser_dom/test_template_dom_bundle.js
 	@tmp_dom="$$(mktemp)"; tmp_err="$$(mktemp)"; tmp_png="$$(mktemp --suffix=.png)"; \
 	  artifacts_dir="_build/default/test_browser_dom/artifacts"; \
 	  mkdir -p "$$artifacts_dir"; \
-	  timeout 30s google-chrome --headless=new --disable-gpu --no-sandbox --disable-dev-shm-usage \
+	  timeout 30s "$(CHROME_BIN)" --headless=new --disable-gpu --no-sandbox --disable-dev-shm-usage \
 	    --allow-file-access-from-files --disable-web-security --virtual-time-budget=5000 \
 	    --window-size=1280,720 --screenshot="$$tmp_png" \
 	    --dump-dom file://$(PWD)/test_browser_dom/runner.html \
 	    1>"$$tmp_dom" 2>"$$tmp_err"; \
 	  if rg -q 'data-test-result="PASS"' "$$tmp_dom"; then \
+	    echo "Headless DOM tests passed."; \
 	    rm -f "$$tmp_dom" "$$tmp_err" "$$tmp_png"; \
 	    exit 0; \
 	  else \

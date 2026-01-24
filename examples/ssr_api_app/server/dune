@@ -4,17 +4,3 @@
  (package ssr_api_app)
  (libraries dream solid-ml solid-ml-ssr ssr_api_shared curl yojson)
  (modules server))
-
-(executable
- (name test)
- (public_name test_server)
- (package ssr_api_app)
- (libraries dream)
- (modules test))
-
-(executable
- (name test2)
- (public_name test2_server)
- (package ssr_api_app)
- (libraries dream solid-ml solid-ml-ssr ssr_api_shared)
- (modules test2))

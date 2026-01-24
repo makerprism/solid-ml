@@ -322,6 +322,7 @@ See also:
 - `examples/browser_counter/` - Browser counter with client-side reactivity
 - `examples/browser_router/` - Browser router with client-side navigation
 - `examples/js_framework_benchmark/` - JS Framework Benchmark
+- `examples/full_ssr_app/` - Full SSR + hydration demo
 ```
 
 ## Building
@@ -422,6 +423,30 @@ This design allows the same reactive code to run on both server (for SSR) and cl
 
 For detailed limitations and workarounds, see [LIMITATIONS.md](LIMITATIONS.md).
 
+### SSR Hydration Data
+
+You can embed server state for hydration using `Solid_ml_ssr.State`. Keys can be
+namespaced with `State.key` and values should be encoded explicitly.
+
+```ocaml
+let key = Solid_ml_ssr.State.key ~namespace:"todos" "list" in
+Solid_ml_ssr.State.set_encoded ~key ~encode:Solid_ml_ssr.State.encode_string "ok"
+```
+
+For resources, serialize their state explicitly on the server and hydrate on the
+client. You can also request a background refresh with `~revalidate:true`.
+
+```ocaml
+Solid_ml_ssr.Resource_state.set ~key:"user" ~encode:Solid_ml_ssr.State.encode_string resource
+
+let resource =
+  Solid_ml_browser.Resource.create_with_hydration
+    ~key:"user"
+    ~decode:Js.Json.decodeString
+    ~revalidate:true
+    fetch_user
+```
+
 ## Testing
 
 solid-ml has comprehensive test coverage:
@@ -440,6 +465,21 @@ Run tests with:
 dune runtest          # Native OCaml tests
 make browser-tests    # Browser tests via Node.js
 ```
+
+### Browser DOM Tests
+
+The DOM integration tests compile to JavaScript and run in a real browser.
+
+```bash
+# Build + run headless (requires Chrome)
+make browser-tests-headless
+
+# Or compile and open manually
+dune build @test_browser_dom/melange
+```
+
+For manual runs, open `test_browser_dom/runner.html` in a browser and confirm the
+`data-test-result` attribute shows `PASS`.
 
 ## Project Status
 

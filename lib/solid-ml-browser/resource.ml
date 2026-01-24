@@ -42,6 +42,32 @@ type 'a t = {
   id : int;  (** Unique ID for Suspense registration tracking *)
 }
 
+let decode_field obj name decode =
+  match Js.Dict.get obj name with
+  | None -> None
+  | Some value -> decode value
+
+let decode_resource_state ~decode (json : Js.Json.t) : 'a state option =
+  match Js.Json.decodeObject json with
+  | None -> None
+  | Some obj ->
+    (match decode_field obj "status" Js.Json.decodeString with
+     | Some "ready" ->
+       (match Js.Dict.get obj "data" with
+        | None -> None
+        | Some data -> (match decode data with Some v -> Some (Ready v) | None -> None))
+     | Some "error" ->
+       (match decode_field obj "error" Js.Json.decodeString with
+        | Some msg -> Some (Error msg)
+        | None -> None)
+     | Some "loading" -> Some Loading
+     | _ -> None)
+
+let hydrate_state ~key ~decode : 'a state option =
+  match State.get ~key with
+  | None -> None
+  | Some json -> decode_resource_state ~decode json
+
 (** {1 Creation} *)
 
 (** Create a resource that immediately starts loading.
@@ -49,12 +75,12 @@ type 'a t = {
     The fetcher is called with a callback to set the result.
     
     @param fetcher Function that takes a (result -> unit) callback *)
-let create_async fetcher =
-  let state = Reactive_core.create_signal Loading in
+let create_async_with_state initial fetcher =
+  let state = Reactive_core.create_signal initial in
   let set_state s = Reactive_core.set_signal state s in
   let id = !next_resource_id in
   incr next_resource_id;
-  
+
   let do_fetch () =
     set_state Loading;
     fetcher (function
@@ -62,21 +88,31 @@ let create_async fetcher =
       | Error msg -> set_state (Error msg)
     )
   in
-  
-  (* Fetch immediately *)
-  do_fetch ();
-  
+
+  (match initial with Loading -> do_fetch () | Ready _ | Error _ -> ());
+
   { state; set_state; refetch = do_fetch; id }
+
+let create_async fetcher =
+  create_async_with_state Loading fetcher
+
+let create_async_with_hydration ?(revalidate = false) ~key ~decode fetcher =
+  match hydrate_state ~key ~decode with
+  | Some state ->
+    let resource = create_async_with_state state fetcher in
+    if revalidate then resource.refetch ();
+    resource
+  | None -> create_async fetcher
 
 (** Create a resource with a synchronous fetcher.
     
     @param fetcher Function that returns the data or raises *)
-let create fetcher =
-  let state = Reactive_core.create_signal Loading in
+let create_with_state initial fetcher =
+  let state = Reactive_core.create_signal initial in
   let set_state s = Reactive_core.set_signal state s in
   let id = !next_resource_id in
   incr next_resource_id;
-  
+
   let do_fetch () =
     set_state Loading;
     try
@@ -85,9 +121,21 @@ let create fetcher =
     with exn ->
       set_state (Error (Dom.exn_to_string exn))
   in
-  
-  do_fetch ();
+
+  (match initial with Loading -> do_fetch () | Ready _ | Error _ -> ());
+
   { state; set_state; refetch = do_fetch; id }
+
+let create fetcher =
+  create_with_state Loading fetcher
+
+let create_with_hydration ?(revalidate = false) ~key ~decode fetcher =
+  match hydrate_state ~key ~decode with
+  | Some state ->
+    let resource = create_with_state state fetcher in
+    if revalidate then resource.refetch ();
+    resource
+  | None -> create fetcher
 
 (** Create a resource with an initial value (already ready). *)
 let of_value value =

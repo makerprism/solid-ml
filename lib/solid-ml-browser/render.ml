@@ -98,6 +98,7 @@ let hydrate root component =
 
       (* Clean up hydration markers from the DOM while still in hydration mode. *)
       Hydration.remove_hydration_markers root;
+      Event_replay.replay ();
       dispose)
   in
 
