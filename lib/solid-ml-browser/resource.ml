@@ -114,6 +114,15 @@ let create_async_with_state ~on_error initial fetcher =
 let create_async_with_error ~on_error fetcher =
   create_async_with_state ~on_error Loading fetcher
 
+(** Create a resource with async fetch (string errors).
+
+    This is a convenience alias that uses [Dom.exn_to_string] for exceptions.
+    For structured error types, use [create_async_with_error].
+
+    @param fetcher Function that takes a (result -> unit) callback *)
+let create_async fetcher =
+  create_async_with_error ~on_error:Dom.exn_to_string fetcher
+
 (** Create a resource with async fetch and hydration support.
 
     @param revalidate Whether to refetch on hydration
@@ -127,15 +136,6 @@ let create_async_with_hydration ?(revalidate = false) ~key ~decode fetcher =
     if revalidate then resource.refetch ();
     resource
   | None -> create_async fetcher
-
-(** Create a resource with async fetch (string errors).
-
-    This is a convenience alias that uses [Dom.exn_to_string] for exceptions.
-    For structured error types, use [create_async_with_error].
-
-    @param fetcher Function that takes a (result -> unit) callback *)
-let create_async fetcher =
-  create_async_with_error ~on_error:Dom.exn_to_string fetcher
 
 (** Create a resource with sync fetch and optional initial state.
 
@@ -168,6 +168,15 @@ let create_with_state ~on_error initial fetcher =
 let create_with_error ~on_error fetcher =
   create_with_state ~on_error Loading fetcher
 
+(** Create a resource with sync fetch (string errors).
+
+    This is a convenience alias that uses [Dom.exn_to_string] for exceptions.
+    For structured error types, use [create_with_error].
+
+    @param fetcher Function that returns data or raises *)
+let create fetcher =
+  create_with_error ~on_error:Dom.exn_to_string fetcher
+
 (** Create a resource with sync fetch and hydration support.
 
     @param revalidate Whether to refetch on hydration
@@ -181,15 +190,6 @@ let create_with_hydration ?(revalidate = false) ~key ~decode fetcher =
     if revalidate then resource.refetch ();
     resource
   | None -> create fetcher
-
-(** Create a resource with sync fetch (string errors).
-
-    This is a convenience alias that uses [Dom.exn_to_string] for exceptions.
-    For structured error types, use [create_with_error].
-
-    @param fetcher Function that returns data or raises *)
-let create fetcher =
-  create_with_error ~on_error:Dom.exn_to_string fetcher
 
 (** Create a resource with an initial value (already ready). *)
 let of_value value =

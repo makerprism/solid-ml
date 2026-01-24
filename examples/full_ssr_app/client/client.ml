@@ -258,18 +258,18 @@ let hydrate_inline_edit () =
         let text = Dom.get_text_content text_span in
 
         (* Replace with edit mode - simplified implementation *)
-        let checkbox =
+        let _checkbox =
           match Dom.query_selector_within todo_item ".checkbox" with
           | Some cb -> cb
           | None -> todo_item
         in
 
         (* Create edit UI *)
-        todo_item ## innerHTML :=
-          "<span class=\"checkbox\"></span>" ^
-          "<input type=\"text\" class=\"edit-input\" value=\"" ^ text ^ "\" />" ^
-          "<button class=\"btn-save\">Save</button>" ^
-          "<button class=\"btn-cancel\">Cancel</button>";
+        Dom.set_inner_html todo_item
+          ("<span class=\"checkbox\"></span>" ^
+           "<input type=\"text\" class=\"edit-input\" value=\"" ^ text ^ "\" />" ^
+           "<button class=\"btn-save\">Save</button>" ^
+           "<button class=\"btn-cancel\">Cancel</button>");
 
         (* Setup save/cancel handlers *)
         match Dom.query_selector_within todo_item ".btn-save" with
@@ -281,13 +281,13 @@ let hydrate_inline_edit () =
                 | Some i -> i
                 | None -> todo_item
               in
-              let new_text = Dom.get_property input "value" |> Option.value ~default:text in
+              let new_text = Dom.element_value input in
 
               (* Revert to view mode with updated text *)
-              todo_item ## innerHTML :=
-                "<span class=\"checkbox\">[ ]</span>" ^
-                "<span class=\"todo-text\">" ^ new_text ^ "</span>" ^
-                "<button class=\"btn-edit\">Edit</button>";
+              Dom.set_inner_html todo_item
+                ("<span class=\"checkbox\">[ ]</span>" ^
+                 "<span class=\"todo-text\">" ^ new_text ^ "</span>" ^
+                 "<button class=\"btn-edit\">Edit</button>");
 
               (* Re-attach click handler to new edit button *)
               match Dom.query_selector_within todo_item ".btn-edit" with
@@ -304,10 +304,10 @@ let hydrate_inline_edit () =
         | Some cancel_btn ->
             ignore (Dom.add_event_listener cancel_btn "click" (fun _ ->
               (* Revert to view mode with original text *)
-              todo_item ## innerHTML :=
-                "<span class=\"checkbox\">[ ]</span>" ^
-                "<span class=\"todo-text\">" ^ text ^ "</span>" ^
-                "<button class=\"btn-edit\">Edit</button>";
+              Dom.set_inner_html todo_item
+                ("<span class=\"checkbox\">[ ]</span>" ^
+                 "<span class=\"todo-text\">" ^ text ^ "</span>" ^
+                 "<button class=\"btn-edit\">Edit</button>");
 
               (* Re-attach click handler *)
               match Dom.query_selector_within todo_item ".btn-edit" with
