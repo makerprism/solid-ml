@@ -255,6 +255,12 @@ val on_popstate : (event -> unit) -> unit
 val off_popstate : (event -> unit) -> unit
 (** Remove a popstate event listener *)
 
+val on_unload : (event -> unit) -> unit
+(** Add an unload event listener (for page cleanup) *)
+
+val off_unload : (event -> unit) -> unit
+(** Remove an unload event listener *)
+
 (** {1 Scroll} *)
 
 val get_scroll_x : unit -> float

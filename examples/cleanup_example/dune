@@ -1,0 +1,11 @@
+; Cleanup example - compiles to JavaScript via Melange
+;
+; Demonstrates proper cleanup patterns for solid-ml-browser:
+; - Effect.create_with_cleanup for effect cleanup
+; - Owner.on_cleanup for component cleanup
+; - Render.dispose for page-level cleanup
+
+(melange.emit
+ (target output)
+ (libraries solid-ml-browser)
+ (module_systems es6))

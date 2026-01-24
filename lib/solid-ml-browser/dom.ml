@@ -439,6 +439,16 @@ let off_popstate handler =
   let _ = handler in
   [%mel.raw {| window.removeEventListener('popstate', handler) |}]
 
+(** Add an unload event listener (for page cleanup) *)
+let on_unload handler =
+  let _ = handler in
+  [%mel.raw {| window.addEventListener('unload', handler) |}]
+
+(** Remove an unload event listener *)
+let off_unload handler =
+  let _ = handler in
+  [%mel.raw {| window.removeEventListener('unload', handler) |}]
+
 (** {1 Scroll} *)
 
 (** Get current scroll position *)

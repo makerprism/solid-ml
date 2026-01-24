@@ -160,13 +160,21 @@ let todo_list token =
 let () =
   match Dom.get_element_by_id (Dom.document ()) "app" with
   | Some root ->
-    let _dispose = Render.render_strict root (fun token ->
+    (* Render the component and get the dispose function *)
+    let dispose = Render.render_strict root (fun token ->
       Html.fragment [
         counter token;
         Html.hr ();
         todo_list token;
       ]
     ) in
+
+    (* IMPORTANT: Register cleanup on page unload to prevent memory leaks *)
+    Dom.on_unload (fun _evt ->
+      dispose ();
+      Dom.log "solid-ml app disposed!"
+    );
+
     Dom.log "solid-ml app mounted!"
   | None ->
     Dom.error "Could not find #app element"
