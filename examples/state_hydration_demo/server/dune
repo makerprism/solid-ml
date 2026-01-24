@@ -1,0 +1,7 @@
+; Server executable for state hydration demo
+
+(executable
+ (name main)
+ (public_name state_hydration_server)
+ (package solid-ml-ssr)
+ (libraries solid-ml-ssr state_hydration_shared))

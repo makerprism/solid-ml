@@ -1,0 +1,6 @@
+; Shared library for state hydration demo
+
+(library
+ (name state_hydration_shared)
+ (modes byte native melange)
+ (libraries solid-ml-ssr))

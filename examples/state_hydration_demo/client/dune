@@ -1,0 +1,6 @@
+; Client for state hydration demo - compiles to JavaScript via Melange
+
+(melange.emit
+ (target output)
+ (libraries solid-ml-browser state_hydration_shared)
+ (modules main))
