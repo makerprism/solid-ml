@@ -4,6 +4,8 @@ open Solid_ml
 
 open Solid_ml_router
 
+module Router_resource = Solid_ml_router.Resource
+
 (* Test utilities *)
 let test name f =
   Printf.printf "Test: %s\n%!" name;
@@ -19,6 +21,9 @@ let assert_equal expected actual msg =
 
 let assert_true cond msg =
   if not cond then failwith msg
+
+type suspense_error =
+  | Suspense_custom of string
 
 (* ============================================
    Suspense Tests
@@ -214,6 +219,19 @@ let () = test "ErrorBoundary catches Resource error" (fun () ->
   
   assert_true (String.length result > 0) "Should have result";
   assert_true (String.sub result 0 6 = "error:") "Should show error"
+)
+
+let () = test "read_suspense uses error_to_string" (fun () ->
+  let resource = Router_resource.of_error (Suspense_custom "bad") in
+  try
+    let _value = Router_resource.read_suspense
+      ~default:""
+      ~error_to_string:(function Suspense_custom msg -> "custom: " ^ msg)
+      resource
+    in
+    failwith "expected exception"
+  with Failure msg ->
+    assert_true (msg = "custom: bad") "Should use custom error message"
 )
 
 let () = test "ErrorBoundary.make_simple works" (fun () ->

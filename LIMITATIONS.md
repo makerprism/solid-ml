@@ -121,15 +121,20 @@ let handler req =
 ```ocaml
 open Solid_ml_router
 
-let user_resource = Resource.create (fun id ->
-  fetch_user_data id  (* Returns promise/data *)
-)
+let user_resource = Resource.create (fun () ->
+  fetch_user_data ()
+) 
 
 let user_page () =
   Suspense.boundary
     ~fallback:(fun () -> [Html.div [] [Html.text "Loading..."]])
     ~children:(fun () ->
-      let user = Resource.read_suspense user_resource ~default:None in
+      let user =
+        Resource.read_suspense
+          ~default:None
+          ~error_to_string:(fun err -> err)
+          user_resource
+      in
       [Html.div [] [Html.text user.name]]
     )
 ```

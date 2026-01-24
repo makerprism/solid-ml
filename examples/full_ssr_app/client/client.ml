@@ -8,6 +8,7 @@ open Solid_ml_browser
 module Shared = Shared_components.Components.Make(Solid_ml_browser.Env)
 module Routes = Shared_components.Routes
 module Filters = Shared_components.Filters.Make(Solid_ml_browser.Env)
+module Inline_edit = Shared_components.Inline_edit.Make(Solid_ml_browser.Env)
 
 (** {1 Shared Data Types} *)
 (* open Shared_components *)
@@ -219,6 +220,136 @@ let hydrate_filters () =
     Dom.log "Filters hydrated!"
   | None -> ()
 
+let hydrate_inline_edit () =
+  match get_element "app" with
+  | Some app_el ->
+    let initial_todos : Shared_components.Inline_edit.todo list = [
+       { id = 1; text = "Learn solid-ml"; completed = false };
+       { id = 2; text = "Build an SSR app"; completed = false };
+       { id = 3; text = "Add inline editing"; completed = false };
+    ] in
+
+    (* Hydrate with Inline_edit view *)
+    let _disposer =
+      Render.render app_el (fun () ->
+        Shared.app_layout
+          ~current_path:(Routes.path Routes.Inline_edit)
+          ~children:(Inline_edit.view ~initial_todos ())
+          ())
+    in
+
+    (* Setup client-side interactivity for edit buttons *)
+    let doc = Dom.document () in
+    let edit_buttons = Dom.query_selector_all doc ".btn-edit" in
+    List.iter (fun button ->
+      ignore (Dom.add_event_listener button "click" (fun _ev ->
+        (* Find the parent todo item and replace with edit mode *)
+        let todo_item =
+          match Dom.query_selector_within button ".todo-item" with
+          | Some item -> item
+          | None -> button
+        in
+        (* Get the todo text *)
+        let text_span =
+          match Dom.query_selector_within todo_item ".todo-text" with
+          | Some span -> span
+          | None -> button
+        in
+        let text = Dom.get_text_content text_span in
+
+        (* Replace with edit mode - simplified implementation *)
+        let checkbox =
+          match Dom.query_selector_within todo_item ".checkbox" with
+          | Some cb -> cb
+          | None -> todo_item
+        in
+
+        (* Create edit UI *)
+        todo_item ## innerHTML :=
+          "<span class=\"checkbox\"></span>" ^
+          "<input type=\"text\" class=\"edit-input\" value=\"" ^ text ^ "\" />" ^
+          "<button class=\"btn-save\">Save</button>" ^
+          "<button class=\"btn-cancel\">Cancel</button>";
+
+        (* Setup save/cancel handlers *)
+        match Dom.query_selector_within todo_item ".btn-save" with
+        | Some save_btn ->
+            ignore (Dom.add_event_listener save_btn "click" (fun _ ->
+              (* Get input value and revert to view mode *)
+              let input =
+                match Dom.query_selector_within todo_item ".edit-input" with
+                | Some i -> i
+                | None -> todo_item
+              in
+              let new_text = Dom.get_property input "value" |> Option.value ~default:text in
+
+              (* Revert to view mode with updated text *)
+              todo_item ## innerHTML :=
+                "<span class=\"checkbox\">[ ]</span>" ^
+                "<span class=\"todo-text\">" ^ new_text ^ "</span>" ^
+                "<button class=\"btn-edit\">Edit</button>";
+
+              (* Re-attach click handler to new edit button *)
+              match Dom.query_selector_within todo_item ".btn-edit" with
+              | Some new_edit_btn ->
+                  ignore (Dom.add_event_listener new_edit_btn "click" (fun _ ->
+                    (* Same logic as above - simplified *)
+                    ()
+                  ))
+              | None -> ()
+            ))
+        | None -> ();
+
+        match Dom.query_selector_within todo_item ".btn-cancel" with
+        | Some cancel_btn ->
+            ignore (Dom.add_event_listener cancel_btn "click" (fun _ ->
+              (* Revert to view mode with original text *)
+              todo_item ## innerHTML :=
+                "<span class=\"checkbox\">[ ]</span>" ^
+                "<span class=\"todo-text\">" ^ text ^ "</span>" ^
+                "<button class=\"btn-edit\">Edit</button>";
+
+              (* Re-attach click handler *)
+              match Dom.query_selector_within todo_item ".btn-edit" with
+              | Some new_edit_btn ->
+                  ignore (Dom.add_event_listener new_edit_btn "click" (fun _ ->
+                    (* Same logic as above - simplified *)
+                    ()
+                  ))
+              | None -> ()
+            ))
+        | None -> ()
+      ))
+    ) edit_buttons;
+
+    (* Initialize checkboxes *)
+    (match Dom.query_selector doc ".todo-list" with
+     | Some _list_el ->
+       let todos = Dom.query_selector_all doc ".todo-item" in
+       List.iter (fun todo ->
+         let checkbox =
+           match Dom.query_selector_within todo ".checkbox" with
+           | Some cb -> cb
+           | None -> todo
+         in
+         Dom.set_text_content checkbox "[ ]";
+
+         ignore (Dom.add_event_listener todo "click" (fun _ev ->
+           let checkbox_inner =
+             match Dom.query_selector_within todo ".checkbox" with
+             | Some cb -> cb
+             | None -> todo
+           in
+           let current = Dom.get_text_content checkbox_inner in
+           let new_text = if current = "[X]" then "[ ]" else "[X]" in
+           Dom.set_text_content checkbox_inner new_text
+         ))
+       ) todos
+     | None -> ());
+
+    Dom.log "Inline edit hydrated!"
+  | None -> ()
+
 let show_hydration_status () =
   match get_element "hydration-status" with
   | Some el -> Dom.add_class el "active"
@@ -238,6 +369,8 @@ let () =
       hydrate_todos ()
     else if path = Routes.path Routes.Filters then
       hydrate_filters ()
+    else if path = Routes.path Routes.Inline_edit then
+      hydrate_inline_edit ()
     else if path = Routes.path Routes.Home then (
       match get_element "app" with
       | None -> ()

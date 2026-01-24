@@ -9,7 +9,16 @@
     full async support with callbacks.
     
     Usage:
-      let data = Resource.create (fun () -> fetch_data ()) in
+      type api_error =
+        | Fetch_failed of string
+
+      let api_error_to_string = function
+        | Fetch_failed msg -> "Fetch failed: " ^ msg
+
+      let data = Resource.create_with_error token
+        ~on_error:(fun exn -> Fetch_failed (Printexc.to_string exn))
+        (fun () -> fetch_data ())
+      in
       let { mutate; refetch } = actions in
       mutate (fun old -> "updated");
       refetch ();
@@ -19,21 +28,21 @@
 
 (** {1 Types} *)
 
-type 'a resource_state =
+type ('a, 'e) resource_state =
   | Pending
   | Ready of 'a
-  | Error of string
+  | Error of 'e
 
-type 'a resource = {
-  mutable state : 'a resource_state Signal.t;
-  actions : 'a resource_actions;
+type ('a, 'e) resource = {
+  mutable state : ('a, 'e) resource_state Signal.t;
+  actions : ('a, 'e) resource_actions;
   id : int;
 }
-and 'a resource_actions = {
+and ('a, 'e) resource_actions = {
   mutate : ('a option -> 'a) -> unit;
   refetch : unit -> unit;
   set_ready : 'a -> unit;
-  set_error : string -> unit;
+  set_error : 'e -> unit;
 }
 
 (** {1 Internal State} *)
@@ -45,7 +54,9 @@ let next_resource_id = ref 0
 (** Create a resource with a synchronous fetcher. *)
 type token = Runtime.token
 
-let create (token : token) (fetcher : unit -> 'a) : 'a resource =
+(** Create a resource with a synchronous fetcher and custom error mapping. *)
+let create_with_error (token : token) ~on_error (fetcher : unit -> 'a)
+  : ('a, 'e) resource =
   let state, set_state = Signal.create token Pending in
   let id = !next_resource_id in
   incr next_resource_id;
@@ -56,7 +67,7 @@ let create (token : token) (fetcher : unit -> 'a) : 'a resource =
       let data = fetcher () in
       set_state (Ready data)
     with exn ->
-      set_state (Error (Printexc.to_string exn))
+      set_state (Error (on_error exn))
   in
   
   let actions = {
@@ -66,14 +77,18 @@ let create (token : token) (fetcher : unit -> 'a) : 'a resource =
     );
     refetch = (fun () -> do_fetch ());
     set_ready = (fun v -> set_state (Ready v));
-    set_error = (fun msg -> set_state (Error msg));
+    set_error = (fun err -> set_state (Error err));
   } in
   
   do_fetch ();
   { state; actions; id }
 
+(** Create a resource with a synchronous fetcher. *)
+let create (token : token) (fetcher : unit -> 'a) : ('a, string) resource =
+  create_with_error token ~on_error:Printexc.to_string fetcher
+
 (** Create a resource with an initial value (already ready). *)
-let of_value (token : token) (value : 'a) : 'a resource =
+let of_value (token : token) (value : 'a) : ('a, 'e) resource =
   let state, set_state = Signal.create token (Ready value) in
   let id = !next_resource_id in
   incr next_resource_id;
@@ -84,12 +99,12 @@ let of_value (token : token) (value : 'a) : 'a resource =
     );
     refetch = (fun () -> ());
     set_ready = (fun v -> set_state (Ready v));
-    set_error = (fun msg -> set_state (Error msg));
+    set_error = (fun err -> set_state (Error err));
   } in
   { state; actions; id }
 
 (** Create a resource in loading state. *)
-let create_loading (token : token) : 'a resource =
+let create_loading (token : token) : ('a, 'e) resource =
   let state, set_state = Signal.create token Pending in
   let id = !next_resource_id in
   incr next_resource_id;
@@ -100,13 +115,13 @@ let create_loading (token : token) : 'a resource =
     );
     refetch = (fun () -> set_state Pending);
     set_ready = (fun v -> set_state (Ready v));
-    set_error = (fun msg -> set_state (Error msg));
+    set_error = (fun err -> set_state (Error err));
   } in
   { state; actions; id }
 
 (** Create a resource in error state. *)
-let of_error (token : token) (message : string) : 'a resource =
-  let state, set_state = Signal.create token (Error message) in
+let of_error (token : token) (error : 'e) : ('a, 'e) resource =
+  let state, set_state = Signal.create token (Error error) in
   let id = !next_resource_id in
   incr next_resource_id;
   let actions = {
@@ -116,7 +131,7 @@ let of_error (token : token) (message : string) : 'a resource =
     );
     refetch = (fun () -> set_state Pending);
     set_ready = (fun v -> set_state (Ready v));
-    set_error = (fun msg -> set_state (Error msg));
+    set_error = (fun err -> set_state (Error err));
   } in
   { state; actions; id }
 
@@ -151,9 +166,9 @@ let errored resource =
 (** Alias for errored *)
 let is_error = errored
 
-(** Get error message if errored *)
+(** Get error value if errored *)
 let error resource =
-  match peek resource with Error msg -> Some msg | _ -> None
+  match peek resource with Error err -> Some err | _ -> None
 
 (** Alias for error *)
 let get_error = error
@@ -165,12 +180,14 @@ let data resource =
 (** Alias for data *)
 let get_data = data
 
-(** Get value (raises if not ready) *)
-let get resource =
+(** Get value (raises if not ready).
+    
+    @param error_to_string Convert error values into messages for exceptions. *)
+let get ?(error_to_string=(fun _ -> "Resource error")) resource =
   match peek resource with
   | Ready v -> v
   | Pending -> raise (Invalid_argument "Resource.get: not ready")
-  | Error msg -> raise (Invalid_argument ("Resource.get: " ^ msg))
+  | Error err -> raise (Invalid_argument ("Resource.get: " ^ error_to_string err))
 
 (** {1 Actions} *)
 
@@ -191,8 +208,8 @@ let set resource data =
   resource.actions.set_ready data
 
 (** Set to error *)
-let set_error resource msg =
-  resource.actions.set_error msg
+let set_error resource err =
+  resource.actions.set_error err
 
 (** {1 Transforming} *)
 
@@ -201,10 +218,11 @@ let map f resource =
   match read resource with
   | Ready v -> Ready (f v)
   | Pending -> Pending
-  | Error msg -> Error msg
+  | Error err -> Error err
 
 (** Combine two resources *)
-let combine (token : token) (r1 : 'a resource) (r2 : 'b resource) : ('a * 'b) resource =
+let combine (token : token) (r1 : ('a, 'e) resource) (r2 : ('b, 'e) resource)
+  : (('a * 'b), 'e) resource =
   let state, set_state = Signal.create token Pending in
   let id = !next_resource_id in
   incr next_resource_id;
@@ -227,7 +245,7 @@ let combine (token : token) (r1 : 'a resource) (r2 : 'b resource) : ('a * 'b) re
       refetch r2
     );
     set_ready = (fun _ -> ());
-    set_error = (fun msg -> set_state (Error msg));
+    set_error = (fun err -> set_state (Error err));
   } in
   
   Effect.create token (fun () -> update ());
@@ -236,7 +254,7 @@ let combine (token : token) (r1 : 'a resource) (r2 : 'b resource) : ('a * 'b) re
   { state; actions; id }
 
 (** Combine a list of resources *)
-let combine_all (token : token) (resources : 'a resource list) : 'a list resource =
+let combine_all (token : token) (resources : ('a, 'e) resource list) : ('a list, 'e) resource =
   let state, set_state = Signal.create token Pending in
   let id = !next_resource_id in
   incr next_resource_id;
@@ -247,7 +265,7 @@ let combine_all (token : token) (resources : 'a resource list) : 'a list resourc
       | r :: rest ->
         match read r with
         | Ready v -> check (v :: acc) rest
-        | Error msg -> set_state (Error msg)
+        | Error err -> set_state (Error err)
         | Pending -> set_state Pending
     in
     check [] resources
@@ -260,7 +278,7 @@ let combine_all (token : token) (resources : 'a resource list) : 'a list resourc
     );
     refetch = (fun () -> List.iter refetch resources);
     set_ready = (fun _ -> ());
-    set_error = (fun msg -> set_state (Error msg));
+    set_error = (fun err -> set_state (Error err));
   } in
   
   List.iter (fun _ -> Effect.create token (fun () -> update ())) resources;
@@ -273,11 +291,11 @@ let combine_all (token : token) (resources : 'a resource list) : 'a list resourc
 let render ~loading ~error ~ready resource =
   match read resource with
   | Pending -> loading ()
-  | Error msg -> error msg
+  | Error err -> error err
   | Ready v -> ready v
 
 module Unsafe = struct
-  let create (fetcher : unit -> 'a) : 'a resource =
+  let create_with_error ~on_error (fetcher : unit -> 'a) : ('a, 'e) resource =
     let state, set_state = Signal.Unsafe.create Pending in
     let id = !next_resource_id in
     incr next_resource_id;
@@ -288,7 +306,7 @@ module Unsafe = struct
         let data = fetcher () in
         set_state (Ready data)
       with exn ->
-        set_state (Error (Printexc.to_string exn))
+        set_state (Error (on_error exn))
     in
 
     let actions = {
@@ -298,13 +316,16 @@ module Unsafe = struct
       );
       refetch = (fun () -> do_fetch ());
       set_ready = (fun v -> set_state (Ready v));
-      set_error = (fun msg -> set_state (Error msg));
+      set_error = (fun err -> set_state (Error err));
     } in
 
     do_fetch ();
     { state; actions; id }
 
-  let of_value (value : 'a) : 'a resource =
+  let create (fetcher : unit -> 'a) : ('a, string) resource =
+    create_with_error ~on_error:Printexc.to_string fetcher
+
+  let of_value (value : 'a) : ('a, 'e) resource =
     let state, set_state = Signal.Unsafe.create (Ready value) in
     let id = !next_resource_id in
     incr next_resource_id;
@@ -315,11 +336,11 @@ module Unsafe = struct
       );
       refetch = (fun () -> ());
       set_ready = (fun v -> set_state (Ready v));
-      set_error = (fun msg -> set_state (Error msg));
+      set_error = (fun err -> set_state (Error err));
     } in
     { state; actions; id }
 
-  let create_loading () : 'a resource =
+  let create_loading () : ('a, 'e) resource =
     let state, set_state = Signal.Unsafe.create Pending in
     let id = !next_resource_id in
     incr next_resource_id;
@@ -330,12 +351,12 @@ module Unsafe = struct
       );
       refetch = (fun () -> set_state Pending);
       set_ready = (fun v -> set_state (Ready v));
-      set_error = (fun msg -> set_state (Error msg));
+      set_error = (fun err -> set_state (Error err));
     } in
     { state; actions; id }
 
-  let of_error (message : string) : 'a resource =
-    let state, set_state = Signal.Unsafe.create (Error message) in
+  let of_error (error : 'e) : ('a, 'e) resource =
+    let state, set_state = Signal.Unsafe.create (Error error) in
     let id = !next_resource_id in
     incr next_resource_id;
     let actions = {
@@ -345,11 +366,11 @@ module Unsafe = struct
       );
       refetch = (fun () -> set_state Pending);
       set_ready = (fun v -> set_state (Ready v));
-      set_error = (fun msg -> set_state (Error msg));
+      set_error = (fun err -> set_state (Error err));
     } in
     { state; actions; id }
 
-  let combine (r1 : 'a resource) (r2 : 'b resource) : ('a * 'b) resource =
+  let combine (r1 : ('a, 'e) resource) (r2 : ('b, 'e) resource) : (('a * 'b), 'e) resource =
     let state, set_state = Signal.Unsafe.create Pending in
     let id = !next_resource_id in
     incr next_resource_id;
@@ -372,7 +393,7 @@ module Unsafe = struct
         refetch r2
       );
       set_ready = (fun _ -> ());
-      set_error = (fun msg -> set_state (Error msg));
+      set_error = (fun err -> set_state (Error err));
     } in
 
     Effect.Unsafe.create (fun () -> update ());
@@ -380,7 +401,7 @@ module Unsafe = struct
 
     { state; actions; id }
 
-  let combine_all (resources : 'a resource list) : 'a list resource =
+  let combine_all (resources : ('a, 'e) resource list) : ('a list, 'e) resource =
     let state, set_state = Signal.Unsafe.create Pending in
     let id = !next_resource_id in
     incr next_resource_id;
@@ -391,7 +412,7 @@ module Unsafe = struct
         | r :: rest ->
           match read r with
           | Ready v -> check (v :: acc) rest
-          | Error msg -> set_state (Error msg)
+          | Error err -> set_state (Error err)
           | Pending -> set_state Pending
       in
       check [] resources
@@ -404,7 +425,7 @@ module Unsafe = struct
       );
       refetch = (fun () -> List.iter refetch resources);
       set_ready = (fun _ -> ());
-      set_error = (fun msg -> set_state (Error msg));
+      set_error = (fun err -> set_state (Error err));
     } in
 
     List.iter (fun _ -> Effect.Unsafe.create (fun () -> update ())) resources;

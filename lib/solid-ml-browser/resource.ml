@@ -5,19 +5,30 @@
     
     Usage:
     {[
-      (* Create a resource with async fetch *)
-      let user_resource = Resource.create_async (fun set_result ->
-        Fetch.get "/api/user/123" (fun response ->
-          match response with
-          | Ok data -> set_result (Ok data)
-          | Error e -> set_result (Error e)
+      type user_error =
+        | User_not_found of string
+        | Fetch_failed of string
+
+      let user_error_to_string = function
+        | User_not_found username -> "User not found: " ^ username
+        | Fetch_failed msg -> "Fetch failed: " ^ msg
+
+      (* Create a resource with async fetch and typed errors *)
+      let user_resource = Resource.create_async_with_error
+        ~on_error:(fun exn -> Fetch_failed (Dom.exn_to_string exn))
+        (fun set_result ->
+          Fetch.get "/api/user/123" (fun response ->
+            match response with
+            | Ok data -> set_result (Ok data)
+            | Error _ -> set_result (Error (User_not_found "123"))
+          )
         )
-      ) in
+      in
       
       (* Use in a component *)
       Resource.render
         ~loading:(fun () -> Html.text "Loading...")
-        ~error:(fun e -> Html.text ("Error: " ^ e))
+        ~error:(fun e -> Html.text (user_error_to_string e))
         ~ready:(fun user -> User_card.make ~user ())
         user_resource
     ]}
@@ -70,44 +81,68 @@ let hydrate_state ~key ~decode : 'a state option =
 
 (** {1 Creation} *)
 
-(** Create a resource that immediately starts loading.
-    
-    The fetcher is called with a callback to set the result.
-    
+(** Create a resource with async fetch and optional initial state.
+
+    @param initial Optional initial state (Loading, Ready, or Error)
+    @param on_error Function that maps exceptions into error values
     @param fetcher Function that takes a (result -> unit) callback *)
-let create_async_with_state initial fetcher =
+let create_async_with_state ~on_error initial fetcher =
   let state = Reactive_core.create_signal initial in
   let set_state s = Reactive_core.set_signal state s in
   let id = !next_resource_id in
   incr next_resource_id;
 
-  let do_fetch () =
+   let do_fetch () =
     set_state Loading;
-    fetcher (function
-      | Ok data -> set_state (Ready data)
-      | Error msg -> set_state (Error msg)
-    )
+    try
+      fetcher (function
+        | Ok data -> set_state (Ready data)
+        | Error err -> set_state (Error err)
+      )
+    with exn ->
+      set_state (Error (on_error exn))
   in
 
   (match initial with Loading -> do_fetch () | Ready _ | Error _ -> ());
 
   { state; set_state; refetch = do_fetch; id }
 
-let create_async fetcher =
-  create_async_with_state Loading fetcher
+(** Create a resource with async fetch and typed errors.
 
+    @param on_error Function that maps exceptions into error values
+    @param fetcher Function that takes a (result -> unit) callback *)
+let create_async_with_error ~on_error fetcher =
+  create_async_with_state ~on_error Loading fetcher
+
+(** Create a resource with async fetch and hydration support.
+
+    @param revalidate Whether to refetch on hydration
+    @param key Hydration key from server state
+    @param decode Decoder for JSON data
+    @param fetcher Function that takes a (result -> unit) callback *)
 let create_async_with_hydration ?(revalidate = false) ~key ~decode fetcher =
   match hydrate_state ~key ~decode with
   | Some state ->
-    let resource = create_async_with_state state fetcher in
+    let resource = create_async_with_state ~on_error:Dom.exn_to_string state fetcher in
     if revalidate then resource.refetch ();
     resource
   | None -> create_async fetcher
 
-(** Create a resource with a synchronous fetcher.
-    
-    @param fetcher Function that returns the data or raises *)
-let create_with_state initial fetcher =
+(** Create a resource with async fetch (string errors).
+
+    This is a convenience alias that uses [Dom.exn_to_string] for exceptions.
+    For structured error types, use [create_async_with_error].
+
+    @param fetcher Function that takes a (result -> unit) callback *)
+let create_async fetcher =
+  create_async_with_error ~on_error:Dom.exn_to_string fetcher
+
+(** Create a resource with sync fetch and optional initial state.
+
+    @param initial Optional initial state (Loading, Ready, or Error)
+    @param on_error Function that maps exceptions into error values
+    @param fetcher Function that returns data or raises *)
+let create_with_state ~on_error initial fetcher =
   let state = Reactive_core.create_signal initial in
   let set_state s = Reactive_core.set_signal state s in
   let id = !next_resource_id in
@@ -119,23 +154,42 @@ let create_with_state initial fetcher =
       let data = fetcher () in
       set_state (Ready data)
     with exn ->
-      set_state (Error (Dom.exn_to_string exn))
+      set_state (Error (on_error exn))
   in
 
-  (match initial with Loading -> do_fetch () | Ready _ | Error _ -> ());
+   (match initial with Loading -> do_fetch () | Ready _ | Error _ -> ());
 
   { state; set_state; refetch = do_fetch; id }
 
-let create fetcher =
-  create_with_state Loading fetcher
+(** Create a resource with sync fetch and typed errors.
 
+    @param on_error Function that maps exceptions into error values
+    @param fetcher Function that returns data or raises *)
+let create_with_error ~on_error fetcher =
+  create_with_state ~on_error Loading fetcher
+
+(** Create a resource with sync fetch and hydration support.
+
+    @param revalidate Whether to refetch on hydration
+    @param key Hydration key from server state
+    @param decode Decoder for JSON data
+    @param fetcher Function that returns data or raises *)
 let create_with_hydration ?(revalidate = false) ~key ~decode fetcher =
   match hydrate_state ~key ~decode with
   | Some state ->
-    let resource = create_with_state state fetcher in
+    let resource = create_with_state ~on_error:Dom.exn_to_string state fetcher in
     if revalidate then resource.refetch ();
     resource
   | None -> create fetcher
+
+(** Create a resource with sync fetch (string errors).
+
+    This is a convenience alias that uses [Dom.exn_to_string] for exceptions.
+    For structured error types, use [create_with_error].
+
+    @param fetcher Function that returns data or raises *)
+let create fetcher =
+  create_with_error ~on_error:Dom.exn_to_string fetcher
 
 (** Create a resource with an initial value (already ready). *)
 let of_value value =
@@ -152,8 +206,8 @@ let create_loading () =
   { state; set_state = Reactive_core.set_signal state; refetch = (fun () -> ()); id }
 
 (** Create a resource in error state. *)
-let of_error message =
-  let state = Reactive_core.create_signal (Error message) in
+let of_error error =
+  let state = Reactive_core.create_signal (Error error) in
   let id = !next_resource_id in
   incr next_resource_id;
   { state; set_state = Reactive_core.set_signal state; refetch = (fun () -> ()); id }
@@ -186,7 +240,7 @@ let get_data resource =
 
 (** Get error if error *)
 let get_error resource =
-  match peek resource with Error msg -> Some msg | _ -> None
+  match peek resource with Error err -> Some err | _ -> None
 
 (** {1 Updating} *)
 
@@ -195,8 +249,8 @@ let set resource data =
   resource.set_state (Ready data)
 
 (** Set to error *)
-let set_error resource message =
-  resource.set_state (Error message)
+let set_error resource error =
+  resource.set_state (Error error)
 
 (** Set to loading *)
 let set_loading resource =
@@ -249,14 +303,14 @@ let combine_all resources =
     @param default Value to return while loading
     @param resource The resource to read
     @raise Failure if resource is in Error state *)
-let read_suspense ~default resource =
+let read_suspense ?(error_to_string=(fun _ -> "Resource error")) ~default resource =
   (* Always read the signal to create a dependency - this ensures the
      containing effect/memo re-runs when the resource state changes *)
   let current_state = Reactive_core.get_signal resource.state in
   
   match current_state with
   | Ready data -> data
-  | Error msg -> failwith msg
+  | Error err -> failwith (error_to_string err)
   | Loading ->
     (* Try to register with Suspense context *)
     (match Suspense.get_state () with
@@ -275,14 +329,14 @@ let read_suspense ~default resource =
 let render ~loading ~error ~ready resource =
   match read resource with
   | Loading -> loading ()
-  | Error msg -> error msg
+  | Error err -> error err
   | Ready data -> ready data
 
 (** Render with default loading and error *)
-let render_simple ~ready resource =
+let render_simple ?(error_to_string=(fun _ -> "Resource error")) ~ready resource =
   render
     ~loading:(fun () -> Html.text "Loading...")
-    ~error:(fun msg -> Html.p ~children:[Html.text ("Error: " ^ msg)] ())
+    ~error:(fun err -> Html.p ~children:[Html.text ("Error: " ^ error_to_string err)] ())
     ~ready
     resource
 
@@ -304,6 +358,6 @@ let on_ready resource callback =
 let on_error resource callback =
   Reactive_core.create_effect (fun () ->
     match read resource with
-    | Error msg -> callback msg
+    | Error err -> callback err
     | _ -> ()
   )

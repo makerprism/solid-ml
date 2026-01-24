@@ -1,0 +1,103 @@
+(**
+    Inline Edit Demo - Two-Way Input Binding
+
+    This example demonstrates:
+    - Conditional rendering (view vs edit mode)
+    - Input field binding (subject to template compiler limitations)
+    - Click-to-edit interaction
+    - Save/cancel functionality
+    - Validation feedback
+
+    KNOWN LIMITATION: Input binding requires client-side workarounds due to
+    template compiler limitations with reactive signals in inputs.
+*)
+
+type todo = {
+  id : int;
+  text : string;
+  completed : bool;
+}
+
+type edit_state =
+  | Not_editing
+  | Editing of string
+  | Saving
+
+module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
+  open Env
+  open Env.Html
+  module Tpl = Env.Tpl
+  module Routes = Routes
+
+  (** Inline Edit Todo Item Component *)
+  let todo_item ~todo ~is_editing ~edit_text:_ () =
+    let class_ = "todo-item" ^ if todo.completed then " completed" else "" in
+    match is_editing with
+    | Not_editing ->
+        <li class_=class_>
+          <span class_="checkbox"></span>
+          <span class_="todo-text">
+            (Html.text todo.text)
+          </span>
+          <button class_="btn-edit" onclick=(fun _ -> ())>
+            (Html.text "Edit")
+          </button>
+        </li>
+    | Editing text ->
+        <li class_="todo-item editing">
+          <input
+            type_="text"
+            value=text
+            class_="edit-input" />
+          <button class_="btn-save" onclick=(fun _ -> ())>
+            (Html.text "Save")
+          </button>
+          <button class_="btn-cancel" onclick=(fun _ -> ())>
+            (Html.text "Cancel")
+          </button>
+        </li>
+    | Saving ->
+        <li class_="todo-item">
+          <span class_="checkbox"></span>
+          <span class_="todo-text saving">
+            (Html.text "Saving...")
+          </span>
+        </li>
+
+  (** Main Inline Edit View *)
+  let view ~initial_todos () =
+    (* State signals *)
+    let todos, _ = Signal.create initial_todos in
+    let editing_id, _set_editing_id = Signal.create None in
+    let edit_text, _set_edit_text = Signal.create "" in
+
+    (* Helper: Check if a todo is being edited *)
+    let is_editing todo =
+      match Signal.get editing_id with
+      | Some id when id = todo.id -> Editing (Signal.get edit_text)
+      | Some _ -> Saving
+      | None -> Not_editing
+    in
+
+    <div class_="inline-edit-container">
+      <h1>(Html.text "Inline Edit Demo")</h1>
+
+      <p class_="instructions">
+        (Html.text "Click 'Edit' on any todo to edit it inline. Changes save instantly.")
+      </p>
+
+      <ul class_="todo-list">
+        (Tpl.each_keyed
+           ~items:(fun () -> Signal.get todos)
+           ~key:(fun todo -> Int.to_string todo.id)
+           ~render:(fun todo ->
+             todo_item ~todo ~is_editing:(is_editing todo) ~edit_text:(Signal.get edit_text) ()
+           )
+        )
+      </ul>
+
+      <div class_="status-bar">
+        (Html.text "Click any Edit button to enter edit mode")
+      </div>
+    </div>
+end

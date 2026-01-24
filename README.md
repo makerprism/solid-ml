@@ -27,6 +27,10 @@ Expect rapid iteration, breaking changes, and active development. **Use at your 
 - **Event replay** - Pre-hydration interactions are captured and replayed on client
 - **Resource hydration** - Serialize and hydrate async resources from server to client
 
+## Changelog
+
+See `CHANGES.md` for unreleased and release notes.
+
 ## Quick Start
 
 ```ocaml
@@ -201,14 +205,111 @@ Context.provide theme_context "dark" (fun () ->
 ```ocaml
 (* Suspense boundary for async loading states *)
 let ui = Suspense.boundary
-  ~loading:(fun () -> Html.text "Loading...")
-  ~error:(fun e -> Html.p ~children:[Html.text ("Error: " ^ e)] ())
-  ~ready:(fun user -> User_card.make ~user ())
-  user_resource
-```
+  ~fallback:(fun () -> [Html.div [] [Html.text "Loading..."]])
+  ~children:(fun () ->
+    let data =
+      Resource.read_suspense
+        ~default:[]
+        ~error_to_string:(fun err -> err)
+        my_resource
+    in
+    [Html.div [] (List.map render_item data)]
+  )
+
+(* Error boundary for catching errors *)
+let ui = ErrorBoundary.make
+  ~fallback:(fun error reset ->
+    [Html.div [] [
+      Html.text ("Error: " ^ error);
+      Html.button [Html.on_click (fun _ -> reset ())] 
+        [Html.text "Retry"]
+    ]]
+  )
+  ~children:(fun () ->
+    (* Code that might throw *)
+    [Html.div [] [Html.text "Success!"]]
+  )
 ```
 
-## Testing
+### Resource Errors (Typed)
+
+Resources can carry a custom error type. Use `create_async_with_error` to map
+exceptions into your error type and provide an `error_to_string` when rendering
+or when converting errors to exceptions (e.g. `read_suspense`, `get`).
+
+Browser-side async resources follow the same pattern:
+
+```ocaml
+let user_resource =
+  Solid_ml_browser.Resource.create_async_with_error
+    ~on_error:(fun exn -> Fetch_error (Solid_ml_browser.Dom.exn_to_string exn))
+    (fun set_result ->
+      Fetch.get "/api/user/123" (fun response ->
+        match response with
+        | Ok data -> set_result (Ok data)
+        | Error _ -> set_result (Error (User_not_found "123"))
+      )
+    )
+```
+
+If you want a reusable error shape, define a small domain error type and a
+single `to_string` helper:
+
+```ocaml
+type api_error =
+  | Http_error of int
+  | Json_error of string
+  | Network_error of string
+
+let api_error_to_string = function
+  | Http_error code -> "HTTP " ^ string_of_int code
+  | Json_error msg -> "JSON error: " ^ msg
+  | Network_error msg -> "Network error: " ^ msg
+```
+
+### Migration Notes (Typed Resource Errors)
+
+If you're upgrading from the string-only Resource API:
+
+- `Resource.Error` now carries your error type instead of `string`.
+- `Resource.read_suspense` and `Resource.get` accept `~error_to_string` to
+  convert typed errors into messages.
+- Use `create_with_error` / `create_async_with_error` to map exceptions into
+  your error type.
+
+### Release Notes (Unreleased)
+
+- Typed Resource errors across `solid-ml`, `solid-ml-router`, and
+  `solid-ml-browser` with opt-in error formatting helpers.
+
+```ocaml
+type user_error =
+  | User_not_found of string
+  | Fetch_error of string
+
+let user_error_to_string = function
+  | User_not_found username -> "User not found: " ^ username
+  | Fetch_error msg -> "Failed to load user: " ^ msg
+
+let user_resource username =
+  Resource.create_async_with_error
+    ~on_error:(fun exn -> Fetch_error (Printexc.to_string exn))
+    (fun ~ok ~error ->
+      match Api.fetch_user username with
+      | Ok user -> ok user
+      | Error _ -> error (User_not_found username)
+    )
+
+let view_user username () =
+  let resource = user_resource username in
+  Resource.render
+    ~loading:(fun () -> Html.text "Loading...")
+    ~error:(fun err -> Html.text (user_error_to_string err))
+    ~ready:(fun user -> Html.text user.name)
+    resource
+```
+
+### Router (SSR-aware)
 
 solid-ml has comprehensive test coverage:
 
