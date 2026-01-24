@@ -1,3 +1,0 @@
-(executable
- (name router)
- (libraries solid-ml solid-ml-ssr solid-ml-router))

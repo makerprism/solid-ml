@@ -1,7 +1,0 @@
-; Client-side hydration script (Melange)
-; Build with: make example-ssr-client
-
-(melange.emit
- (target client_output)
- (libraries solid-ml-browser ssr_server_shared)
- (module_systems es6))

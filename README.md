@@ -2,15 +2,15 @@
 
 An OCaml framework for building reactive web applications with server-side rendering (SSR), inspired by [SolidJS](https://www.solidjs.com/).
 
-> **Status:** All phases complete! ✅ Reactive core, SSR, client runtime, router, and Suspense/ErrorBoundary are ready. 124 tests passing.
+> **Status:** All phases complete! ✅ Reactive core, SSR, client runtime, router, Suspense/ErrorBoundary, event replay, and resource hydration are ready. 210 tests passing.
 
 ## ⚠️ Development Status
 
-**Started:** January 5, 2026 (2 days of intensive development)
+**Started:** January 5, 2026 (5 days of intensive development)
 
 **Maturity:** Experimental - Not battle-tested in production yet.
 
-solid-ml is a mostly faithful port of SolidJS to OCaml, enabling full-stack OCaml web applications where validation logic, types, and business logic can be seamlessly shared between server and client. While all core features are implemented with comprehensive test coverage (208 tests), solid-ml has **not been used in production** and may have undiscovered edge cases.
+solid-ml is a mostly faithful port of SolidJS to OCaml, enabling full-stack OCaml web applications where validation logic, types, and business logic can be seamlessly shared between server and client. While all core features are implemented with comprehensive test coverage (210 tests), solid-ml has **not been used in production** and may have undiscovered edge cases.
 
 Expect rapid iteration, breaking changes, and active development. **Use at your own risk.** If you're adventurous and want to help stabilize it, contributions and feedback are welcome!
 
@@ -24,6 +24,8 @@ Expect rapid iteration, breaking changes, and active development. **Use at your 
 - **Thread-safe** - Domain-local storage enables safe parallel execution (OCaml 5)
 - **Type-safe** - Full OCaml type checking for your UI
 - **SolidJS-compatible** - Familiar API for SolidJS developers
+- **Event replay** - Pre-hydration interactions are captured and replayed on client
+- **Resource hydration** - Serialize and hydrate async resources from server to client
 
 ## Quick Start
 
@@ -50,8 +52,8 @@ let () =
         );
 
         (* Update the signal - effect automatically re-runs *)
-        set_count 1;  (* prints: Count: 1, Doubled: 2 *)
-        set_count 2   (* prints: Count: 2, Doubled: 4 *)
+        set_count 1;  (* prints: Count:1, Doubled: 2 *)
+        set_count 2   (* prints: Count:2, Doubled: 4 *)
       )
     in
     dispose ()
@@ -71,13 +73,13 @@ runtime. Do not stash tokens globally or across runtimes.
 (* Create isolated reactive context *)
 Runtime.run (fun token ->
   (* Reactive code here *)
-  let _count, _set_count = Signal.create token 0 in
+  let _count, _set_count = Signal.create token 0
   ()
 )
-```
 
-If you need the legacy API, use explicit `Unsafe` modules (e.g.
-`Signal.Unsafe.create`). This is intentionally opt-in. Avoid `Obj.magic`.
+(* If you need legacy API, use explicit `Unsafe` modules (e.g.
+`Signal.Unafe.create`). This is intentionally opt-in. Avoid `Obj.magic`.
+```
 
 SSR helpers like `Solid_ml_ssr.Render.to_string` create and dispose a runtime
 internally and therefore do not expose a token. Prefer strict APIs in app code,
@@ -109,7 +111,6 @@ let buffer, set_buffer = Signal.create_physical token (Bytes.create 100)
 let items, set_items = Signal.create_eq
   ~equals:(fun a b -> List.length a = List.length b) 
   []
-
 (* Read value (tracks dependency in effects/memos) *)
 let value = Signal.get count
 
@@ -192,6 +193,7 @@ Context.provide theme_context "dark" (fun () ->
   let theme = Context.use theme_context in
   ...
 )
+)
 ```
 
 ### Suspense & Error Boundaries
@@ -199,130 +201,32 @@ Context.provide theme_context "dark" (fun () ->
 ```ocaml
 (* Suspense boundary for async loading states *)
 let ui = Suspense.boundary
-  ~fallback:(fun () -> [Html.div [] [Html.text "Loading..."]])
-  ~children:(fun () ->
-    let data = Resource.read_suspense my_resource ~default:[] in
-    [Html.div [] (List.map render_item data)]
-  )
-
-(* Error boundary for catching errors *)
-let ui = ErrorBoundary.make
-  ~fallback:(fun error reset ->
-    [Html.div [] [
-      Html.text ("Error: " ^ error);
-      Html.button [Html.on_click (fun _ -> reset ())] 
-        [Html.text "Retry"]
-    ]]
-  )
-  ~children:(fun () ->
-    (* Code that might throw *)
-    [Html.div [] [Html.text "Success!"]]
-  )
+  ~loading:(fun () -> Html.text "Loading...")
+  ~error:(fun e -> Html.p ~children:[Html.text ("Error: " ^ e)] ())
+  ~ready:(fun user -> User_card.make ~user ())
+  user_resource
+```
 ```
 
-### Router (SSR-aware)
+## Testing
 
-```ocaml
-open Solid_ml_router
+solid-ml has comprehensive test coverage:
 
-(* Define routes *)
-let routes = [
-  Route.make "/" (fun _ -> home_page ());
-  Route.make "/users/:id" (fun params ->
-    let id = List.assoc "id" params in
-    user_page id
-  );
-]
+- **31 tests** - Reactive core (signals, effects, memos, batching)
+- **23 tests** - HTML rendering and SSR
+- **36 tests** - SolidJS compatibility
+- **91 tests** - Router (matching, navigation, data loading)
+- **14 tests** - Browser reactive core
+- **13 tests** - Suspense and ErrorBoundary
+- **18 tests** - Browser DOM + template rendering
 
-(* Server-side: render with initial URL *)
-let html = Router.render_to_string routes "/users/123"
+**Total: 210 tests** across all packages.
 
-(* Browser-side: hydrate with client-side navigation *)
-let () = Router.hydrate routes (Dom.get_element_by_id "app")
-```
-
-## Thread Safety
-
-solid-ml uses OCaml 5's Domain-local storage for thread safety:
-
-- Each domain has independent runtime state
-- Safe for parallel execution with `Domain.spawn`
-- Each Dream request can run in its own runtime
-
-```ocaml
-(* Parallel rendering across domains *)
-let results = Array.init 4 (fun _ ->
-  Domain.spawn (fun () ->
-    Runtime.run (fun token ->
-      let count, _set_count = Signal.create token 0 in
-      Signal.get count
-    )
-  )
-) |> Array.map Domain.join
-```
-
-**Important**: Signals should not be shared across runtimes or domains. Each runtime maintains its own reactive graph.
-
-## Packages
-
-| Package | Description | Status |
-|---------|-------------|--------|
-| `solid-ml-internal` | Shared functor-based reactive core | ✅ Complete |
-| `solid-ml` | Server-side reactive framework (OCaml 5 + DLS) | ✅ Complete |
-| `solid-ml-ssr` | Server-side rendering to HTML strings | ✅ Complete |
-| `solid-ml-browser` | Client-side rendering and hydration (Melange) | ✅ Complete |
-| `solid-ml-router` | SSR-aware routing with data loaders | ✅ Complete |
-
-**Note:** `solid-ml-browser` requires Melange 3.0+ for building client-side code.
-
-## Examples
-
-### Native OCaml Examples
-
+Run tests with:
 ```bash
-# Counter - reactive primitives demo
-dune exec examples/counter/counter.exe
-
-# Todo list - list operations and SSR
-dune exec examples/todo/todo.exe
-
-# Router - routing with params and navigation
-dune exec examples/router/router.exe
-
-# Parallel rendering - OCaml 5 domain safety
-dune exec examples/parallel/parallel.exe
-```
-
-### Web Server Examples (require Dream)
-
-The SSR server examples require Dream and are disabled by default to keep the core library dependencies minimal.
-
-```bash
-# SSR server with routing (requires dream)
-dune exec examples/ssr_server/server.exe
-
-# Full SSR app with hydration (requires dream)
-make example-full-ssr
-
-# SSR API demo (requires dream)
-make example-ssr-api
-```
-
-### Browser Examples
-
-```bash
-# Build browser examples
-make browser-examples
-
-# Serve and open http://localhost:8000
-make serve
-```
-
-See also:
-- `examples/browser_counter/` - Browser counter with client-side reactivity
-- `examples/browser_router/` - Browser router with client-side navigation
-- `examples/js_framework_benchmark/` - JS Framework Benchmark
-- `examples/full_ssr_app/` - Full SSR + hydration demo
+dune runtest          # Native OCaml tests
+make browser-tests    # Browser tests via Node.js
+make browser-tests-headless # Browser DOM tests (headless Chrome)
 ```
 
 ## Building
@@ -341,7 +245,7 @@ This project uses **dune package management** with dune installed at `/usr/bin/d
 
 **Why `/usr/bin/dune`?** This project was configured to use a system-installed dune at `/usr/bin/dune` to avoid issues with opam switch environments, where different dune versions from different switches could be inadvertently picked up. This ensures consistent builds across development environments.
 
-**Override the dune location:** If your dune is installed elsewhere, you can override the default using the `DUNE` environment variable:
+**Override dune location:** If your dune is installed elsewhere, you can override to default using a `DUNE` environment variable:
 
 ```bash
 make DUNE=/custom/path/to/dune build
@@ -366,14 +270,14 @@ Add to your `dune-project`:
 
 ```scheme
 (package
- (name my-app)
- (depends
-  (solid-ml (>= 0.1.0))
-  (solid-ml-ssr (>= 0.1.0))
-  (solid-ml-router (>= 0.1.0))))  ; Optional
+  (name my-app)
+  (depends
+   (solid-ml (>= 0.1.0))
+   (solid-ml-ssr (>= 0.1.0))
+   (solid-ml-router (>= 0.1.0))))  ; Optional
 
 (source
- (github makerprism/solid-ml))
+  (github makerprism/solid-ml))
 ```
 
 Then run:
@@ -423,7 +327,7 @@ This design allows the same reactive code to run on both server (for SSR) and cl
 
 For detailed limitations and workarounds, see [LIMITATIONS.md](LIMITATIONS.md).
 
-### SSR Hydration Data
+## SSR Hydration Data
 
 You can embed server state for hydration using `Solid_ml_ssr.State`. Keys can be
 namespaced with `State.key` and values should be encoded explicitly.
@@ -433,11 +337,12 @@ let key = Solid_ml_ssr.State.key ~namespace:"todos" "list" in
 Solid_ml_ssr.State.set_encoded ~key ~encode:Solid_ml_ssr.State.encode_string "ok"
 ```
 
-For resources, serialize their state explicitly on the server and hydrate on the
-client. You can also request a background refresh with `~revalidate:true`.
+For resources, serialize their state explicitly on the server and hydrate on the client. You can also request a background refresh with `~revalidate:true`.
 
 ```ocaml
-Solid_ml_ssr.Resource_state.set ~key:"user" ~encode:Solid_ml_ssr.State.encode_string resource
+Solid_ml_ssr.Resource_state.set
+  ~key:"user"
+  ~encode:Solid_ml_ssr.State.encode_string resource
 
 let resource =
   Solid_ml_browser.Resource.create_with_hydration
@@ -447,26 +352,48 @@ let resource =
     fetch_user
 ```
 
-## Testing
+## Examples
 
-solid-ml has comprehensive test coverage:
+### Native OCaml Examples
 
-- **31 tests** - Reactive core (signals, effects, memos, batching)
-- **23 tests** - HTML rendering and SSR
-- **36 tests** - SolidJS compatibility 
-- **91 tests** - Router (matching, navigation, data loading)
-- **14 tests** - Browser reactive core
-- **13 tests** - Suspense and ErrorBoundary
-
-**Total: 208 tests** across all packages.
-
-Run tests with:
 ```bash
-dune runtest          # Native OCaml tests
-make browser-tests    # Browser tests via Node.js
+# Counter - reactive primitives demo
+make example-parallel
+
+# Todo list - list operations and SSR rendering
+make example-counter
 ```
 
-### Browser DOM Tests
+### Web Server Examples (require Dream)
+
+```bash
+# SSR server with routing (requires dream)
+make example-ssr-server
+
+# Full SSR app with hydration (requires dream)
+make example-full-ssr
+# SSR API app demo (requires dream)
+make example-ssr-api
+```
+
+### Browser Examples (require Node.js for esbuild)
+
+```bash
+# Build all browser examples
+make browser-examples
+
+# Serve and open http://localhost:8000
+make serve
+```
+
+### Browser Examples
+
+- **browser_counter** - Browser counter with client-side reactivity
+- **browser_router** - Browser router with client-side navigation
+- **template_counter** - Template compiler counter example
+- **full_ssr_app** - Full SSR + hydration demo with state serialization and resource hydration
+
+## Browser DOM Tests
 
 The DOM integration tests compile to JavaScript and run in a real browser.
 
@@ -478,8 +405,14 @@ make browser-tests-headless
 dune build @test_browser_dom/melange
 ```
 
-For manual runs, open `test_browser_dom/runner.html` in a browser and confirm the
+For manual runs, open `test_browser_dom/runner.html` in a browser and confirm
 `data-test-result` attribute shows `PASS`.
+
+## Documentation
+
+- **[AGENTS.md](AGENTS.md)** - Development guidelines and project structure
+- **[LIMITATIONS.md](LIMITATIONS.md)** - Known limitations and workarounds
+- **[docs/A-01-architecture.md](docs/A-01-architecture.md)** - Full architecture document
 
 ## Project Status
 
@@ -490,19 +423,11 @@ For manual runs, open `test_browser_dom/runner.html` in a browser and confirm th
 | Phase 3: Client Runtime | ✅ Complete | DOM bindings, hydration, reactive updates via Melange |
 | Phase 4: Router | ✅ Complete | Route matching, navigation, data loaders, SSR support |
 | Phase 5: Suspense | ✅ Complete | Async boundaries, error handling, unique IDs |
+| **Event Replay** | ✅ Complete | Pre-hydration interactions captured and replayed |
+| **Resource Hydration** | ✅ Complete | State serialization and async resource hydration |
 
 All core features are implemented and tested. **Ready for experimental use** - waiting for real-world validation.
 
-## Documentation
-
-- **[AGENTS.md](AGENTS.md)** - Development guidelines and project structure
-- **[docs/A-01-architecture.md](docs/A-01-architecture.md)** - Full architecture document
-- **[LIMITATIONS.md](LIMITATIONS.md)** - Known limitations and workarounds
-
 ## Contributing
 
-Contributions welcome! See [AGENTS.md](AGENTS.md) for development guidelines.
-
-## License
-
-MIT
+solid-ml is a collaborative project. Contributions are welcome! Please see [AGENTS.md](AGENTS.md) for development guidelines.
