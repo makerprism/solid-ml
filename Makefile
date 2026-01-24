@@ -2,27 +2,16 @@
 #
 # NOTE: This project uses dune 3.20.2 installed at /usr/bin/dune.
 # The dune-project uses (lang dune 3.17) for compatibility.
-# We use a fixed path instead of relying on PATH to avoid issues with opam switch
-# environments where different dune versions could be inadvertently picked up.
+# We use a fixed path instead of relying on PATH to avoid issues with opam
+# environments where different dune versions from different switches could be
+# inadvertently picked up. This ensures consistent builds across development environments.
+#
 # Override with: make DUNE=/path/to/dune <target>
-#
+
 # Quick start:
-#   make example-counter    # Run the counter example
-#   make example-router     # Run the router example  
+#   make example-counter    # Run counter example
+#   make example-router     # Run router example
 #   make test               # Run all tests
-#
-# For browser examples:
-#   make serve              # Build and serve browser examples at http://localhost:8000
-
-.PHONY: build test clean \
-        example-counter example-todo example-router example-parallel example-ssr-server example-ssr-server-docker \
-        example-browser example-browser-router browser-examples browser-tests browser-tests-headless serve \
-        example-full-ssr example-full-ssr-client example-full-ssr-docker \
-        example-ssr-api example-ssr-api-client example-ssr-api-local example-ssr-api-docker \
-        example-ssr-hydration-docker
-
-PORT ?= 8080
-DUNE ?= /usr/bin/dune
 
 # ==============================================================================
 # Development
@@ -30,135 +19,45 @@ DUNE ?= /usr/bin/dune
 
 # Build all packages
 build:
-	$(DUNE) build @check --force 2>/dev/null || $(DUNE) build lib/solid-ml lib/solid-ml-ssr lib/solid-ml-router lib/solid-ml-internal
+	@$(DUNE) build @check --force 2>/dev/null || $(DUNE) build
 
 # Run all tests
 test:
-	$(DUNE) runtest
+	@$(DUNE) runtest
 
 # Clean all build artifacts
 clean:
-	$(DUNE) clean
-	rm -rf examples/browser_counter/dist examples/browser_router/dist
+	@$(DUNE) clean
 
 # ==============================================================================
-# Native Examples - just run these!
+# Native Examples
 # ==============================================================================
-
-example-counter:
-	@echo "=== Running Counter Example ==="
-	@$(DUNE) exec examples/counter/counter.exe
-
-example-todo:
-	@echo "=== Running Todo Example ==="
-	@$(DUNE) exec examples/todo/todo.exe
-
-example-router:
-	@echo "=== Running Router Example ==="
-	@$(DUNE) exec examples/router/router.exe
 
 example-parallel:
-	@echo "=== Running Parallel Domains Example ==="
+	@echo "=== Running OCaml 5 Domain Parallelism Demo ==="
 	@$(DUNE) exec examples/parallel/parallel.exe
 
-example-ssr-server:
-	@echo "=== Starting SSR Server Example ==="
-	@echo "Set PORT=XXXX to use a different port (default: 8080)"
-	@echo "Press Ctrl+C to stop"
-	@echo ""
-	@$(DUNE) exec examples/ssr_server/server.exe || stty sane
-
-# Build and run SSR server example via Docker
-example-ssr-server-docker:
-	@echo "=== Building Docker image: solid-ml-ssr-server ==="
-	@docker build -t solid-ml-ssr-server -f examples/ssr_server/Dockerfile .
-	@echo ""
-	@echo "=== Running container ==="
-	@echo "Visit http://localhost:8080"
-	@echo "Press Ctrl+C to stop (container will be removed)"
-	@echo ""
-	@docker run --rm -p 8080:8080 solid-ml-ssr-server || stty sane
-
-# Build full SSR client
-example-full-ssr-client:
-	@echo "Building full SSR client..."
-	@$(DUNE) build @examples/full_ssr_app/client/melange
-	@mkdir -p examples/full_ssr_app/static
-	@echo "Bundling with esbuild..."
-	@npx esbuild _build/default/examples/full_ssr_app/client/client_output/examples/full_ssr_app/client/client.js --bundle --minify --target=es2020 --outfile=examples/full_ssr_app/static/client.js --format=esm 2>/dev/null
-	@echo "Client built: examples/full_ssr_app/static/client.js"
-
-# Run full SSR example (server + client)
-example-full-ssr: example-full-ssr-client
-	@echo ""
-	@echo "=== Starting Full SSR Example ==="
-	@echo "Visit http://localhost:8080"
-	@echo "Press Ctrl+C to stop"
-	@echo ""
-	@$(DUNE) exec examples/full_ssr_app/server/server.exe || stty sane
-
-# Build and run full SSR example via Docker
-example-full-ssr-docker:
-	@echo "=== Building Docker image: solid-ml-full-ssr ==="
-	@docker build -t solid-ml-full-ssr -f examples/full_ssr_app/Dockerfile .
-	@echo ""
-	@echo "=== Running container ==="
-	@echo "Visit http://localhost:8080"
-	@echo "Press Ctrl+C to stop (container will be removed)"
-	@echo ""
-	@docker run --rm -p 8080:8080 solid-ml-full-ssr || stty sane
-
-# Build SSR API client
-example-ssr-api-client:
-	@echo "Building SSR API client..."
-	@$(DUNE) build @examples/ssr_api_app/client/melange
-	@mkdir -p examples/ssr_api_app/static
-	@echo "Bundling with esbuild..."
-	@cd _build/default/examples/ssr_api_app/client/output && \
-		npx esbuild examples/ssr_api_app/client/client.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/ssr_api_app/static/client.js --format=esm 2>/dev/null
-	@echo "Client built: examples/ssr_api_app/static/client.js"
-
-# Run SSR API example (server + client with REST API fetching)
-example-ssr-api: example-ssr-api-docker
-
-# Run SSR API example locally (requires dream/cohttp/yojson installed)
-example-ssr-api-local: example-ssr-api-client
-	@echo ""
-	@echo "=== Starting SSR API Example (local) ==="
-	@echo "Visit http://localhost:$(PORT)"
-	@echo "This app fetches data from JSONPlaceholder API"
-	@echo "Press Ctrl+C to stop"
-	@echo ""
-	@ENABLE_SSR_API_APP=true PORT=$(PORT) $(DUNE) exec examples/ssr_api_app/server.exe || stty sane
-
-# Run SSR API example via Docker
-example-ssr-api-docker:
-	@echo "=== Building Docker image: solid-ml-ssr-api ==="
-	@docker build -t solid-ml-ssr-api -f examples/ssr_api_app/Dockerfile .
-	@echo ""
-	@echo "=== Running container ==="
-	@echo "Visit http://localhost:$(PORT)"
-	@echo "Press Ctrl+C to stop (container will be removed)"
-	@echo ""
-	@docker run --rm -p $(PORT):$(PORT) -e PORT=$(PORT) solid-ml-ssr-api || stty sane
-
-# Build and run the Docker-based SSR + hydration demo
-example-ssr-hydration-docker:
-	@echo "=== Building Docker image: solid-ml-ssr-hydration ==="
-	@docker build -t solid-ml-ssr-hydration -f examples/ssr_hydration_docker/Dockerfile .
-	@echo ""
-	@echo "=== Running container ==="
-	@echo "Visit http://localhost:8080"
-	@echo "Press Ctrl+C to stop (container will be removed)"
-	@echo ""
-	@docker run --rm -p 8080:8080 solid-ml-ssr-hydration || stty sane
-
-# Run all native examples (except long-running servers)
-examples: example-counter example-todo example-router example-parallel
+example-ssr-api-app:
+	@echo "=== Running SSR API App Demo ==="
+	@$(DUNE) exec examples/ssr_api_app/server.exe
 
 # ==============================================================================
-# Browser Development (requires Node.js for esbuild bundling)
+# Browser Examples (require Node.js for esbuild)
 # ==============================================================================
+
+# Build and serve browser examples
+serve:
+	@echo ""
+	@echo "=== Serving Browser Examples ==="
+	@echo "Open http://localhost:8000 in your browser"
+	@echo "Press Ctrl+C to stop"
+	@echo ""
+	@python3 -m http.server 8000 -d examples || stty sane
+
+# Build all browser examples
+browser-examples: example-browser example-browser-router example-template-counter example-full-ssr-client example-full-ssr-server
+	@echo ""
+	@echo "All browser examples built! Run 'make serve' to view them."
 
 # Build browser counter example
 example-browser:
@@ -168,7 +67,7 @@ example-browser:
 	@rm -f examples/browser_counter/dist/counter.js
 	@echo "Bundling with esbuild..."
 	@cd _build/default/examples/browser_counter/output && \
-		npx esbuild examples/browser_counter/counter.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/browser_counter/dist/counter.js --format=esm 2>/dev/null
+		npx esbuild counter.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/browser_counter/dist/counter.js --format=esm 2>/dev/null
 	@echo ""
 	@echo "Build complete! Run 'make serve' then open http://localhost:8000/browser_counter/"
 
@@ -180,7 +79,7 @@ example-browser-router:
 	@rm -f examples/browser_router/dist/router_demo.js
 	@echo "Bundling with esbuild..."
 	@cd _build/default/examples/browser_router/output && \
-		npx esbuild examples/browser_router/router_demo.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/browser_router/dist/router_demo.js --format=esm 2>/dev/null
+		npx esbuild router_demo.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/browser_router/dist/router_demo.js --format=esm 2>/dev/null
 	@echo ""
 	@echo "Build complete! Run 'make serve' then open http://localhost:8000/browser_router/"
 
@@ -196,19 +95,51 @@ example-template-counter:
 	@echo ""
 	@echo "Build complete! Run 'make serve' then open http://localhost:8000/template_counter/"
 
-# Build all browser examples
-browser-examples: example-browser example-browser-router example-template-counter
+# Build full SSR client example
+example-full-ssr-client:
+	@echo "Building full SSR client..."
+	@$(DUNE) build @examples/full_ssr_app/client/melange
+	@mkdir -p examples/full_ssr_app/static
+	@echo "Bundling with esbuild..."
+	@npx esbuild _build/default/examples/full_ssr_app/client/output/client.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/full_ssr_app/static/client.js --format=esm 2>/dev/null
 	@echo ""
-	@echo "All browser examples built! Run 'make serve' to view them."
+	@echo "Client built: examples/full_ssr_app/static/client.js"
 
-# Serve browser examples (required due to ES module CORS restrictions)
-serve: browser-examples
+# Build full SSR server example
+example-full-ssr-server:
+	@echo "Building full SSR server..."
+	@$(DUNE) build @examples/full_ssr_app/server/melange
 	@echo ""
-	@echo "=== Serving Browser Examples ==="
-	@echo "Open http://localhost:8000 in your browser"
+	@echo "Server built: examples/full_ssr_app/server.exe"
+
+# ==============================================================================
+# Full SSR (requires: dream + cohttp-lwt-unix, or Docker)
+# ==============================================================================
+
+# Build full SSR example
+example-full-ssr:
+	@echo "Building full SSR example..."
+	@$(DUNE) build @examples/full_ssr_app/client/melange
+	@make example-full-ssr-client
+	@make example-full-ssr-server
+	@echo ""
+	@echo "Build complete! Run 'make example-full-ssr' to start the server."
+	@echo "Visit http://localhost:8080"
+	@echo ""
+
+# Run full SSR server
+example-full-ssr-server:
+	@echo ""
+	@echo "=== Starting Full SSR Server ==="
+	@echo "Visit http://localhost:8080"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	@python3 -m http.server 8000 -d examples || stty sane
+	@PORT ?=8080
+	@$(DUNE) exec examples/full_ssr_app/server.exe
+
+# ==============================================================================
+# Browser Tests
+# ==============================================================================
 
 # Run browser tests (Node.js only; no DOM)
 browser-tests:
@@ -222,14 +153,13 @@ browser-tests:
 	@node _build/default/test_browser/output/test_browser/test_reactive.js
 
 # Run browser tests in a real headless browser (requires Chrome)
-CHROME_BIN ?= google-chrome
 browser-tests-headless:
 	@echo "Running browser DOM tests (headless Chrome)..."
+	CHROME_BIN ?= google-chrome
 	@if ! command -v "$(CHROME_BIN)" >/dev/null; then \
 		echo "Error: Chrome executable not found. Set CHROME_BIN=/path/to/chrome"; \
 		exit 1; \
 	fi
-	@# Guard against accidentally committing diff markers in the test file.
 	@if grep -n '^[+][l][e][t][ ]' test_browser_dom/test_template_dom.ml >/dev/null; then \
 		echo "Error: found leading '+' diff markers in test_browser_dom/test_template_dom.ml"; \
 		grep -n '^[+][l][e][t][ ]' test_browser_dom/test_template_dom.ml | sed -n '1,5p'; \
@@ -279,26 +209,24 @@ help:
 	@echo "solid-ml Makefile"
 	@echo ""
 	@echo "Development:"
-	@echo "  make build              - Build all packages"
-	@echo "  make test               - Run all tests"
-	@echo "  make clean              - Remove build artifacts"
+	@echo " make build              - Build all packages"
+	@echo " make test               - Run all tests"
+	@echo " make clean              - Remove build artifacts"
 	@echo ""
-	@echo "Native examples:"
-	@echo "  make example-counter    - Run counter example"
-	@echo "  make example-todo       - Run todo example"
-	@echo "  make example-router     - Run router example"
-	@echo "  make example-parallel   - Run parallel domains example"
-	@echo "  make example-ssr-server - Run SSR server example (requires dream)"
-	@echo "  make examples           - Run all native examples"
-	@echo ""
-	@echo "Full SSR (requires: dream + cohttp-lwt-unix, or Docker):"
-	@echo "  make example-full-ssr            - SSR with counter and todos"
-	@echo "  make example-full-ssr-docker      - SSR with counter and todos (via Docker)"
-	@echo "  make example-ssr-server-docker     - Basic SSR server demo (via Docker)"
-	@echo "  make example-ssr-hydration-docker - Docker SSR hydration demo"
+	@echo "Examples:"
+	@echo " make example-parallel  - Run OCaml 5 domain parallelism demo"
+	@echo " make example-ssr-api-app - Run SSR API app demo"
 	@echo ""
 	@echo "Browser development (requires Node.js for esbuild):"
-	@echo "  make serve               - Build and serve browser examples"
-	@echo "  make browser-examples    - Build all browser examples"
-	@echo "  make browser-tests       - Run browser tests (Node-only)"
-	@echo "  make browser-tests-headless - Run browser DOM tests (headless Chrome)"
+	@echo " make serve               - Build and serve browser examples"
+	@echo " make browser-examples    - Build all browser examples"
+	@echo ""
+	@echo "Full SSR (requires dream + cohttp-lwt-unix, or Docker):"
+	@echo " make example-full-ssr     - SSR with counter and todos"
+	@echo ""
+	@echo "Browser tests (requires Chrome):"
+	@echo " make browser-tests       - Run browser tests (Node-only)"
+	@echo " make browser-tests-headless - Run browser DOM tests (headless Chrome)"
+	@echo ""
+	@echo "Installation:"
+	@echo "  opam install solid-ml solid-ml-ssr solid-ml-router"

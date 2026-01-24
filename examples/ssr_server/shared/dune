@@ -1,6 +1,0 @@
-(library
- (name ssr_server_shared)
- (modules components)
- (libraries solid-ml solid-ml-template-runtime)
- (modes byte native melange)
- (preprocess (pps solid-ml-template-ppx)))

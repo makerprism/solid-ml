@@ -1,3 +1,0 @@
-(executable
- (name todo)
- (libraries solid-ml solid-ml-ssr))
