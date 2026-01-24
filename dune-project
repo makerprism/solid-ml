@@ -42,6 +42,7 @@
  (depends
   (ocaml (>= 5.0.0))
   (solid-ml-internal (= :version))
+  (solid-ml-template-runtime (= :version))
   (dune (>= 3.20))
   (dune (< 3.21))))
 
@@ -66,6 +67,7 @@
  (depends
   (ocaml (>= 4.14.0))
   (solid-ml-internal (= :version))
+  (solid-ml-template-runtime (= :version))
   (melange (>= 3.0.0))
   (dune (>= 3.20))
   (dune (< 3.21))))
