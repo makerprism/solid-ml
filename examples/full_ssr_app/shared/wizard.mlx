@@ -397,7 +397,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       | Confirm -> "Submit"
       | _ -> "Next"
     in
-    let next_action =
+    let _next_action =
       match current_step with
       | Confirm -> "submit"
       | _ -> "next"
@@ -405,20 +405,14 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
     <div class_="wizard-nav">
       (if can_go_back then
-         <button
-           class_="btn btn-secondary"
-           type_="button"
-           data-action="back">
+         <button class_="btn btn-secondary">
            (Html.text "Back")
          </button>
        else
          <span class_="nav-spacer"></span>
       )
       (if can_go_next then
-         <button
-           class_="btn btn-primary"
-           type_="button"
-           data-action=next_action>
+         <button class_="btn btn-primary">
            (Html.text next_label)
          </button>
        else
@@ -429,10 +423,10 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   (** {1 Main View} *)
 
   let view () : Html.node =
-    let form, _set_form = Signal.create initial_form in
-    let current_form = Signal.get form in
+    let wizard_state, _set_wizard = Signal.create initial_form in
+    let current_form = Signal.get wizard_state in
 
-    <div class_="wizard-container" data-wizard="true">
+    <div class_="wizard-container">
       <h1>(Html.text "Multi-Step Wizard")</h1>
       <p class_="intro">
         (Html.text "Demonstrates multi-step forms, conditional rendering, and validation.")
@@ -442,7 +436,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       (progress_bar ~current_step:current_form.step ())
 
       (* Form *)
-      <form id="wizard-form" class_="wizard-form">
+      <div id="wizard-form" class_="wizard-form">
         (* Current step content *)
         <div class_="wizard-content">
           (match current_form.step with
@@ -456,7 +450,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
         (* Navigation buttons *)
         (nav_buttons ~form:current_form ())
-      </form>
+      </div>
 
       (* Instructions *)
       <div class_="instructions">

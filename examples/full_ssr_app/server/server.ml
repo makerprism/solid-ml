@@ -65,20 +65,42 @@ let layout ~title:page_title ~children () =
              border-radius: 8px;
              box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           }
-          .nav { 
-             margin-bottom: 20px; 
-             padding-bottom: 10px;
-             border-bottom: 1px solid #eee;
+          .nav {
+             margin-bottom: 20px;
+             padding: 15px;
+             background: #f8f9fa;
+             border-radius: 8px;
+             border: 1px solid #e9ecef;
+          }
+          .nav-section {
+             margin-bottom: 12px;
+          }
+          .nav-section:last-child {
+             margin-bottom: 0;
+          }
+          .nav-section-title {
+             font-size: 11px;
+             text-transform: uppercase;
+             letter-spacing: 0.5px;
+             color: #6c757d;
+             font-weight: 600;
+             margin-right: 8px;
           }
           .nav-link {
             text-decoration: none;
             color: #4a90d9;
-            font-weight: bold;
+            font-weight: 500;
+            font-size: 14px;
+            margin-right: 4px;
           }
-          .nav-link:hover { text-decoration: underline; }
+          .nav-link:hover {
+            text-decoration: underline;
+            color: #357abd;
+          }
           .nav-link.active {
             color: #1f5c9c;
             text-decoration: underline;
+            font-weight: 600;
           }
           .counter-display { 
             font-size: 48px; 
