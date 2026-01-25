@@ -8,6 +8,8 @@
 #
 # Override with: make DUNE=/path/to/dune <target>
 
+DUNE ?= /usr/bin/dune
+
 # Quick start:
 #   make example-counter    # Run counter example
 #   make example-router     # Run router example
