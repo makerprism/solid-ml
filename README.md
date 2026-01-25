@@ -414,6 +414,57 @@ Html.div
   ] ()
 ```
 
+### MLX Tag Set Limitations
+
+MLX JSX syntax supports a **limited set of HTML tags**. The following tags are available:
+
+**Content tags:** `div`, `span`, `p`, `a`, `button`, `ul`, `li`, `strong`, `em`, `section`, `main`, `header`, `footer`, `nav`, `pre`, `code`
+**Heading tags:** `h1`, `h2`, `h3`, `h4`, `h5`, `h6`
+
+**NOT supported:**
+- Page structure: `html`, `head`, `body`
+- Self-closing tags: `br`, `hr`, `img`, `input`, `meta`, `link`, `script`, `title`
+- Other available in HTML DSL but not MLX: `article`, `aside`, `ol`, `blockquote`, `form`, `fieldset`, `legend`, `label`, `select`, `option`, `textarea`, `table`, `video`, `audio`
+
+**Recommended pattern for full-page rendering:**
+
+Use the standard OCaml HTML DSL for page structure, and MLX JSX for the body content:
+
+```ocaml
+(* In your render function *)
+let render_page ~content () =
+  Html.html
+    ~lang:"en"
+    ~children:[
+      Html.head ~children:[
+        Html.meta ~charset:"UTF-8" ();
+        Html.title ~children:[Html.text "My App"] ();
+        Html.link ~rel:"stylesheet" ~href:"/styles.css" ();
+      ] ();
+      Html.body
+        ~children:[
+          (* Use MLX JSX for body content *)
+          content
+        ]
+        ()
+    ]
+    ()
+```
+
+Then in your MLX files, focus on component content:
+
+```ocaml
+(* .mlx file - component only, not full page *)
+<div class_="app-container">
+  <h1>(text "Welcome")</h1>
+  <button onclick=(fun _ -> set_count 1)>
+    (text "Increment")
+  </button>
+</div>
+```
+
+This separation keeps MLX components focused on UI elements while using the full HTML DSL for page structure.
+
 ### MLX Template Compiler
 
 For even more concise JSX syntax, use the `solid-ml-template-ppx` preprocessor with MLX. This allows omitting the `(text ...)` wrapper for string children:
