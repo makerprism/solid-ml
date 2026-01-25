@@ -170,7 +170,7 @@ let contains_tpl_markers (structure : Parsetree.structure) : (Location.t * strin
   !found
 
 let supported_subset =
-   "<tag> (or Html.<tag>) ~children:[text/Html.text \"<literal>\"; Tpl.text <thunk>; Tpl.text_value <value>; Tpl.show ...; Tpl.each_keyed ...; <tag>/Html.<tag> ...; ...] ()\n\
+   "<tag> (or Html.<tag>) ~children:[text/Html.text \"<literal>\"; Tpl.text (fun () -> ...); Tpl.text_value <value>; Tpl.show ...; Tpl.each_keyed ...; <tag>/Html.<tag> ...; ...] ()\n\
     - supports nested intrinsic tags in children\n\
     - emits `<!--#-->` comment markers before text slots (SolidJS-style) to stabilize DOM paths\n\
     - emits `<!--$-->` markers for dynamic node regions\n\
@@ -178,7 +178,9 @@ let supported_subset =
     - supports static ~id:\"...\" and ~class_:\"...\"\n\
     - supports Tpl.attr/Tpl.attr_opt in labelled args (string literal ~name)\n\
     - supports Tpl.on and Tpl.class_list in labelled args\n\
-    - no other props; <tag> in {div,span,p,a,button,ul,li,strong,em,section,main,header,footer,nav,pre,code,h1..h6}"
+    - no other props; <tag> in {div,span,p,a,button,ul,li,strong,em,section,main,header,footer,nav,pre,code,h1..h6}\n\
+    \n\
+    For JSX syntax help, see: https://github.com/makerprism/solid-ml/blob/main/README.md#mlx-dialect-jsx-like-syntax"
 
 
 let rec list_of_expr (expr : Parsetree.expression) : Parsetree.expression list option =
@@ -1064,6 +1066,8 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                     || Option.is_some class_list_binding)
                 in
 
+                let failed_child = ref None in
+
                 let add_child (child : Parsetree.expression) : bool =
                   match extract_static_text_literal ~allow_unqualified_text ~shadowed_text child with
                   | Some lit
@@ -1152,7 +1156,9 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                                    if child_dynamic then has_dynamic := true;
                                    parts_rev := Element child_el :: !parts_rev;
                                    true
-                                  | None -> false))))))
+                                  | None ->
+                                   failed_child := Some child;
+                                   false))))))
                 in
 
                 let children_list =
@@ -1174,7 +1180,22 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                       !has_dynamic )
                 )
                 else
-                  None
+                  (* Provide helpful error message for failed child, but only for obvious mistakes *)
+                  (match !failed_child with
+                   | Some failed ->
+                     (match failed.pexp_desc with
+                      | Pexp_constant (Pconst_string (s, _, _)) ->
+                        Location.raise_errorf ~loc:failed.pexp_loc
+                          "solid-ml-template-ppx: bare string literals are not supported in JSX.\n\n\
+                            \  Found: \"%s\"\n\n\
+                            \  Fix: Use (text \"%s\") or Html.text \"%s\" instead.\n\
+                            \  Example: <div>(text \"Hello\")</div>" s s s
+                      | _ ->
+                        (* For other unrecognized children (function calls, etc.), silently skip
+                           template processing and leave as regular OCaml code. This is the
+                           original behavior. *)
+                        None)
+                   | None -> None)
               | _ -> None))
     | _ -> None
   in
