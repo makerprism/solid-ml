@@ -389,9 +389,12 @@ Compare the MLX syntax with the standard OCaml HTML DSL:
     (text "Increment")
   </button>
   <ul>
-    (Tpl.each ~items:items ~item:(fun item ->
-      <li key=(item.id)>(text item.text)</li>
-    ))
+    (Tpl.each_keyed
+       ~items:(fun () -> Signal.get items)
+       ~key:(fun item -> item.id)
+       ~render:(fun item ->
+         <li>(text item.text)</li>
+       ))
   </ul>
 </div>
 ```
