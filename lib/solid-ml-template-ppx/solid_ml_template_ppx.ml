@@ -18,7 +18,9 @@ let known_tpl_markers =
     "each_keyed";
     "each";
     "eachi";
-    "each_indexed"
+    "each_indexed";
+    "suspense";
+    "error_boundary"
   ]
 
 let is_known_marker fn = List.exists (String.equal fn) known_tpl_markers
@@ -187,7 +189,7 @@ let contains_tpl_markers (structure : Parsetree.structure) : (Location.t * strin
   !found
 
  let supported_subset =
-    "<tag> (or Html.<tag>) ~children:[text/Html.text \"<literal>\"; Tpl.text (fun () -> ...); Tpl.text_value <value>; Tpl.show/_when/if_/switch ...; Tpl.each/eachi/each_indexed/each_keyed ...; <tag>/Html.<tag> ...; ...] ()\n\
+    "<tag> (or Html.<tag>) ~children:[text/Html.text \"<literal>\"; Tpl.text (fun () -> ...); Tpl.text_value <value>; Tpl.show/_when/if_/switch/suspense/error_boundary ...; Tpl.each/eachi/each_indexed/each_keyed ...; <tag>/Html.<tag> ...; ...] ()\n\
      - supports nested intrinsic tags in children\n\
      - emits `<!--#-->` comment markers before text slots (SolidJS-style) to stabilize DOM paths\n\
      - emits `<!--$-->` markers for dynamic node regions\n\
@@ -1210,6 +1212,66 @@ let extract_tpl_switch ~(aliases : string list) (expr : Parsetree.expression)
         | _ -> None))
   | _ -> None
 
+let extract_tpl_suspense ~(aliases : string list) (expr : Parsetree.expression)
+    : (Parsetree.expression * Parsetree.expression) option =
+  match expr.pexp_desc with
+  | Pexp_apply (_fn, args) ->
+    (match head_ident expr with
+     | None -> None
+     | Some longident ->
+       (match tpl_marker_name ~aliases longident with
+        | Some "suspense" ->
+          let fallback_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "fallback", e) -> Some e
+                | _ -> None)
+              args
+          in
+          let render_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "render", e) -> Some e
+                | (Asttypes.Nolabel, e) -> Some e
+                | _ -> None)
+              args
+          in
+          (match (fallback_opt, render_opt) with
+           | (Some fallback, Some render) -> Some (fallback, render)
+           | _ -> None)
+        | _ -> None))
+  | _ -> None
+
+let extract_tpl_error_boundary ~(aliases : string list) (expr : Parsetree.expression)
+    : (Parsetree.expression * Parsetree.expression) option =
+  match expr.pexp_desc with
+  | Pexp_apply (_fn, args) ->
+    (match head_ident expr with
+     | None -> None
+     | Some longident ->
+       (match tpl_marker_name ~aliases longident with
+        | Some "error_boundary" ->
+          let fallback_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "fallback", e) -> Some e
+                | _ -> None)
+              args
+          in
+          let render_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "render", e) -> Some e
+                | (Asttypes.Nolabel, e) -> Some e
+                | _ -> None)
+              args
+          in
+          (match (fallback_opt, render_opt) with
+           | (Some fallback, Some render) -> Some (fallback, render)
+           | _ -> None)
+        | _ -> None))
+  | _ -> None
+
 let extract_tpl_each_keyed ~(aliases : string list) (expr : Parsetree.expression)
     : (Parsetree.expression * Parsetree.expression * Parsetree.expression) option =
   match expr.pexp_desc with
@@ -1663,8 +1725,112 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                           in
                           parts_rev := Nodes_slot thunk :: !parts_rev;
                           true
-                        | None ->
-                          match extract_tpl_if_ ~aliases child with
+                            | None ->
+                              match extract_tpl_suspense ~aliases child with
+                              | Some (fallback, render) ->
+                                has_dynamic := true;
+                                let child_loc = child.pexp_loc in
+                                let fallback = compile_expr_force fallback in
+                                let render = compile_expr_force render in
+                                let boundary_call =
+                                  Ast_builder.Default.pexp_apply ~loc:child_loc
+                                    (Ast_builder.Default.pexp_ident ~loc:child_loc
+                                       { loc = child_loc; txt = Longident.parse "Suspense.boundary" })
+                                    [ (Labelled "fallback", fallback); (Nolabel, render) ]
+                                in
+                                let boundary_owner =
+                                  Ast_builder.Default.pexp_apply ~loc:child_loc
+                                    (Ast_builder.Default.pexp_ident ~loc:child_loc
+                                       { loc = child_loc; txt = Longident.parse "Owner.run_with_owner" })
+                                    [ (Nolabel,
+                                       Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
+                                         (Ast_builder.Default.punit ~loc:child_loc)
+                                         boundary_call) ]
+                                in
+                                let node_var = "__solid_ml_tpl_suspense_node" in
+                                let dispose_var = "__solid_ml_tpl_suspense_dispose" in
+                                let cleanup =
+                                  Ast_builder.Default.pexp_apply ~loc:child_loc
+                                    (Ast_builder.Default.pexp_ident ~loc:child_loc
+                                       { loc = child_loc; txt = Longident.parse "Owner.on_cleanup" })
+                                    [ (Nolabel,
+                                       Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
+                                         (Ast_builder.Default.punit ~loc:child_loc)
+                                         (Ast_builder.Default.pexp_apply ~loc:child_loc
+                                            (Ast_builder.Default.evar ~loc:child_loc dispose_var)
+                                            [ (Nolabel, Ast_builder.Default.eunit ~loc:child_loc) ])) ]
+                                in
+                                let boundary_body =
+                                  Ast_builder.Default.pexp_let ~loc:child_loc Nonrecursive
+                                    [ Ast_builder.Default.value_binding ~loc:child_loc
+                                        ~pat:(Ast_builder.Default.ppat_tuple ~loc:child_loc
+                                               [ Ast_builder.Default.pvar ~loc:child_loc node_var;
+                                                 Ast_builder.Default.pvar ~loc:child_loc dispose_var ])
+                                        ~expr:boundary_owner ]
+                                    (Ast_builder.Default.pexp_sequence ~loc:child_loc cleanup
+                                       (Ast_builder.Default.evar ~loc:child_loc node_var))
+                                in
+                                let thunk =
+                                  Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
+                                    (Ast_builder.Default.punit ~loc:child_loc)
+                                    boundary_body
+                                in
+                                parts_rev := Nodes_slot thunk :: !parts_rev;
+                                true
+                              | None ->
+                                match extract_tpl_error_boundary ~aliases child with
+                                | Some (fallback, render) ->
+                                  has_dynamic := true;
+                                  let child_loc = child.pexp_loc in
+                                  let fallback = compile_expr_force fallback in
+                                  let render = compile_expr_force render in
+                                  let boundary_call =
+                                    Ast_builder.Default.pexp_apply ~loc:child_loc
+                                      (Ast_builder.Default.pexp_ident ~loc:child_loc
+                                         { loc = child_loc; txt = Longident.parse "ErrorBoundary.make" })
+                                      [ (Labelled "fallback", fallback); (Nolabel, render) ]
+                                  in
+                                  let boundary_owner =
+                                    Ast_builder.Default.pexp_apply ~loc:child_loc
+                                      (Ast_builder.Default.pexp_ident ~loc:child_loc
+                                         { loc = child_loc; txt = Longident.parse "Owner.run_with_owner" })
+                                      [ (Nolabel,
+                                         Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
+                                           (Ast_builder.Default.punit ~loc:child_loc)
+                                           boundary_call) ]
+                                  in
+                                  let node_var = "__solid_ml_tpl_error_node" in
+                                  let dispose_var = "__solid_ml_tpl_error_dispose" in
+                                  let cleanup =
+                                    Ast_builder.Default.pexp_apply ~loc:child_loc
+                                      (Ast_builder.Default.pexp_ident ~loc:child_loc
+                                         { loc = child_loc; txt = Longident.parse "Owner.on_cleanup" })
+                                      [ (Nolabel,
+                                         Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
+                                           (Ast_builder.Default.punit ~loc:child_loc)
+                                           (Ast_builder.Default.pexp_apply ~loc:child_loc
+                                              (Ast_builder.Default.evar ~loc:child_loc dispose_var)
+                                              [ (Nolabel, Ast_builder.Default.eunit ~loc:child_loc) ])) ]
+                                  in
+                                  let boundary_body =
+                                    Ast_builder.Default.pexp_let ~loc:child_loc Nonrecursive
+                                      [ Ast_builder.Default.value_binding ~loc:child_loc
+                                          ~pat:(Ast_builder.Default.ppat_tuple ~loc:child_loc
+                                                 [ Ast_builder.Default.pvar ~loc:child_loc node_var;
+                                                   Ast_builder.Default.pvar ~loc:child_loc dispose_var ])
+                                          ~expr:boundary_owner ]
+                                      (Ast_builder.Default.pexp_sequence ~loc:child_loc cleanup
+                                         (Ast_builder.Default.evar ~loc:child_loc node_var))
+                                  in
+                                  let thunk =
+                                    Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
+                                      (Ast_builder.Default.punit ~loc:child_loc)
+                                      boundary_body
+                                  in
+                                  parts_rev := Nodes_slot thunk :: !parts_rev;
+                                  true
+                                | None ->
+                                match extract_tpl_if_ ~aliases child with
                           | Some (when_, then_, else_) ->
                             has_dynamic := true;
                             let child_loc = child.pexp_loc in

@@ -157,6 +157,22 @@ module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
                 ()) ]
       ()
 
+  let render_div_suspense () =
+    Html.div
+      ~children:
+        [ Solid_ml_template_runtime.Tpl.suspense
+            ~fallback:(fun () -> Html.text "Loading")
+            ~render:(fun () -> Html.text "Ready") ]
+      ()
+
+  let render_div_error_boundary () =
+    Html.div
+      ~children:
+        [ Solid_ml_template_runtime.Tpl.error_boundary
+            ~fallback:(fun ~error:_ ~reset:_ -> Html.text "Error")
+            ~render:(fun () -> failwith "boom") ]
+      ()
+
   (* Simulates MLX formatting whitespace around nested intrinsic tags.
      The outer <div> should be compiled so that formatting whitespace is ignored,
      even though it contains a nested <a>. *)
@@ -357,5 +373,19 @@ let () =
   in
   if html_each_indexed <> expected_each_indexed then
     failwith ("each_indexed mismatch: " ^ html_each_indexed);
+
+  let html_suspense =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_div_suspense ())
+  in
+  assert (html_suspense = "<div><!--$-->Ready<!--$--></div>");
+
+  let html_error_boundary =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_div_error_boundary ())
+  in
+  assert (html_error_boundary = "<div><!--$-->Error<!--$--></div>");
 
   print_endline "  PASSED"

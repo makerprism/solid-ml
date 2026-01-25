@@ -61,6 +61,11 @@ module Tpl : sig
     items:(unit -> 'a list)
     -> render:(index:(unit -> int) -> item:(unit -> 'a) -> 'b)
     -> 'b t
+  val suspense : fallback:(unit -> 'a) -> render:(unit -> 'a) -> 'a t
+  val error_boundary :
+    fallback:(error:string -> reset:(unit -> unit) -> 'a)
+    -> render:(unit -> 'a)
+    -> 'a t
 
   val unreachable : 'a t -> 'a
   (** Defensive escape hatch.
@@ -130,6 +135,12 @@ end = struct
 
   let each_indexed ~items:_ ~render:_ : 'b t =
     Uncompiled "each_indexed"
+
+  let suspense ~fallback:_ ~render:_ : 'a t =
+    Uncompiled "suspense"
+
+  let error_boundary ~fallback:_ ~render:_ : 'a t =
+    Uncompiled "error_boundary"
 
   let unreachable (type a) (v : a t) : a =
     match v with

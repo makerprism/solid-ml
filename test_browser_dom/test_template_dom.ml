@@ -819,6 +819,37 @@ let test_indexed_accessors_update () =
    | _ -> fail "indexed accessors: expected at least two elements");
   dispose ()
 
+let test_template_suspense_boundary () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  let resource = Solid_ml_browser.Resource.create_loading () in
+
+  let dispose =
+    Render.render root (fun () ->
+      Html.div
+        ~children:
+          [ Solid_ml_template_runtime.Tpl.suspense
+              ~fallback:(fun () -> Html.text "Loading")
+              ~render:(fun () ->
+                let value =
+                  Solid_ml_browser.Resource.read_suspense ~default:"Pending" resource
+                in
+                Html.text value) ]
+        ())
+  in
+
+  assert_eq ~name:"template suspense fallback" (get_text_content root) "Loading";
+  Solid_ml_browser.Resource.set resource "Ready";
+  assert_eq ~name:"template suspense ready" (get_text_content root) "Ready";
+  Solid_ml_browser.Resource.set_loading resource;
+  assert_eq ~name:"template suspense reload" (get_text_content root) "Loading";
+  Solid_ml_browser.Resource.set resource "Ready 2";
+  assert_eq ~name:"template suspense ready again" (get_text_content root) "Ready 2";
+
+  dispose ()
+
 let test_multiple_hydration_contexts_isolated () =
   (* Verify that multiple Render.hydrate contexts don't interfere with each other *)
   let template =
@@ -1056,6 +1087,7 @@ let () =
     test_keyed_identity_preserved ();
     test_indexed_updates_by_position ();
     test_indexed_accessors_update ();
+    test_template_suspense_boundary ();
     test_multiple_hydration_contexts_isolated ();
     test_cleanup_removes_listeners ();
     test_state_hydration ();

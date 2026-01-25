@@ -50,6 +50,12 @@ module Env = struct
     let on_cleanup = Solid_ml.Owner.on_cleanup
     let run_with_owner = Solid_ml.Owner.Unsafe.run_with_owner
   end
+
+  module Suspense = Solid_ml.Suspense
+
+  module ErrorBoundary = struct
+    let make = Solid_ml.ErrorBoundary.Unsafe.make
+  end
 end
 
 module _ : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV = Env

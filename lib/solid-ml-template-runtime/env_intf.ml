@@ -204,6 +204,11 @@ module type TPL = sig
     items:(unit -> 'a list)
     -> render:(index:(unit -> int) -> item:(unit -> 'a) -> 'b)
     -> 'b t
+  val suspense : fallback:(unit -> 'a) -> render:(unit -> 'a) -> 'a t
+  val error_boundary :
+    fallback:(error:string -> reset:(unit -> unit) -> 'a)
+    -> render:(unit -> 'a)
+    -> 'a t
   val unreachable : 'a t -> 'a
 end
 
@@ -228,5 +233,13 @@ module type TEMPLATE_ENV = sig
 
         Returns the function result and a disposer that cleans up any effects,
         event handlers, and other resources registered under that owner. *)
+  end
+
+  module Suspense : sig
+    val boundary : fallback:(unit -> 'a) -> (unit -> 'a) -> 'a
+  end
+
+  module ErrorBoundary : sig
+    val make : fallback:(error:string -> reset:(unit -> unit) -> 'a) -> (unit -> 'a) -> 'a
   end
 end

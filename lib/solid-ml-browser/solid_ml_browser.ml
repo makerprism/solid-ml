@@ -121,6 +121,9 @@ module Env = struct
     let on_cleanup = Reactive.Owner.on_cleanup
     let run_with_owner = Reactive_core.run_with_owner
   end
+
+  module Suspense = Suspense
+  module ErrorBoundary = ErrorBoundary
 end
 
 module _ : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV = Env

@@ -6,8 +6,6 @@ An OCaml framework for building reactive web applications with server-side rende
 
 ## ⚠️ Development Status
 
-**Started:** January 5, 2026 (5 days of intensive development)
-
 **Maturity:** Experimental - Not battle-tested in production yet.
 
 solid-ml is a mostly faithful port of SolidJS to OCaml, enabling full-stack OCaml web applications where validation logic, types, and business logic can be seamlessly shared between server and client. While all core features are implemented with comprehensive test coverage (210 tests), solid-ml has **not been used in production** and may have undiscovered edge cases.

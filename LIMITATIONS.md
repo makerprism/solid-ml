@@ -351,6 +351,12 @@ solid-ml template lists map to SolidJS list helpers:
 
 If you need stable per-item identity across inserts/removals, use `Tpl.each_keyed` with a durable key.
 
+### 1.2 Template ErrorBoundary on SSR
+
+Template-level `Tpl.error_boundary` uses `ErrorBoundary.Unsafe.make` on SSR because the
+template environment does not carry a runtime token. The behavior matches normal
+error boundaries, but the implementation bypasses token safety.
+
 ### 2. Structural Equality by Default
 
 Signals use structural equality (`=`) by default, which is safe but may be slow for large data structures.
