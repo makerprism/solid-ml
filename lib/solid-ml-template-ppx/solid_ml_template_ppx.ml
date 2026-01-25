@@ -2,13 +2,23 @@ open Ppxlib
 
 let known_tpl_markers =
   [ "text";
+    "text_value";
     "nodes";
     "attr";
     "attr_opt";
     "class_list";
     "on";
+    "bind_input";
+    "bind_checkbox";
+    "bind_select";
     "show";
-    "each_keyed"
+    "show_when";
+    "if_";
+    "switch";
+    "each_keyed";
+    "each";
+    "eachi";
+    "each_indexed"
   ]
 
 let is_known_marker fn = List.exists (String.equal fn) known_tpl_markers
@@ -131,6 +141,7 @@ let tpl_marker_name ~(aliases : string list) (longident : Longident.t) : string 
   | [ alias; fn ] when is_known_marker fn && List.exists (String.equal alias) aliases -> Some fn
   | _ -> None
 
+
 let head_ident (expr : Parsetree.expression) : Longident.t option =
   let rec go = function
     | { Parsetree.pexp_desc = Pexp_ident { txt = longident; _ }; _ } -> Some longident
@@ -138,6 +149,12 @@ let head_ident (expr : Parsetree.expression) : Longident.t option =
     | _ -> None
   in
   go expr
+
+let tpl_marker_of_expr ~(aliases : string list) (expr : Parsetree.expression) : string option =
+  match head_ident expr with
+  | None -> None
+  | Some longident -> tpl_marker_name ~aliases longident
+
 
 let contains_tpl_markers (structure : Parsetree.structure) : (Location.t * string) option =
   let aliases = collect_tpl_aliases structure in
@@ -169,18 +186,18 @@ let contains_tpl_markers (structure : Parsetree.structure) : (Location.t * strin
   iter#structure structure;
   !found
 
-let supported_subset =
-   "<tag> (or Html.<tag>) ~children:[text/Html.text \"<literal>\"; Tpl.text (fun () -> ...); Tpl.text_value <value>; Tpl.show ...; Tpl.each_keyed ...; <tag>/Html.<tag> ...; ...] ()\n\
-    - supports nested intrinsic tags in children\n\
-    - emits `<!--#-->` comment markers before text slots (SolidJS-style) to stabilize DOM paths\n\
-    - emits `<!--$-->` markers for dynamic node regions\n\
-    - ignores formatting-only whitespace Html.text literals containing newlines/tabs (except under <pre>/<code>)\n\
-    - supports static ~id:\"...\" and ~class_:\"...\"\n\
-    - supports Tpl.attr/Tpl.attr_opt in labelled args (string literal ~name)\n\
-    - supports Tpl.on and Tpl.class_list in labelled args\n\
-    - no other props; <tag> in {div,span,p,a,button,ul,li,strong,em,section,main,header,footer,nav,pre,code,h1..h6}\n\
-    \n\
-    For JSX syntax help, see: https://github.com/makerprism/solid-ml/blob/main/README.md#mlx-dialect-jsx-like-syntax"
+ let supported_subset =
+    "<tag> (or Html.<tag>) ~children:[text/Html.text \"<literal>\"; Tpl.text (fun () -> ...); Tpl.text_value <value>; Tpl.show/_when/if_/switch ...; Tpl.each/eachi/each_indexed/each_keyed ...; <tag>/Html.<tag> ...; ...] ()\n\
+     - supports nested intrinsic tags in children\n\
+     - emits `<!--#-->` comment markers before text slots (SolidJS-style) to stabilize DOM paths\n\
+     - emits `<!--$-->` markers for dynamic node regions\n\
+     - ignores formatting-only whitespace Html.text literals containing newlines/tabs (except under <pre>/<code>)\n\
+     - supports static ~id:\"...\" and ~class_:\"...\"\n\
+     - supports dynamic labelled args (e.g. ~class_:(fun () -> ...)) and Tpl.attr/Tpl.attr_opt\n\
+     - supports Tpl.on, Tpl.class_list, Tpl.bind_input/bind_checkbox/bind_select in labelled args\n\
+     - no other props; <tag> in {div,span,p,a,button,form,input,label,textarea,select,option,ul,li,strong,em,section,main,header,footer,nav,pre,code,h1..h6}\n\
+     \n\
+     For JSX syntax help, see: https://github.com/makerprism/solid-ml/blob/main/README.md#mlx-dialect-jsx-like-syntax"
 
 
 let rec list_of_expr (expr : Parsetree.expression) : Parsetree.expression list option =
@@ -206,6 +223,12 @@ let supported_intrinsic_tags =
     "p";
     "a";
     "button";
+    "form";
+    "input";
+    "label";
+    "textarea";
+    "select";
+    "option";
     "ul";
     "li";
     "strong";
@@ -228,6 +251,11 @@ let supported_intrinsic_tags =
 let is_supported_intrinsic_tag tag =
   List.exists (String.equal tag) supported_intrinsic_tags
 
+let self_closing_intrinsic_tags = [ "input"; "img"; "br"; "hr"; "meta"; "link" ]
+
+let is_self_closing_intrinsic_tag tag =
+  List.exists (String.equal tag) self_closing_intrinsic_tags
+
 let extract_intrinsic_tag (longident : Longident.t) : string option =
   match List.rev (longident_to_list longident) with
   | tag :: _ when is_supported_intrinsic_tag tag -> Some tag
@@ -248,6 +276,17 @@ let extract_intrinsic_tag (longident : Longident.t) : string option =
     thunk : Parsetree.expression;
   }
 
+  type bind_kind =
+    | Bind_input
+    | Bind_checkbox
+    | Bind_select
+
+  type bind_binding = {
+    kind : bind_kind;
+    signal : Parsetree.expression;
+    setter : Parsetree.expression;
+  }
+
 
 type static_prop =
   | Static_id of string
@@ -259,6 +298,7 @@ type static_prop =
     attrs : attr_binding list;
     events : event_binding list;
     class_list : class_list_binding option;
+    bindings : bind_binding list;
     static_props : static_prop list;
   }
 
@@ -270,6 +310,15 @@ type static_prop =
     | Nodes_keyed_slot of {
         items_thunk : Parsetree.expression;
         key_fn : Parsetree.expression;
+        render_fn : Parsetree.expression;
+      }
+    | Nodes_indexed_slot of {
+        items_thunk : Parsetree.expression;
+        render_fn : Parsetree.expression;
+        uses_index : bool;
+      }
+    | Nodes_indexed_accessors_slot of {
+        items_thunk : Parsetree.expression;
         render_fn : Parsetree.expression;
       }
     | Element of element_node
@@ -375,9 +424,21 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
 
   (* Build segments + slots by walking the element tree. *)
   let segments_rev = ref [] in
-  let slots_rev : (int * [ `Text | `Nodes | `Nodes_keyed ] * int list * Parsetree.expression) list ref = ref [] in
+  let slots_rev :
+    (int *
+     [ `Text
+     | `Nodes
+     | `Nodes_keyed
+     | `Nodes_indexed
+     | `Nodes_indexed_i
+     | `Nodes_indexed_accessors ]
+     * int list * Parsetree.expression)
+    list ref =
+    ref []
+  in
   let element_bindings_rev :
-    (int * int list * attr_binding list * event_binding list * class_list_binding option) list ref =
+    (int * int list * attr_binding list * event_binding list * class_list_binding option * bind_binding list) list
+    ref =
     ref [] in
 
   let current_segment = Buffer.create 64 in
@@ -388,9 +449,10 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
     let static_attrs_string = static_attrs_string_of_props el.static_props in
     Buffer.add_string current_segment ("<" ^ el.tag ^ static_attrs_string ^ ">");
 
-    if el.attrs <> [] || el.events <> [] || Option.is_some el.class_list then (
+    if el.attrs <> [] || el.events <> [] || Option.is_some el.class_list || el.bindings <> [] then (
       element_bindings_rev :=
-        (!element_id, path_to_element, el.attrs, el.events, el.class_list) :: !element_bindings_rev;
+        (!element_id, path_to_element, el.attrs, el.events, el.class_list, el.bindings)
+        :: !element_bindings_rev;
       incr element_id);
 
     let child_index = ref 0 in
@@ -447,6 +509,38 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
             (!slot_id, `Nodes_keyed, path_to_element @ [ !child_index + 1 ], payload)
             :: !slots_rev;
           incr slot_id;
+          child_index := !child_index + 2
+        | Nodes_indexed_slot { items_thunk; render_fn; uses_index } ->
+          Buffer.add_string current_segment "<!--$-->";
+          segments_rev := Buffer.contents current_segment :: !segments_rev;
+          Buffer.reset current_segment;
+          Buffer.add_string current_segment "<!--$-->";
+          let payload =
+            Ast_builder.Default.pexp_tuple ~loc [ items_thunk; render_fn ]
+          in
+          slots_rev :=
+            (!slot_id,
+             (if uses_index then `Nodes_indexed_i else `Nodes_indexed),
+             path_to_element @ [ !child_index + 1 ],
+             payload)
+            :: !slots_rev;
+          incr slot_id;
+          child_index := !child_index + 2
+        | Nodes_indexed_accessors_slot { items_thunk; render_fn } ->
+          Buffer.add_string current_segment "<!--$-->";
+          segments_rev := Buffer.contents current_segment :: !segments_rev;
+          Buffer.reset current_segment;
+          Buffer.add_string current_segment "<!--$-->";
+          let payload =
+            Ast_builder.Default.pexp_tuple ~loc [ items_thunk; render_fn ]
+          in
+          slots_rev :=
+            (!slot_id,
+             `Nodes_indexed_accessors,
+             path_to_element @ [ !child_index + 1 ],
+             payload)
+            :: !slots_rev;
+          incr slot_id;
           child_index := !child_index + 2)
       el.children;
 
@@ -464,12 +558,15 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
   let slot_kinds_expr =
     pexp_array ~loc
       (List.map
-         (fun (_id, kind, _path, _thunk) ->
-            match kind with
-            | `Text -> pexp_variant ~loc "Text" None
-            | `Nodes -> pexp_variant ~loc "Nodes" None
-            | `Nodes_keyed -> pexp_variant ~loc "Nodes" None)
-          slots)
+           (fun (_id, kind, _path, _thunk) ->
+             match kind with
+             | `Text -> pexp_variant ~loc "Text" None
+             | `Nodes -> pexp_variant ~loc "Nodes" None
+             | `Nodes_keyed -> pexp_variant ~loc "Nodes" None
+             | `Nodes_indexed -> pexp_variant ~loc "Nodes" None
+             | `Nodes_indexed_i -> pexp_variant ~loc "Nodes" None
+             | `Nodes_indexed_accessors -> pexp_variant ~loc "Nodes" None)
+           slots)
 
   in
 
@@ -498,7 +595,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
 
   let attr_effects =
     List.concat_map
-      (fun (el_id, _path, (attrs : attr_binding list), _events, _class_list) ->
+      (fun (el_id, _path, (attrs : attr_binding list), _events, _class_list, _bindings) ->
         let el_var = "__solid_ml_tpl_el" ^ string_of_int el_id in
         List.map
           (fun ({ name; thunk; optional } : attr_binding) ->
@@ -525,7 +622,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
 
   let event_effects =
     List.concat_map
-      (fun (el_id, _path, _attrs, (events : event_binding list), _class_list) ->
+      (fun (el_id, _path, _attrs, (events : event_binding list), _class_list, _bindings) ->
         let el_var = "__solid_ml_tpl_el" ^ string_of_int el_id in
         List.map
           (fun ({ event; handler } : event_binding) ->
@@ -554,7 +651,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
 
   let class_list_effects =
     List.filter_map
-      (fun (el_id, _path, _attrs, _events, cl_opt) ->
+      (fun (el_id, _path, _attrs, _events, cl_opt, _bindings) ->
         match cl_opt with
         | None -> None
         | Some (cl : class_list_binding) ->
@@ -608,6 +705,72 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
               [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) body) ]
           in
           Some expr)
+      element_bindings
+  in
+
+  let binding_effects =
+    List.concat_map
+      (fun (el_id, _path, _attrs, _events, _class_list, (bindings : bind_binding list)) ->
+        let el_var = "__solid_ml_tpl_el" ^ string_of_int el_id in
+        List.concat
+          (List.mapi
+             (fun idx (binding : bind_binding) ->
+               let set_fn, get_fn, event_name =
+                 match binding.kind with
+                 | Bind_input -> ("set_value", "get_value", "input")
+                 | Bind_checkbox -> ("set_checked", "get_checked", "change")
+                 | Bind_select -> ("set_value", "get_value", "change")
+               in
+               let signal_call = pexp_apply ~loc binding.signal [ (Nolabel, eunit ~loc) ] in
+               let set_call =
+                 pexp_apply ~loc
+                   (pexp_ident ~loc (lid ("Html.Internal_template." ^ set_fn)))
+                   [ (Nolabel, evar ~loc el_var); (Nolabel, signal_call) ]
+               in
+               let set_effect =
+                 pexp_apply ~loc
+                   (pexp_ident ~loc (lid "Effect.create"))
+                   [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) set_call) ]
+               in
+               let get_call =
+                 pexp_apply ~loc
+                   (pexp_ident ~loc (lid ("Html.Internal_template." ^ get_fn)))
+                   [ (Nolabel, evar ~loc el_var) ]
+               in
+               let setter_call =
+                 pexp_apply ~loc binding.setter [ (Nolabel, get_call) ]
+               in
+               let handler_var =
+                 "__solid_ml_tpl_bind_handler_" ^ string_of_int el_id ^ "_" ^ string_of_int idx
+               in
+               let handler_expr =
+                 pexp_fun ~loc Nolabel None (pvar ~loc "_evt") setter_call
+               in
+               let on_call =
+                 pexp_apply ~loc
+                   (pexp_ident ~loc (lid "Html.Internal_template.on_"))
+                   [ (Nolabel, evar ~loc el_var);
+                     (Labelled "event", estring ~loc event_name);
+                     (Nolabel, evar ~loc handler_var) ]
+               in
+               let off_call =
+                 pexp_apply ~loc
+                   (pexp_ident ~loc (lid "Html.Internal_template.off_"))
+                   [ (Nolabel, evar ~loc el_var);
+                     (Labelled "event", estring ~loc event_name);
+                     (Nolabel, evar ~loc handler_var) ]
+               in
+               let cleanup =
+                 pexp_apply ~loc (pexp_ident ~loc (lid "Owner.on_cleanup"))
+                   [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) off_call) ]
+               in
+               let event_effect =
+                 pexp_let ~loc Nonrecursive
+                   [ value_binding ~loc ~pat:(pvar ~loc handler_var) ~expr:handler_expr ]
+                   (pexp_sequence ~loc on_call cleanup)
+               in
+               [ set_effect; event_effect ])
+             bindings))
       element_bindings
   in
 
@@ -679,15 +842,105 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
           in
           pexp_apply ~loc
             (pexp_ident ~loc (lid "Effect.create"))
-            [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) bind) ] )
+            [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) bind) ]
+        | `Nodes_indexed ->
+          let slot_var = "__solid_ml_tpl_nodes" ^ string_of_int id in
+          let items_var = "__solid_ml_tpl_items" ^ string_of_int id in
+          let render_var = "__solid_ml_tpl_render" ^ string_of_int id in
+          let render_call =
+            pexp_apply ~loc (evar ~loc render_var) [ (Nolabel, evar ~loc "item") ]
+          in
+          let render_body =
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid "Owner.run_with_owner"))
+              [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) render_call) ]
+          in
+          let bind =
+            pexp_let ~loc Nonrecursive
+              [ value_binding ~loc
+                  ~pat:(ppat_tuple ~loc [ pvar ~loc items_var; pvar ~loc render_var ])
+                  ~expr:thunk ]
+              (pexp_apply ~loc
+                 (pexp_ident ~loc (lid "Html.Internal_template.set_nodes_indexed"))
+                 [ (Nolabel, evar ~loc slot_var);
+                   (Labelled "render",
+                    pexp_fun ~loc Nolabel None (pvar ~loc "_idx")
+                      (pexp_fun ~loc Nolabel None (pvar ~loc "item") render_body));
+                   (Nolabel, pexp_apply ~loc (evar ~loc items_var) [ (Nolabel, eunit ~loc) ]) ])
+          in
+          pexp_apply ~loc
+            (pexp_ident ~loc (lid "Effect.create"))
+            [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) bind) ]
+        | `Nodes_indexed_i ->
+          let slot_var = "__solid_ml_tpl_nodes" ^ string_of_int id in
+          let items_var = "__solid_ml_tpl_items" ^ string_of_int id in
+          let render_var = "__solid_ml_tpl_render" ^ string_of_int id in
+          let render_call =
+            pexp_apply ~loc (evar ~loc render_var)
+              [ (Nolabel, evar ~loc "idx"); (Nolabel, evar ~loc "item") ]
+          in
+          let render_body =
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid "Owner.run_with_owner"))
+              [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) render_call) ]
+          in
+          let bind =
+            pexp_let ~loc Nonrecursive
+              [ value_binding ~loc
+                  ~pat:(ppat_tuple ~loc [ pvar ~loc items_var; pvar ~loc render_var ])
+                  ~expr:thunk ]
+              (pexp_apply ~loc
+                 (pexp_ident ~loc (lid "Html.Internal_template.set_nodes_indexed"))
+                 [ (Nolabel, evar ~loc slot_var);
+                   (Labelled "render",
+                    pexp_fun ~loc Nolabel None (pvar ~loc "idx")
+                      (pexp_fun ~loc Nolabel None (pvar ~loc "item") render_body));
+                   (Nolabel, pexp_apply ~loc (evar ~loc items_var) [ (Nolabel, eunit ~loc) ]) ])
+          in
+          pexp_apply ~loc
+            (pexp_ident ~loc (lid "Effect.create"))
+            [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) bind) ]
+        | `Nodes_indexed_accessors ->
+          let slot_var = "__solid_ml_tpl_nodes" ^ string_of_int id in
+          let items_var = "__solid_ml_tpl_items" ^ string_of_int id in
+          let render_var = "__solid_ml_tpl_render" ^ string_of_int id in
+          pexp_let ~loc Nonrecursive
+            [ value_binding ~loc
+                ~pat:(ppat_tuple ~loc [ pvar ~loc items_var; pvar ~loc render_var ])
+                ~expr:thunk ]
+            (pexp_apply ~loc
+               (pexp_ident ~loc (lid "Html.Internal_template.set_nodes_indexed_accessors"))
+               [ (Nolabel, evar ~loc slot_var);
+                 (Labelled "items", evar ~loc items_var);
+                 (Labelled "render",
+                  pexp_fun ~loc (Labelled "index") None (pvar ~loc "index")
+                    (pexp_fun ~loc (Labelled "item") None (pvar ~loc "item")
+                       (pexp_apply ~loc
+                          (pexp_ident ~loc (lid "Owner.run_with_owner"))
+                          [ (Nolabel,
+                             pexp_fun ~loc Nolabel None (punit ~loc)
+                               (pexp_apply ~loc (evar ~loc render_var)
+                                  [ (Labelled "index", evar ~loc "index");
+                                    (Labelled "item", evar ~loc "item") ])) ]))) ])
+      )
       slots
   in
 
-  let effects_in_order = attr_effects @ event_effects @ class_list_effects @ slot_effects in
+  let effects_in_order =
+    attr_effects @ event_effects @ class_list_effects @ binding_effects @ slot_effects
+  in
 
-  let body =
+  let effects_sequence =
     List.fold_right (fun eff acc -> pexp_sequence ~loc eff acc) effects_in_order
-      root_call
+      (eunit ~loc)
+  in
+  let run_updates_call =
+    pexp_apply ~loc
+      (pexp_ident ~loc (lid "Html.Internal_template.run_updates"))
+      [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) effects_sequence) ]
+  in
+  let body =
+    pexp_sequence ~loc run_updates_call root_call
   in
 
   (* Bind slots right-to-left to keep insertion indices stable on browser. *)
@@ -707,7 +960,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
       pexp_let ~loc Nonrecursive
         [ value_binding ~loc ~pat:(pvar ~loc slot_var) ~expr:bind_call ]
         acc
-    | `Nodes | `Nodes_keyed ->
+    | `Nodes | `Nodes_keyed | `Nodes_indexed | `Nodes_indexed_i | `Nodes_indexed_accessors ->
       let slot_var = "__solid_ml_tpl_nodes" ^ string_of_int id in
       let bind_call =
         pexp_apply ~loc
@@ -724,7 +977,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
 
   let body_with_slots = List.fold_left bind_slot body slots_for_binding in
 
-  let bind_element (el_id, path, _attrs, _events, _class_list) acc =
+  let bind_element (el_id, path, _attrs, _events, _class_list, _bindings) acc =
     let el_var = "__solid_ml_tpl_el" ^ string_of_int el_id in
     let bind_el_call =
       pexp_apply ~loc
@@ -752,7 +1005,15 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
 let compile_tag_with_text ~(loc : Location.t) ~(tag : string)
     ~(thunk : Parsetree.expression) : Parsetree.expression =
   compile_element_tree ~loc
-    ~root:{ tag; children = [ Text_slot thunk ]; attrs = []; events = []; class_list = None; static_props = [] }
+    ~root:{
+      tag;
+      children = [ Text_slot thunk ];
+      attrs = [];
+      events = [];
+      class_list = None;
+      bindings = [];
+      static_props = []
+    }
 
 let extract_tpl_attr_binding ~(aliases : string list) (expr : Parsetree.expression)
     : attr_binding option =
@@ -784,6 +1045,32 @@ let extract_tpl_attr_binding ~(aliases : string list) (expr : Parsetree.expressi
            | _ -> None)
         | _ -> None))
   | _ -> None
+
+let label_to_attr_name (label : string) : string =
+  let base =
+    let len = String.length label in
+    if len > 0 && label.[len - 1] = '_' then String.sub label 0 (len - 1) else label
+  in
+  String.map (fun c -> if c = '_' then '-' else c) base
+
+let extract_dynamic_attr_binding ~(aliases : string list) ~(label : string)
+    ~(optional : bool) (expr : Parsetree.expression)
+    : attr_binding option =
+  if String.equal label "children"
+     || String.equal label "data"
+     || String.equal label "attrs"
+     || (String.length label >= 2 && String.sub label 0 2 = "on")
+     || Option.is_some (tpl_marker_of_expr ~aliases expr)
+  then
+    None
+  else
+    let name = label_to_attr_name label in
+    let thunk =
+      Ast_builder.Default.pexp_fun ~loc:expr.pexp_loc Nolabel None
+        (Ast_builder.Default.punit ~loc:expr.pexp_loc)
+        expr
+    in
+    Some { name; thunk; optional }
 
 let extract_tpl_text_thunk ~(aliases : string list) (expr : Parsetree.expression)
     : Parsetree.expression option =
@@ -837,7 +1124,7 @@ let extract_tpl_show ~(aliases : string list) (expr : Parsetree.expression)
      | None -> None
      | Some longident ->
        (match tpl_marker_name ~aliases longident with
-        | Some "show" ->
+        | Some ("show" | "show_when") ->
           let when_opt =
             List.find_map
               (function
@@ -854,6 +1141,71 @@ let extract_tpl_show ~(aliases : string list) (expr : Parsetree.expression)
           in
           (match (when_opt, render_opt) with
            | (Some when_, Some render) -> Some (when_, render)
+           | _ -> None)
+        | _ -> None))
+   | _ -> None
+
+let extract_tpl_if_ ~(aliases : string list) (expr : Parsetree.expression)
+    : (Parsetree.expression * Parsetree.expression * Parsetree.expression) option =
+  match expr.pexp_desc with
+  | Pexp_apply (_fn, args) ->
+    (match head_ident expr with
+     | None -> None
+     | Some longident ->
+       (match tpl_marker_name ~aliases longident with
+        | Some "if_" ->
+          let when_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "when_", e) -> Some e
+                | _ -> None)
+              args
+          in
+          let then_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "then_", e) -> Some e
+                | _ -> None)
+              args
+          in
+          let else_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "else_", e) -> Some e
+                | _ -> None)
+              args
+          in
+          (match (when_opt, then_opt, else_opt) with
+           | (Some when_, Some then_, Some else_) -> Some (when_, then_, else_)
+           | _ -> None)
+        | _ -> None))
+  | _ -> None
+
+let extract_tpl_switch ~(aliases : string list) (expr : Parsetree.expression)
+    : (Parsetree.expression * Parsetree.expression) option =
+  match expr.pexp_desc with
+  | Pexp_apply (_fn, args) ->
+    (match head_ident expr with
+     | None -> None
+     | Some longident ->
+       (match tpl_marker_name ~aliases longident with
+        | Some "switch" ->
+          let match_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "match_", e) -> Some e
+                | _ -> None)
+              args
+          in
+          let cases_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "cases", e) -> Some e
+                | _ -> None)
+              args
+          in
+          (match (match_opt, cases_opt) with
+           | (Some match_, Some cases) -> Some (match_, cases)
            | _ -> None)
         | _ -> None))
   | _ -> None
@@ -890,6 +1242,93 @@ let extract_tpl_each_keyed ~(aliases : string list) (expr : Parsetree.expression
           in
           (match (items_opt, key_opt, render_opt) with
            | (Some items, Some key, Some render) -> Some (items, key, render)
+           | _ -> None)
+        | _ -> None))
+   | _ -> None
+
+let extract_tpl_each ~(aliases : string list) (expr : Parsetree.expression)
+    : (Parsetree.expression * Parsetree.expression) option =
+  match expr.pexp_desc with
+  | Pexp_apply (_fn, args) ->
+    (match head_ident expr with
+     | None -> None
+     | Some longident ->
+       (match tpl_marker_name ~aliases longident with
+        | Some "each" ->
+          let items_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "items", e) -> Some e
+                | _ -> None)
+              args
+          in
+          let render_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "render", e) -> Some e
+                | _ -> None)
+              args
+          in
+          (match (items_opt, render_opt) with
+           | (Some items, Some render) -> Some (items, render)
+           | _ -> None)
+        | _ -> None))
+  | _ -> None
+
+let extract_tpl_eachi ~(aliases : string list) (expr : Parsetree.expression)
+    : (Parsetree.expression * Parsetree.expression) option =
+  match expr.pexp_desc with
+  | Pexp_apply (_fn, args) ->
+    (match head_ident expr with
+     | None -> None
+     | Some longident ->
+       (match tpl_marker_name ~aliases longident with
+        | Some "eachi" ->
+          let items_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "items", e) -> Some e
+                | _ -> None)
+              args
+          in
+          let render_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "render", e) -> Some e
+                | _ -> None)
+              args
+          in
+          (match (items_opt, render_opt) with
+           | (Some items, Some render) -> Some (items, render)
+           | _ -> None)
+        | _ -> None))
+  | _ -> None
+
+let extract_tpl_each_indexed ~(aliases : string list) (expr : Parsetree.expression)
+    : (Parsetree.expression * Parsetree.expression) option =
+  match expr.pexp_desc with
+  | Pexp_apply (_fn, args) ->
+    (match head_ident expr with
+     | None -> None
+     | Some longident ->
+       (match tpl_marker_name ~aliases longident with
+        | Some "each_indexed" ->
+          let items_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "items", e) -> Some e
+                | _ -> None)
+              args
+          in
+          let render_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "render", e) -> Some e
+                | _ -> None)
+              args
+          in
+          (match (items_opt, render_opt) with
+           | (Some items, Some render) -> Some (items, render)
            | _ -> None)
         | _ -> None))
   | _ -> None
@@ -939,6 +1378,41 @@ let extract_tpl_class_list ~(aliases : string list) (expr : Parsetree.expression
         | _ -> None))
   | _ -> None
 
+let extract_tpl_bind ~(aliases : string list) (expr : Parsetree.expression)
+    : bind_binding option =
+  match expr.pexp_desc with
+  | Pexp_apply (_fn, args) ->
+    (match head_ident expr with
+     | None -> None
+     | Some longident ->
+       (match tpl_marker_name ~aliases longident with
+        | Some ("bind_input" | "bind_checkbox" | "bind_select" as kind) ->
+          let signal_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "signal", e) -> Some e
+                | _ -> None)
+              args
+          in
+          let setter_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "setter", e) -> Some e
+                | _ -> None)
+              args
+          in
+          let kind =
+            match kind with
+            | "bind_input" -> Bind_input
+            | "bind_checkbox" -> Bind_checkbox
+            | _ -> Bind_select
+          in
+          (match (signal_opt, setter_opt) with
+           | (Some signal, Some setter) -> Some { kind; signal; setter }
+           | _ -> None)
+        | _ -> None))
+  | _ -> None
+
 let transform_structure (structure : Parsetree.structure) : Parsetree.structure =
   let aliases = collect_tpl_aliases structure in
   let allow_unqualified_text = collect_html_opens structure in
@@ -970,6 +1444,24 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
     in
     mapper#expression expr
 
+  and compile_expr_force_no_dynamic_text (expr : Parsetree.expression) : Parsetree.expression =
+    let mapper =
+      object
+        inherit Ast_traverse.map as super
+
+        method! expression expr =
+          match parse_element_expr
+                  ~allow_dynamic_html_text:false
+                  ~allow_unqualified_text
+                  ~shadowed_text
+                  expr
+          with
+          | Some (root, _dyn) -> compile_element_tree ~loc:expr.pexp_loc ~root
+          | None -> super#expression expr
+      end
+    in
+    mapper#expression expr
+
   and parse_element_expr ~(allow_dynamic_html_text : bool) ~(allow_unqualified_text : bool)
       ~(shadowed_text : bool)
       (expr : Parsetree.expression)
@@ -989,19 +1481,38 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                   | _ -> None)
                 args
             in
+            let children_arg =
+              match children_arg with
+              | Some _ -> children_arg
+              | None when is_self_closing_intrinsic_tag tag ->
+                Some
+                  (Ast_builder.Default.pexp_construct ~loc:expr.pexp_loc
+                     { loc = expr.pexp_loc; txt = Longident.Lident "[]" }
+                     None)
+              | None -> None
+            in
 
             let static_props = List.filter_map extract_static_prop args in
 
-             let attr_bindings =
-               List.filter_map
-                 (function
-                   | (Asttypes.Labelled "children", _) -> None
-                   | (Asttypes.Nolabel, _e) -> None
-                   | (Asttypes.Labelled _lbl, e)
-                   | (Asttypes.Optional _lbl, e) ->
-                     extract_tpl_attr_binding ~aliases e)
-                 args
-             in
+              let attr_bindings =
+                List.filter_map
+                  (function
+                    | (Asttypes.Labelled "children", _) -> None
+                    | (Asttypes.Nolabel, _e) -> None
+                    | (Asttypes.Labelled lbl, e) ->
+                      if Option.is_some (extract_static_prop (Asttypes.Labelled lbl, e)) then None
+                      else
+                        (match extract_tpl_attr_binding ~aliases e with
+                         | Some binding -> Some binding
+                         | None ->
+                           extract_dynamic_attr_binding ~aliases ~label:lbl ~optional:false e)
+                    | (Asttypes.Optional lbl, e) ->
+                      (match extract_tpl_attr_binding ~aliases e with
+                       | Some binding -> Some binding
+                       | None ->
+                         extract_dynamic_attr_binding ~aliases ~label:lbl ~optional:true e))
+                  args
+              in
 
              let event_bindings =
                List.filter_map
@@ -1012,14 +1523,23 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                  args
              in
 
-             let class_list_binding =
-               List.find_map
-                 (function
-                   | (Asttypes.Labelled "children", _) -> None
-                   | (Asttypes.Nolabel, _e) -> None
-                   | (_lbl, e) -> extract_tpl_class_list ~aliases e)
-                 args
-             in
+              let class_list_binding =
+                List.find_map
+                  (function
+                    | (Asttypes.Labelled "children", _) -> None
+                    | (Asttypes.Nolabel, _e) -> None
+                    | (_lbl, e) -> extract_tpl_class_list ~aliases e)
+                  args
+              in
+
+              let bindings =
+                List.filter_map
+                  (function
+                    | (Asttypes.Labelled "children", _) -> None
+                    | (Asttypes.Nolabel, _e) -> None
+                    | (_lbl, e) -> extract_tpl_bind ~aliases e)
+                  args
+              in
 
             let has_static_id_or_class =
               List.exists
@@ -1042,13 +1562,24 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                 (function
                   | (Asttypes.Labelled "children", _) -> true
                   | (Asttypes.Nolabel, e) -> is_unit_expr e
-                  | arg ->
-                    Option.is_some (extract_static_prop arg)
-                     || Option.is_some (extract_tpl_attr_binding ~aliases (snd arg))
-                     || Option.is_some (extract_tpl_on ~aliases (snd arg))
-                     || Option.is_some (extract_tpl_class_list ~aliases (snd arg)))
+                  | (Asttypes.Labelled lbl, e) ->
+                    Option.is_some (extract_static_prop (Asttypes.Labelled lbl, e))
+                    || Option.is_some (extract_tpl_attr_binding ~aliases e)
+                    || Option.is_some
+                         (extract_dynamic_attr_binding ~aliases ~label:lbl ~optional:false e)
+                    || Option.is_some (extract_tpl_on ~aliases e)
+                    || Option.is_some (extract_tpl_class_list ~aliases e)
+                    || Option.is_some (extract_tpl_bind ~aliases e)
+                  | (Asttypes.Optional lbl, e) ->
+                    Option.is_some (extract_static_prop (Asttypes.Optional lbl, e))
+                    || Option.is_some (extract_tpl_attr_binding ~aliases e)
+                    || Option.is_some
+                         (extract_dynamic_attr_binding ~aliases ~label:lbl ~optional:true e)
+                    || Option.is_some (extract_tpl_on ~aliases e)
+                    || Option.is_some (extract_tpl_class_list ~aliases e)
+                    || Option.is_some (extract_tpl_bind ~aliases e))
                  args
-             in
+              in
 
               match (children_arg, other_args_ok) with
               | (Some children_expr, true) ->
@@ -1063,7 +1594,8 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                   ref
                     (attr_bindings <> []
                     || event_bindings <> []
-                    || Option.is_some class_list_binding)
+                    || Option.is_some class_list_binding
+                    || bindings <> [])
                 in
 
                 let failed_child = ref None in
@@ -1077,31 +1609,31 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                     parts_rev := Static_text lit :: !parts_rev;
                     true
                   | None ->
-                     (match extract_tpl_text_thunk ~aliases child with
-                      | Some thunk ->
+                    match extract_tpl_text_thunk ~aliases child with
+                    | Some thunk ->
+                      has_dynamic := true;
+                      parts_rev := Text_slot thunk :: !parts_rev;
+                      true
+                    | None ->
+                      match extract_html_text_arg ~allow_unqualified_text ~shadowed_text child with
+                      | Some arg
+                        when allow_dynamic_html_text
+                             && not (Option.is_some
+                                      (extract_static_text_literal
+                                         ~allow_unqualified_text
+                                         ~shadowed_text
+                                         child)) ->
                         has_dynamic := true;
-                        parts_rev := Text_slot thunk :: !parts_rev;
+                        parts_rev :=
+                          Text_slot
+                            (Ast_builder.Default.pexp_fun ~loc:child.pexp_loc Nolabel None
+                               (Ast_builder.Default.punit ~loc:child.pexp_loc)
+                               arg)
+                          :: !parts_rev;
                         true
-                      | None ->
-                          (match extract_html_text_arg ~allow_unqualified_text ~shadowed_text child with
-                           | Some arg
-                             when allow_dynamic_html_text
-                                 && not (Option.is_some
-                                          (extract_static_text_literal
-                                             ~allow_unqualified_text
-                                             ~shadowed_text
-                                             child)) ->
-                            has_dynamic := true;
-                            parts_rev :=
-                              Text_slot
-                                (Ast_builder.Default.pexp_fun ~loc:child.pexp_loc Nolabel None
-                                   (Ast_builder.Default.punit ~loc:child.pexp_loc)
-                                   arg)
-                              :: !parts_rev;
-                            true
-                          | _ ->
-                            (match extract_tpl_show ~aliases child with
-                            | Some (when_, render) ->
+                      | _ ->
+                        match extract_tpl_show ~aliases child with
+                        | Some (when_, render) ->
                           has_dynamic := true;
                           let child_loc = child.pexp_loc in
                           let when_call =
@@ -1113,52 +1645,203 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                               [ (Nolabel, Ast_builder.Default.eunit ~loc:child_loc) ]
                           in
                           let render_call = compile_expr_force render_call in
+                          let empty_fragment =
+                            Ast_builder.Default.pexp_apply ~loc:child_loc
+                              (Ast_builder.Default.pexp_ident ~loc:child_loc
+                                 { loc = child_loc; txt = Longident.parse "Html.fragment" })
+                              [ ( Nolabel,
+                                  Ast_builder.Default.pexp_construct ~loc:child_loc
+                                    { loc = child_loc; txt = Longident.Lident "[]" }
+                                    None
+                                ) ]
+                          in
                           let thunk =
                             Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
                               (Ast_builder.Default.punit ~loc:child_loc)
                               (Ast_builder.Default.pexp_ifthenelse ~loc:child_loc when_call render_call
-                                 (Some
-                                    (Ast_builder.Default.pexp_apply ~loc:child_loc
-                                       (Ast_builder.Default.pexp_ident ~loc:child_loc
-                                          { loc = child_loc; txt = Longident.parse "Html.fragment" })
-                                       [ ( Nolabel,
-                                           Ast_builder.Default.pexp_construct ~loc:child_loc
-                                             { loc = child_loc; txt = Longident.Lident "[]" }
-                                             None
-                                         )
-                                       ])))
+                                 (Some empty_fragment))
                           in
                           parts_rev := Nodes_slot thunk :: !parts_rev;
                           true
                         | None ->
-                          (match extract_tpl_each_keyed ~aliases child with
-                           | Some (items_thunk, key_fn, render_fn) ->
-                             has_dynamic := true;
-                             parts_rev :=
-                               Nodes_keyed_slot
-                                 { items_thunk; key_fn; render_fn = compile_expr_force render_fn }
-                               :: !parts_rev;
-                             true
-                           | None ->
-                             (match extract_tpl_nodes_thunk ~aliases child with
-                              | Some thunk ->
+                          match extract_tpl_if_ ~aliases child with
+                          | Some (when_, then_, else_) ->
+                            has_dynamic := true;
+                            let child_loc = child.pexp_loc in
+                            let when_call =
+                              Ast_builder.Default.pexp_apply ~loc:child_loc when_
+                                [ (Nolabel, Ast_builder.Default.eunit ~loc:child_loc) ]
+                            in
+                            let then_call =
+                              Ast_builder.Default.pexp_apply ~loc:child_loc then_
+                                [ (Nolabel, Ast_builder.Default.eunit ~loc:child_loc) ]
+                            in
+                            let else_call =
+                              Ast_builder.Default.pexp_apply ~loc:child_loc else_
+                                [ (Nolabel, Ast_builder.Default.eunit ~loc:child_loc) ]
+                            in
+                            let then_call = compile_expr_force then_call in
+                            let else_call = compile_expr_force else_call in
+                            let thunk =
+                              Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
+                                (Ast_builder.Default.punit ~loc:child_loc)
+                                (Ast_builder.Default.pexp_ifthenelse ~loc:child_loc when_call then_call
+                                   (Some else_call))
+                            in
+                            parts_rev := Nodes_slot thunk :: !parts_rev;
+                            true
+                          | None ->
+                            match extract_tpl_switch ~aliases child with
+                            | Some (match_, cases) ->
+                              has_dynamic := true;
+                              let child_loc = child.pexp_loc in
+                              let match_call =
+                                Ast_builder.Default.pexp_apply ~loc:child_loc match_
+                                  [ (Nolabel, Ast_builder.Default.eunit ~loc:child_loc) ]
+                              in
+                              let cases = compile_expr_force cases in
+                              let cases_call =
+                                Ast_builder.Default.pexp_apply ~loc:child_loc
+                                  (Ast_builder.Default.pexp_ident ~loc:child_loc
+                                     { loc = child_loc; txt = Longident.parse "Array.to_list" })
+                                  [ (Nolabel, cases) ]
+                              in
+                              let value_var = "__solid_ml_tpl_switch_value" in
+                              let cases_var = "__solid_ml_tpl_switch_cases" in
+                              let rendered_var = "__solid_ml_tpl_switch_rendered" in
+                              let finder =
+                                Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
+                                  (Ast_builder.Default.ppat_tuple ~loc:child_loc
+                                     [ Ast_builder.Default.pvar ~loc:child_loc "pred";
+                                       Ast_builder.Default.pvar ~loc:child_loc "render" ])
+                                  (Ast_builder.Default.pexp_ifthenelse ~loc:child_loc
+                                     (Ast_builder.Default.pexp_apply ~loc:child_loc
+                                        (Ast_builder.Default.evar ~loc:child_loc "pred")
+                                        [ (Nolabel, Ast_builder.Default.evar ~loc:child_loc value_var) ])
+                                     (Ast_builder.Default.pexp_construct ~loc:child_loc
+                                        { loc = child_loc; txt = Longident.Lident "Some" }
+                                        (Some
+                                           (Ast_builder.Default.pexp_apply ~loc:child_loc
+                                              (Ast_builder.Default.evar ~loc:child_loc "render")
+                                              [ (Nolabel, Ast_builder.Default.eunit ~loc:child_loc) ])))
+                                     (Some
+                                        (Ast_builder.Default.pexp_construct ~loc:child_loc
+                                           { loc = child_loc; txt = Longident.Lident "None" }
+                                           None)))
+                              in
+                              let find_call =
+                                Ast_builder.Default.pexp_apply ~loc:child_loc
+                                  (Ast_builder.Default.pexp_ident ~loc:child_loc
+                                     { loc = child_loc; txt = Longident.parse "List.find_map" })
+                                  [ (Nolabel, finder); (Nolabel, Ast_builder.Default.evar ~loc:child_loc cases_var) ]
+                              in
+                              let empty_fragment =
+                                Ast_builder.Default.pexp_apply ~loc:child_loc
+                                  (Ast_builder.Default.pexp_ident ~loc:child_loc
+                                     { loc = child_loc; txt = Longident.parse "Html.fragment" })
+                                  [ ( Nolabel,
+                                      Ast_builder.Default.pexp_construct ~loc:child_loc
+                                        { loc = child_loc; txt = Longident.Lident "[]" }
+                                        None
+                                    ) ]
+                              in
+                              let rendered_match =
+                                Ast_builder.Default.pexp_match ~loc:child_loc
+                                  (Ast_builder.Default.evar ~loc:child_loc rendered_var)
+                                  [ Ast_builder.Default.case
+                                      ~lhs:(Ast_builder.Default.ppat_construct ~loc:child_loc
+                                             { loc = child_loc; txt = Longident.Lident "Some" }
+                                             (Some (Ast_builder.Default.pvar ~loc:child_loc "node")))
+                                      ~guard:None
+                                      ~rhs:(Ast_builder.Default.evar ~loc:child_loc "node");
+                                    Ast_builder.Default.case
+                                      ~lhs:(Ast_builder.Default.ppat_construct ~loc:child_loc
+                                             { loc = child_loc; txt = Longident.Lident "None" }
+                                             None)
+                                      ~guard:None
+                                      ~rhs:empty_fragment
+                                  ]
+                              in
+                              let body =
+                                Ast_builder.Default.pexp_let ~loc:child_loc Nonrecursive
+                                  [ Ast_builder.Default.value_binding ~loc:child_loc
+                                      ~pat:(Ast_builder.Default.pvar ~loc:child_loc value_var)
+                                      ~expr:match_call ]
+                                  (Ast_builder.Default.pexp_let ~loc:child_loc Nonrecursive
+                                     [ Ast_builder.Default.value_binding ~loc:child_loc
+                                         ~pat:(Ast_builder.Default.pvar ~loc:child_loc cases_var)
+                                         ~expr:cases_call ]
+                                     (Ast_builder.Default.pexp_let ~loc:child_loc Nonrecursive
+                                        [ Ast_builder.Default.value_binding ~loc:child_loc
+                                            ~pat:(Ast_builder.Default.pvar ~loc:child_loc rendered_var)
+                                            ~expr:find_call ]
+                                        rendered_match))
+                              in
+                              let thunk =
+                                Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
+                                  (Ast_builder.Default.punit ~loc:child_loc)
+                                  body
+                              in
+                              parts_rev := Nodes_slot thunk :: !parts_rev;
+                              true
+                            | None ->
+                              match extract_tpl_each_keyed ~aliases child with
+                              | Some (items_thunk, key_fn, render_fn) ->
                                 has_dynamic := true;
-                                let thunk = compile_expr_force thunk in
-                                parts_rev := Nodes_slot thunk :: !parts_rev;
+                                parts_rev :=
+                                  Nodes_keyed_slot
+                                    { items_thunk; key_fn; render_fn = compile_expr_force render_fn }
+                                  :: !parts_rev;
                                 true
                               | None ->
-                                 (match parse_element_expr
-                                          ~allow_dynamic_html_text
-                                          ~allow_unqualified_text
-                                          ~shadowed_text
-                                          child with
-                                  | Some (child_el, child_dynamic) ->
-                                   if child_dynamic then has_dynamic := true;
-                                   parts_rev := Element child_el :: !parts_rev;
-                                   true
+                                match extract_tpl_each_indexed ~aliases child with
+                                | Some (items_thunk, render_fn) ->
+                                  has_dynamic := true;
+                                  let render_fn = compile_expr_force render_fn in
+                                  parts_rev :=
+                                    Nodes_indexed_accessors_slot { items_thunk; render_fn }
+                                    :: !parts_rev;
+                                  true
+                                | None ->
+                                  match extract_tpl_each ~aliases child with
+                                  | Some (items_thunk, render_fn) ->
+                                    has_dynamic := true;
+                                    let render_fn = compile_expr_force_no_dynamic_text render_fn in
+                                    parts_rev :=
+                                      Nodes_indexed_slot
+                                        { items_thunk; render_fn; uses_index = false }
+                                      :: !parts_rev;
+                                    true
                                   | None ->
-                                   failed_child := Some child;
-                                   false))))))
+                                    match extract_tpl_eachi ~aliases child with
+                                    | Some (items_thunk, render_fn) ->
+                                      has_dynamic := true;
+                                      let render_fn = compile_expr_force_no_dynamic_text render_fn in
+                                      parts_rev :=
+                                        Nodes_indexed_slot
+                                          { items_thunk; render_fn; uses_index = true }
+                                        :: !parts_rev;
+                                      true
+                                    | None ->
+                                      match extract_tpl_nodes_thunk ~aliases child with
+                                      | Some thunk ->
+                                        has_dynamic := true;
+                                        let thunk = compile_expr_force thunk in
+                                        parts_rev := Nodes_slot thunk :: !parts_rev;
+                                        true
+                                      | None ->
+                                        match parse_element_expr
+                                                ~allow_dynamic_html_text
+                                                ~allow_unqualified_text
+                                                ~shadowed_text
+                                                child with
+                                        | Some (child_el, child_dynamic) ->
+                                          if child_dynamic then has_dynamic := true;
+                                          parts_rev := Element child_el :: !parts_rev;
+                                          true
+                                        | None ->
+                                          failed_child := Some child;
+                                          false
                 in
 
                 let children_list =
@@ -1175,6 +1858,7 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                         attrs = attr_bindings;
                         events = event_bindings;
                         class_list = class_list_binding;
+                        bindings;
                         static_props
                       },
                       !has_dynamic )
@@ -1201,20 +1885,20 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
   in
 
   let mapper =
-    object
-      inherit Ast_traverse.map as super
+      object
+        inherit Ast_traverse.map as super
 
-      method! expression expr =
-        match parse_element_expr
-                ~allow_dynamic_html_text:false
-                ~allow_unqualified_text
-                ~shadowed_text
-                expr
-        with
-        | Some (root, true) ->
-          compile_element_tree ~loc:expr.pexp_loc ~root
-        | _ -> super#expression expr
-    end
+        method! expression expr =
+         match parse_element_expr
+                 ~allow_dynamic_html_text:false
+                 ~allow_unqualified_text
+                 ~shadowed_text
+                 expr
+         with
+         | Some (root, true) ->
+           compile_element_tree ~loc:expr.pexp_loc ~root
+         | _ -> super#expression expr
+      end
   in
 
   mapper#structure structure

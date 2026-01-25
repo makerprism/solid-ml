@@ -41,13 +41,26 @@ module Tpl : sig
 
   val on : event:string -> ('ev -> unit) -> ('ev -> unit) t
 
+  val bind_input : signal:(unit -> string) -> setter:(string -> unit) -> 'a t
+  val bind_checkbox : signal:(unit -> bool) -> setter:(bool -> unit) -> 'a t
+  val bind_select : signal:(unit -> string) -> setter:(string -> unit) -> 'a t
+
   val nodes : (unit -> 'a) -> 'a t
   (** Marker for a dynamic child region (control flow).
 
       The template PPX rewrites this into `Template.bind_nodes` + `Template.set_nodes`. *)
 
   val show : when_:(unit -> bool) -> (unit -> 'a) -> 'a t
+  val show_when : when_:(unit -> bool) -> (unit -> 'a) -> 'a t
+  val if_ : when_:(unit -> bool) -> then_:(unit -> 'a) -> else_:(unit -> 'a) -> 'a t
+  val switch : match_:(unit -> 'a) -> cases:(('a -> bool) * (unit -> 'b)) array -> 'b t
   val each_keyed : items:(unit -> 'a list) -> key:('a -> string) -> render:('a -> 'b) -> 'b t
+  val each : items:(unit -> 'a list) -> render:('a -> 'b) -> 'b t
+  val eachi : items:(unit -> 'a list) -> render:(int -> 'a -> 'b) -> 'b t
+  val each_indexed :
+    items:(unit -> 'a list)
+    -> render:(index:(unit -> int) -> item:(unit -> 'a) -> 'b)
+    -> 'b t
 
   val unreachable : 'a t -> 'a
   (** Defensive escape hatch.
@@ -82,14 +95,41 @@ end = struct
   let on ~event (_handler : 'ev -> unit) : ('ev -> unit) t =
     Uncompiled ("on(" ^ event ^ ")")
 
+  let bind_input ~signal:_ ~setter:_ : 'a t =
+    Uncompiled "bind_input"
+
+  let bind_checkbox ~signal:_ ~setter:_ : 'a t =
+    Uncompiled "bind_checkbox"
+
+  let bind_select ~signal:_ ~setter:_ : 'a t =
+    Uncompiled "bind_select"
+
   let nodes (_thunk : unit -> 'a) : 'a t =
     Uncompiled "nodes"
 
   let show ~when_:_ (_render : unit -> 'a) : 'a t =
     Uncompiled "show"
 
+  let show_when ~when_:_ (_render : unit -> 'a) : 'a t =
+    Uncompiled "show_when"
+
+  let if_ ~when_:_ ~then_:_ ~else_:_ : 'a t =
+    Uncompiled "if_"
+
+  let switch ~match_:_ ~cases:_ : 'b t =
+    Uncompiled "switch"
+
   let each_keyed ~items:_ ~key:_ ~render:_ : 'b t =
     Uncompiled "each_keyed"
+
+  let each ~items:_ ~render:_ : 'b t =
+    Uncompiled "each"
+
+  let eachi ~items:_ ~render:_ : 'b t =
+    Uncompiled "eachi"
+
+  let each_indexed ~items:_ ~render:_ : 'b t =
+    Uncompiled "each_indexed"
 
   let unreachable (type a) (v : a t) : a =
     match v with

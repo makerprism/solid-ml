@@ -341,6 +341,16 @@ These are design differences, not missing features. See [SolidJS compatibility i
 
 On the server, solid-ml generates complete HTML strings. There's no incremental rendering or streaming (yet).
 
+### 1.1 List Reconciliation Semantics
+
+solid-ml template lists map to SolidJS list helpers:
+
+- `Tpl.each` and `Tpl.eachi` reconcile by index (value-based render, nodes may be replaced on change).
+- `Tpl.each_indexed` reconciles by index with accessors (SolidJS `<Index>`).
+- `Tpl.each_keyed` reconciles by key (SolidJS `<For>`). Ownership follows key.
+
+If you need stable per-item identity across inserts/removals, use `Tpl.each_keyed` with a durable key.
+
 ### 2. Structural Equality by Default
 
 Signals use structural equality (`=`) by default, which is safe but may be slow for large data structures.

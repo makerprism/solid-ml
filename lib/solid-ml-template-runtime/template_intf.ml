@@ -99,6 +99,21 @@ module type TEMPLATE = sig
   val set_attr : element -> name:string -> string option -> unit
   (** Set or remove an attribute on an element. *)
 
+  val run_updates : (unit -> 'a) -> 'a
+  (** Execute a function and flush reactive updates. *)
+
+  val set_value : element -> string -> unit
+  (** Set the element's value property (input/textarea/select). *)
+
+  val get_value : element -> string
+  (** Read the element's current value property. *)
+
+  val set_checked : element -> bool -> unit
+  (** Set the element's checked property (checkbox/radio). *)
+
+  val get_checked : element -> bool
+  (** Read the element's current checked property. *)
+
   val on_ : element -> event:string -> (event -> unit) -> unit
   (** Attach an event handler.
 
@@ -119,4 +134,21 @@ module type TEMPLATE = sig
 
       Note: disposal of per-item reactive resources is managed by the caller
       (typically the template compiler) via the owner tree. *)
+
+  val set_nodes_indexed :
+    nodes_slot -> render:(int -> 'a -> node * (unit -> unit)) -> 'a list -> unit
+  (** Set a nodes region to an index-keyed list.
+
+      Browser backends should reconcile DOM nodes by index. This mirrors SolidJS's
+      <Index> behavior where each position retains ownership. *)
+
+  val set_nodes_indexed_accessors :
+    nodes_slot
+    -> items:(unit -> 'a list)
+    -> render:(index:(unit -> int) -> item:(unit -> 'a) -> node * (unit -> unit))
+    -> unit
+  (** Set a nodes region to an index-keyed list with accessors.
+
+      Each index retains ownership and receives accessor functions that update
+      when the backing list changes, matching SolidJS <Index> semantics. *)
 end

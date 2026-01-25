@@ -51,11 +51,14 @@ type owner = Internal.Types.owner
 type computation = Internal.Types.computation
 type 'a context = 'a R.context
 
+
 (** {1 Signal API} *)
 
 let create_signal = R.create_typed_signal
-let get_signal = R.read_typed_signal
-let set_signal = R.write_typed_signal
+let get_signal (type a) (signal : a signal) : a =
+  R.read_typed_signal signal
+let set_signal (type a) (signal : a signal) (value : a) : unit =
+  R.write_typed_signal signal value
 let peek_signal = R.peek_typed_signal
 let update_signal s f = set_signal s (f (peek_signal s))
 
@@ -77,6 +80,20 @@ let peek_memo = R.peek_typed_memo
 let on_cleanup = R.on_cleanup
 let get_owner = R.get_owner
 
+let with_owner (owner : owner option) (fn : unit -> 'a) : 'a =
+  match R.get_runtime_opt () with
+  | None -> fn ()
+  | Some rt ->
+    let prev_owner = rt.Internal.Types.owner in
+    rt.owner <- owner;
+    match fn () with
+    | value ->
+      rt.owner <- prev_owner;
+      value
+    | exception exn ->
+      rt.owner <- prev_owner;
+      raise exn
+
 let create_root f =
   (* Ensure we have a runtime.
      
@@ -97,6 +114,20 @@ let run_with_owner = create_root
 (** {1 Batch API} *)
 
 let batch fn = R.run_updates fn false
+
+let run_updates fn = R.run_updates fn false
+
+let run_updates_nested fn =
+  match R.get_runtime_opt () with
+  | None -> R.run_updates fn false
+  | Some rt ->
+    if rt.Internal.Types.in_update then (
+      rt.in_update <- false;
+      let res = R.run_updates fn false in
+      rt.in_update <- true;
+      res)
+    else
+      R.run_updates fn false
 
 (** {1 Context API} *)
 

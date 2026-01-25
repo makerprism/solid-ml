@@ -189,9 +189,21 @@ module type TPL = sig
   val attr_opt : name:string -> (unit -> string option) -> 'a t
   val class_list : (unit -> (string * bool) list) -> 'a t
   val on : event:string -> ('ev -> unit) -> ('ev -> unit) t
+  val bind_input : signal:(unit -> string) -> setter:(string -> unit) -> 'a t
+  val bind_checkbox : signal:(unit -> bool) -> setter:(bool -> unit) -> 'a t
+  val bind_select : signal:(unit -> string) -> setter:(string -> unit) -> 'a t
   val nodes : (unit -> 'a) -> 'a t
   val show : when_:(unit -> bool) -> (unit -> 'a) -> 'a t
+  val show_when : when_:(unit -> bool) -> (unit -> 'a) -> 'a t
+  val if_ : when_:(unit -> bool) -> then_:(unit -> 'a) -> else_:(unit -> 'a) -> 'a t
+  val switch : match_:(unit -> 'a) -> cases:(('a -> bool) * (unit -> 'b)) array -> 'b t
   val each_keyed : items:(unit -> 'a list) -> key:('a -> string) -> render:('a -> 'b) -> 'b t
+  val each : items:(unit -> 'a list) -> render:('a -> 'b) -> 'b t
+  val eachi : items:(unit -> 'a list) -> render:(int -> 'a -> 'b) -> 'b t
+  val each_indexed :
+    items:(unit -> 'a list)
+    -> render:(index:(unit -> int) -> item:(unit -> 'a) -> 'b)
+    -> 'b t
   val unreachable : 'a t -> 'a
 end
 

@@ -1,5 +1,7 @@
 open Solid_ml_browser
 module Signal = Reactive.Signal
+module Effect = Solid_ml_browser.Env.Effect
+module Owner = Solid_ml_browser.Env.Owner
 open Dom
 
 module H = Html
@@ -668,6 +670,155 @@ let test_keyed_updates_on_value_change () =
   if !disposed <> 1 then
     fail ("keyed update: expected dispose count 1, got " ^ string_of_int !disposed)
 
+let test_keyed_identity_preserved () =
+  let template =
+    T.compile
+      ~segments:[| "<div><!--$-->"; "<!--$--></div>" |]
+      ~slot_kinds:[| `Nodes |]
+  in
+  let inst = T.instantiate template in
+  let slot = T.bind_nodes inst ~id:0 ~path:[| 1 |] in
+  let render (item : keyed_test_item) =
+    (H.span ~children:[ H.text item.label ] (), fun () -> ())
+  in
+  let items1 = [ { id = "a"; label = "Alpha" }; { id = "b"; label = "Beta" } ] in
+  let items2 = [ { id = "x"; label = "Xray" } ] @ items1 in
+  T.set_nodes_keyed slot ~key:(fun item -> item.id) ~render items1;
+  let first_el, second_el =
+    match T.root inst with
+    | H.Element el ->
+      let children = node_child_nodes (node_of_element el) in
+      let elements =
+        Array.fold_left
+          (fun acc node ->
+            if is_element node then element_of_node node :: acc else acc)
+          []
+          children
+        |> List.rev
+      in
+      (match elements with
+       | first :: second :: _ -> (first, second)
+       | _ -> fail "keyed identity: expected at least two elements")
+    | _ -> fail "keyed identity: expected Template.root to be an Element"
+  in
+  T.set_nodes_keyed slot ~key:(fun item -> item.id) ~render items2;
+  (match T.root inst with
+   | H.Element el ->
+     let children = node_child_nodes (node_of_element el) in
+     let elements =
+       Array.fold_left
+         (fun acc node ->
+           if is_element node then element_of_node node :: acc else acc)
+         []
+         children
+       |> List.rev
+     in
+     (match elements with
+      | _new :: first :: second :: _ ->
+        if first != first_el then fail "keyed identity: first element changed";
+        if second != second_el then fail "keyed identity: second element changed"
+      | _ -> fail "keyed identity: expected at least three elements")
+   | _ -> fail "keyed identity: expected Template.root to be an Element")
+
+let test_indexed_updates_by_position () =
+  let template =
+    T.compile
+      ~segments:[| "<div><!--$-->"; "<!--$--></div>" |]
+      ~slot_kinds:[| `Nodes |]
+  in
+  let inst = T.instantiate template in
+  let slot = T.bind_nodes inst ~id:0 ~path:[| 1 |] in
+  let render _idx item = (H.span ~children:[ H.text item ] (), fun () -> ()) in
+  T.set_nodes_indexed slot ~render [ "A"; "B" ];
+  (match T.root inst with
+   | H.Element el -> assert_eq ~name:"indexed initial" (get_text_content el) "AB"
+   | _ -> fail "indexed: expected Template.root to be an Element");
+  T.set_nodes_indexed slot ~render [ "Z"; "A"; "B" ];
+  (match T.root inst with
+   | H.Element el -> assert_eq ~name:"indexed update" (get_text_content el) "ZAB"
+   | _ -> fail "indexed: expected Template.root to be an Element")
+
+let test_indexed_accessors_update () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+  let items, set_items = Signal.create [ "A"; "B" ] in
+  let dispose =
+    Render.render root (fun () ->
+      Html.div
+        ~children:
+          [ Solid_ml_template_runtime.Tpl.each_indexed
+              ~items:(fun () -> Signal.get items)
+              ~render:(fun ~index ~item ->
+                Html.span
+                  ~children:
+                    [ Html.text (string_of_int (index ()) ^ ":" ^ item ()) ]
+                  ()) ]
+        ())
+  in
+  let first_el, second_el =
+    let root_children = node_child_nodes (node_of_element root) in
+    let container =
+      Array.fold_left
+        (fun acc node ->
+          match acc with
+          | Some _ -> acc
+          | None -> if is_element node then Some (element_of_node node) else None)
+        None
+        root_children
+    in
+    let container =
+      match container with
+      | Some el -> el
+      | None -> fail "indexed accessors: missing container element"
+    in
+    let children = node_child_nodes (node_of_element container) in
+    let elements =
+      Array.fold_left
+        (fun acc node ->
+          if is_element node then element_of_node node :: acc else acc)
+        []
+        children
+      |> List.rev
+    in
+    (match elements with
+     | first :: second :: _ -> (first, second)
+     | _ -> fail "indexed accessors: expected at least two elements")
+  in
+  assert_eq ~name:"indexed accessors initial" (get_text_content root) "0:A1:B";
+  set_items [ "X"; "Y" ];
+  assert_eq ~name:"indexed accessors update" (get_text_content root) "0:X1:Y";
+  let root_children = node_child_nodes (node_of_element root) in
+  let container =
+    Array.fold_left
+      (fun acc node ->
+        match acc with
+        | Some _ -> acc
+        | None -> if is_element node then Some (element_of_node node) else None)
+      None
+      root_children
+  in
+  let container =
+    match container with
+    | Some el -> el
+    | None -> fail "indexed accessors: missing container element"
+  in
+  let children = node_child_nodes (node_of_element container) in
+  let elements =
+    Array.fold_left
+      (fun acc node ->
+        if is_element node then element_of_node node :: acc else acc)
+      []
+      children
+    |> List.rev
+  in
+  (match elements with
+   | first :: second :: _ ->
+     if first != first_el then fail "indexed accessors: first element changed";
+     if second != second_el then fail "indexed accessors: second element changed"
+   | _ -> fail "indexed accessors: expected at least two elements");
+  dispose ()
+
 let test_multiple_hydration_contexts_isolated () =
   (* Verify that multiple Render.hydrate contexts don't interfere with each other *)
   let template =
@@ -902,6 +1053,9 @@ let () =
     test_compiled_nested_intrinsic_formatting ();
     test_text_slot_static_suffix_preserved ();
     test_keyed_updates_on_value_change ();
+    test_keyed_identity_preserved ();
+    test_indexed_updates_by_position ();
+    test_indexed_accessors_update ();
     test_multiple_hydration_contexts_isolated ();
     test_cleanup_removes_listeners ();
     test_state_hydration ();

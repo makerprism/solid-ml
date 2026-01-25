@@ -184,6 +184,30 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
     let value_opt = Option.map escape_html value_opt in
     update_attrs_by_path el.inst ~path:el.path ~name value_opt
 
+  let run_updates fn =
+    match Solid_ml.Reactive.get_runtime_opt () with
+    | None -> fn ()
+    | Some rt ->
+      if rt.Solid_ml_internal.Types.in_update then (
+        rt.in_update <- false;
+        let res = Solid_ml.Reactive.run_updates fn false in
+        rt.in_update <- true;
+        res)
+      else
+        Solid_ml.Reactive.run_updates fn false
+
+  let set_value (el : element) (value : string) =
+    set_attr el ~name:"value" (Some value)
+
+  let get_value (_el : element) : string =
+    ""
+
+  let set_checked (el : element) (value : bool) =
+    if value then set_attr el ~name:"checked" (Some "") else set_attr el ~name:"checked" None
+
+  let get_checked (_el : element) : bool =
+    false
+
   let on_ (_el : element) ~event:_ _ = ()
   let off_ (_el : element) ~event:_ _ = ()
 
@@ -215,6 +239,35 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
       List.map2 (fun item child -> wrap_keyed (key item) child) items children
     in
     set_nodes slot (Fragment keyed_children)
+
+  let set_nodes_indexed (slot : nodes_slot) ~render items =
+    let children, disposers =
+      List.split (List.mapi (fun idx item -> render idx item) items)
+    in
+    List.iter (fun d -> d ()) disposers;
+
+    let encode_key (s : string) : string =
+      let buf = Buffer.create (String.length s * 2) in
+      String.iter (fun c -> Buffer.add_string buf (Printf.sprintf "%02x" (Char.code c))) s;
+      Buffer.contents buf
+    in
+    let wrap_keyed (k : string) (n : node) : node =
+      let k_enc = encode_key k in
+      Fragment [ Raw ("<!--k:" ^ k_enc ^ "-->"); n; Raw "<!--/k-->" ]
+    in
+    let keyed_children =
+      List.mapi (fun idx child -> wrap_keyed (string_of_int idx) child) children
+    in
+    set_nodes slot (Fragment keyed_children)
+
+  let set_nodes_indexed_accessors slot ~items ~render =
+    let items_arr = Array.of_list (items ()) in
+    let indices = List.init (Array.length items_arr) (fun i -> i) in
+    let render_idx idx =
+      let item = items_arr.(idx) in
+      run_updates (fun () -> render ~index:(fun () -> idx) ~item:(fun () -> item))
+    in
+    set_nodes_keyed slot ~key:string_of_int ~render:render_idx indices
 
 
   type frame = {

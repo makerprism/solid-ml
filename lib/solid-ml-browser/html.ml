@@ -53,11 +53,19 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
     mutable order : string list;
   }
 
+  type indexed_accessor_state = {
+    tick_signal : int Reactive_core.signal;
+    tick_setter : int -> unit;
+    mutable tick_value : int;
+    mutable started : bool;
+  }
+
   type nodes_slot = {
     parent : Dom.element;
     opening : Dom.node;
     closing : Dom.node;
     keyed : keyed_state option ref;
+    indexed_accessors : indexed_accessor_state option ref;
   }
 
   type element = Dom.element
@@ -358,7 +366,7 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
     if opening_idx < 0 then
       invalid_arg "Solid_ml_browser.Html.Internal_template.bind_nodes: could not find opening <!--$--> marker";
     let opening = children.(opening_idx) in
-    { parent; opening; closing; keyed = ref None }
+    { parent; opening; closing; keyed = ref None; indexed_accessors = ref None }
 
   let set_nodes (slot : nodes_slot) (value : node) : unit =
     (* Clear keyed state: we are no longer managing this region as a keyed list. *)
@@ -371,8 +379,11 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
            | None -> ()
            | Some item -> item.dispose ())
          st.order;
-       Dom.js_map_clear st.map;
-       slot.keyed := None);
+        Dom.js_map_clear st.map;
+        slot.keyed := None);
+    (match !(slot.indexed_accessors) with
+     | None -> ()
+     | Some _ -> slot.indexed_accessors := None);
     (* Remove everything between markers. *)
     let rec clear_between () =
       match node_next_sibling slot.opening with
@@ -415,13 +426,33 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
     | Some v -> set_attribute el name v
     | None -> remove_attribute el name
 
+  let run_updates fn =
+    Reactive_core.run_updates_nested fn
+
+  let set_value (el : element) (value : string) =
+    element_set_value el value
+
+  let get_value (el : element) : string =
+    element_value el
+
+  let set_checked (el : element) (value : bool) =
+    element_set_checked el value
+
+  let get_checked (el : element) : bool =
+    element_checked el
+
   let on_ (el : element) ~event handler =
     add_event_listener el event handler
 
   let off_ (el : element) ~event handler =
     remove_event_listener el event handler
 
-  let set_nodes_keyed (slot : nodes_slot) ~key ~(render : 'a -> node * (unit -> unit)) (items : 'a list) : unit =
+  let set_nodes_keyed_internal ~clear_indexed (slot : nodes_slot) ~key
+      ~(render : 'a -> node * (unit -> unit)) (items : 'a list) : unit =
+    if clear_indexed then
+      (match !(slot.indexed_accessors) with
+       | None -> ()
+       | Some _ -> slot.indexed_accessors := None);
     let state, is_new_state =
       match !(slot.keyed) with
       | Some s -> (s, false)
@@ -670,6 +701,82 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
       new_keys;
 
     state.order <- new_keys
+
+  let set_nodes_keyed (slot : nodes_slot) ~key ~(render : 'a -> node * (unit -> unit))
+      (items : 'a list)
+      : unit =
+    set_nodes_keyed_internal ~clear_indexed:true slot ~key ~render items
+
+  let set_nodes_indexed (slot : nodes_slot) ~(render : int -> 'a -> node * (unit -> unit)) (items : 'a list) : unit =
+    let indexed = List.mapi (fun idx item -> (idx, item)) items in
+    set_nodes_keyed slot
+      ~key:(fun (idx, _item) -> string_of_int idx)
+      ~render:(fun (idx, item) -> render idx item)
+      indexed
+
+  let empty_indexed_state () =
+    let tick_signal = Reactive_core.create_signal 0 in
+    let tick_setter v = Reactive_core.set_signal tick_signal v in
+    { tick_signal; tick_setter; tick_value = 0; started = false }
+
+  let set_nodes_indexed_accessors (type a)
+      (slot : nodes_slot)
+      ~(items : unit -> a list)
+      ~(render : index:(unit -> int) -> item:(unit -> a) -> node * (unit -> unit))
+    : unit =
+    let first_time = Option.is_none !(slot.indexed_accessors) in
+    if first_time then
+      (match !(slot.keyed) with
+       | None -> ()
+       | Some st ->
+         List.iter
+           (fun k ->
+             match Dom.js_map_get_opt st.map k with
+             | None -> ()
+             | Some item -> item.dispose ())
+           st.order;
+         Dom.js_map_clear st.map;
+         slot.keyed := None);
+
+    let state =
+      match !(slot.indexed_accessors) with
+      | Some s -> s
+      | None ->
+        let s = empty_indexed_state () in
+        slot.indexed_accessors := Some s;
+        s
+    in
+
+    let stable_owner = Reactive_core.get_owner () in
+
+    let update_items items_list =
+      let new_len = List.length items_list in
+      let items_idx = List.init new_len (fun i -> i) in
+      let render_index idx =
+        let index_accessor () = idx in
+        let item_accessor () =
+          ignore (Reactive_core.get_signal state.tick_signal);
+          let items_now = items () in
+          List.nth items_now idx
+        in
+        render ~index:index_accessor ~item:item_accessor
+      in
+      Reactive_core.with_owner stable_owner (fun () ->
+          set_nodes_keyed_internal ~clear_indexed:false slot
+            ~key:(fun idx -> string_of_int idx)
+            ~render:render_index
+            items_idx);
+      state.tick_value <- state.tick_value + 1;
+      state.tick_setter state.tick_value
+    in
+
+    if not state.started then (
+      state.started <- true;
+      Reactive_core.create_effect (fun () ->
+          update_items (items ()));
+      Reactive_core.on_cleanup (fun () -> set_nodes slot Empty));
+
+    slot.indexed_accessors := Some state
 
 end
 

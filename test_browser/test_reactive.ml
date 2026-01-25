@@ -18,6 +18,25 @@ open Reactive_core
 (* Test helpers *)
 external console_log : string -> unit = "log" [@@mel.scope "console"]
 
+let make_fake_element () : Dom.element =
+  [%mel.raw
+    {|
+      ({
+        value: "",
+        checked: false,
+        _handlers: {},
+        addEventListener: function(name, handler){ this._handlers[name] = handler; },
+        removeEventListener: function(name){ delete this._handlers[name]; },
+        fire: function(name){
+          if (this._handlers[name]) {
+            this._handlers[name]({ target: this });
+          }
+        }
+      })
+    |}]
+
+external fire_event : Dom.element -> string -> unit = "fire" [@@mel.send]
+
 let passed = ref 0
 let failed = ref 0
 
@@ -237,6 +256,39 @@ let test_context_nesting () =
     )
   )
 
+(* ============ DOM Bindings Tests ============ *)
+
+let test_bind_input () =
+  test "Reactive.bind_input syncs value" (fun () ->
+    with_runtime (fun () ->
+      let el = make_fake_element () in
+      let signal = create_signal "A" in
+      Reactive.bind_input el signal (fun v -> set_signal signal v);
+      assert_eq (Dom.element_value el) "A";
+      Dom.element_set_value el "B";
+      fire_event el "input";
+      assert_eq (get_signal signal) "B";
+      set_signal signal "C";
+      assert_eq (Dom.element_value el) "C"
+    )
+  )
+
+let test_bind_checkbox () =
+  test "Reactive.bind_checkbox syncs checked" (fun () ->
+    with_runtime (fun () ->
+      let el = make_fake_element () in
+      let signal = create_signal false in
+      Reactive.bind_checkbox el signal (fun v -> set_signal signal v);
+      assert_true (Dom.element_checked el = false);
+      Dom.element_set_checked el true;
+      fire_event el "change";
+      assert_true (get_signal signal);
+      set_signal signal false;
+      assert_true (Dom.element_checked el = false)
+    )
+  )
+
+
 (* ============ Batch Tests ============ *)
 
 let test_batch_updates () =
@@ -311,7 +363,11 @@ let () =
   
   console_log "\n-- Batch Tests --";
   test_batch_updates ();
-  
+
+  console_log "\n-- DOM Binding Tests --";
+  test_bind_input ();
+  test_bind_checkbox ();
+
   console_log "\n-- Integration Tests --";
   test_diamond ();
   

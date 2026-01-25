@@ -47,6 +47,20 @@ module C (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
               [ Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get label) ]
             () ]
       ()
+
+  let render_div_dynamic_class ~class_name () =
+    Html.div
+      ~class_:(Signal.get class_name)
+      ~children:[ Html.text "X" ]
+      ()
+
+  let render_input_bind ~value () =
+    Html.input
+      ~value:
+        (Solid_ml_template_runtime.Tpl.bind_input
+           ~signal:(fun () -> Signal.get value)
+           ~setter:(fun _ -> ()))
+      ()
 end
 
 let () =
@@ -101,5 +115,21 @@ let () =
       R.render_div_prefix_then_link ~prefix ~href:href2 ~label:label2 ())
   in
   assert (nested_after_empty_text = "<div><!--#--><!--#--><a href=\"/p\"><!--#-->X<!--#--></a></div>");
+
+  let class_name, _set_class_name = Solid_ml_ssr.Env.Signal.create "hot" in
+  let dynamic_class_html =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module R = C (Solid_ml_ssr.Env) in
+      R.render_div_dynamic_class ~class_name ())
+  in
+  assert (dynamic_class_html = "<div class=\"hot\">X</div>");
+
+  let value, _set_value = Solid_ml_ssr.Env.Signal.create "Hello" in
+  let bind_html =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module R = C (Solid_ml_ssr.Env) in
+      R.render_input_bind ~value ())
+  in
+  assert (bind_html = "<input value=\"Hello\"></input>");
 
   print_endline "  PASSED"
