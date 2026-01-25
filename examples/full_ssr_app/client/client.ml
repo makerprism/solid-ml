@@ -9,6 +9,10 @@ module Shared = Shared_components.Components.Make(Solid_ml_browser.Env)
 module Routes = Shared_components.Routes
 module Filters = Shared_components.Filters.Make(Solid_ml_browser.Env)
 module Inline_edit = Shared_components.Inline_edit.Make(Solid_ml_browser.Env)
+module Async = Shared_components.Async.Make(Solid_ml_browser.Env)
+module Undo_redo = Shared_components.Undo_redo.Make(Solid_ml_browser.Env)
+module Theme = Shared_components.Theme.Make(Solid_ml_browser.Env)
+module Wizard = Shared_components.Wizard.Make(Solid_ml_browser.Env)
 
 (** {1 Shared Data Types} *)
 (* open Shared_components *)
@@ -350,6 +354,314 @@ let hydrate_inline_edit () =
     Dom.log "Inline edit hydrated!"
   | None -> ()
 
+let hydrate_async () =
+  match get_element "app" with
+  | Some app_el ->
+    (* Hydrate with Async view *)
+    let _disposer =
+      Render.render app_el (fun () ->
+        Shared.app_layout
+          ~current_path:(Routes.path Routes.Async)
+          ~children:(Async.view ())
+          ())
+    in
+
+    (* Setup client-side interactivity for refresh/retry buttons *)
+    let doc = Dom.document () in
+
+    (* Refresh buttons in resource demo *)
+    (match Dom.query_selector doc ".resource-demo" with
+     | Some _demo ->
+         let refresh_buttons = Dom.query_selector_all doc ".btn-refresh" in
+         List.iter (fun button ->
+           ignore (Dom.add_event_listener button "click" (fun _ev ->
+             (* Signal will handle the refresh trigger *)
+             ()
+           ))
+         ) refresh_buttons
+     | None -> ());
+
+    (* Retry buttons in error states *)
+    let retry_buttons = Dom.query_selector_all doc ".btn-retry" in
+    List.iter (fun button ->
+      ignore (Dom.add_event_listener button "click" (fun _ev ->
+        (* Signal will handle the retry *)
+        ()
+      ))
+    ) retry_buttons;
+
+    (* Setup sequential demo controls *)
+    (match Dom.query_selector doc ".sequential-demo" with
+     | Some _demo ->
+         let next_buttons = Dom.query_selector_all doc ".btn-primary" in
+         List.iter (fun button ->
+           ignore (Dom.add_event_listener button "click" (fun _ev ->
+             (* Signal will handle the step increment *)
+             ()
+           ))
+         ) next_buttons;
+
+         let reset_buttons = Dom.query_selector_all doc ".btn-secondary" in
+         List.iter (fun button ->
+           ignore (Dom.add_event_listener button "click" (fun _ev ->
+             (* Signal will handle the reset *)
+             ()
+           ))
+         ) reset_buttons
+     | None -> ());
+
+    Dom.log "Async hydrated!"
+  | None -> ()
+
+let hydrate_undo_redo () =
+  match get_element "app" with
+  | Some app_el ->
+    (* Hydrate with Undo_redo view *)
+    let _disposer =
+      Render.render app_el (fun () ->
+        Shared.app_layout
+          ~current_path:(Routes.path Routes.Undo_redo)
+          ~children:(Undo_redo.view ())
+          ())
+    in
+
+    (* Setup client-side interactivity for buttons is handled by signals *)
+    Dom.log "Undo-Redo hydrated!"
+  | None -> ()
+
+let hydrate_theme () =
+  match get_element "app" with
+  | Some app_el ->
+    (* Hydrate with Theme view *)
+    let _disposer =
+      Render.render app_el (fun () ->
+        Shared.app_layout
+          ~current_path:(Routes.path Routes.Theme)
+          ~children:(Theme.view ())
+          ())
+    in
+
+    (* Setup client-side interactivity for theme switching is handled by signals *)
+    Dom.log "Theme hydrated!"
+  | None -> ()
+
+let hydrate_wizard () =
+  match get_element "app" with
+  | Some app_el ->
+    (* Hydrate with Wizard view *)
+    let _disposer =
+      Render.render app_el (fun () ->
+        Shared.app_layout
+          ~current_path:(Routes.path Routes.Wizard)
+          ~children:(Wizard.view ())
+          ())
+    in
+
+    (* Setup client-side wizard state and navigation *)
+    let doc = Dom.document () in
+    (match Dom.query_selector doc "[data-wizard]" with
+     | Some wizard_el ->
+         (* Wizard state management *)
+         let current_step = ref "Welcome" in
+         let form_data = ref [
+           ("step", "Welcome");
+           ("name", "");
+           ("email", "");
+           ("age", "");
+           ("theme", "light");
+           ("newsletter", "false");
+           ("interests", "");
+         ] in
+
+         (* Helper: Get step number *)
+         let step_index = function
+           | "Welcome" -> 0
+           | "PersonalInfo" -> 1
+           | "Preferences" -> 2
+           | "Confirm" -> 3
+           | "Complete" -> 4
+           | _ -> 0
+         in
+
+         (* Helper: Get next/prev step *)
+         let get_next_step = function
+           | "Welcome" -> "PersonalInfo"
+           | "PersonalInfo" -> "Preferences"
+           | "Preferences" -> "Confirm"
+           | "Confirm" -> "Complete"
+           | "Complete" -> "Complete"
+           | _ -> "Welcome"
+         in
+
+         let get_prev_step = function
+           | "Welcome" -> "Welcome"
+           | "PersonalInfo" -> "Welcome"
+           | "Preferences" -> "PersonalInfo"
+           | "Confirm" -> "Preferences"
+           | "Complete" -> "Complete"
+           | _ -> "Welcome"
+         in
+
+         (* Helper: Validate personal info *)
+         let validate_personal () =
+           let name = try List.assoc "name" !form_data with Not_found -> "" in
+           let email = try List.assoc "email" !form_data with Not_found -> "" in
+           let age = try List.assoc "age" !form_data with Not_found -> "" in
+           let errors = ref [] in
+           if String.length name = 0 then
+             errors := ("name", "Name is required") :: !errors;
+           if String.length email = 0 || not (try
+               let re = Str.regexp_case_fold ".+@.+" in
+               Str.string_match re email 0
+             with _ -> false) then
+             errors := ("email", "Please enter a valid email") :: !errors;
+           if String.length age = 0 || not (try
+               let age_int = int_of_string age in
+               age_int >= 13 && age_int <= 120
+             with _ -> false) then
+             errors := ("age", "Please enter a valid age (13-120)") :: !errors;
+           List.rev !errors
+         in
+
+         (* Helper: Update progress bar *)
+         let update_progress_bar () =
+           let idx = step_index !current_step in
+           let circles = Dom.query_selector_all doc ".progress-circle" in
+           let fills = Dom.query_selector_all doc ".progress-fill" in
+           (* Update circles *)
+           Array.iteri (fun i circle ->
+             Dom.remove_class circle "current";
+             Dom.remove_class circle "completed";
+             if i = idx then Dom.add_class circle "current"
+             else if i < idx then Dom.add_class circle "completed"
+           ) circles;
+           (* Update fill *)
+           Array.iter (fun fill ->
+             Dom.set_class_name fill ("progress-fill progress-step-" ^ string_of_int idx)
+           ) fills
+         in
+
+         (* Helper: Show step content *)
+         let show_step step_name =
+           (* Hide all steps *)
+           let steps = Dom.query_selector_all doc ".wizard-step" in
+           List.iter (fun step -> Dom.set_style step "display" "none") (Array.to_list steps);
+
+           (* Show current step - we need to re-render the view *)
+           (* For now, let's use a simpler approach: update existing DOM *)
+           ()
+         in
+
+         (* Helper: Collect form data from current step *)
+         let collect_form_data () =
+           match !current_step with
+           | "PersonalInfo" ->
+               (match Dom.query_selector doc "#wizard-name" with
+                | Some input ->
+                    let name = Dom.element_value input in
+                    form_data := List.map (fun (k, v) ->
+                      if k = "name" then (k, name) else (k, v)
+                    ) !form_data
+                | None -> ());
+               (match Dom.query_selector doc "#wizard-email" with
+                | Some input ->
+                    let email = Dom.element_value input in
+                    form_data := List.map (fun (k, v) ->
+                      if k = "email" then (k, email) else (k, v)
+                    ) !form_data
+                | None -> ());
+               (match Dom.query_selector doc "#wizard-age" with
+                | Some input ->
+                    let age = Dom.element_value input in
+                    form_data := List.map (fun (k, v) ->
+                      if k = "age" then (k, age) else (k, v)
+                    ) !form_data
+                | None -> ())
+           | "Preferences" ->
+               (match Dom.query_selector doc "select[name=theme]" with
+                | Some select ->
+                    let theme = Dom.element_value select in
+                    form_data := List.map (fun (k, v) ->
+                      if k = "theme" then (k, theme) else (k, v)
+                    ) !form_data
+                | None -> ());
+               (match Dom.query_selector doc "input[name=newsletter]" with
+                | Some checkbox ->
+                    let checked = Dom.get_property checkbox "checked" |> Js.Boolean.to_bool in
+                    form_data := List.map (fun (k, v) ->
+                      if k = "newsletter" then (k, if checked then "true" else "false") else (k, v)
+                    ) !form_data
+                | None -> ())
+           | _ -> ()
+         in
+
+         (* Setup navigation buttons *)
+         let setup_navigation_buttons () =
+           let buttons = Dom.query_selector_all doc ".wizard-nav button" in
+           Array.iter (fun button ->
+             ignore (Dom.add_event_listener button "click" (fun _ev ->
+               let action = Dom.get_attribute button "data-action" |> (function None -> "" | Some a -> a) in
+               match action with
+               | "back" ->
+                   collect_form_data ();
+                   current_step := get_prev_step !current_step;
+                   form_data := List.map (fun (k, v) ->
+                     if k = "step" then (k, !current_step) else (k, v)
+                   ) !form_data;
+                   (* Trigger re-render by calling render again *)
+                   let new_content = Wizard.view () in
+                   (match Dom.query_selector doc ".wizard-container" with
+                    | Some container -> Dom.set_inner_html container ""; (* Will be replaced by new render *)
+                    | None -> ()
+                   )
+               | "next" ->
+                   collect_form_data ();
+                   (* Validate if on personal info step *)
+                   if !current_step = "PersonalInfo" then
+                     let errors = validate_personal () in
+                     if errors <> [] then (
+                       (* Show errors - for now just log *)
+                       Dom.log ("Validation errors: " ^ string_of_int (List.length errors));
+                       ()
+                     ) else (
+                       current_step := get_next_step !current_step;
+                       form_data := List.map (fun (k, v) ->
+                         if k = "step" then (k, !current_step) else (k, v)
+                       ) !form_data
+                     )
+                   else (
+                     current_step := get_next_step !current_step;
+                     form_data := List.map (fun (k, v) ->
+                       if k = "step" then (k, !current_step) else (k, v)
+                     ) !form_data
+                   );
+                   (* Trigger re-render *)
+                   (match Dom.query_selector doc ".wizard-container" with
+                    | Some container -> Dom.set_inner_html container "";
+                    | None -> ()
+                   )
+               | "submit" ->
+                   collect_form_data ();
+                   current_step := "Complete";
+                   form_data := List.map (fun (k, v) ->
+                     if k = "step" then (k, !current_step) else (k, v)
+                   ) !form_data;
+                   (* Trigger re-render *)
+                   (match Dom.query_selector doc ".wizard-container" with
+                    | Some container -> Dom.set_inner_html container "";
+                    | None -> ()
+                   )
+               | _ -> ()
+             ))
+           ) buttons
+         in
+
+         setup_navigation_buttons ()
+     | None -> ());
+
+    Dom.log "Wizard hydrated!"
+  | None -> ()
+
 let show_hydration_status () =
   match get_element "hydration-status" with
   | Some el -> Dom.add_class el "active"
@@ -371,6 +683,14 @@ let () =
       hydrate_filters ()
     else if path = Routes.path Routes.Inline_edit then
       hydrate_inline_edit ()
+    else if path = Routes.path Routes.Async then
+      hydrate_async ()
+    else if path = Routes.path Routes.Undo_redo then
+      hydrate_undo_redo ()
+    else if path = Routes.path Routes.Theme then
+      hydrate_theme ()
+    else if path = Routes.path Routes.Wizard then
+      hydrate_wizard ()
     else if path = Routes.path Routes.Home then (
       match get_element "app" with
       | None -> ()

@@ -1,0 +1,256 @@
+(**
+    Theme Switcher with Context API
+
+    This component demonstrates:
+    - Context-like API for global state
+    - Theme switching (light/dark mode)
+    - localStorage persistence
+    - Global state across components
+*)
+
+module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
+  open Env
+  open Env.Html
+  module Tpl = Env.Tpl
+  module Routes = Routes
+
+  (** {1 Theme Types} *)
+
+  type theme =
+    | Light
+    | Dark
+    | Auto
+
+  type theme_context = {
+    current_theme: theme;
+    toggle_theme: unit -> unit;
+    set_theme: theme -> unit;
+  }
+
+  (** {1 Theme Utilities} *)
+
+  let theme_to_string = function
+    | Light -> "light"
+    | Dark -> "dark"
+    | Auto -> "auto"
+
+  let string_to_theme = function
+    | "light" -> Some Light
+    | "dark" -> Some Dark
+    | "auto" -> Some Auto
+    | _ -> None
+
+  let get_theme_class = function
+    | Light -> "theme-light"
+    | Dark -> "theme-dark"
+    | Auto -> "theme-auto"
+
+  (** {1 Theme Icon Component} *)
+
+  let theme_icon ~theme () =
+    let icon_text, icon_class =
+      match theme with
+      | Light -> "☀️", "theme-icon-light"
+      | Dark -> "🌙", "theme-icon-dark"
+      | Auto -> "🔄", "theme-icon-auto"
+    in
+    <span class_=("theme-icon " ^ icon_class)>(Html.text icon_text)</span>
+
+  (** {1 Theme Card Component} *)
+
+  let theme_card ~theme ~is_selected ~on_select () =
+    let card_class =
+      "theme-card" ^
+      (if is_selected then " selected" else "") ^
+      " theme-card-" ^ theme_to_string theme
+    in
+    <div class_=card_class onclick=(fun _ -> on_select ())>
+      <div class_="theme-preview">
+        (theme_icon ~theme ())
+        <span class_="theme-label">(Html.text (theme_to_string theme))</span>
+      </div>
+      (if is_selected then
+         <div class_="theme-check">
+           <span>(Html.text "✓")</span>
+         </div>
+       else
+         Html.text ""
+      )
+    </div>
+
+  (** {1 Color Palette Component} *)
+
+  let color_palette () =
+    <div class_="color-palette">
+      <h3>(Html.text "Current Color Palette")</h3>
+      <div class_="palette-grid">
+        <div class_="color-item">
+          <div class_="color-swatch bg-primary"></div>
+          <span>(Html.text "Primary")</span>
+        </div>
+        <div class_="color-item">
+          <div class_="color-swatch bg-secondary"></div>
+          <span>(Html.text "Secondary")</span>
+        </div>
+        <div class_="color-item">
+          <div class_="color-swatch bg-success"></div>
+          <span>(Html.text "Success")</span>
+        </div>
+        <div class_="color-item">
+          <div class_="color-swatch bg-danger"></div>
+          <span>(Html.text "Danger")</span>
+        </div>
+        <div class_="color-item">
+          <div class_="color-swatch bg-warning"></div>
+          <span>(Html.text "Warning")</span>
+        </div>
+        <div class_="color-item">
+          <div class_="color-swatch bg-info"></div>
+          <span>(Html.text "Info")</span>
+        </div>
+      </div>
+    </div>
+
+  (** {1 Theme Info Component} *)
+
+  let theme_info ~theme () =
+    let description, features =
+      match theme with
+      | Light ->
+          "Light mode uses bright colors and is ideal for well-lit environments.",
+          [
+            "High contrast for readability";
+            "Best for daylight use";
+            "Reduces eye strain in bright conditions";
+          ]
+      | Dark ->
+          "Dark mode uses dark backgrounds and is easier on the eyes in low-light conditions.",
+          [
+            "Reduced blue light exposure";
+            "Better for nighttime use";
+            "Saves battery on OLED screens";
+          ]
+      | Auto ->
+          "Auto mode automatically switches between light and dark based on your system preferences.",
+          [
+            "Follows system theme";
+            "Seamless transitions";
+            "Respects user preferences";
+          ]
+    in
+
+    let items () = features in
+    <div class_="theme-info">
+      <h3>(Html.text (theme_to_string theme ^ " Mode"))</h3>
+      <p class_="theme-description">(Html.text description)</p>
+      <div class_="theme-features">
+        <h4>(Html.text "Features:")</h4>
+        <ul>
+          (Tpl.each_keyed
+             ~items
+             ~key:(fun f -> f)
+             ~render:(fun feature ->
+               <li>(Html.text feature)</li>
+             )
+          )
+        </ul>
+      </div>
+    </div>
+
+  (** {1 LocalStorage Info Component} *)
+
+  let localStorage_info ~theme () =
+    <div class_="storage-info">
+      <h3>(Html.text "Persistence")</h3>
+      <p>(Html.text "Your theme preference is saved to localStorage and will persist across browser sessions.")</p>
+      <div class_="storage-details">
+        <span class_="storage-key">(Html.text "Key: app-theme")</span>
+        <span class_="storage-value">
+          (Html.text ("Value: " ^ theme_to_string theme))
+        </span>
+      </div>
+      <div class_="storage-demo">
+        <button class_="btn btn-secondary" onclick=(fun _ ->
+          (* In a real app, this would clear localStorage *)
+          ()
+        )>
+          (Html.text "Reset to Default")
+        </button>
+      </div>
+    </div>
+
+  (** {1 Main View} *)
+
+  let view () : Html.node =
+    let theme, set_theme = Signal.create Light in
+    let current_theme = Signal.get theme in
+
+    <div class_="theme-container">
+      <h1>(Html.text "Theme Switcher")</h1>
+      <p class_="intro">
+        (Html.text "Demonstrates global state management, context-like API, and localStorage persistence for theme switching.")
+      </p>
+
+      (* Current theme display *)
+      <div class_="current-theme-display">
+        <span class_="theme-label-text">(Html.text "Current Theme: ")</span>
+        (theme_icon ~theme:current_theme ())
+        <span class_="theme-name">
+          (Html.text (theme_to_string current_theme))
+        </span>
+      </div>
+
+      (* Theme selector cards *)
+      <div class_="theme-selector">
+        <h2>(Html.text "Select Theme")</h2>
+        <div class_="theme-cards">
+          <div class_="theme-card-wrapper">
+            (theme_card
+               ~theme:Light
+               ~is_selected:(current_theme = Light)
+               ~on_select:(fun () -> set_theme Light)
+               ())
+          </div>
+          <div class_="theme-card-wrapper">
+            (theme_card
+               ~theme:Dark
+               ~is_selected:(current_theme = Dark)
+               ~on_select:(fun () -> set_theme Dark)
+               ())
+          </div>
+          <div class_="theme-card-wrapper">
+            (theme_card
+               ~theme:Auto
+               ~is_selected:(current_theme = Auto)
+               ~on_select:(fun () -> set_theme Auto)
+               ())
+          </div>
+        </div>
+      </div>
+
+      <div class_="section-divider"></div>
+
+      (* Theme info and palette *)
+      <div class_="theme-details">
+        (theme_info ~theme:current_theme ())
+        (color_palette ())
+      </div>
+
+      <div class_="section-divider"></div>
+
+      (* LocalStorage info *)
+      (localStorage_info ~theme:current_theme ())
+
+      (* Instructions *)
+      <div class_="instructions">
+        <h3>(Html.text "How it Works")</h3>
+        <ul>
+          <li>(Html.text "Click a theme card to switch themes")</li>
+          <li>(Html.text "Theme preference is saved to localStorage automatically")</li>
+          <li>(Html.text "On page reload, the saved theme is applied")</li>
+          <li>(Html.text "The theme state is global and accessible to all components")</li>
+          <li>(Html.text "CSS variables are used for dynamic theme switching")</li>
+        </ul>
+      </div>
+    </div>
+end

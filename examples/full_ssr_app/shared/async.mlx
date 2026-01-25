@@ -1,0 +1,282 @@
+(**
+    Async Data Fetching Example
+
+    This component demonstrates:
+    - Data fetching with Resources
+    - Loading states
+    - Error handling
+    - Retry functionality
+    - Caching behavior
+*)
+
+module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
+  open Env
+  open Env.Html
+  module Tpl = Env.Tpl
+  module Routes = Routes
+
+  (** {1 Data Types} *)
+
+  type user = {
+    id: int;
+    name: string;
+    email: string;
+    bio: string option;
+  }
+
+  type fetch_status =
+    | Idle
+    | Loading
+    | Success of user
+    | Error of string
+
+  type fetch_state = {
+    status: fetch_status;
+    retry_count: int;
+  }
+
+  (** {1 Mock Data Fetcher}
+
+      In a real app, this would make an HTTP request.
+      For SSR compatibility, we simulate async behavior.
+  *)
+
+  let mock_users = [
+    { id = 1; name = "Alice Johnson"; email = "alice@example.com"; bio = Some "Frontend developer" };
+    { id = 2; name = "Bob Smith"; email = "bob@example.com"; bio = Some "Backend engineer" };
+    { id = 3; name = "Carol Williams"; email = "carol@example.com"; bio = Some "Full-stack developer" };
+    { id = 4; name = "David Brown"; email = "david@example.com"; bio = None };
+    { id = 5; name = "Eve Davis"; email = "eve@example.com"; bio = Some "DevOps engineer" };
+  ]
+
+  let fetch_user_by_id ~id =
+    (* Simulate network delay and return result *)
+    List.find_opt (fun u -> u.id = id) mock_users
+
+  (** {1 Status Bar Component} *)
+
+  let status_bar ~status () =
+    match status with
+    | Idle ->
+        <div class_="status-bar idle">
+          (Html.text "Select a user to fetch their profile")
+        </div>
+    | Loading ->
+        <div class_="status-bar loading">
+          <span class_="spinner"></span>
+          (Html.text "Loading user data...")
+        </div>
+    | Success _ ->
+        <div class_="status-bar success">
+          (Html.text "User loaded successfully")
+        </div>
+    | Error _ ->
+        <div class_="status-bar error">
+          (Html.text "Failed to load user")
+        </div>
+
+  (** {1 User Card Component} *)
+
+  let user_card ~user () =
+    <div class_="user-card">
+      <div class_="user-header">
+        <div class_="user-avatar">
+          (Html.text (String.sub user.name 0 1 |> String.uppercase_ascii))
+        </div>
+        <div>
+          <h2 class_="user-name">(Html.text user.name)</h2>
+          <p class_="user-email">(Html.text user.email)</p>
+        </div>
+      </div>
+      (match user.bio with
+       | Some bio ->
+           <div class_="user-bio">
+             <h3>(Html.text "Bio")</h3>
+             <p>(Html.text bio)</p>
+           </div>
+       | None -> Html.text "")
+    </div>
+
+  (** {1 Error Card Component} *)
+
+  let error_card ~msg () =
+    <div class_="error-card">
+      <h3>(Html.text "Error Loading User")</h3>
+      <p class_="error-message">(Html.text msg)</p>
+      <div class_="error-actions">
+        <button class_="btn btn-retry">
+          (Html.text "Retry")
+        </button>
+      </div>
+    </div>
+
+  (** {1 Controls Component} *)
+
+  let controls ~user_id () =
+    <div class_="user-meta">
+      <span class_="user-id">
+        (Html.text ("ID: " ^ string_of_int user_id))
+      </span>
+    </div>
+
+  (** {1 Async Resource Component}
+
+      Demonstrates the Resource pattern for async data
+  *)
+
+  let resource_demo () =
+    let user_id, set_user_id = Signal.create 1 in
+    let refresh_trigger, trigger_refresh = Signal.create 0 in
+
+    (* Compute the fetch state from user_id and refresh_trigger *)
+    let fetch_state () =
+      let id = Signal.get user_id in
+      let retry_count = Signal.get refresh_trigger in
+
+      (* For SSR, we have the data immediately *)
+      (* For browser, this would be a loading state *)
+      match fetch_user_by_id ~id with
+      | Some user ->
+          { status = Success user; retry_count }
+      | None ->
+          { status = Error ("User not found: " ^ string_of_int id); retry_count }
+    in
+
+    let current_id = Signal.get user_id in
+    let state = fetch_state () in
+    let status_bar_node = status_bar ~status:state.status () in
+
+    let content_node =
+      match state.status with
+      | Success user ->
+          let card = user_card ~user () in
+          let ctrls =
+            <div class_="user-meta">
+              <span class_="user-id">
+                (Html.text ("ID: " ^ string_of_int current_id))
+              </span>
+              <div class_="button-group">
+                <button
+                  class_="btn btn-refresh"
+                  onclick=(fun _ ->
+                    ignore (trigger_refresh ((Signal.get refresh_trigger) + 1));
+                    let next_id = if current_id >= 5 then 1 else current_id + 1 in
+                    set_user_id next_id
+                  )>
+                  (Html.text "Next User")
+                </button>
+              </div>
+            </div>
+          in
+          <div>
+            card
+            ctrls
+          </div>
+      | Error msg ->
+          error_card ~msg ()
+      | _ -> Html.text ""
+    in
+
+    <div class_="async-container resource-demo">
+      status_bar_node
+      content_node
+    </div>
+
+  (** {1 Step Item Component} *)
+
+  let step_item ~idx ~title ~loading ~success ~current_step () =
+    let is_active = idx = current_step in
+    let is_complete = idx < current_step in
+    let step_class =
+      "step-item" ^
+      (if is_active then " active" else "") ^
+      (if is_complete then " complete" else "")
+    in
+    let status_class =
+      if is_active then "loading"
+      else if is_complete then "success"
+      else "pending"
+    in
+    let status_text =
+      if is_active then loading
+      else if is_complete then success
+      else "Pending"
+    in
+
+    <div class_=step_class>
+      <div class_="step-indicator">
+        (if is_complete then
+           <span class_="check">(Html.text "✓")</span>
+         else
+           <span class_="step-number">(Html.text (string_of_int (idx + 1)))</span>
+        )
+      </div>
+      <div class_="step-content">
+        <h3>(Html.text title)</h3>
+        <p class_=("step-status " ^ status_class)>(Html.text status_text)</p>
+      </div>
+    </div>
+
+  (** {1 Sequential Requests Demo} *)
+
+  let sequential_demo () =
+    let step, set_step = Signal.create 0 in
+    let current_step = Signal.get step in
+
+    let steps_data = [
+      ("Fetching user profile", "Loading user details...", "Success: User loaded");
+      ("Loading user posts", "Fetching recent posts...", "Success: 5 posts found");
+      ("Fetching comments", "Loading comments...", "Success: Comments loaded");
+      ("All data loaded", "", "Complete!");
+    ] in
+
+    <div class_="async-container sequential-demo">
+      <h2>(Html.text "Sequential Data Loading")</h2>
+      <p class_="instructions">
+        (Html.text "This demonstrates handling dependent async operations. Click next to simulate each step.")
+      </p>
+
+      <div class_="steps-container">
+        (Tpl.each_keyed
+           ~items:(fun () -> List.mapi (fun idx (title, loading, success) ->
+             step_item ~idx ~title ~loading ~success ~current_step ()
+           ) steps_data)
+           ~key:(fun _item -> "")
+           ~render:(fun item -> item)
+        )
+      </div>
+
+      <div class_="demo-controls">
+        <button
+          class_="btn btn-primary"
+          disabled=(current_step >= List.length steps_data)
+          onclick=(fun _ -> set_step (current_step + 1))>
+          (Html.text "Next Step")
+        </button>
+        <button
+          class_="btn btn-secondary"
+          disabled=(current_step = 0)
+          onclick=(fun _ -> set_step 0)>
+          (Html.text "Reset")
+        </button>
+      </div>
+    </div>
+
+  (** {1 Main View} *)
+
+  let view () : Html.node =
+    let resource_node = resource_demo () in
+    let sequential_node = sequential_demo () in
+    <div>
+      <h1>(Html.text "Async Data Fetching")</h1>
+      <p class_="intro">
+        (Html.text "Examples of handling asynchronous operations, loading states, and error handling.")
+      </p>
+
+      resource_node
+
+      <div class_="section-divider"></div>
+
+      sequential_node
+    </div>
+end

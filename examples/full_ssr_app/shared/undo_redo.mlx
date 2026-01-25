@@ -1,0 +1,254 @@
+(**
+    Undo/Redo History Management
+
+    This component demonstrates:
+    - Command pattern for undo/redo
+    - History stack management
+    - Immutable state updates
+    - Time-travel debugging
+*)
+
+module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
+  open Env
+  open Env.Html
+  module Tpl = Env.Tpl
+  module Routes = Routes
+
+  (** {1 Command Types}
+
+      Each command represents an action that can be undone/redone
+  *)
+
+  type command =
+    | AddText of string
+    | RemoveLast of string
+    | Replace of {index: int; old_text: string; new_text: string}
+    | Clear of string list
+
+  (** {1 History State} *)
+
+  type history = {
+    past: command list;  (* Commands we can undo *)
+    present: string list; (* Current state *)
+    future: command list; (* Commands we can redo *)
+  }
+
+  (** {1 History Operations} *)
+
+  let initial_history = {
+    past = [];
+    present = [];
+    future = [];
+  }
+
+  let apply_command (state : string list) (cmd : command) : string list =
+    match cmd with
+    | AddText text -> state @ [text]
+    | RemoveLast _ ->
+        (match List.rev state with
+        | [] -> []
+        | _ :: rest -> List.rev rest)
+    | Replace {index; old_text=_; new_text} ->
+        let rec loop idx acc rest =
+          match rest with
+          | [] -> List.rev acc
+          | h :: t ->
+              if idx = index then
+                List.rev (acc @ [new_text] @ t)
+              else
+                loop (idx + 1) (h :: acc) t
+        in
+        loop 0 [] state
+    | Clear _texts -> []
+
+  let execute (history : history) (cmd : command) : history =
+    let new_present = apply_command history.present cmd in
+    {
+      past = history.past @ [cmd];
+      present = new_present;
+      future = [];  (* Clear future on new action *)
+    }
+
+  let undo (history : history) : history =
+    match history.past with
+    | [] -> history
+    | cmd :: rest ->
+        let inverse =
+          match cmd with
+          | AddText text -> RemoveLast text
+          | RemoveLast text -> AddText text
+          | Replace {index; old_text; new_text} -> Replace {index; old_text = new_text; new_text = old_text}
+          | Clear texts ->
+              (* For simplicity, just store the clear command itself *)
+              Clear texts
+        in
+        let new_present = apply_command history.present inverse in
+        {
+          past = rest;
+          present = new_present;
+          future = cmd :: history.future;
+        }
+
+  let redo (history : history) : history =
+    match history.future with
+    | [] -> history
+    | cmd :: rest ->
+        let new_present = apply_command history.present cmd in
+        {
+          past = history.past @ [cmd];
+          present = new_present;
+          future = rest;
+        }
+
+  (** {1 Components} *)
+
+  let text_list ~texts () =
+    let items () = texts in
+    <div class_="text-list-container">
+      <h3>(Html.text "Current Text List")</h3>
+      <ul class_="text-list">
+        (Tpl.each_keyed
+           ~items
+           ~key:(fun text -> text)
+           ~render:(fun text ->
+             <li class_="text-item">
+               <span class_="text-index">(Html.text "")</span>
+               <span class_="text-content">(Html.text text)</span>
+             </li>
+           )
+        )
+      </ul>
+      <div class_="list-info">
+        <span class_="count">(Html.text (string_of_int (List.length texts) ^ " items"))</span>
+      </div>
+    </div>
+
+  let history_indicator ~history () =
+    let past_count = List.length history.past in
+    let future_count = List.length history.future in
+    <div class_="history-indicator">
+      <span class_="history-past">
+        (Html.text ("Undo: " ^ string_of_int past_count))
+      </span>
+      <span class_="history-present">
+        (Html.text ("Current: " ^ string_of_int (List.length history.present) ^ " items"))
+      </span>
+      <span class_="history-future">
+        (Html.text ("Redo: " ^ string_of_int future_count))
+      </span>
+    </div>
+
+  let view () : Html.node =
+    let history, set_history = Signal.create initial_history in
+    let current_texts = Signal.get history in
+
+    <div class_="undo-redo-container">
+      <h1>(Html.text "Undo/Redo History Management")</h1>
+      <p class_="intro">
+        (Html.text "Demonstrates command pattern, history stack, and immutable state updates with time-travel debugging.")
+      </p>
+
+      (* History indicator *)
+      (history_indicator ~history:current_texts ())
+
+      (* Current text list *)
+      (text_list ~texts:current_texts.present ())
+
+      (* Action buttons *)
+      <div class_="action-buttons">
+        <div class_="button-group">
+          <h3>(Html.text "Add Items")</h3>
+          <button
+            class_="btn"
+            onclick=(fun _ ->
+              let cmd = AddText "Hello" in
+              set_history (execute (Signal.get history) cmd)
+            )>
+            (Html.text "Add 'Hello'")
+          </button>
+          <button
+            class_="btn"
+            onclick=(fun _ ->
+              let cmd = AddText "World" in
+              set_history (execute (Signal.get history) cmd)
+            )>
+            (Html.text "Add 'World'")
+          </button>
+          <button
+            class_="btn"
+            onclick=(fun _ ->
+              let cmd = AddText ("Item " ^ string_of_int (List.length (Signal.get history).present + 1)) in
+              set_history (execute (Signal.get history) cmd)
+            )>
+            (Html.text "Add Item")
+          </button>
+        </div>
+
+        <div class_="button-group">
+          <h3>(Html.text "Modify Items")</h3>
+          <button
+            class_="btn btn-secondary"
+            disabled=(List.is_empty current_texts.present)
+            onclick=(fun _ ->
+              match current_texts.present with
+              | [] -> ()
+              | first :: _ ->
+                  let cmd = Replace {index = 0; old_text = first; new_text = "UPDATED"} in
+                  set_history (execute (Signal.get history) cmd)
+            )>
+            (Html.text "Replace First")
+          </button>
+          <button
+            class_="btn btn-secondary"
+            disabled=(List.is_empty current_texts.present)
+            onclick=(fun _ ->
+              let cmd = RemoveLast "" in
+              set_history (execute (Signal.get history) cmd)
+            )>
+            (Html.text "Remove Last")
+          </button>
+          <button
+            class_="btn btn-danger"
+            disabled=(List.is_empty current_texts.present)
+            onclick=(fun _ ->
+              let cmd = Clear current_texts.present in
+              set_history (execute (Signal.get history) cmd)
+            )>
+            (Html.text "Clear All")
+          </button>
+        </div>
+
+        <div class_="button-group history-controls">
+          <h3>(Html.text "Time Travel")</h3>
+          <button
+            class_="btn btn-undo"
+            disabled=(List.is_empty current_texts.past)
+            onclick=(fun _ ->
+              set_history (undo (Signal.get history))
+            )>
+            (Html.text "Undo")
+          </button>
+          <button
+            class_="btn btn-redo"
+            disabled=(List.is_empty current_texts.future)
+            onclick=(fun _ ->
+              set_history (redo (Signal.get history))
+            )>
+            (Html.text "Redo")
+          </button>
+        </div>
+      </div>
+
+      (* Instructions *)
+      <div class_="instructions">
+        <h3>(Html.text "How it Works")</h3>
+        <ul>
+          <li>(Html.text "Each action creates a command that's added to the history stack")</li>
+          <li>(Html.text "Undo reverses the last command and moves it to the future stack")</li>
+          <li>(Html.text "Redo re-applies commands from the future stack")</li>
+          <li>(Html.text "New actions clear the future stack (new timeline branch)")</li>
+          <li>(Html.text "All state updates are immutable - state is never modified in place")</li>
+        </ul>
+      </div>
+    </div>
+end

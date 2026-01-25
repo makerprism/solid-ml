@@ -1,7 +1,7 @@
 (library
  (name shared_components)
  (package full_ssr_app)
- (modules routes components template_keyed filters inline_edit)
+ (modules routes components template_keyed filters inline_edit async undo_redo theme wizard)
  (libraries solid-ml solid-ml-template-runtime)
  (modes byte native melange)
  (preprocess (pps solid-ml-template-ppx)))
