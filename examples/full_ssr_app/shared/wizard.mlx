@@ -4,9 +4,33 @@
     This component demonstrates:
     - Multi-step form with progress tracking
     - Conditional rendering based on state using Tpl.show_when
-    - Step navigation (next/back)
+    - Step navigation (next/back) with reactive signals
     - Form state management with reactive signals
-    - Client-side hydration for full interactivity
+    - Validation on form fields
+
+    LIMITATIONS (See GitHub Issue #15):
+    - Form inputs CANNOT collect user data due to missing Tpl.bind_input runtime support
+    - Navigation works but form data remains empty
+    - Input fields render but oninput handlers cannot extract event.target.value
+    - Waiting for upstream fix: https://github.com/makerprism/solid-ml/issues/15
+
+    WORKING FEATURES:
+    ✓ Step navigation (Welcome → PersonalInfo → Preferences → Confirm → Complete)
+    ✓ Progress bar highlights current step
+    ✓ Validation logic runs (but always sees empty data)
+    ✓ Back/Next/Submit buttons show/hide correctly
+    ✓ Reactive state updates for step changes
+    ✓ Conditional rendering with Tpl.show_when
+
+    NOT WORKING:
+    ✗ Form data collection from inputs
+    ✗ Two-way input binding
+    ✗ Cannot complete wizard with actual user data
+
+    Once issue #15 is resolved, we can add:
+    - oninput handlers that actually extract values
+    - Working validation with real user input
+    - Complete wizard workflow
 *)
 
 module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
@@ -104,189 +128,188 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       errors := ("age", "Please enter a valid age (13-120)") :: !errors;
     List.rev !errors
 
-  (** {1 Progress Bar Component} *)
-
-  let progress_bar_step ~idx ~current_idx ~label ~num () =
-    let current_class =
-      "progress-step" ^
-      (if idx = current_idx then " current" else "") ^
-      (if idx < current_idx then " completed" else "")
-    in
-    <div class_=current_class>
-      <div class_="progress-circle">
-        (if idx < current_idx then
-           <span>(text "✓")</span>
-         else
-           <span>(text num)</span>
-        )
-      </div>
-      <span class_="progress-label">(text label)</span>
-    </div>
-
-  let progress_bar ~current_step () =
-    let current_idx = step_index current_step in
-    <div class_="progress-bar">
-      <div class_="progress-line">
-        <div class_=("progress-fill progress-step-" ^ string_of_int current_idx)>
-        </div>
-      </div>
-      (progress_bar_step ~idx:0 ~current_idx ~label:"Welcome" ~num:"1" ())
-      (progress_bar_step ~idx:1 ~current_idx ~label:"Personal" ~num:"2" ())
-      (progress_bar_step ~idx:2 ~current_idx ~label:"Preferences" ~num:"3" ())
-      (progress_bar_step ~idx:3 ~current_idx ~label:"Confirm" ~num:"4" ())
-      (progress_bar_step ~idx:4 ~current_idx ~label:"Done" ~num:"5" ())
-    </div>
-
-  (** {1 Welcome Step Component} *)
-
-  let welcome_step () =
-    <div class_="wizard-step">
-      <h2>(text "Welcome to the Wizard")</h2>
-      <p class_="step-intro">
-        (text "This wizard will guide you through setting up your profile in a few simple steps.")
-      </p>
-      <div class_="step-content">
-        <div class_="info-card">
-          <h3>(text "What to expect:")</h3>
-          <ul>
-            <li>(text "Step 1: Enter your personal information")</li>
-            <li>(text "Step 2: Choose your preferences")</li>
-            <li>(text "Step 3: Review and confirm")</li>
-            <li>(text "Step 4: Complete setup")</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-  (** {1 Personal Info Step Component} *)
-
-  let personal_info_step ~form () =
-    <div class_="wizard-step">
-      <h2>(text "Personal Information")</h2>
-      <p class_="step-intro">
-        (text "Please tell us a bit about yourself.")
-      </p>
-      <div class_="step-content">
-        <div class_="form-group">
-          <label for_="wizard-name">(text "Name *")</label>
-          <input
-            id="wizard-name"
-            class_="form-control"
-            value=form.personal.name
-            placeholder="Enter your name"
-          />
-        </div>
-        <div class_="form-group">
-          <label for_="wizard-email">(text "Email *")</label>
-          <input
-            id="wizard-email"
-            type_="email"
-            class_="form-control"
-            value=form.personal.email
-            placeholder="your@email.com"
-          />
-        </div>
-        <div class_="form-group">
-          <label for_="wizard-age">(text "Age *")</label>
-          <input
-            id="wizard-age"
-            type_="number"
-            class_="form-control"
-            value=form.personal.age
-            placeholder="13-120"
-          />
-        </div>
-        <p class_="form-hint">(text "* Required fields")</p>
-      </div>
-    </div>
-
-  (** {1 Preferences Step Component} *)
-
-  let preferences_step ~form:_ () =
-    <div class_="wizard-step">
-      <h2>(text "Preferences")</h2>
-      <p class_="step-intro">
-        (text "Customize your experience.")
-      </p>
-      <div class_="step-content">
-        <div class_="form-group">
-          <label>(text "Theme")</label>
-          <select id="wizard-theme" class_="form-control">
-            <option value="light">(text "Light")</option>
-            <option value="dark">(text "Dark")</option>
-            <option value="auto">(text "Auto")</option>
-          </select>
-        </div>
-        <div class_="form-group checkbox-group">
-          <label class_="checkbox-label">
-            <input type_="checkbox" id="wizard-newsletter" />
-            <span>(text "Subscribe to newsletter")</span>
-          </label>
-        </div>
-      </div>
-    </div>
-
-  (** {1 Confirm Step Component} *)
-
-  let confirm_step ~form () =
-    <div class_="wizard-step">
-      <h2>(text "Confirm Your Information")</h2>
-      <p class_="step-intro">
-        (text "Please review your information before submitting.")
-      </p>
-      <div class_="step-content">
-        <div class_="confirm-section">
-          <h3>(text "Personal Information")</h3>
-          <div class_="confirm-item">
-            <span class_="label">(text "Name:")</span>
-            <span class_="value">(text form.personal.name)</span>
-          </div>
-          <div class_="confirm-item">
-            <span class_="label">(text "Email:")</span>
-            <span class_="value">(text form.personal.email)</span>
-          </div>
-          <div class_="confirm-item">
-            <span class_="label">(text "Age:")</span>
-            <span class_="value">(text form.personal.age)</span>
-          </div>
-        </div>
-        <div class_="confirm-section">
-          <h3>(text "Preferences")</h3>
-          <div class_="confirm-item">
-            <span class_="label">(text "Theme:")</span>
-            <span class_="value">(text form.prefs.theme)</span>
-          </div>
-          <div class_="confirm-item">
-            <span class_="label">(text "Newsletter:")</span>
-            <span class_="value">
-              (text (if form.prefs.newsletter then "Yes" else "No"))
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-  (** {1 Complete Step Component} *)
-
-  let complete_step () =
-    <div class_="wizard-step">
-      <div class_="success-message">
-        <div class_="success-icon">(text "✓")</div>
-        <h2>(text "Setup Complete!")</h2>
-        <p class_="step-intro">
-          (text "Your profile has been successfully created.")
-        </p>
-        <div class_="step-content">
-          <p>(text "Thank you for completing the wizard. You can now proceed to the application.")</p>
-        </div>
-      </div>
-    </div>
-
   (** {1 Main View} *)
 
   let view () : Html.node =
     (* Create reactive form signal *)
     let form, set_form = Signal.create initial_form in
+
+    (* Step components - defined inside view to access form/set_form *)
+    let welcome_step () =
+      <div class_="wizard-step">
+        <h2>(text "Welcome to the Wizard")</h2>
+        <p class_="step-intro">
+          (text "This wizard will guide you through setting up your profile in a few simple steps.")
+        </p>
+        <div class_="step-content">
+          <div class_="info-card">
+            <h3>(text "What to expect:")</h3>
+            <ul>
+              <li>(text "Step 1: Enter your personal information")</li>
+              <li>(text "Step 2: Choose your preferences")</li>
+              <li>(text "Step 3: Review and confirm")</li>
+              <li>(text "Step 4: Complete setup")</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    in
+
+    let personal_info_step () =
+      let current_form = Signal.get form in
+      <div class_="wizard-step">
+        <h2>(text "Personal Information")</h2>
+        <p class_="step-intro">
+          (text "Please tell us a bit about yourself.")
+        </p>
+        <div class_="step-content">
+          <div class_="form-group">
+            <label for_="wizard-name">(text "Name *")</label>
+            <input
+              id="wizard-name"
+              class_="form-control"
+              value=current_form.personal.name
+              placeholder="Enter your name"
+            />
+          </div>
+          <div class_="form-group">
+            <label for_="wizard-email">(text "Email *")</label>
+            <input
+              id="wizard-email"
+              type_="email"
+              class_="form-control"
+              value=current_form.personal.email
+              placeholder="your@email.com"
+            />
+          </div>
+          <div class_="form-group">
+            <label for_="wizard-age">(text "Age *")</label>
+            <input
+              id="wizard-age"
+              type_="number"
+              class_="form-control"
+              value=current_form.personal.age
+              placeholder="13-120"
+            />
+          </div>
+          <p class_="form-hint">(text "* Required fields")</p>
+        </div>
+      </div>
+    in
+
+    let preferences_step () =
+      let _current_form = Signal.get form in
+      <div class_="wizard-step">
+        <h2>(text "Preferences")</h2>
+        <p class_="step-intro">
+          (text "Customize your experience.")
+        </p>
+        <div class_="step-content">
+          <div class_="form-group">
+            <label>(text "Theme")</label>
+            <select id="wizard-theme" class_="form-control">
+              <option value="light">(text "Light")</option>
+              <option value="dark">(text "Dark")</option>
+              <option value="auto">(text "Auto")</option>
+            </select>
+          </div>
+          <div class_="form-group checkbox-group">
+            <label class_="checkbox-label">
+              <input type_="checkbox" id="wizard-newsletter" />
+              <span>(text "Subscribe to newsletter")</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    in
+
+    let confirm_step () =
+      let current_form = Signal.get form in
+      <div class_="wizard-step">
+        <h2>(text "Confirm Your Information")</h2>
+        <p class_="step-intro">
+          (text "Please review your information before submitting.")
+        </p>
+        <div class_="step-content">
+          <div class_="confirm-section">
+            <h3>(text "Personal Information")</h3>
+            <div class_="confirm-item">
+              <span class_="label">(text "Name:")</span>
+              <span class_="value">(text current_form.personal.name)</span>
+            </div>
+            <div class_="confirm-item">
+              <span class_="label">(text "Email:")</span>
+              <span class_="value">(text current_form.personal.email)</span>
+            </div>
+            <div class_="confirm-item">
+              <span class_="label">(text "Age:")</span>
+              <span class_="value">(text current_form.personal.age)</span>
+            </div>
+          </div>
+          <div class_="confirm-section">
+            <h3>(text "Preferences")</h3>
+            <div class_="confirm-item">
+              <span class_="label">(text "Theme:")</span>
+              <span class_="value">(text current_form.prefs.theme)</span>
+            </div>
+            <div class_="confirm-item">
+              <span class_="label">(text "Newsletter:")</span>
+              <span class_="value">
+                (text (if current_form.prefs.newsletter then "Yes" else "No"))
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    in
+
+    let complete_step () =
+      <div class_="wizard-step">
+        <div class_="success-message">
+          <div class_="success-icon">(text "✓")</div>
+          <h2>(text "Setup Complete!")</h2>
+          <p class_="step-intro">
+            (text "Your profile has been successfully created.")
+          </p>
+          <div class_="step-content">
+            <p>(text "Thank you for completing the wizard. You can now proceed to the application.")</p>
+          </div>
+        </div>
+      </div>
+    in
+
+    (* Progress bar component *)
+    let progress_bar ~current_step () =
+      let current_idx = step_index current_step in
+      let progress_bar_step ~idx ~label ~num () =
+        let current_class =
+          "progress-step" ^
+          (if idx = current_idx then " current" else "") ^
+          (if idx < current_idx then " completed" else "")
+        in
+        <div class_=current_class>
+          <div class_="progress-circle">
+            (if idx < current_idx then
+               <span>(text "✓")</span>
+             else
+               <span>(text num)</span>
+            )
+          </div>
+          <span class_="progress-label">(text label)</span>
+        </div>
+      in
+      <div class_="progress-bar">
+        <div class_="progress-line">
+          <div class_=("progress-fill progress-step-" ^ string_of_int current_idx)>
+          </div>
+        </div>
+        (progress_bar_step ~idx:0 ~label:"Welcome" ~num:"1" ())
+        (progress_bar_step ~idx:1 ~label:"Personal" ~num:"2" ())
+        (progress_bar_step ~idx:2 ~label:"Preferences" ~num:"3" ())
+        (progress_bar_step ~idx:3 ~label:"Confirm" ~num:"4" ())
+        (progress_bar_step ~idx:4 ~label:"Done" ~num:"5" ())
+      </div>
+    in
 
     <div class_="wizard-container">
       <h1>(text "Multi-Step Wizard")</h1>
@@ -310,15 +333,15 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
         (Tpl.show_when
            ~when_:(fun () -> (Signal.get form).step = PersonalInfo)
-           (fun () -> personal_info_step ~form:(Signal.get form) ()))
+           (fun () -> personal_info_step ()))
 
         (Tpl.show_when
            ~when_:(fun () -> (Signal.get form).step = Preferences)
-           (fun () -> preferences_step ~form:(Signal.get form) ()))
+           (fun () -> preferences_step ()))
 
         (Tpl.show_when
            ~when_:(fun () -> (Signal.get form).step = Confirm)
-           (fun () -> confirm_step ~form:(Signal.get form) ()))
+           (fun () -> confirm_step ()))
 
         (Tpl.show_when
            ~when_:(fun () -> (Signal.get form).step = Complete)
@@ -360,7 +383,8 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
                    if errors = [] then
                      set_form { current_form with step = next_step current_form.step }
                    else
-                     (* TODO: Show validation errors to user *)
+                     (* Validation fails - cannot proceed with empty form data *)
+                     (* TODO: Show validation errors to user once inputs work *)
                      ()
                | _ ->
                    set_form { current_form with step = next_step current_form.step }
@@ -373,14 +397,18 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
       (* Instructions *)
       <div class_="instructions">
-        <h3>(text "How it Works")</h3>
+        <h3>(text "Current Status")</h3>
         <ul>
-          <li>(text "Progress bar shows your current position in the wizard")</li>
-          <li>(text "Each step collects different information")</li>
-          <li>(text "Use Next/Back buttons to navigate between steps")</li>
-          <li>(text "Form validation prevents proceeding with invalid data")</li>
-          <li>(text "Conditional rendering shows only relevant fields")</li>
+          <li>(text "✓ Step navigation works (Next/Back buttons)")</li>
+          <li>(text "✓ Progress bar tracks current step")</li>
+          <li>(text "✓ Validation logic exists (runs but data is empty)")</li>
+          <li>(text "✗ Form inputs NOT functional - waiting for Tpl.bind_input")</li>
+          <li>(text "✗ Cannot collect user data - see issue #15")</li>
         </ul>
+        <p class_="form-hint">
+          (text "This is a demonstration of reactive state management and conditional rendering.")
+          (text " Form data collection requires upstream fix for Tpl.bind_input runtime support.")
+        </p>
       </div>
     </div>
 end
