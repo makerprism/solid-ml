@@ -3,13 +3,12 @@
 
     This example demonstrates:
     - Conditional rendering (view vs edit mode)
-    - Input field binding (subject to template compiler limitations)
+    - Input field binding via Tpl.bind_input
     - Click-to-edit interaction
     - Save/cancel functionality
     - Validation feedback
 
-    KNOWN LIMITATION: Input binding requires client-side workarounds due to
-    template compiler limitations with reactive signals in inputs.
+    Uses template bindings for input state.
 *)
 
 type todo = {
@@ -21,7 +20,6 @@ type todo = {
 type edit_state =
   | Not_editing
   | Editing of string
-  | Saving
 
 module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Env
@@ -30,53 +28,70 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   module Routes = Routes
 
   (** Inline Edit Todo Item Component *)
-  let todo_item ~todo ~is_editing ~edit_text:_ () =
-    let class_ = "todo-item" ^ if todo.completed then " completed" else "" in
+  let todo_item ~todo ~is_editing ~edit_text ~set_edit_text ~on_edit ~on_save ~on_cancel () =
+    let item_classes extra () =
+      [ ("todo-item", true);
+        ("completed", todo.completed) ] @ extra
+    in
     match is_editing with
     | Not_editing ->
-        <li class_=class_>
+        <li class_=(Tpl.class_list (item_classes []))>
           <span class_="checkbox"></span>
-          <span class_="todo-text">
-            (Html.text todo.text)
+          <span class_="todo-text" onclick=(fun _ -> on_edit ())>
+            (Tpl.text (fun () -> todo.text))
           </span>
-          <button class_="btn-edit" onclick=(fun _ -> ())>
+          <button class_="btn-edit" onclick=(fun _ -> on_edit ())>
             (Html.text "Edit")
           </button>
         </li>
-    | Editing text ->
-        <li class_="todo-item editing">
+    | Editing _ ->
+        <li class_=(Tpl.class_list (item_classes [ ("editing", true) ]))>
           <input
             type_="text"
-            value=text
+            value=(Tpl.bind_input
+              ~signal:(fun () -> Signal.get edit_text)
+              ~setter:set_edit_text)
             class_="edit-input" />
-          <button class_="btn-save" onclick=(fun _ -> ())>
+          <button class_="btn-save" onclick=(fun _ -> on_save ())>
             (Html.text "Save")
           </button>
-          <button class_="btn-cancel" onclick=(fun _ -> ())>
+          <button class_="btn-cancel" onclick=(fun _ -> on_cancel ())>
             (Html.text "Cancel")
           </button>
-        </li>
-    | Saving ->
-        <li class_="todo-item">
-          <span class_="checkbox"></span>
-          <span class_="todo-text saving">
-            (Html.text "Saving...")
-          </span>
         </li>
 
   (** Main Inline Edit View *)
   let view ~initial_todos () =
     (* State signals *)
-    let todos, _ = Signal.create initial_todos in
-    let editing_id, _set_editing_id = Signal.create None in
-    let edit_text, _set_edit_text = Signal.create "" in
+    let todos, set_todos = Signal.create initial_todos in
+    let editing_id, set_editing_id = Signal.create None in
+    let edit_text, set_edit_text = Signal.create "" in
 
     (* Helper: Check if a todo is being edited *)
     let is_editing todo =
       match Signal.get editing_id with
       | Some id when id = todo.id -> Editing (Signal.get edit_text)
-      | Some _ -> Saving
-      | None -> Not_editing
+      | _ -> Not_editing
+    in
+
+    let start_edit todo =
+      set_editing_id (Some todo.id);
+      set_edit_text todo.text
+    in
+
+    let cancel_edit () =
+      set_editing_id None;
+      set_edit_text ""
+    in
+
+    let save_edit todo =
+      let next_text = Signal.get edit_text in
+      set_todos
+        (List.map
+           (fun t -> if t.id = todo.id then { t with text = next_text } else t)
+           (Signal.get todos));
+      set_editing_id None;
+      set_edit_text ""
     in
 
     <div class_="inline-edit-container">
@@ -91,8 +106,16 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
            ~items:(fun () -> Signal.get todos)
            ~key:(fun todo -> Int.to_string todo.id)
            ~render:(fun todo ->
-             todo_item ~todo ~is_editing:(is_editing todo) ~edit_text:(Signal.get edit_text) ()
-           )
+              todo_item
+                ~todo
+                ~is_editing:(is_editing todo)
+                ~edit_text
+                ~set_edit_text
+                ~on_edit:(fun () -> start_edit todo)
+                ~on_save:(fun () -> save_edit todo)
+                ~on_cancel:cancel_edit
+                ()
+            )
         )
       </ul>
 

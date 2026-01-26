@@ -89,7 +89,7 @@ let resource_component () =
     ] ()
   )
 
-(** {1 Cleanup API 3: Render.dispose} *)
+(** {1 Cleanup API 3: Render.render / Render.hydrate dispose} *)
 
 (** Main component that demonstrates proper disposal on page unload.
 
@@ -118,7 +118,7 @@ let main_component () =
 
       hr () ;
 
-      h2 ~children:[text "3. Render Dispose"] ();
+      h2 ~children:[text "3. Render dispose"] ();
       p ~children:[text "This page properly disposes all effects on unload."] ();
       p ~children:[text "Check the console when leaving this page."] ();
     ] ()

@@ -5,7 +5,12 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Html
 
   let view ~initial () : Html.node =
-    let count, _set_count = Signal.create initial in
+    let count, set_count = Signal.create initial in
+    let status, set_status = Signal.create "Waiting for hydration..." in
+    let bump delta label =
+      Signal.update count (fun n -> n + delta);
+      set_status label
+    in
 
     <main class_="app">
       <h1>(Html.text "solid-ml SSR + Hydration")</h1>
@@ -17,13 +22,13 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         </div>
 
         <div class_="buttons">
-          <button id="decrement" class_="btn">
+          <button id="decrement" class_="btn" onclick=(fun _ -> bump (-1) "Decremented")>
             (Html.text "-")
           </button>
-          <button id="increment" class_="btn">
+          <button id="increment" class_="btn" onclick=(fun _ -> bump 1 "Incremented")>
             (Html.text "+")
           </button>
-          <button id="reset" class_="btn">
+          <button id="reset" class_="btn" onclick=(fun _ -> set_count initial; set_status "Reset to initial")>
             (Html.text "Reset")
           </button>
         </div>
@@ -40,7 +45,7 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       </Html.Svg.svg>
 
       <p id="hydration-status" class_="status">
-        (Html.text "Waiting for hydration...")
+        (Tpl.text (fun () -> Signal.get status))
       </p>
       <p class_="info">
         (Html.text "The counter value uses reactive_text with hydration markers for seamless client adoption.")

@@ -25,6 +25,9 @@ examples/ssr_hydration_docker/
 - `client/client.ml` uses `solid-ml-browser` and Melange for hydration.
 - `static/` contains the stylesheet and receives the generated `client.js` bundle.
 
+For production apps, consider using `Solid_ml_ssr.State` + `Solid_ml_browser.State.decode`
+to pass initial data instead of a hidden input.
+
 ## Building locally (without Docker)
 
 ```bash

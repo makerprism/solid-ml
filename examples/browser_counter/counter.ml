@@ -113,6 +113,33 @@ let todo_list () =
    | Some el -> Reactive.bind_input el new_todo_text set_new_todo_text
    | None -> ());
 
+  let todo_list_ul =
+    Html.ul ~class_:"todo-list" ~children:[] ()
+  in
+  (match Html.get_element todo_list_ul with
+   | Some el ->
+     Reactive.each
+       ~items:todos
+       ~render:(fun todo ->
+         let item_class =
+           if todo.completed then "todo-item completed" else "todo-item"
+         in
+         Html.li ~class_:item_class ~children:[
+           Html.input
+             ~type_:"checkbox"
+             ~checked:todo.completed
+             ~onchange:(fun _ -> toggle_todo todo.id)
+             ();
+           Html.span ~children:[Html.text todo.text] ();
+           Html.button
+             ~class_:"delete"
+             ~onclick:(fun _ -> remove_todo todo.id)
+             ~children:[Html.text "x"]
+             ();
+         ] ())
+       el
+   | None -> ());
+
   Html.(
     div ~id:"todos" ~class_:"todo-app" ~children:[
       h1 ~children:[text "Todo List"] ();
@@ -132,25 +159,8 @@ let todo_list () =
         text " items left";
       ] ();
       
-      (* Todo list using For component *)
-      ul ~class_:"todo-list" ~children:[
-        For.create' ~each:todos ~children:(fun todo ->
-          let item_class = if todo.completed then "todo-item completed" else "todo-item" in
-          li ~class_:item_class ~children:[
-            input 
-              ~type_:"checkbox" 
-              ~checked:todo.completed 
-              ~onchange:(fun _ -> toggle_todo todo.id)
-              ();
-            span ~children:[text todo.text] ();
-            button 
-              ~class_:"delete" 
-          ~onclick:(fun _ -> remove_todo todo.id)
-              ~children:[text "x"] 
-              ();
-          ] ()
-        ) ()
-      ] ();
+      (* Todo list using keyed rendering *)
+      todo_list_ul;
     ] ()
   )
 

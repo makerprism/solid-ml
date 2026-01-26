@@ -26,9 +26,13 @@ make serve
 ### Todo List Component
 - List state with signals
 - Two-way input binding
-- Reactive list rendering
+- Reactive list rendering (keyed updates)
 - Event handlers (click, keydown, change)
 - Conditional styling based on completion status
+
+If you are using MLX templates in your project, consider using
+`Tpl.bind_input` and `Tpl.each_keyed` instead of the imperative binding
+shown here.
 
 ## Files
 

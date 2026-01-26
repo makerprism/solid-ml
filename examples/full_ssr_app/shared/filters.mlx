@@ -3,13 +3,12 @@
 
     This example demonstrates:
     - Derived/computed signals (filteredTodos from todos + filter)
-    - Search text input binding
+    - Search text input binding (Tpl.bind_input)
     - Filter buttons (All/Active/Completed)
     - Reactive count display
     - Tests Tpl.text inside Tpl.each_keyed with derived values
 
-    KNOWN LIMITATION: This currently requires client-side workarounds due to
-    template compiler not supporting Tpl.text inside Tpl.each_keyed render functions.
+    Template bindings now support input bindings and dynamic option selection.
 *)
 
 type filter_type = All | Active | Completed
@@ -51,7 +50,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     (* Base state signals *)
     let todos, _ = Signal.create initial_todos in
     let current_filter, set_filter = Signal.create All in
-    let search_text, _ = Signal.create "" in
+    let search_text, set_search_text = Signal.create "" in
 
     (* Derived: Computed filtered todos *)
     let filtered_todos () =
@@ -83,70 +82,78 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       (active_count, completed_count, filtered_count)
     in
 
-    (* Helper to create filter button class *)
-    let filter_class filter_type =
-      "filter-btn" ^
-      if Signal.get current_filter = filter_type then " active" else ""
+    (* Helper to create filter button class list *)
+    let filter_class filter_type () =
+      [ ("filter-btn", true);
+        ("active", Signal.get current_filter = filter_type) ]
     in
 
     <div class_="filters-container">
       <h1>(text "Reactive Filters Demo")</h1>
 
-      (* Filter buttons - inlined *)
       <div class_="filter-bar">
-        <button class_=(filter_class All) onclick=(fun _ -> set_filter All)>
+        <button class_=(Tpl.class_list (filter_class All)) onclick=(fun _ -> set_filter All)>
           (text "All")
         </button>
-        <button class_=(filter_class Active) onclick=(fun _ -> set_filter Active)>
+        <button class_=(Tpl.class_list (filter_class Active)) onclick=(fun _ -> set_filter Active)>
           (text "Active")
         </button>
-        <button class_=(filter_class Completed) onclick=(fun _ -> set_filter Completed)>
+        <button class_=(Tpl.class_list (filter_class Completed)) onclick=(fun _ -> set_filter Completed)>
           (text "Completed")
         </button>
       </div>
 
-      (* Search input - simplified without binding for now *)
+      (* Search input - two-way binding *)
       <div class_="search-bar">
-        <input type_="text" placeholder="Search todos..." class_="search-input" />
+        <input
+          type_="text"
+          placeholder="Search todos..."
+          class_="search-input"
+          value=(Tpl.bind_input
+            ~signal:(fun () -> Signal.get search_text)
+            ~setter:set_search_text) />
       </div>
 
       (* Statistics display - reactive derived values *)
       <div class_="stats-bar">
         <span class_="stat">
-          (text (let (active, _, _) = stats () in
-                 string_of_int active ^ " active"))
+          (Tpl.text (fun () ->
+             let (active, _, _) = stats () in
+             string_of_int active ^ " active"))
         </span>
         <span class_="stat">
-          (text (let (_, completed, _) = stats () in
-                 string_of_int completed ^ " completed"))
+          (Tpl.text (fun () ->
+             let (_, completed, _) = stats () in
+             string_of_int completed ^ " completed"))
         </span>
         <span class_="stat">
-          (text (let (_, _, filtered) = stats () in
-                 string_of_int filtered ^ " shown"))
+          (Tpl.text (fun () ->
+             let (_, _, filtered) = stats () in
+             string_of_int filtered ^ " shown"))
         </span>
       </div>
 
-      (* Filtered todo list - THIS WILL EXPOSE TEMPLATE LIMITATION *)
       <ul class_="todo-list">
         (Tpl.each_keyed
            ~items:filtered_todos
            ~key:(fun todo -> Int.to_string todo.id)
            ~render:(fun todo ->
-             <li class_=("todo" ^ if todo.completed then " completed" else "")>
-               <span class_="checkbox"></span>
-               (text todo.text)
-             </li>
-           )
+              <li class_=("todo" ^ if todo.completed then " completed" else "")>
+                <span class_="checkbox"></span>
+                (text todo.text)
+              </li>
+            )
         )
       </ul>
 
       (* Current filter indicator *)
       <div class_="status-bar">
-        (text ("Showing: " ^
-              match Signal.get current_filter with
-              | All -> "All items"
-              | Active -> "Active items only"
-              | Completed -> "Completed items only"))
+        (Tpl.text (fun () ->
+           "Showing: " ^
+           match Signal.get current_filter with
+           | All -> "All items"
+           | Active -> "Active items only"
+           | Completed -> "Completed items only"))
       </div>
     </div>
 end

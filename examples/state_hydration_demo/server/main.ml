@@ -15,7 +15,7 @@ module C = State_hydration_shared.Components
 (** {1 Component Functions} *)
 
 let counter_component ~(initial : int) =
-  let count, _set_count = Solid_ml.Signal.Unsafe.create initial in
+  let count, _set_count = Solid_ml.Signal.create initial in
   Html.(
     div ~class_:"counter-demo" ~children:[
       h2 ~children:[text "Server→Client State Transfer"] ();

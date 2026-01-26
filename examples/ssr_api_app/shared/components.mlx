@@ -55,22 +55,22 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
   let post_card ?(show_user=true) ?(user_name="") (post : post) =
     let user_label = if user_name = "" then "User #" ^ string_of_int post.user_id else user_name in
-    <a href=("/posts/" ^ string_of_int post.id) class_="card-link">
-      <div class_="card post-card">
+    <div class_="card post-card">
+      <a href=("/posts/" ^ string_of_int post.id) class_="card-link">
         <h3>
           (Html.text post.title)
         </h3>
         <p>(Html.text post.body)</p>
-        (if show_user then
-           <div class_="meta">
-             <a href=("/users/" ^ string_of_int post.user_id) class_="meta-link">
-               (Html.text user_label)
-             </a>
-           </div>
-         else
-             Html.empty)
-      </div>
-    </a>
+      </a>
+      (if show_user then
+         <div class_="meta">
+           <a href=("/users/" ^ string_of_int post.user_id) class_="meta-link">
+             (Html.text user_label)
+           </a>
+         </div>
+       else
+           Html.empty)
+    </div>
 
   let user_card (u : user_info) =
     <a href=("/users/" ^ string_of_int u.id) class_="card-link">
@@ -85,13 +85,13 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     </a>
 
   let comment_card (c : comment) =
-    <div class_="card comment-card">
-      <h4>(Html.text c.name)</h4>
-      <p class_="meta">(Html.text c.email)</p>
-      <p>(Html.text c.body)</p>
+    <div class_="comment">
+      <div class_="author">(Html.text c.name)</div>
+      <div class_="email">(Html.text c.email)</div>
+      <div class_="body">(Html.text c.body)</div>
     </div>
 
-  let posts_page state =
+  let posts_page state users_opt =
     <div>
       <div class_="section-title">
         <h2>(Html.text "Recent Posts")</h2>
@@ -104,10 +104,20 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         </span>
       </div>
       <p>(Html.text "Click on a post to view details and comments, or click on a user to see their profile.")</p>
-      <div id="content-list">
+      <div id="posts-list">
         (render_state state ~ready:(fun posts ->
+           let user_name_for users user_id =
+             match List.find_opt (fun (u : user_info) -> u.id = user_id) users with
+             | Some u -> u.name
+             | None -> ""
+           in
+           let show_user, name_for_post =
+             match users_opt with
+             | Some users -> true, (fun post -> user_name_for users post.user_id)
+             | None -> false, (fun _ -> "")
+           in
            Html.fragment (List.map (fun post ->
-             post_card ~show_user:false post) posts)))
+             post_card ~show_user ~user_name:(name_for_post post) post) posts)))
       </div>
     </div>
 
@@ -124,7 +134,7 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         </span>
       </div>
       <p>(Html.text "Click on a user to view their profile and posts.")</p>
-      <div id="content-list">
+      <div id="users-list">
         (render_state state ~ready:(fun users ->
            Html.fragment (List.map user_card users)))
       </div>
@@ -142,23 +152,36 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       <div class_="section-title">
         <h2>(Html.text "User Profile")</h2>
       </div>
-      <div id="user-profile">
-        (render_state user_state ~ready:(fun (u : user_info) ->
-           <div class_="card user-detail">
-             <h3>(Html.text u.name)</h3>
-             <p>(Html.text ("@" ^ u.username))</p>
-             <p>(Html.text u.email)</p>
-             <p>(Html.text u.phone)</p>
-             <p>(Html.text u.website)</p>
-             <p>(Html.text (u.company ^ " | " ^ u.city))</p>
-           </div>))
-      </div>
-      <div class_="section-title">
-        <h3>(Html.text "Posts")</h3>
-      </div>
-      <div id="content-list">
-        (render_state posts_state ~ready:(fun posts ->
-           Html.fragment (List.map (post_card ~show_user:false) posts)))
+      (render_state user_state ~ready:(fun (u : user_info) ->
+         let initial = String.sub u.name 0 1 in
+         <div class_="user-profile">
+           <div class_="avatar">(Html.text initial)</div>
+           <div class_="info">
+             <h2>(Html.text u.name)</h2>
+             <p class_="username">(Html.text ("@" ^ u.username))</p>
+             <div class_="details">
+               <span>(Html.text ("Email: " ^ u.email))</span>
+               <span>(Html.text ("Phone: " ^ u.phone))</span>
+               <span>(Html.text ("Website: " ^ u.website))</span>
+               <span>(Html.text ("Company: " ^ u.company))</span>
+               <span>(Html.text ("City: " ^ u.city))</span>
+             </div>
+           </div>
+         </div>))
+      <div class_="detail-section" id="user-posts">
+        <div class_="section-title">
+          <h3>(Html.text "Posts")</h3>
+          <span class_="count">
+            (match posts_state with
+             | Ready posts -> Html.text (string_of_int (List.length posts) ^ " posts")
+             | Loading -> Html.text "Loading..."
+             | Error _ -> Html.text "")
+          </span>
+        </div>
+        <div id="posts-list">
+          (render_state posts_state ~ready:(fun posts ->
+             Html.fragment (List.map (post_card ~show_user:false) posts)))
+        </div>
       </div>
     </div>
 
@@ -169,27 +192,33 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         <span class_="separator">(Html.text " / ")</span>
         <span class_="current">(Html.text "Post")</span>
       </div>
-      <div class_="section-title">
-        <h2>(Html.text "Post Detail")</h2>
-      </div>
-      <div id="post-detail">
+      <div class_="detail-section" id="post-detail">
         (render_state post_state ~ready:(fun post ->
-           <div class_="card post-detail">
-             <h3>(Html.text post.title)</h3>
-             <p>(Html.text post.body)</p>
+           <div>
+             <h2>(Html.text post.title)</h2>
              <div class_="meta">
-               <a href=("/users/" ^ string_of_int post.user_id) class_="meta-link">
-                 (Html.text ("By User #" ^ string_of_int post.user_id))
+               (Html.text "By ")
+               <a href=("/users/" ^ string_of_int post.user_id)>
+                 (Html.text ("User #" ^ string_of_int post.user_id))
                </a>
              </div>
+             <div class_="body">(Html.text post.body)</div>
            </div>))
       </div>
-      <div class_="section-title">
-        <h3>(Html.text "Comments")</h3>
-      </div>
-      <div id="comments-list">
-        (render_state comments_state ~ready:(fun comments ->
-           Html.fragment (List.map comment_card comments)))
+      <div class_="comments-section" id="comments-section">
+        <div class_="section-title">
+          <h3>(Html.text "Comments")</h3>
+          <span class_="count">
+            (match comments_state with
+             | Ready comments -> Html.text (string_of_int (List.length comments) ^ " comments")
+             | Loading -> Html.text "Loading..."
+             | Error _ -> Html.text "")
+          </span>
+        </div>
+        <div id="comments-list">
+          (render_state comments_state ~ready:(fun comments ->
+             Html.fragment (List.map comment_card comments)))
+        </div>
       </div>
     </div>
 
@@ -218,7 +247,7 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       </header>
       <section>
         (match page with
-         | Posts_page (posts_state, _users_opt) -> posts_page posts_state
+         | Posts_page (posts_state, users_opt) -> posts_page posts_state users_opt
          | Users_page state -> users_page state
          | Post_page (post_state, comments_state) -> post_page post_state comments_state
          | User_page (user_state, posts_state) -> user_page user_state posts_state

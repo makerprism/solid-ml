@@ -28,11 +28,14 @@ let get_element id = Dom.get_element_by_id (Dom.document ()) id
 (** {1 Rendering} *)
 
 let current_path = ref "/"
+let has_hydrated = ref false
 
 let rec render_app app_el page =
-  let _dispose = Render.render app_el (fun () ->
+  let render = if !has_hydrated then Render.render else Render.hydrate in
+  let _dispose = render app_el (fun () ->
     C.app ~current_path:!current_path ~page ()
   ) in
+  has_hydrated := true;
   bind_links app_el
 
 and bind_links app_el =

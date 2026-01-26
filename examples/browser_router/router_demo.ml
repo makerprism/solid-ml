@@ -8,7 +8,7 @@
     - Nested routes and wildcards
     
     Build with: make example-browser-router
-    Then open examples/browser_router/index.html in a browser.
+    Then open /examples/browser_router/index.html from a static server.
 *)
 
 open Solid_ml_browser
@@ -231,10 +231,10 @@ let app () =
 let () =
   match Dom.get_element_by_id (Dom.document ()) "app" with
   | Some root ->
-    (* Set base to /browser_router since we're served from that subdirectory *)
+    (* Set base to /examples/browser_router since we're served from that subdirectory *)
     let config = Router.{ 
       routes = config_routes; 
-      base = "/browser_router";
+      base = "/examples/browser_router";
       scroll_restoration = true 
     } in
     let (_result, _dispose) = Router.init ~config (fun () ->
@@ -244,4 +244,3 @@ let () =
     Dom.log "solid-ml router demo initialized!"
   | None ->
     Dom.error "Could not find #app element"
-

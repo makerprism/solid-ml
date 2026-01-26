@@ -1,8 +1,10 @@
 # SSR API App Example
 
 This example demonstrates server-side rendering with client hydration and a
-shared API module. It now supports typed Resource errors, so you can define a
-single error type and reuse it across server and client.
+shared API module. The browser entrypoint uses `Render.hydrate` for the first
+paint to adopt the server HTML before switching to client-side renders. It now
+supports typed Resource errors, so you can define a single error type and reuse
+it across server and client.
 
 ## Typed Resource Example (Browser)
 

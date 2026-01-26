@@ -128,6 +128,13 @@ let decode_cart_item json : C.cart_item option =
 
 (** {1 Hydration Functions} *)
 
+let has_hydrated = ref false
+
+let render_app app_el component =
+  let render = if !has_hydrated then Render.render else Render.hydrate in
+  let _disposer = render app_el component in
+  has_hydrated := true
+
 let hydrate_counter () =
   match Dom.get_element_by_id (Dom.document ()) "app" with
   | Some app_el ->
@@ -141,9 +148,7 @@ let hydrate_counter () =
 
     Dom.log ("Counter initial value from server: " ^ string_of_int initial);
 
-    let _disposer = Render.render app_el (fun () ->
-      counter_component ~initial
-    ) in
+    render_app app_el (fun () -> counter_component ~initial);
 
     Dom.log "Counter hydrated!"
   | None -> ()
@@ -163,9 +168,7 @@ let hydrate_user_profile () =
     Dom.log ("User ID: " ^ string_of_int user.id);
     Dom.log ("User email: " ^ user.email);
 
-    let _disposer = Render.render app_el (fun () ->
-      user_profile_component ~user
-    ) in
+    render_app app_el (fun () -> user_profile_component ~user);
 
     Dom.log "User profile hydrated!"
   | None -> ()
@@ -200,9 +203,7 @@ let hydrate_cart () =
       Dom.log ("  - " ^ item.C.name ^ " x" ^ string_of_int item.C.quantity)
     ) items;
 
-    let _disposer = Render.render app_el (fun () ->
-      cart_component ~items
-    ) in
+    render_app app_el (fun () -> cart_component ~items);
 
     Dom.log "Cart hydrated!"
   | None -> ()

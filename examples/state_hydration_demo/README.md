@@ -81,7 +81,7 @@ let initial =
 let () =
   match Dom.get_element_by_id (Dom.document ()) "app" with
   | Some app_el ->
-    let _disposer = Render.render app_el (fun () ->
+    let _disposer = Render.hydrate app_el (fun () ->
       Counter.create ~initial
     ) in
     ()
@@ -174,8 +174,9 @@ The `window.__SOLID_ML_DATA__` object contains all the state you set on the serv
 1. **Namespaced Keys**: Use `State.key ~namespace:"app" "name"` to avoid conflicts
 2. **Type Safety**: Always provide a `default` value in `decode`
 3. **Proper Encoding**: Match your encode/decode functions for each type
-4. **Include Script**: Don't forget `Render.get_hydration_script()` to embed the data
-5. **Cleanup**: State is automatically reset between renders
+4. **Hydration API**: Use `Render.hydrate` (or `Render.hydrate_with`) to adopt server HTML
+5. **Include Script**: Don't forget `Render.get_hydration_script()` to embed the data
+6. **Cleanup**: State is automatically reset between renders
 
 ## Common Patterns
 
