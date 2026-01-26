@@ -169,14 +169,6 @@ val bind_show : Dom.element -> bool Signal.t -> unit
 val bind_class_toggle : Dom.element -> string -> bool Signal.t -> unit
 (** [bind_class_toggle el class_name signal] adds/removes a class. *)
 
-(** {1 Form Bindings} *)
-
-val bind_input : Dom.element -> string Signal.t -> (string -> unit) -> unit
-(** [bind_input el signal setter] creates two-way binding for text input. *)
-
-val bind_checkbox : Dom.element -> bool Signal.t -> (bool -> unit) -> unit
-(** [bind_checkbox el signal setter] creates two-way binding for checkbox. *)
-
 (** {1 List Rendering} *)
 
 val each : items:'a list Signal.t -> render:('a -> Html.node) -> Dom.element -> unit

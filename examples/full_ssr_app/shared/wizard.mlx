@@ -6,31 +6,11 @@
     - Conditional rendering based on state using Tpl.show_when
     - Step navigation (next/back) with reactive signals
     - Form state management with reactive signals
+    - Two-way input binding using Tpl.bind_input/bind_checkbox/bind_select
+    - Client-side hydration for full interactivity
     - Validation on form fields
 
-    LIMITATIONS (See GitHub Issue #15):
-    - Form inputs CANNOT collect user data due to missing Tpl.bind_input runtime support
-    - Navigation works but form data remains empty
-    - Input fields render but oninput handlers cannot extract event.target.value
-    - Waiting for upstream fix: https://github.com/makerprism/solid-ml/issues/15
-
-    WORKING FEATURES:
-    ✓ Step navigation (Welcome → PersonalInfo → Preferences → Confirm → Complete)
-    ✓ Progress bar highlights current step
-    ✓ Validation logic runs (but always sees empty data)
-    ✓ Back/Next/Submit buttons show/hide correctly
-    ✓ Reactive state updates for step changes
-    ✓ Conditional rendering with Tpl.show_when
-
-    NOT WORKING:
-    ✗ Form data collection from inputs
-    ✗ Two-way input binding
-    ✗ Cannot complete wizard with actual user data
-
-    Once issue #15 is resolved, we can add:
-    - oninput handlers that actually extract values
-    - Working validation with real user input
-    - Complete wizard workflow
+    FULLY FUNCTIONAL - Uses Tpl.bind_input runtime support (issue #15 resolved)
 *)
 
 module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
@@ -47,40 +27,6 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     | Preferences
     | Confirm
     | Complete
-
-  type personal_info = {
-    name: string;
-    email: string;
-    age: string;
-  }
-
-  type preferences = {
-    newsletter: bool;
-    theme: string;
-    interests: string list;
-  }
-
-  type form_data = {
-    step: wizard_step;
-    personal: personal_info;
-    prefs: preferences;
-  }
-
-  (** {1 Initial State} *)
-
-  let initial_form = {
-    step = Welcome;
-    personal = {
-      name = "";
-      email = "";
-      age = "";
-    };
-    prefs = {
-      newsletter = false;
-      theme = "light";
-      interests = [];
-    };
-  }
 
   (** {1 Step Navigation Helpers} *)
 
@@ -107,23 +53,23 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
   (** {1 Validation} *)
 
-  let validate_personal info =
+  let validate_personal ~name ~email ~age =
     let errors = ref [] in
-    if String.length info.name = 0 then
+    if String.length name = 0 then
       errors := ("name", "Name is required") :: !errors;
-    if String.length info.email = 0 then
+    if String.length email = 0 then
       errors := ("email", "Email is required") :: !errors
     else if not (try
         (* Simple email validation: must contain @ with at least one char before and after *)
-        let at_index = String.index info.email '@' in
-        at_index > 0 && at_index < String.length info.email - 1
+        let at_index = String.index email '@' in
+        at_index > 0 && at_index < String.length email - 1
       with Not_found -> false) then
       errors := ("email", "Please enter a valid email") :: !errors;
-    if String.length info.age = 0 then
+    if String.length age = 0 then
       errors := ("age", "Age is required") :: !errors
     else if not (try
-        let age = int_of_string info.age in
-        age >= 13 && age <= 120
+        let age_int = int_of_string age in
+        age_int >= 13 && age_int <= 120
       with _ -> false) then
       errors := ("age", "Please enter a valid age (13-120)") :: !errors;
     List.rev !errors
@@ -131,156 +77,19 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   (** {1 Main View} *)
 
   let view () : Html.node =
-    (* Create reactive form signal *)
-    let form, set_form = Signal.create initial_form in
+    (* Create reactive signals for step navigation *)
+    let current_step, set_step = Signal.create Welcome in
 
-    (* Step components - defined inside view to access form/set_form *)
-    let welcome_step () =
-      <div class_="wizard-step">
-        <h2>(text "Welcome to the Wizard")</h2>
-        <p class_="step-intro">
-          (text "This wizard will guide you through setting up your profile in a few simple steps.")
-        </p>
-        <div class_="step-content">
-          <div class_="info-card">
-            <h3>(text "What to expect:")</h3>
-            <ul>
-              <li>(text "Step 1: Enter your personal information")</li>
-              <li>(text "Step 2: Choose your preferences")</li>
-              <li>(text "Step 3: Review and confirm")</li>
-              <li>(text "Step 4: Complete setup")</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    in
-
-    let personal_info_step () =
-      let current_form = Signal.get form in
-      <div class_="wizard-step">
-        <h2>(text "Personal Information")</h2>
-        <p class_="step-intro">
-          (text "Please tell us a bit about yourself.")
-        </p>
-        <div class_="step-content">
-          <div class_="form-group">
-            <label for_="wizard-name">(text "Name *")</label>
-            <input
-              id="wizard-name"
-              class_="form-control"
-              value=current_form.personal.name
-              placeholder="Enter your name"
-            />
-          </div>
-          <div class_="form-group">
-            <label for_="wizard-email">(text "Email *")</label>
-            <input
-              id="wizard-email"
-              type_="email"
-              class_="form-control"
-              value=current_form.personal.email
-              placeholder="your@email.com"
-            />
-          </div>
-          <div class_="form-group">
-            <label for_="wizard-age">(text "Age *")</label>
-            <input
-              id="wizard-age"
-              type_="number"
-              class_="form-control"
-              value=current_form.personal.age
-              placeholder="13-120"
-            />
-          </div>
-          <p class_="form-hint">(text "* Required fields")</p>
-        </div>
-      </div>
-    in
-
-    let preferences_step () =
-      let _current_form = Signal.get form in
-      <div class_="wizard-step">
-        <h2>(text "Preferences")</h2>
-        <p class_="step-intro">
-          (text "Customize your experience.")
-        </p>
-        <div class_="step-content">
-          <div class_="form-group">
-            <label>(text "Theme")</label>
-            <select id="wizard-theme" class_="form-control">
-              <option value="light">(text "Light")</option>
-              <option value="dark">(text "Dark")</option>
-              <option value="auto">(text "Auto")</option>
-            </select>
-          </div>
-          <div class_="form-group checkbox-group">
-            <label class_="checkbox-label">
-              <input type_="checkbox" id="wizard-newsletter" />
-              <span>(text "Subscribe to newsletter")</span>
-            </label>
-          </div>
-        </div>
-      </div>
-    in
-
-    let confirm_step () =
-      let current_form = Signal.get form in
-      <div class_="wizard-step">
-        <h2>(text "Confirm Your Information")</h2>
-        <p class_="step-intro">
-          (text "Please review your information before submitting.")
-        </p>
-        <div class_="step-content">
-          <div class_="confirm-section">
-            <h3>(text "Personal Information")</h3>
-            <div class_="confirm-item">
-              <span class_="label">(text "Name:")</span>
-              <span class_="value">(text current_form.personal.name)</span>
-            </div>
-            <div class_="confirm-item">
-              <span class_="label">(text "Email:")</span>
-              <span class_="value">(text current_form.personal.email)</span>
-            </div>
-            <div class_="confirm-item">
-              <span class_="label">(text "Age:")</span>
-              <span class_="value">(text current_form.personal.age)</span>
-            </div>
-          </div>
-          <div class_="confirm-section">
-            <h3>(text "Preferences")</h3>
-            <div class_="confirm-item">
-              <span class_="label">(text "Theme:")</span>
-              <span class_="value">(text current_form.prefs.theme)</span>
-            </div>
-            <div class_="confirm-item">
-              <span class_="label">(text "Newsletter:")</span>
-              <span class_="value">
-                (text (if current_form.prefs.newsletter then "Yes" else "No"))
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    in
-
-    let complete_step () =
-      <div class_="wizard-step">
-        <div class_="success-message">
-          <div class_="success-icon">(text "✓")</div>
-          <h2>(text "Setup Complete!")</h2>
-          <p class_="step-intro">
-            (text "Your profile has been successfully created.")
-          </p>
-          <div class_="step-content">
-            <p>(text "Thank you for completing the wizard. You can now proceed to the application.")</p>
-          </div>
-        </div>
-      </div>
-    in
+    (* Create reactive signals for form fields *)
+    let name, set_name = Signal.create "" in
+    let email, set_email = Signal.create "" in
+    let age, set_age = Signal.create "" in
+    let theme, set_theme = Signal.create "light" in
+    let newsletter, set_newsletter = Signal.create false in
 
     (* Progress bar component *)
-    let progress_bar ~current_step () =
-      let current_idx = step_index current_step in
+    let progress_bar ~step () =
+      let current_idx = step_index step in
       let progress_bar_step ~idx ~label ~num () =
         let current_class =
           "progress-step" ^
@@ -311,6 +120,163 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       </div>
     in
 
+    (* Step components *)
+    let welcome_step () =
+      <div class_="wizard-step">
+        <h2>(text "Welcome to the Wizard")</h2>
+        <p class_="step-intro">
+          (text "This wizard will guide you through setting up your profile in a few simple steps.")
+        </p>
+        <div class_="step-content">
+          <div class_="info-card">
+            <h3>(text "What to expect:")</h3>
+            <ul>
+              <li>(text "Step 1: Enter your personal information")</li>
+              <li>(text "Step 2: Choose your preferences")</li>
+              <li>(text "Step 3: Review and confirm")</li>
+              <li>(text "Step 4: Complete setup")</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    in
+
+    let personal_info_step () =
+      <div class_="wizard-step">
+        <h2>(text "Personal Information")</h2>
+        <p class_="step-intro">
+          (text "Please tell us a bit about yourself.")
+        </p>
+        <div class_="step-content">
+          <div class_="form-group">
+            <label for_="wizard-name">(text "Name *")</label>
+            <input
+              id="wizard-name"
+              class_="form-control"
+              value=(Tpl.bind_input
+                ~signal:(fun () -> Signal.get name)
+                ~setter:set_name)
+              placeholder="Enter your name"
+            />
+          </div>
+          <div class_="form-group">
+            <label for_="wizard-email">(text "Email *")</label>
+            <input
+              id="wizard-email"
+              type_="email"
+              class_="form-control"
+              value=(Tpl.bind_input
+                ~signal:(fun () -> Signal.get email)
+                ~setter:set_email)
+              placeholder="your@email.com"
+            />
+          </div>
+          <div class_="form-group">
+            <label for_="wizard-age">(text "Age *")</label>
+            <input
+              id="wizard-age"
+              type_="number"
+              class_="form-control"
+              value=(Tpl.bind_input
+                ~signal:(fun () -> Signal.get age)
+                ~setter:set_age)
+              placeholder="13-120"
+            />
+          </div>
+          <p class_="form-hint">(text "* Required fields")</p>
+        </div>
+      </div>
+    in
+
+    let preferences_step () =
+      <div class_="wizard-step">
+        <h2>(text "Preferences")</h2>
+        <p class_="step-intro">
+          (text "Customize your experience.")
+        </p>
+        <div class_="step-content">
+          <div class_="form-group">
+            <label>(text "Theme")</label>
+            <select id="wizard-theme" class_="form-control"
+              value=(Tpl.bind_select
+                ~signal:(fun () -> Signal.get theme)
+                ~setter:set_theme)
+            >
+              <option value="light">(text "Light")</option>
+              <option value="dark">(text "Dark")</option>
+              <option value="auto">(text "Auto")</option>
+            </select>
+          </div>
+          <div class_="form-group checkbox-group">
+            <label class_="checkbox-label">
+              <input
+                type_="checkbox"
+                id="wizard-newsletter"
+                checked=(Tpl.bind_checkbox
+                  ~signal:(fun () -> Signal.get newsletter)
+                  ~setter:set_newsletter)
+              />
+              <span>(text "Subscribe to newsletter")</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    in
+
+    let confirm_step () =
+      <div class_="wizard-step">
+        <h2>(text "Confirm Your Information")</h2>
+        <p class_="step-intro">
+          (text "Please review your information before submitting.")
+        </p>
+        <div class_="step-content">
+          <div class_="confirm-section">
+            <h3>(text "Personal Information")</h3>
+            <div class_="confirm-item">
+              <span class_="label">(text "Name:")</span>
+              <span class_="value">(Tpl.text (fun () -> Signal.get name))</span>
+            </div>
+            <div class_="confirm-item">
+              <span class_="label">(text "Email:")</span>
+              <span class_="value">(Tpl.text (fun () -> Signal.get email))</span>
+            </div>
+            <div class_="confirm-item">
+              <span class_="label">(text "Age:")</span>
+              <span class_="value">(Tpl.text (fun () -> Signal.get age))</span>
+            </div>
+          </div>
+          <div class_="confirm-section">
+            <h3>(text "Preferences")</h3>
+            <div class_="confirm-item">
+              <span class_="label">(text "Theme:")</span>
+              <span class_="value">(Tpl.text (fun () -> Signal.get theme))</span>
+            </div>
+            <div class_="confirm-item">
+              <span class_="label">(text "Newsletter:")</span>
+              <span class_="value">
+                (Tpl.text (fun () -> if Signal.get newsletter then "Yes" else "No"))
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    in
+
+    let complete_step () =
+      <div class_="wizard-step">
+        <div class_="success-message">
+          <div class_="success-icon">(text "✓")</div>
+          <h2>(text "Setup Complete!")</h2>
+          <p class_="step-intro">
+            (text "Your profile has been successfully created.")
+          </p>
+          <div class_="step-content">
+            <p>(text "Thank you for completing the wizard. You can now proceed to the application.")</p>
+          </div>
+        </div>
+      </div>
+    in
+
     <div class_="wizard-container">
       <h1>(text "Multi-Step Wizard")</h1>
       <p class_="intro">
@@ -320,74 +286,65 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       (* Progress bar - reactive to current step *)
       (Tpl.show_when
          ~when_:(fun () -> true)
-         (fun () ->
-           let current_form = Signal.get form in
-           progress_bar ~current_step:current_form.step ()
-         ))
+         (fun () -> progress_bar ~step:(Signal.get current_step) ()))
 
       (* Current step content - using Tpl.show_when for conditional rendering *)
       <div class_="wizard-content">
         (Tpl.show_when
-           ~when_:(fun () -> (Signal.get form).step = Welcome)
+           ~when_:(fun () -> Signal.get current_step = Welcome)
            (fun () -> welcome_step ()))
 
         (Tpl.show_when
-           ~when_:(fun () -> (Signal.get form).step = PersonalInfo)
+           ~when_:(fun () -> Signal.get current_step = PersonalInfo)
            (fun () -> personal_info_step ()))
 
         (Tpl.show_when
-           ~when_:(fun () -> (Signal.get form).step = Preferences)
+           ~when_:(fun () -> Signal.get current_step = Preferences)
            (fun () -> preferences_step ()))
 
         (Tpl.show_when
-           ~when_:(fun () -> (Signal.get form).step = Confirm)
+           ~when_:(fun () -> Signal.get current_step = Confirm)
            (fun () -> confirm_step ()))
 
         (Tpl.show_when
-           ~when_:(fun () -> (Signal.get form).step = Complete)
+           ~when_:(fun () -> Signal.get current_step = Complete)
            (fun () -> complete_step ()))
       </div>
 
       (* Navigation buttons - fully functional *)
       <div class_="wizard-nav">
         (Tpl.show_when
-           ~when_:(fun () ->
-             let current_step = (Signal.get form).step in
-             current_step <> Welcome)
+           ~when_:(fun () -> Signal.get current_step <> Welcome)
            (fun () ->
              <button class_="btn btn-secondary" onclick=(fun _ ->
-               let current_form = Signal.get form in
-               let new_step = prev_step current_form.step in
-               set_form { current_form with step = new_step }
+               set_step (prev_step (Signal.get current_step))
              )>
                (text "Back")
              </button>
            ))
         (Tpl.show_when
-           ~when_:(fun () ->
-             let current_step = (Signal.get form).step in
-             current_step <> Complete)
+           ~when_:(fun () -> Signal.get current_step <> Complete)
            (fun () ->
-             let current_form = Signal.get form in
              let next_label =
-               match current_form.step with
+               match Signal.get current_step with
                | Confirm -> "Submit"
                | _ -> "Next"
              in
              <button class_="btn btn-primary" onclick=(fun _ ->
                (* On PersonalInfo step, validate before proceeding *)
-               let current_form = Signal.get form in
-               match current_form.step with
+               match Signal.get current_step with
                | PersonalInfo ->
-                   let errors = validate_personal current_form.personal in
+                   let errors = validate_personal
+                     ~name:(Signal.get name)
+                     ~email:(Signal.get email)
+                     ~age:(Signal.get age) in
                    if errors = [] then
-                     set_form { current_form with step = next_step current_form.step }
+                     set_step (next_step (Signal.get current_step))
                    else
-                     (* Validation fails - cannot proceed with empty form data *)
-                     (* TODO: Show validation errors to user once inputs work *)
+                     (* TODO: Show validation errors to user *)
                      ()
                | _ ->
-                   set_form { current_form with step = next_step current_form.step }
+                   set_step (next_step (Signal.get current_step))
              )>
                (text next_label)
              </button>
@@ -401,13 +358,12 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         <ul>
           <li>(text "✓ Step navigation works (Next/Back buttons)")</li>
           <li>(text "✓ Progress bar tracks current step")</li>
-          <li>(text "✓ Validation logic exists (runs but data is empty)")</li>
-          <li>(text "✗ Form inputs NOT functional - waiting for Tpl.bind_input")</li>
-          <li>(text "✗ Cannot collect user data - see issue #15")</li>
+          <li>(text "✓ Form inputs collect data via Tpl.bind_input")</li>
+          <li>(text "✓ Validation checks form fields")</li>
+          <li>(text "✓ Confirm step shows collected data")</li>
         </ul>
         <p class_="form-hint">
-          (text "This is a demonstration of reactive state management and conditional rendering.")
-          (text " Form data collection requires upstream fix for Tpl.bind_input runtime support.")
+          (text "This wizard demonstrates two-way input binding using Tpl.bind_input.")
         </p>
       </div>
     </div>
