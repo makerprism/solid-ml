@@ -116,6 +116,8 @@ let run_with_owner = create_root
 let batch fn = R.run_updates fn false
 
 let run_updates fn = R.run_updates fn false
+let run_transition fn = R.run_transition fn
+let transition_pending_signal () = R.transition_pending_signal ()
 
 let run_updates_nested fn =
   match R.get_runtime_opt () with

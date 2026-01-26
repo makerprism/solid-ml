@@ -270,4 +270,10 @@ module type TEMPLATE_ENV = sig
   module ErrorBoundary : sig
     val make : fallback:(error:string -> reset:(unit -> unit) -> 'a) -> (unit -> 'a) -> 'a
   end
+
+  module Transition : sig
+    val run : (unit -> 'a) -> 'a
+    val pending_signal : unit -> bool signal
+    val pending : unit -> bool
+  end
 end

@@ -2299,10 +2299,19 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                               [ (Nolabel, Ast_builder.Default.eunit ~loc:child_loc) ]
                           in
                           let render_call = compile_expr_force render_call in
+                          let transition_call =
+                            Ast_builder.Default.pexp_apply ~loc:child_loc
+                              (Ast_builder.Default.pexp_ident ~loc:child_loc
+                                 { loc = child_loc; txt = Longident.parse "Transition.run" })
+                              [ (Nolabel,
+                                 Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
+                                   (Ast_builder.Default.punit ~loc:child_loc)
+                                   render_call) ]
+                          in
                           let thunk =
                             Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
                               (Ast_builder.Default.punit ~loc:child_loc)
-                              render_call
+                              transition_call
                           in
                           parts_rev := Nodes_slot thunk :: !parts_rev;
                           true
@@ -2316,10 +2325,19 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                               [ (Nolabel, Ast_builder.Default.eunit ~loc:child_loc) ]
                           in
                           let render_call = compile_expr_force render_call in
+                          let transition_call =
+                            Ast_builder.Default.pexp_apply ~loc:child_loc
+                              (Ast_builder.Default.pexp_ident ~loc:child_loc
+                                 { loc = child_loc; txt = Longident.parse "Transition.run" })
+                              [ (Nolabel,
+                                 Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
+                                   (Ast_builder.Default.punit ~loc:child_loc)
+                                   render_call) ]
+                          in
                           let thunk =
                             Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
                               (Ast_builder.Default.punit ~loc:child_loc)
-                              render_call
+                              transition_call
                           in
                           parts_rev := Nodes_slot thunk :: !parts_rev;
                           true

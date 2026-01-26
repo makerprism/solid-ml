@@ -82,6 +82,13 @@ type runtime = {
   mutable updates_len: int;
   mutable effects: computation array;
   mutable effects_len: int;
+  mutable transition_updates: computation array;
+  mutable transition_updates_len: int;
+  mutable transition_effects: computation array;
+  mutable transition_effects_len: int;
+  mutable transition_depth: int;
+  mutable transition_processing: bool;
+  transition_pending: signal_state;
   mutable exec_count: int;
   mutable in_update: bool;
 }
@@ -119,6 +126,19 @@ let create_runtime () = {
   updates_len = 0;
   effects = Array.make initial_queue_capacity dummy_computation;
   effects_len = 0;
+  transition_updates = Array.make initial_queue_capacity dummy_computation;
+  transition_updates_len = 0;
+  transition_effects = Array.make initial_queue_capacity dummy_computation;
+  transition_effects_len = 0;
+  transition_depth = 0;
+  transition_processing = false;
+  transition_pending = {
+    sig_value = Obj.repr false;
+    observers = [||];
+    observer_slots = [||];
+    observers_len = 0;
+    comparator = None;
+  };
   exec_count = 0;
   in_update = false;
 }

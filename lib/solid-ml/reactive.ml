@@ -88,6 +88,8 @@ let clean_node = R.clean_node
 let run_computation = R.run_computation
 let run_top = R.run_top
 let run_updates = R.run_updates
+let run_transition = R.run_transition
+let transition_pending_signal = R.transition_pending_signal
 let look_upstream = R.look_upstream
 
 (** {1 Strict API} *)

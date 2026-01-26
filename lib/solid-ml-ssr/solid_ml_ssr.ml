@@ -56,6 +56,8 @@ module Env = struct
   module ErrorBoundary = struct
     let make = Solid_ml.ErrorBoundary.Unsafe.make
   end
+
+  module Transition = Solid_ml.Transition
 end
 
 module _ : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV = Env

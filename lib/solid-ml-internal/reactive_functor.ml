@@ -60,7 +60,7 @@ module Make (B : Backend.S) = struct
   (** {1 Queue Helpers} *)
   
   (** Push a computation onto the updates queue - optimized *)
-  let push_update rt comp =
+  let push_update_immediate rt comp =
     let len = rt.updates_len in
     let arr = rt.updates in
     if len >= Array.length arr then begin
@@ -73,9 +73,23 @@ module Make (B : Backend.S) = struct
     end;
     Array.unsafe_set rt.updates len comp;
     rt.updates_len <- len + 1
+
+  (** Push a computation onto the transition updates queue - optimized *)
+  let push_update_transition rt comp =
+    let len = rt.transition_updates_len in
+    let arr = rt.transition_updates in
+    if len >= Array.length arr then begin
+      let growth_factor = if len < 64 then 2.0 else 1.5 in
+      let new_len = int_of_float (float_of_int len *. growth_factor) in
+      let new_arr = Array.make new_len dummy_computation in
+      Array.blit arr 0 new_arr 0 len;
+      rt.transition_updates <- new_arr
+    end;
+    Array.unsafe_set rt.transition_updates len comp;
+    rt.transition_updates_len <- len + 1
   
   (** Push a computation onto the effects queue - optimized *)
-  let push_effect rt comp =
+  let push_effect_immediate rt comp =
     let len = rt.effects_len in
     let arr = rt.effects in
     if len >= Array.length arr then begin
@@ -88,6 +102,38 @@ module Make (B : Backend.S) = struct
     end;
     Array.unsafe_set rt.effects len comp;
     rt.effects_len <- len + 1
+
+  (** Push a computation onto the transition effects queue - optimized *)
+  let push_effect_transition rt comp =
+    let len = rt.transition_effects_len in
+    let arr = rt.transition_effects in
+    if len >= Array.length arr then begin
+      let growth_factor = if len < 64 then 2.0 else 1.5 in
+      let new_len = int_of_float (float_of_int len *. growth_factor) in
+      let new_arr = Array.make new_len dummy_computation in
+      Array.blit arr 0 new_arr 0 len;
+      rt.transition_effects <- new_arr
+    end;
+    Array.unsafe_set rt.transition_effects len comp;
+    rt.transition_effects_len <- len + 1
+
+  let transition_enqueue rt = rt.transition_depth > 0 || rt.transition_processing
+
+  let set_transition_pending_ref : (runtime -> bool -> unit) ref = ref (fun _ _ -> ())
+
+  let push_update rt comp =
+    if transition_enqueue rt then (
+      push_update_transition rt comp;
+      !set_transition_pending_ref rt true)
+    else
+      push_update_immediate rt comp
+
+  let push_effect rt comp =
+    if transition_enqueue rt then (
+      push_effect_transition rt comp;
+      !set_transition_pending_ref rt true)
+    else
+      push_effect_immediate rt comp
 
   (** {1 Forward Declarations} *)
   
@@ -253,6 +299,13 @@ module Make (B : Backend.S) = struct
       end
     end
 
+  let set_transition_pending rt value =
+    let current = Obj.obj rt.transition_pending.sig_value in
+    if current <> value then
+      write_signal rt.transition_pending (Obj.repr value)
+
+  let () = set_transition_pending_ref := set_transition_pending
+
   (** {1 Clean Node} *)
   
   (** Clean up a computation, removing it from dependency graph *)
@@ -397,6 +450,19 @@ module Make (B : Backend.S) = struct
   
   let complete_updates () =
     let rt = get_runtime () in
+
+    let promote_transitions () =
+      let updates = rt.updates in
+      let effects = rt.effects in
+      rt.updates <- rt.transition_updates;
+      rt.effects <- rt.transition_effects;
+      rt.updates_len <- rt.transition_updates_len;
+      rt.effects_len <- rt.transition_effects_len;
+      rt.transition_updates <- updates;
+      rt.transition_effects <- effects;
+      rt.transition_updates_len <- 0;
+      rt.transition_effects_len <- 0
+    in
     
     let rec loop () =
       if rt.updates_len > 0 || rt.effects_len > 0 then begin
@@ -434,6 +500,14 @@ module Make (B : Backend.S) = struct
         done;
         
         loop ()
+      end else if rt.transition_updates_len > 0 || rt.transition_effects_len > 0 then begin
+        rt.transition_processing <- true;
+        set_transition_pending rt true;
+        promote_transitions ();
+        loop ()
+      end else begin
+        if rt.transition_processing then rt.transition_processing <- false;
+        set_transition_pending rt false
       end
     in
     loop ()
@@ -471,6 +545,21 @@ module Make (B : Backend.S) = struct
     end
 
   let () = run_updates_ref := run_updates
+
+  let run_transition fn =
+    let rt = get_runtime () in
+    rt.transition_depth <- rt.transition_depth + 1;
+    match run_updates (fun () -> fn ()) false with
+    | value ->
+      rt.transition_depth <- rt.transition_depth - 1;
+      value
+    | exception exn ->
+      rt.transition_depth <- rt.transition_depth - 1;
+      raise exn
+
+  let transition_pending_signal () =
+    let rt = get_runtime () in
+    rt.transition_pending
 
   (** {1 Create Computation} *)
   

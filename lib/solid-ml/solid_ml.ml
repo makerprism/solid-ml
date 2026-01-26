@@ -76,6 +76,9 @@ module Suspense = Suspense
 (** Error boundaries for catching errors *)
 module ErrorBoundary = Error_boundary
 
+(** Transition scheduling for deferred updates *)
+module Transition = Transition
+
 (** Generate unique IDs for SSR hydration *)
 module Unique_id = Unique_id
 

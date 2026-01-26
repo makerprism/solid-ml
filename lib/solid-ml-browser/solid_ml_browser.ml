@@ -79,6 +79,9 @@ module Suspense = Suspense
 (** Error boundaries for catching errors *)
 module ErrorBoundary = Error_boundary
 
+(** Transition scheduling for deferred updates *)
+module Transition = Transition
+
 (** Generate unique IDs for hydration *)
 module Unique_id = Unique_id
 
@@ -124,6 +127,7 @@ module Env = struct
 
   module Suspense = Suspense
   module ErrorBoundary = ErrorBoundary
+  module Transition = Transition
 end
 
 module _ : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV = Env
