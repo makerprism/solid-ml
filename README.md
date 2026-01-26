@@ -442,21 +442,34 @@ Html.div
   ] ()
 ```
 
-### MLX Tag Set Limitations
+### MLX Tag Set (Intrinsic HTML)
 
-MLX JSX syntax supports a **limited set of HTML tags**. The following tags are available:
+MLX JSX syntax supports a curated set of intrinsic HTML tags. The current list is comprehensive for common semantic markup:
 
-**Content tags:** `div`, `span`, `p`, `a`, `button`, `ul`, `li`, `strong`, `em`, `section`, `main`, `header`, `footer`, `nav`, `pre`, `code`
-**Heading tags:** `h1`, `h2`, `h3`, `h4`, `h5`, `h6`
+**Document:** `html`, `head`, `body`, `title`, `meta`, `link`, `script`
 
-**NOT supported:**
-- Page structure: `html`, `head`, `body`
-- Self-closing tags: `br`, `hr`, `img`, `input`, `meta`, `link`, `script`, `title`
-- Other available in HTML DSL but not MLX: `article`, `aside`, `ol`, `blockquote`, `form`, `fieldset`, `legend`, `label`, `select`, `option`, `textarea`, `table`, `video`, `audio`
+**Sectioning:** `header`, `footer`, `main`, `nav`, `section`, `article`, `aside`, `figure`, `figcaption`, `address`, `details`, `summary`
+
+**Text + grouping:** `div`, `span`, `p`, `pre`, `code`, `blockquote`, `strong`, `em`, `b`, `i`, `u`, `s`, `small`, `mark`, `sup`, `sub`, `cite`, `q`, `abbr`, `data`, `time`, `kbd`, `samp`, `var`, `del`, `ins`
+
+**Lists:** `ul`, `ol`, `li`, `dl`, `dt`, `dd`
+
+**Forms:** `form`, `fieldset`, `legend`, `label`, `input`, `textarea`, `select`, `option`, `optgroup`, `button`, `output`, `progress`, `meter`
+
+**Tables:** `table`, `caption`, `colgroup`, `col`, `thead`, `tbody`, `tfoot`, `tr`, `th`, `td`
+
+**Media:** `img`, `picture`, `source`, `track`, `video`, `audio`, `br`, `hr`
+
+If a tag is not listed here, it is not an intrinsic MLX tag. You can still use the OCaml HTML DSL directly, or extend the template PPX whitelist.
+
+SVG tags are available via `Html.Svg` (use the HTML DSL for SVG trees).
 
 **Recommended pattern for full-page rendering:**
 
-Use the standard OCaml HTML DSL for page structure, and MLX JSX for the body content:
+MLX now supports full document tags (`html`, `head`, `body`), but we still
+recommend using the standard OCaml HTML DSL for page structure and MLX JSX for
+body content. This keeps app layout explicit and avoids mixing document setup
+with component templates.
 
 ```ocaml
 (* In your render function *)
@@ -541,44 +554,6 @@ Example dune stanza for MLX files:
 - **dune 3.16+** with Melange support (`(using melange 0.1)`)
 - **For browser builds:** Node.js (for esbuild bundling)
 - **For web server examples:** Dream (not included - see examples for reference code)
-
-## Installation
-
-### Via Dune Package Management (Git)
-
-Add to your `dune-project`:
-
-```scheme
-(package
-  (name my-app)
-  (depends
-   (solid-ml (>= 0.1.0))
-   (solid-ml-ssr (>= 0.1.0))
-   (solid-ml-router (>= 0.1.0))))  ; Optional
-
-(source
-  (github makerprism/solid-ml))
-```
-
-Then run:
-```bash
-dune pkg lock
-dune build
-```
-
-### Via OPAM Pin (Development)
-
-```bash
-opam pin add solid-ml.0.1.0 git+https://github.com/makerprism/solid-ml#main
-opam pin add solid-ml-ssr.0.1.0 git+https://github.com/makerprism/solid-ml#main
-opam pin add solid-ml-router.0.1.0 git+https://github.com/makerprism/solid-ml#main
-```
-
-### Via OPAM (Coming Soon)
-
-```bash
-opam install solid-ml solid-ml-ssr solid-ml-router
-```
 
 ## Architecture & Design
 

@@ -57,7 +57,7 @@ serve:
 	@python3 -m http.server 8000 -d examples || stty sane
 
 # Build all browser examples
-browser-examples: example-browser example-browser-router example-template-counter example-full-ssr-client example-full-ssr-server
+browser-examples: example-browser example-browser-router example-full-ssr-client
 	@echo ""
 	@echo "All browser examples built! Run 'make serve' to view them."
 
@@ -68,7 +68,7 @@ example-browser:
 	@mkdir -p examples/browser_counter/dist
 	@rm -f examples/browser_counter/dist/counter.js
 	@echo "Bundling with esbuild..."
-	@cd _build/default/examples/browser_counter/output && \
+	@cd _build/default/examples/browser_counter/output/examples/browser_counter && \
 		npx esbuild counter.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/browser_counter/dist/counter.js --format=esm 2>/dev/null
 	@echo ""
 	@echo "Build complete! Run 'make serve' then open http://localhost:8000/browser_counter/"
@@ -80,22 +80,10 @@ example-browser-router:
 	@mkdir -p examples/browser_router/dist
 	@rm -f examples/browser_router/dist/router_demo.js
 	@echo "Bundling with esbuild..."
-	@cd _build/default/examples/browser_router/output && \
+	@cd _build/default/examples/browser_router/output/examples/browser_router && \
 		npx esbuild router_demo.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/browser_router/dist/router_demo.js --format=esm 2>/dev/null
 	@echo ""
 	@echo "Build complete! Run 'make serve' then open http://localhost:8000/browser_router/"
-
-# Build template compiler example
-example-template-counter:
-	@echo "Building template compiler counter example..."
-	@$(DUNE) build @examples/template_counter/melange
-	@mkdir -p examples/template_counter/dist
-	@rm -f examples/template_counter/dist/template_counter.js
-	@echo "Bundling with esbuild..."
-	@cd _build/default/examples/template_counter/output/examples/template_counter && \
-		npx esbuild client.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/template_counter/dist/template_counter.js --format=esm 2>/dev/null
-	@echo ""
-	@echo "Build complete! Run 'make serve' then open http://localhost:8000/template_counter/"
 
 # Build full SSR client example
 example-full-ssr-client:
@@ -103,14 +91,14 @@ example-full-ssr-client:
 	@$(DUNE) build @examples/full_ssr_app/client/melange
 	@mkdir -p examples/full_ssr_app/static
 	@echo "Bundling with esbuild..."
-	@npx esbuild _build/default/examples/full_ssr_app/client/output/client.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/full_ssr_app/static/client.js --format=esm 2>/dev/null
+	@npx esbuild _build/default/examples/full_ssr_app/client/client_output/examples/full_ssr_app/client/client.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/full_ssr_app/static/client.js --format=esm 2>/dev/null
 	@echo ""
 	@echo "Client built: examples/full_ssr_app/static/client.js"
 
 # Build full SSR server example
 example-full-ssr-server:
 	@echo "Building full SSR server..."
-	@$(DUNE) build @examples/full_ssr_app/server/melange
+	@$(DUNE) build examples/full_ssr_app/server.exe
 	@echo ""
 	@echo "Server built: examples/full_ssr_app/server.exe"
 
@@ -125,19 +113,18 @@ example-full-ssr:
 	@make example-full-ssr-client
 	@make example-full-ssr-server
 	@echo ""
-	@echo "Build complete! Run 'make example-full-ssr' to start the server."
+	@echo "Build complete! Run 'make run-full-ssr-server' to start the server."
 	@echo "Visit http://localhost:8080"
 	@echo ""
 
 # Run full SSR server
-example-full-ssr-server:
+run-full-ssr-server:
 	@echo ""
 	@echo "=== Starting Full SSR Server ==="
 	@echo "Visit http://localhost:8080"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	@PORT ?=8080
-	@$(DUNE) exec examples/full_ssr_app/server.exe
+	@PORT=8080 $(DUNE) exec examples/full_ssr_app/server.exe
 
 # ==============================================================================
 # Browser Tests

@@ -280,10 +280,10 @@ let test_reactive_text () =
 
 let test_reactive_text_of () =
   print_endline "Test: reactive_text_of with custom formatter";
-  let data, _set_data = Signal.create {|hello|} in
+  let value_signal, _set_data = Signal.create {|hello|} in
   let html = Render.to_string (fun () ->
     Html.(div ~children:[
-      reactive_text_of String.uppercase_ascii data
+      reactive_text_of String.uppercase_ascii value_signal
     ] ())
   ) in
   assert (contains html "HELLO");

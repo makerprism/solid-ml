@@ -82,23 +82,23 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       (active_count, completed_count, filtered_count)
     in
 
-    (* Helper to create filter button class list *)
-    let filter_class filter_type () =
-      [ ("filter-btn", true);
-        ("active", Signal.get current_filter = filter_type) ]
+    (* Helper to create filter button class string *)
+    let filter_class filter_type =
+      "filter-btn" ^
+      if Signal.get current_filter = filter_type then " active" else ""
     in
 
     <div class_="filters-container">
       <h1>(text "Reactive Filters Demo")</h1>
 
       <div class_="filter-bar">
-        <button class_=(Tpl.class_list (filter_class All)) onclick=(fun _ -> set_filter All)>
+        <button class_=(filter_class All) onclick=(fun _ -> set_filter All)>
           (text "All")
         </button>
-        <button class_=(Tpl.class_list (filter_class Active)) onclick=(fun _ -> set_filter Active)>
+        <button class_=(filter_class Active) onclick=(fun _ -> set_filter Active)>
           (text "Active")
         </button>
-        <button class_=(Tpl.class_list (filter_class Completed)) onclick=(fun _ -> set_filter Completed)>
+        <button class_=(filter_class Completed) onclick=(fun _ -> set_filter Completed)>
           (text "Completed")
         </button>
       </div>

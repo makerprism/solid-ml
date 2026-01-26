@@ -230,28 +230,89 @@ let is_unit_expr (expr : Parsetree.expression) : bool =
 
 let supported_intrinsic_tags =
   [
+    "html";
+    "head";
+    "body";
+    "title";
+    "meta";
+    "link";
+    "script";
+    "header";
+    "footer";
+    "main";
+    "nav";
+    "section";
+    "article";
+    "aside";
+    "figure";
+    "figcaption";
+    "address";
+    "details";
+    "summary";
     "div";
     "span";
     "p";
     "a";
     "button";
+    "pre";
+    "code";
+    "blockquote";
+    "strong";
+    "em";
+    "b";
+    "i";
+    "u";
+    "s";
+    "small";
+    "mark";
+    "sup";
+    "sub";
+    "cite";
+    "q";
+    "abbr";
+    "data";
+    "time";
+    "kbd";
+    "samp";
+    "var";
+    "del";
+    "ins";
     "form";
+    "fieldset";
+    "legend";
     "input";
     "label";
     "textarea";
     "select";
     "option";
+    "optgroup";
+    "output";
+    "progress";
+    "meter";
     "ul";
+    "ol";
     "li";
-    "strong";
-    "em";
-    "section";
-    "main";
-    "header";
-    "footer";
-    "nav";
-    "pre";
-    "code";
+    "dl";
+    "dt";
+    "dd";
+    "table";
+    "caption";
+    "colgroup";
+    "col";
+    "thead";
+    "tbody";
+    "tfoot";
+    "tr";
+    "th";
+    "td";
+    "img";
+    "br";
+    "hr";
+    "picture";
+    "source";
+    "track";
+    "video";
+    "audio";
     "h1";
     "h2";
     "h3";
@@ -263,7 +324,7 @@ let supported_intrinsic_tags =
 let is_supported_intrinsic_tag tag =
   List.exists (String.equal tag) supported_intrinsic_tags
 
-let self_closing_intrinsic_tags = [ "input"; "img"; "br"; "hr"; "meta"; "link" ]
+let self_closing_intrinsic_tags = [ "input"; "img"; "br"; "hr"; "meta"; "link"; "source"; "track"; "col" ]
 
 let is_self_closing_intrinsic_tag tag =
   List.exists (String.equal tag) self_closing_intrinsic_tags

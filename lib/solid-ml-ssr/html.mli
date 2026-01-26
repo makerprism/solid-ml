@@ -104,6 +104,11 @@ val nav : ?id:string -> ?class_:string -> ?role:string -> ?aria_label:string -> 
 val section : ?id:string -> ?class_:string -> ?role:string -> ?aria_label:string -> ?aria_labelledby:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val article : ?id:string -> ?class_:string -> ?role:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val aside : ?id:string -> ?class_:string -> ?role:string -> ?aria_label:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val figure : ?id:string -> ?class_:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val figcaption : ?id:string -> ?class_:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val address : ?id:string -> ?class_:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val details : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val summary : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
 
 (** {2 Text Content} *)
 
@@ -128,6 +133,24 @@ val h6 : ?id:string -> ?class_:string -> ?tabindex:int -> ?onclick:(event -> uni
 val a : ?id:string -> ?class_:string -> ?href:string -> ?target:string -> ?rel:string -> ?download:string -> ?hreflang:string -> ?tabindex:int -> ?onclick:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val strong : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val em : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val b : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val i : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val u : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val s : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val small : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val mark : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val sup : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val sub : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val cite : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val q : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val abbr : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val data : ?id:string -> ?class_:string -> ?value:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val time : ?id:string -> ?class_:string -> ?datetime:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val kbd : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val samp : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val var : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val del : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val ins : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val br : ?attrs:(string * string) list -> unit -> node
 val hr : ?class_:string -> ?attrs:(string * string) list -> unit -> node
 
@@ -135,11 +158,17 @@ val hr : ?class_:string -> ?attrs:(string * string) list -> unit -> node
 
 val ul : ?id:string -> ?class_:string -> ?role:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val ol : ?id:string -> ?class_:string -> ?start:int -> ?role:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val dl : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val dt : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val dd : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val li : ?id:string -> ?class_:string -> ?role:string -> ?onclick:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
 
 (** {2 Tables} *)
 
 val table : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val caption : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val colgroup : ?attrs:(string * string) list -> children:node list -> unit -> node
+val col : ?span:int -> ?attrs:(string * string) list -> unit -> node
 val thead : ?attrs:(string * string) list -> children:node list -> unit -> node
 val tbody : ?attrs:(string * string) list -> children:node list -> unit -> node
 val tfoot : ?attrs:(string * string) list -> children:node list -> unit -> node
@@ -154,13 +183,18 @@ val input : ?id:string -> ?class_:string -> ?type_:string -> ?name:string -> ?va
 val textarea : ?id:string -> ?class_:string -> ?name:string -> ?placeholder:string -> ?rows:int -> ?cols:int -> ?required:bool -> ?disabled:bool -> ?autofocus:bool -> ?readonly:bool -> ?tabindex:int -> ?oninput:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val select : ?id:string -> ?class_:string -> ?name:string -> ?required:bool -> ?disabled:bool -> ?multiple:bool -> ?autofocus:bool -> ?tabindex:int -> ?onchange:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val option : ?value:string -> ?selected:bool -> ?disabled:bool -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val optgroup : ?label:string -> ?disabled:bool -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val label : ?id:string -> ?class_:string -> ?for_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val button : ?id:string -> ?class_:string -> ?type_:string -> ?disabled:bool -> ?tabindex:int -> ?aria_label:string -> ?aria_expanded:bool -> ?aria_controls:string -> ?aria_haspopup:bool -> ?onclick:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val output : ?id:string -> ?class_:string -> ?for_:string -> ?name:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val progress : ?id:string -> ?class_:string -> ?value:string -> ?max:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val meter : ?id:string -> ?class_:string -> ?value:string -> ?min:string -> ?max:string -> ?low:string -> ?high:string -> ?optimum:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val fieldset : ?id:string -> ?class_:string -> ?disabled:bool -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val legend : ?attrs:(string * string) list -> children:node list -> unit -> node
 
 (** {2 Media} *)
 
+val picture : ?id:string -> ?class_:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val img : ?id:string -> ?class_:string -> ?src:string -> ?alt:string -> ?width:int -> ?height:int -> ?loading:string -> ?srcset:string -> ?sizes:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> unit -> node
 
 (** {1 Portal} *)
@@ -169,6 +203,7 @@ val portal : ?target:element -> ?is_svg:bool -> children:node -> unit -> node
 val video : ?id:string -> ?class_:string -> ?src:string -> ?controls:bool -> ?autoplay:bool -> ?loop:bool -> ?muted:bool -> ?poster:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val audio : ?id:string -> ?class_:string -> ?src:string -> ?controls:bool -> ?autoplay:bool -> ?loop:bool -> ?muted:bool -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val source : ?src:string -> ?type_:string -> ?attrs:(string * string) list -> unit -> node
+val track : ?kind:string -> ?src:string -> ?srclang:string -> ?label:string -> ?attrs:(string * string) list -> unit -> node
 val iframe : ?id:string -> ?class_:string -> ?src:string -> ?width:string -> ?height:string -> ?title:string -> ?attrs:(string * string) list -> unit -> node
 
 (** {2 SVG Elements} *)

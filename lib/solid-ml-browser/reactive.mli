@@ -68,9 +68,11 @@ end
 (** {1 Form Bindings} *)
 
 val bind_input : Dom.element -> string Signal.t -> (string -> unit) -> unit
+[@@ocaml.warning "-32"]
 (** Two-way binding for text inputs (updates DOM and signal). *)
 
 val bind_checkbox : Dom.element -> bool Signal.t -> (bool -> unit) -> unit
+[@@ocaml.warning "-32"]
 (** Two-way binding for checkboxes (updates DOM and signal). *)
 
 val bind_select : Dom.element -> string Signal.t -> (string -> unit) -> unit

@@ -1000,6 +1000,43 @@ let make_element_with_attrs tag ?id ?class_ ?style ?onclick ?oninput ?onchange ?
       Element el
   | _ -> el_node
 
+(** {1 Document Root} *)
+
+let html ?lang ?(attrs=[]) ~children () =
+  make_element_with_attrs "html" ~attrs (fun el ->
+    set_opt_attr el "lang" lang
+  ) children
+
+let head ?(attrs=[]) ~children () =
+  make_element_with_attrs "head" ~attrs (fun _ -> ()) children
+
+let body ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "body" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let title ?(attrs=[]) ~children () =
+  make_element_with_attrs "title" ~attrs (fun _ -> ()) children
+
+let meta ?charset ?name ?content ?(attrs=[]) () =
+  make_element_with_attrs "meta" ~attrs (fun el ->
+    set_opt_attr el "charset" charset;
+    set_opt_attr el "name" name;
+    set_opt_attr el "content" content
+  ) []
+
+let link ?rel ?href ?(attrs=[]) () =
+  make_element_with_attrs "link" ~attrs (fun el ->
+    set_opt_attr el "rel" rel;
+    set_opt_attr el "href" href
+  ) []
+
+let script ?src ?type_ ?(defer=false) ?(async=false) ?(attrs=[]) ~children () =
+  make_element_with_attrs "script" ~attrs (fun el ->
+    set_opt_attr el "src" src;
+    set_opt_attr el "type" type_;
+    set_bool_attr el "defer" defer;
+    set_bool_attr el "async" async
+  ) children
+
 (** {1 Document Structure} *)
 
 let div ?id ?class_ ?style ?role ?aria_label ?aria_hidden ?tabindex ?onclick ?(data=[]) ?(attrs=[]) ~children () =
@@ -1030,6 +1067,9 @@ let pre ?id ?class_ ?(attrs=[]) ~children () =
 
 let code ?id ?class_ ?(attrs=[]) ~children () =
   make_element_with_attrs "code" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let blockquote ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "blockquote" ?id ?class_ ~attrs (fun _ -> ()) children
 
 (** {1 Headings} *)
 
@@ -1106,6 +1146,27 @@ let aside ?id ?class_ ?role ?aria_label ?(data=[]) ?(attrs=[]) ~children () =
     set_data_attrs el data
   ) children
 
+let figure ?id ?class_ ?(data=[]) ?(attrs=[]) ~children () =
+  make_element_with_attrs "figure" ?id ?class_ ~attrs (fun el ->
+    set_data_attrs el data
+  ) children
+
+let figcaption ?id ?class_ ?(data=[]) ?(attrs=[]) ~children () =
+  make_element_with_attrs "figcaption" ?id ?class_ ~attrs (fun el ->
+    set_data_attrs el data
+  ) children
+
+let address ?id ?class_ ?(data=[]) ?(attrs=[]) ~children () =
+  make_element_with_attrs "address" ?id ?class_ ~attrs (fun el ->
+    set_data_attrs el data
+  ) children
+
+let details ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "details" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let summary ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "summary" ?id ?class_ ~attrs (fun _ -> ()) children
+
 (** {1 Inline Elements} *)
 
 let a ?id ?class_ ?href ?target ?rel ?download ?hreflang ?tabindex ?onclick ?(data=[]) ?(attrs=[]) ~children () =
@@ -1124,6 +1185,64 @@ let strong ?id ?class_ ?(attrs=[]) ~children () =
 
 let em ?id ?class_ ?(attrs=[]) ~children () =
   make_element_with_attrs "em" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let b ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "b" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let i ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "i" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let u ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "u" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let s ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "s" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let small ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "small" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let mark ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "mark" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let sup ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "sup" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let sub ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "sub" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let cite ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "cite" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let q ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "q" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let abbr ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "abbr" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let data ?id ?class_ ?value ?(attrs=[]) ~children () =
+  make_element_with_attrs "data" ?id ?class_ ~attrs (fun el ->
+    set_opt_attr el "value" value
+  ) children
+
+let time ?id ?class_ ?datetime ?(attrs=[]) ~children () =
+  make_element_with_attrs "time" ?id ?class_ ~attrs (fun el ->
+    set_opt_attr el "datetime" datetime
+  ) children
+
+let kbd ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "kbd" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let samp ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "samp" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let var ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "var" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let del ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "del" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let ins ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "ins" ?id ?class_ ~attrs (fun _ -> ()) children
 
 let br ?(attrs=[]) () =
   make_element_with_attrs "br" ~attrs (fun _ -> ()) []
@@ -1146,6 +1265,15 @@ let ol ?id ?class_ ?start ?role ?(data=[]) ?(attrs=[]) ~children () =
     set_data_attrs el data
   ) children
 
+let dl ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "dl" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let dt ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "dt" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let dd ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "dd" ?id ?class_ ~attrs (fun _ -> ()) children
+
 let li ?id ?class_ ?role ?onclick ?(data=[]) ?(attrs=[]) ~children () =
   make_element_with_attrs "li" ?id ?class_ ?onclick ~attrs (fun el ->
     set_opt_attr el "role" role;
@@ -1156,6 +1284,17 @@ let li ?id ?class_ ?role ?onclick ?(data=[]) ?(attrs=[]) ~children () =
 
 let table ?id ?class_ ?(attrs=[]) ~children () =
   make_element_with_attrs "table" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let caption ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "caption" ?id ?class_ ~attrs (fun _ -> ()) children
+
+let colgroup ?(attrs=[]) ~children () =
+  make_element_with_attrs "colgroup" ~attrs (fun _ -> ()) children
+
+let col ?span ?(attrs=[]) () =
+  make_element_with_attrs "col" ~attrs (fun el ->
+    (match span with Some n -> set_attribute el "span" (string_of_int n) | None -> ())
+  ) []
 
 let thead ?(attrs=[]) ~children () =
   make_element_with_attrs "thead" ~attrs (fun _ -> ()) children
@@ -1247,6 +1386,12 @@ let option ?value ?(selected=false) ?(disabled=false) ?(attrs=[]) ~children () =
     set_bool_attr el "disabled" disabled
   ) children
 
+let optgroup ?label ?(disabled=false) ?(attrs=[]) ~children () =
+  make_element_with_attrs "optgroup" ~attrs (fun el ->
+    set_opt_attr el "label" label;
+    set_bool_attr el "disabled" disabled
+  ) children
+
 let label ?id ?class_ ?for_ ?(attrs=[]) ~children () =
   make_element_with_attrs "label" ?id ?class_ ~attrs (fun el ->
     set_opt_attr el "for" for_
@@ -1264,7 +1409,40 @@ let button ?id ?class_ ?type_ ?(disabled=false) ?tabindex ?aria_label ?aria_expa
     set_data_attrs el data
   ) children
 
+let output ?id ?class_ ?for_ ?name ?(attrs=[]) ~children () =
+  make_element_with_attrs "output" ?id ?class_ ~attrs (fun el ->
+    set_opt_attr el "for" for_;
+    set_opt_attr el "name" name
+  ) children
+
+let progress ?id ?class_ ?value ?max ?(attrs=[]) ~children () =
+  make_element_with_attrs "progress" ?id ?class_ ~attrs (fun el ->
+    set_opt_attr el "value" value;
+    set_opt_attr el "max" max
+  ) children
+
+let meter ?id ?class_ ?value ?min ?max ?low ?high ?optimum ?(attrs=[]) ~children () =
+  make_element_with_attrs "meter" ?id ?class_ ~attrs (fun el ->
+    set_opt_attr el "value" value;
+    set_opt_attr el "min" min;
+    set_opt_attr el "max" max;
+    set_opt_attr el "low" low;
+    set_opt_attr el "high" high;
+    set_opt_attr el "optimum" optimum
+  ) children
+
+let fieldset ?id ?class_ ?(disabled=false) ?(attrs=[]) ~children () =
+  make_element_with_attrs "fieldset" ?id ?class_ ~attrs (fun el ->
+    set_bool_attr el "disabled" disabled
+  ) children
+
+let legend ?(attrs=[]) ~children () =
+  make_element_with_attrs "legend" ~attrs (fun _ -> ()) children
+
 (** {1 Media} *)
+
+let picture ?id ?class_ ?(attrs=[]) ~children () =
+  make_element_with_attrs "picture" ?id ?class_ ~attrs (fun _ -> ()) children
 
 let img ?id ?class_ ?src ?alt ?width ?height ?loading ?srcset ?sizes ?(data=[]) ?(attrs=[]) () =
   make_element_with_attrs "img" ?id ?class_ ~attrs (fun el ->
@@ -1277,6 +1455,39 @@ let img ?id ?class_ ?src ?alt ?width ?height ?loading ?srcset ?sizes ?(data=[]) 
     set_opt_attr el "sizes" sizes;
     set_data_attrs el data
   ) []
+
+let source ?src ?type_ ?(attrs=[]) () =
+  make_element_with_attrs "source" ~attrs (fun el ->
+    set_opt_attr el "src" src;
+    set_opt_attr el "type" type_
+  ) []
+
+let track ?kind ?src ?srclang ?label ?(attrs=[]) () =
+  make_element_with_attrs "track" ~attrs (fun el ->
+    set_opt_attr el "kind" kind;
+    set_opt_attr el "src" src;
+    set_opt_attr el "srclang" srclang;
+    set_opt_attr el "label" label
+  ) []
+
+let video ?id ?class_ ?src ?(controls=false) ?(autoplay=false) ?(loop=false) ?(muted=false) ?poster ?(attrs=[]) ~children () =
+  make_element_with_attrs "video" ?id ?class_ ~attrs (fun el ->
+    set_opt_attr el "src" src;
+    set_opt_attr el "poster" poster;
+    set_bool_attr el "controls" controls;
+    set_bool_attr el "autoplay" autoplay;
+    set_bool_attr el "loop" loop;
+    set_bool_attr el "muted" muted
+  ) children
+
+let audio ?id ?class_ ?src ?(controls=false) ?(autoplay=false) ?(loop=false) ?(muted=false) ?(attrs=[]) ~children () =
+  make_element_with_attrs "audio" ?id ?class_ ~attrs (fun el ->
+    set_opt_attr el "src" src;
+    set_bool_attr el "controls" controls;
+    set_bool_attr el "autoplay" autoplay;
+    set_bool_attr el "loop" loop;
+    set_bool_attr el "muted" muted
+  ) children
 
 (** {1 Portal} *)
 

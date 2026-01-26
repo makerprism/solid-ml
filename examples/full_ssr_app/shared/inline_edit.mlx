@@ -29,23 +29,24 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
   (** Inline Edit Todo Item Component *)
   let todo_item ~todo ~is_editing ~edit_text ~set_edit_text ~on_edit ~on_save ~on_cancel () =
-    let item_classes extra () =
-      [ ("todo-item", true);
-        ("completed", todo.completed) ] @ extra
+    let item_class extra =
+      "todo-item" ^
+      (if todo.completed then " completed" else "") ^
+      extra
     in
     match is_editing with
     | Not_editing ->
-        <li class_=(Tpl.class_list (item_classes []))>
+        <li class_=(item_class "")>
           <span class_="checkbox"></span>
           <span class_="todo-text" onclick=(fun _ -> on_edit ())>
-            (Tpl.text (fun () -> todo.text))
+            (text todo.text)
           </span>
           <button class_="btn-edit" onclick=(fun _ -> on_edit ())>
             (Html.text "Edit")
           </button>
         </li>
     | Editing _ ->
-        <li class_=(Tpl.class_list (item_classes [ ("editing", true) ]))>
+        <li class_=(item_class " editing")>
           <input
             type_="text"
             value=(Tpl.bind_input

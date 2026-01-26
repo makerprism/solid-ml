@@ -766,6 +766,49 @@ let aside ?id ?class_ ?role ?aria_label ?(data=[]) ?(attrs=[]) ~children () =
   in
   element "aside" attrs children
 
+let figure ?id ?class_ ?(data=[]) ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_data data
+    |> add_attrs attrs
+  in
+  element "figure" attrs children
+
+let figcaption ?id ?class_ ?(data=[]) ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_data data
+    |> add_attrs attrs
+  in
+  element "figcaption" attrs children
+
+let address ?id ?class_ ?(data=[]) ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_data data
+    |> add_attrs attrs
+  in
+  element "address" attrs children
+
+let details ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "details" attrs children
+
+let summary ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "summary" attrs children
+
 (** Text content *)
 let div ?id ?class_ ?style ?role ?aria_label ?aria_hidden ?tabindex ?onclick:_ ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
@@ -921,6 +964,152 @@ let em ?id ?class_ ?(attrs=[]) ~children () =
   in
   element "em" attrs children
 
+let b ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "b" attrs children
+
+let i ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "i" attrs children
+
+let u ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "u" attrs children
+
+let s ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "s" attrs children
+
+let small ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "small" attrs children
+
+let mark ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "mark" attrs children
+
+let sup ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "sup" attrs children
+
+let sub ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "sub" attrs children
+
+let cite ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "cite" attrs children
+
+let q ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "q" attrs children
+
+let abbr ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "abbr" attrs children
+
+let data ?id ?class_ ?value ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_opt "value" value
+    |> add_attrs attrs
+  in
+  element "data" attrs children
+
+let time ?id ?class_ ?datetime ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_opt "datetime" datetime
+    |> add_attrs attrs
+  in
+  element "time" attrs children
+
+let kbd ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "kbd" attrs children
+
+let samp ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "samp" attrs children
+
+let var ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "var" attrs children
+
+let del ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "del" attrs children
+
+let ins ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "ins" attrs children
+
 let br ?(attrs=[]) () =
   element "br" ~self_closing:true attrs []
 
@@ -953,6 +1142,30 @@ let ol ?id ?class_ ?start ?role ?(data=[]) ?(attrs=[]) ~children () =
   in
   element "ol" attrs children
 
+let dl ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "dl" attrs children
+
+let dt ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "dt" attrs children
+
+let dd ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "dd" attrs children
+
 let li ?id ?class_ ?role ?onclick:_ ?(data=[]) ?(attrs=[]) ~children () =
   let attrs = []
     |> add_opt "id" id
@@ -971,6 +1184,24 @@ let table ?id ?class_ ?(attrs=[]) ~children () =
     |> add_attrs attrs
   in
   element "table" attrs children
+
+let caption ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "caption" attrs children
+
+let colgroup ?(attrs=[]) ~children () =
+  element "colgroup" attrs children
+
+let col ?span ?(attrs=[]) () =
+  let attrs = []
+    |> add_opt "span" (Option.map string_of_int span)
+    |> add_attrs attrs
+  in
+  element "col" ~self_closing:true attrs []
 
 let thead ?(attrs=[]) ~children () =
   element "thead" attrs children
@@ -1086,6 +1317,14 @@ let option ?value ?(selected=false) ?(disabled=false) ?(attrs=[]) ~children () =
   in
   element "option" attrs children
 
+let optgroup ?label ?(disabled=false) ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "label" label
+    |> add_bool "disabled" disabled
+    |> add_attrs attrs
+  in
+  element "optgroup" attrs children
+
 let label ?id ?class_ ?for_ ?(attrs=[]) ~children () =
   let attrs = [] 
     |> add_opt "id" id 
@@ -1111,6 +1350,40 @@ let button ?id ?class_ ?type_ ?(disabled=false) ?tabindex ?aria_label ?aria_expa
   in
   element "button" attrs children
 
+let output ?id ?class_ ?for_ ?name ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_opt "for" for_
+    |> add_opt "name" name
+    |> add_attrs attrs
+  in
+  element "output" attrs children
+
+let progress ?id ?class_ ?value ?max ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_opt "value" value
+    |> add_opt "max" max
+    |> add_attrs attrs
+  in
+  element "progress" attrs children
+
+let meter ?id ?class_ ?value ?min ?max ?low ?high ?optimum ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_opt "value" value
+    |> add_opt "min" min
+    |> add_opt "max" max
+    |> add_opt "low" low
+    |> add_opt "high" high
+    |> add_opt "optimum" optimum
+    |> add_attrs attrs
+  in
+  element "meter" attrs children
+
 let fieldset ?id ?class_ ?(disabled=false) ?(attrs=[]) ~children () =
   let attrs = [] 
     |> add_opt "id" id 
@@ -1124,6 +1397,14 @@ let legend ?(attrs=[]) ~children () =
   element "legend" attrs children
 
 (** Media *)
+let picture ?id ?class_ ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_attrs attrs
+  in
+  element "picture" attrs children
+
 let img ?id ?class_ ?src ?alt ?width ?height ?loading ?srcset ?sizes ?(data=[]) ?(attrs=[]) () =
   let attrs = [] 
     |> add_opt "id" id 
@@ -1173,11 +1454,21 @@ let audio ?id ?class_ ?src ?(controls=false) ?(autoplay=false) ?(loop=false) ?(m
 
 let source ?src ?type_ ?(attrs=[]) () =
   let attrs = [] 
-    |> add_opt "src" src 
+    |> add_opt "src" src
     |> add_opt "type" type_
     |> add_attrs attrs
   in
   element "source" ~self_closing:true attrs []
+
+let track ?kind ?src ?srclang ?label ?(attrs=[]) () =
+  let attrs = []
+    |> add_opt "kind" kind
+    |> add_opt "src" src
+    |> add_opt "srclang" srclang
+    |> add_opt "label" label
+    |> add_attrs attrs
+  in
+  element "track" ~self_closing:true attrs []
 
 let iframe ?id ?class_ ?src ?width ?height ?title ?(attrs=[]) () =
   let attrs = [] 
