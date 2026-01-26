@@ -859,7 +859,7 @@ let test_resource () =
   
   test "resource starts loading then ready" (fun () ->
     Runtime.Unsafe.run (fun () ->
-      let r = Resource.Unsafe.create (fun () -> 42) in
+      let r, _actions = Resource.create_resource (fun () -> 42) in
       match Resource.read r with
       | Resource.Ready v -> assert_equal v 42
       | _ -> failwith "expected Ready"
@@ -1025,7 +1025,7 @@ let test_resource () =
   
   test "resource fetcher exception becomes error" (fun () ->
     Runtime.Unsafe.run (fun () ->
-      let r = Resource.Unsafe.create (fun () -> failwith "boom") in
+      let r, _actions = Resource.create_resource (fun () -> failwith "boom") in
       match Resource.read r with
       | Resource.Error _ -> ()
       | _ -> failwith "expected Error"

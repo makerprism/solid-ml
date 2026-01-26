@@ -18,3 +18,4 @@
 
 ### Changed
 - Removed token-based strict APIs; reactive primitives now follow SolidJS-style implicit runtime semantics. Create a per-request runtime with `Runtime.run` on servers to avoid cross-request state.
+- Removed `Resource.create`; use `Resource.create_resource` for SolidJS-style `(resource, actions)`.

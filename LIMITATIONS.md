@@ -125,7 +125,7 @@ let handler req =
 ```ocaml
 open Solid_ml_router
 
-let user_resource = Resource.create (fun () ->
+let user_resource, _actions = Resource.create_resource (fun () ->
   fetch_user_data ()
 ) 
 

@@ -207,6 +207,7 @@ val input_checked : event -> bool
 val input_selected_values : event -> string array
 
 val observe_child_list : element -> (unit -> unit) -> (unit -> unit)
+(** Observe child list changes (debounced to animation frames). *)
 
 (** {1 Focus} *)
 

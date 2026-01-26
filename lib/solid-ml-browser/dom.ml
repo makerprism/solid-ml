@@ -376,11 +376,21 @@ let input_selected_values evt =
 
 let observe_child_list : element -> (unit -> unit) -> (unit -> unit) = [%mel.raw {|
   function(element, callback) {
+    var scheduled = false;
+    var raf = 0;
     var observer = new MutationObserver(function() {
-      callback();
+      if (scheduled) return;
+      scheduled = true;
+      raf = requestAnimationFrame(function() {
+        scheduled = false;
+        callback();
+      });
     });
     observer.observe(element, { childList: true, subtree: true });
-    return function() { observer.disconnect(); };
+    return function() {
+      observer.disconnect();
+      if (scheduled) cancelAnimationFrame(raf);
+    };
   }
 |}]
 

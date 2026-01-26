@@ -61,7 +61,7 @@ let test_store_reconcile () =
 let test_resource_creates () =
   print_endline "Test: Resource creates with fetcher";
   with_runtime (fun () ->
-    let resource = Resource.Unsafe.create (fun () -> "data") in
+    let resource, _actions = Resource.create_resource (fun () -> "data") in
     match Resource.peek resource with
     | Resource.Ready v -> assert (v = "data")
     | _ -> ()  (* May still be loading *)

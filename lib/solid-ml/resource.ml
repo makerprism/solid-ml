@@ -80,9 +80,16 @@ let create_with_error ~on_error (fetcher : unit -> 'a)
   do_fetch ();
   { state; actions; id }
 
-(** Create a resource with a synchronous fetcher. *)
-let create (fetcher : unit -> 'a) : ('a, string) resource =
-  create_with_error ~on_error:Printexc.to_string fetcher
+(** Returns [(resource, actions)] in SolidJS style. *)
+let create_resource (fetcher : unit -> 'a) : ('a, string) resource * ('a, string) resource_actions =
+  let resource = create_with_error ~on_error:Printexc.to_string fetcher in
+  (resource, resource.actions)
+
+(** SolidJS-style helper with custom error mapping. *)
+let create_resource_with_error ~on_error (fetcher : unit -> 'a)
+  : ('a, 'e) resource * ('a, 'e) resource_actions =
+  let resource = create_with_error ~on_error fetcher in
+  (resource, resource.actions)
 
 (** Create a resource with an initial value (already ready). *)
 let of_value (value : 'a) : ('a, 'e) resource =
@@ -318,9 +325,6 @@ module Unsafe = struct
 
     do_fetch ();
     { state; actions; id }
-
-  let create (fetcher : unit -> 'a) : ('a, string) resource =
-    create_with_error ~on_error:Printexc.to_string fetcher
 
   let of_value (value : 'a) : ('a, 'e) resource =
     let state, set_state = Signal.Unsafe.create (Ready value) in

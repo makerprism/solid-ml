@@ -607,6 +607,36 @@ This design allows the same reactive code to run on both server (for SSR) and cl
 
 For detailed limitations and workarounds, see [LIMITATIONS.md](LIMITATIONS.md).
 
+### Differences from SolidJS
+
+Behavioral differences:
+- **Runtime/ownership**: solid-ml mirrors SolidJS’s implicit owner semantics. If no runtime is active, a per-domain runtime is created automatically. On servers, always use `Runtime.run` per request to avoid cross-request state.
+- **Effect scheduling**: effects run synchronously during `run_updates`; SolidJS may defer some effects to microtasks.
+- **Memo equality**: defaults to structural equality (`=`), unlike SolidJS’s reference equality; override with `~equals` as needed.
+- **Error boundaries**: implemented via OCaml exceptions with explicit reset; no `catchError` setter API.
+- **Context IDs**: not thread-safe (uses `ref`); create contexts before spawning domains.
+
+Capability gaps (by design):
+- No `createResource` (use router `Resource`), no `createDeferred`, no `createReaction`, no `createRenderEffect`.
+- No `startTransition` / `useTransition` or concurrent rendering.
+- No `SuspenseList`.
+- No JSX compiler; use MLX (`.mlx`) + template PPX.
+
+Template-related differences:
+- MLX templates are explicit; template bindings like `Tpl.bind_input`, `Tpl.bind_checkbox`, `Tpl.bind_select`, and `Tpl.bind_select_multiple` are compiled into SSR attributes and browser bindings.
+
+### SolidJS-style Resource Helper
+
+SolidJS’s `createResource` returns a tuple of the resource and its actions. The
+equivalent in solid-ml is:
+
+```ocaml
+let resource, actions = Resource.create_resource fetch_data
+(* actions.mutate / actions.refetch *)
+```
+
+`Resource.create_resource` is the primary API.
+
 ## SSR Hydration Data
 
 You can embed server state for hydration using `Solid_ml_ssr.State`. Keys can be
