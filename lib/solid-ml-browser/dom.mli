@@ -156,6 +156,16 @@ val set_class_name : element -> string -> unit
 
 val add_event_listener : element -> string -> (event -> unit) -> unit
 val remove_event_listener : element -> string -> (event -> unit) -> unit
+
+type event_listener_options
+
+val event_listener_options : capture:bool -> passive:bool -> once:bool -> event_listener_options
+
+val add_event_listener_with_options
+  : element -> string -> (event -> unit) -> event_listener_options -> unit
+
+val remove_event_listener_with_options
+  : element -> string -> (event -> unit) -> event_listener_options -> unit
 val event_target : event -> event_target
 val event_current_target : event -> event_target
 val target_opt : event -> element option

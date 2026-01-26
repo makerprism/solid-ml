@@ -11,6 +11,7 @@ open Dom
 
 type 'a signal = 'a Reactive_core.signal
 type event = Dom.event
+type element = Dom.element
 
 let svg_namespace = "http://www.w3.org/2000/svg"
 
@@ -66,6 +67,12 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
     closing : Dom.node;
     keyed : keyed_state option ref;
     indexed_accessors : indexed_accessor_state option ref;
+  }
+
+  type event_options = {
+    capture : bool;
+    passive : bool;
+    once : bool;
   }
 
   type element = Dom.element
@@ -441,11 +448,36 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
   let get_checked (el : element) : bool =
     element_checked el
 
-  let on_ (el : element) ~event handler =
-    add_event_listener el event handler
+  let wrap_handler ?(prevent_default=false) ?(stop_propagation=false) handler =
+    if not prevent_default && not stop_propagation then
+      handler
+    else
+      fun evt ->
+        if prevent_default then Dom.prevent_default evt;
+        if stop_propagation then Dom.stop_propagation evt;
+        handler evt
 
-  let off_ (el : element) ~event handler =
-    remove_event_listener el event handler
+  let on_ (el : element) ~event ?options handler =
+    match options with
+    | None -> add_event_listener el event handler
+    | Some opts ->
+      let options = Dom.event_listener_options
+          ~capture:opts.capture
+          ~passive:opts.passive
+          ~once:opts.once
+      in
+      Dom.add_event_listener_with_options el event handler options
+
+  let off_ (el : element) ~event ?options handler =
+    match options with
+    | None -> remove_event_listener el event handler
+    | Some opts ->
+      let options = Dom.event_listener_options
+          ~capture:opts.capture
+          ~passive:opts.passive
+          ~once:opts.once
+      in
+      Dom.remove_event_listener_with_options el event handler options
 
   let set_nodes_keyed_internal ~clear_indexed (slot : nodes_slot) ~key
       ~(render : 'a -> node * (unit -> unit)) (items : 'a list) : unit =

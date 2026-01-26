@@ -247,6 +247,23 @@ external add_event_listener : element -> string -> (event -> unit) -> unit = "ad
 external remove_event_listener : element -> string -> (event -> unit) -> unit = "removeEventListener"
   [@@mel.send]
 
+type event_listener_options
+
+external event_listener_options
+  : capture:bool -> passive:bool -> once:bool -> event_listener_options
+  = ""
+  [@@mel.obj]
+
+external add_event_listener_with_options
+  : element -> string -> (event -> unit) -> event_listener_options -> unit
+  = "addEventListener"
+  [@@mel.send]
+
+external remove_event_listener_with_options
+  : element -> string -> (event -> unit) -> event_listener_options -> unit
+  = "removeEventListener"
+  [@@mel.send]
+
 external event_target : event -> event_target = "target"
   [@@mel.get]
 

@@ -48,6 +48,12 @@ let to_document_strict token component =
   dispose ();
   result
 
+let to_string_stream ~emit component =
+  emit (to_string component)
+
+let to_document_stream ~emit component =
+  emit (to_document component)
+
 let get_state_script () =
   State.to_script ()
 

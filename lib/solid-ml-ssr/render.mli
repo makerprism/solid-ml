@@ -59,6 +59,17 @@ val to_document : (unit -> Html.node) -> string
 *)
 val to_document_strict : Solid_ml.Runtime.token -> (Solid_ml.Runtime.token -> Html.node) -> string
 
+(** Render a component to a streaming callback.
+
+    This is a convenience API that currently emits the full HTML in one chunk.
+    It matches a streaming interface for future incremental SSR. *)
+val to_string_stream : emit:(string -> unit) -> (unit -> Html.node) -> unit
+
+(** Render a full document to a streaming callback.
+
+    This is a convenience API that currently emits the full document in one chunk. *)
+val to_document_stream : emit:(string -> unit) -> (unit -> Html.node) -> unit
+
 (** Get the hydration data as a JSON string.
     
     This should be embedded in the HTML as a script tag for client-side hydration.

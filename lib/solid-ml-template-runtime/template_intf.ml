@@ -28,6 +28,12 @@ module type TEMPLATE = sig
   type nodes_slot
   type element
 
+  type event_options = {
+    capture : bool;
+    passive : bool;
+    once : bool;
+  }
+
   val compile : segments:string array -> slot_kinds:slot_kind array -> template
   (** Compile a template from static [segments] and per-slot [slot_kinds].
 
@@ -114,12 +120,18 @@ module type TEMPLATE = sig
   val get_checked : element -> bool
   (** Read the element's current checked property. *)
 
-  val on_ : element -> event:string -> (event -> unit) -> unit
+  val wrap_handler :
+    ?prevent_default:bool
+    -> ?stop_propagation:bool
+    -> (event -> unit)
+    -> (event -> unit)
+
+  val on_ : element -> event:string -> ?options:event_options -> (event -> unit) -> unit
   (** Attach an event handler.
 
       On SSR, event handlers are ignored. *)
 
-  val off_ : element -> event:string -> (event -> unit) -> unit
+  val off_ : element -> event:string -> ?options:event_options -> (event -> unit) -> unit
   (** Detach an event handler.
 
       This is primarily used by compiled templates for cleanup.

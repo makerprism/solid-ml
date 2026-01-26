@@ -29,6 +29,7 @@ module type HTML = sig
   type node
   type event
   type 'a signal
+  type element
 
   (** {2 Text Content} *)
 
@@ -137,6 +138,10 @@ module type HTML = sig
   val img : ?id:string -> ?class_:string -> ?src:string -> ?alt:string ->
     ?width:int -> ?height:int -> ?loading:string -> ?srcset:string -> ?sizes:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> unit -> node
 
+  (** {2 Portal} *)
+
+  val portal : ?target:element -> ?is_svg:bool -> children:node -> unit -> node
+
   (** {2 SVG Elements} *)
 
   module Svg : sig
@@ -182,13 +187,25 @@ end
 
 module type TPL = sig
   type 'a t
+  type spread
 
   val text : (unit -> string) -> 'a t
   val text_value : string -> 'a t
   val attr : name:string -> (unit -> string) -> 'a t
   val attr_opt : name:string -> (unit -> string option) -> 'a t
   val class_list : (unit -> (string * bool) list) -> 'a t
-  val on : event:string -> ('ev -> unit) -> ('ev -> unit) t
+  val style : (unit -> (string * string option) list) -> 'a t
+  val on :
+    event:string
+    -> ?capture:bool
+    -> ?passive:bool
+    -> ?once:bool
+    -> ?prevent_default:bool
+    -> ?stop_propagation:bool
+    -> ('ev -> unit)
+    -> ('ev -> unit) t
+  val ref : ('el -> unit) -> 'a t
+  val spread : (unit -> spread) -> 'a t
   val bind_input : signal:(unit -> string) -> setter:(string -> unit) -> 'a t
   val bind_checkbox : signal:(unit -> bool) -> setter:(bool -> unit) -> 'a t
   val bind_select : signal:(unit -> string) -> setter:(string -> unit) -> 'a t
@@ -204,6 +221,17 @@ module type TPL = sig
     items:(unit -> 'a list)
     -> render:(index:(unit -> int) -> item:(unit -> 'a) -> 'b)
     -> 'b t
+  val dynamic : component:(unit -> ('props -> 'a)) -> ?props:(unit -> 'props) -> 'a t
+  val portal : ?target:'el -> ?is_svg:bool -> render:(unit -> 'a) -> 'a t
+  val suspense_list : render:(unit -> 'a) -> 'a t
+  val deferred : render:(unit -> 'a) -> 'a t
+  val transition : render:(unit -> 'a) -> 'a t
+  val resource :
+    resource:'r
+    -> loading:(unit -> 'a)
+    -> error:(string -> 'a)
+    -> ready:('b -> 'a)
+    -> 'a t
   val suspense : fallback:(unit -> 'a) -> render:(unit -> 'a) -> 'a t
   val error_boundary :
     fallback:(error:string -> reset:(unit -> unit) -> 'a)

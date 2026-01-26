@@ -13,6 +13,65 @@ module Env_intf = Env_intf
 
 include Template_intf
 
+module Spread = struct
+  type t = {
+    attrs : (string * string option) list;
+    class_list : (string * bool) list;
+    style : (string * string option) list;
+  }
+
+  type state = {
+    mutable attrs : (string * string option) list;
+    mutable class_list : (string * bool) list;
+    mutable style : (string * string option) list;
+  }
+
+  let empty : t = { attrs = []; class_list = []; style = [] }
+
+  let create_state () : state = { attrs = []; class_list = []; style = [] }
+
+  let attrs attrs : t = { empty with attrs }
+  let class_list class_list : t = { empty with class_list }
+  let style style : t = { empty with style }
+
+  let merge (a : t) (b : t) : t =
+    { attrs = a.attrs @ b.attrs;
+      class_list = a.class_list @ b.class_list;
+      style = a.style @ b.style }
+
+  let build_class_string class_list =
+    class_list
+    |> List.filter (fun (_name, enabled) -> enabled)
+    |> List.map fst
+    |> String.concat " "
+
+  let build_style_string style =
+    style
+    |> List.filter_map (fun (name, value) -> Option.map (fun v -> name ^ ":" ^ v) value)
+    |> String.concat ";"
+
+  let apply ~set_attr ~element (state : state) (spread : t) =
+    let prev_attr_keys = List.map fst state.attrs in
+    let next_attr_keys = List.map fst spread.attrs in
+    List.iter
+      (fun key ->
+        if not (List.mem key next_attr_keys) then set_attr element ~name:key None)
+      prev_attr_keys;
+    List.iter (fun (key, value) -> set_attr element ~name:key value) spread.attrs;
+
+    let class_value = build_class_string spread.class_list in
+    let class_value = if String.equal class_value "" then None else Some class_value in
+    set_attr element ~name:"class" class_value;
+
+    let style_value = build_style_string spread.style in
+    let style_value = if String.equal style_value "" then None else Some style_value in
+    set_attr element ~name:"style" style_value;
+
+    state.attrs <- spread.attrs;
+    state.class_list <- spread.class_list;
+    state.style <- spread.style
+end
+
 module Tpl : sig
   (** Marker surface for the template compiler.
 
@@ -32,14 +91,27 @@ module Tpl : sig
   *)
 
   type 'a t
+  type spread = Spread.t
 
   val text : (unit -> string) -> 'a t
   val text_value : string -> 'a t
   val attr : name:string -> (unit -> string) -> 'a t
   val attr_opt : name:string -> (unit -> string option) -> 'a t
   val class_list : (unit -> (string * bool) list) -> 'a t
+  val style : (unit -> (string * string option) list) -> 'a t
 
-  val on : event:string -> ('ev -> unit) -> ('ev -> unit) t
+  val on :
+    event:string
+    -> ?capture:bool
+    -> ?passive:bool
+    -> ?once:bool
+    -> ?prevent_default:bool
+    -> ?stop_propagation:bool
+    -> ('ev -> unit)
+    -> ('ev -> unit) t
+
+  val ref : ('el -> unit) -> 'a t
+  val spread : (unit -> spread) -> 'a t
 
   val bind_input : signal:(unit -> string) -> setter:(string -> unit) -> 'a t
   val bind_checkbox : signal:(unit -> bool) -> setter:(bool -> unit) -> 'a t
@@ -61,6 +133,17 @@ module Tpl : sig
     items:(unit -> 'a list)
     -> render:(index:(unit -> int) -> item:(unit -> 'a) -> 'b)
     -> 'b t
+  val dynamic : component:(unit -> ('props -> 'a)) -> ?props:(unit -> 'props) -> 'a t
+  val portal : ?target:'el -> ?is_svg:bool -> render:(unit -> 'a) -> 'a t
+  val suspense_list : render:(unit -> 'a) -> 'a t
+  val deferred : render:(unit -> 'a) -> 'a t
+  val transition : render:(unit -> 'a) -> 'a t
+  val resource :
+    resource:'r
+    -> loading:(unit -> 'a)
+    -> error:(string -> 'a)
+    -> ready:('b -> 'a)
+    -> 'a t
   val suspense : fallback:(unit -> 'a) -> render:(unit -> 'a) -> 'a t
   val error_boundary :
     fallback:(error:string -> reset:(unit -> unit) -> 'a)
@@ -74,6 +157,7 @@ module Tpl : sig
       `Obj.magic`), this raises with a clear message.
   *)
 end = struct
+  [@@@warning "-16"]
   type 'a t =
     | Uncompiled of string
 
@@ -97,8 +181,21 @@ end = struct
   let class_list (_thunk : unit -> (string * bool) list) : 'a t =
     Uncompiled "class_list"
 
-  let on ~event (_handler : 'ev -> unit) : ('ev -> unit) t =
+  let style (_thunk : unit -> (string * string option) list) : 'a t =
+    Uncompiled "style"
+
+  let on ~event ?capture:_ ?passive:_ ?once:_ ?prevent_default:_ ?stop_propagation:_
+      (_handler : 'ev -> unit)
+      : ('ev -> unit) t =
     Uncompiled ("on(" ^ event ^ ")")
+
+  let ref (_handler : 'el -> unit) : 'a t =
+    Uncompiled "ref"
+
+  type spread = Spread.t
+
+  let spread (_thunk : unit -> spread) : 'a t =
+    Uncompiled "spread"
 
   let bind_input ~signal:_ ~setter:_ : 'a t =
     Uncompiled "bind_input"
@@ -135,6 +232,28 @@ end = struct
 
   let each_indexed ~items:_ ~render:_ : 'b t =
     Uncompiled "each_indexed"
+
+  let dynamic ~component ?props : 'a t =
+    let _ = component in
+    let _ = props in
+    Uncompiled "dynamic"
+
+  let portal ?target ?is_svg ~render:_ : 'a t =
+    let _ = target in
+    let _ = is_svg in
+    Uncompiled "portal"
+
+  let suspense_list ~render:_ : 'a t =
+    Uncompiled "suspense_list"
+
+  let deferred ~render:_ : 'a t =
+    Uncompiled "deferred"
+
+  let transition ~render:_ : 'a t =
+    Uncompiled "transition"
+
+  let resource ~resource:_ ~loading:_ ~error:_ ~ready:_ : 'a t =
+    Uncompiled "resource"
 
   let suspense ~fallback:_ ~render:_ : 'a t =
     Uncompiled "suspense"

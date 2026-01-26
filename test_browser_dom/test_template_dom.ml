@@ -819,6 +819,66 @@ let test_indexed_accessors_update () =
    | _ -> fail "indexed accessors: expected at least two elements");
   dispose ()
 
+let test_template_spread_updates () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  let spread_initial =
+    Solid_ml_template_runtime.Spread.merge
+      (Solid_ml_template_runtime.Spread.attrs [ ("data-x", Some "a") ])
+      (Solid_ml_template_runtime.Spread.style [ ("color", Some "red") ])
+  in
+  let spread, set_spread = Signal.create spread_initial in
+
+  let dispose =
+    Render.render root (fun () ->
+      Html.div
+        ~attrs:(Solid_ml_template_runtime.Tpl.spread (fun () -> Signal.get spread))
+        ~children:[ Html.text "Spread" ]
+        ())
+  in
+
+  let child =
+    match query_selector_within root "div" with
+    | None -> fail "template spread: missing child"
+    | Some el -> el
+  in
+  assert_eq ~name:"template spread attr" (Option.value (get_attribute child "data-x") ~default:"") "a";
+  assert_eq ~name:"template spread style" (Option.value (get_attribute child "style") ~default:"") "color:red";
+
+  let spread_next =
+    Solid_ml_template_runtime.Spread.merge
+      (Solid_ml_template_runtime.Spread.attrs [ ("data-x", Some "b") ])
+      (Solid_ml_template_runtime.Spread.class_list [ ("active", true) ])
+  in
+  set_spread spread_next;
+  assert_eq ~name:"template spread attr updated" (Option.value (get_attribute child "data-x") ~default:"") "b";
+  assert_eq ~name:"template spread class updated" (Option.value (get_attribute child "class") ~default:"") "active";
+
+  dispose ()
+
+let test_template_ref_binding () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  let seen_tag = ref None in
+
+  let dispose =
+    Render.render root (fun () ->
+      Html.button
+        ~attrs:(Solid_ml_template_runtime.Tpl.ref (fun el -> seen_tag := Some (get_tag_name el)))
+        ~children:[ Html.text "Ref" ]
+        ())
+  in
+
+  (match !seen_tag with
+   | Some tag -> assert_eq ~name:"template ref tag" tag "BUTTON"
+   | None -> fail "template ref: not invoked");
+
+  dispose ()
+
 let test_template_suspense_boundary () =
   let root = create_element (document ()) "div" in
   let body : element = [%mel.raw "document.body"] in
@@ -1087,6 +1147,8 @@ let () =
     test_keyed_identity_preserved ();
     test_indexed_updates_by_position ();
     test_indexed_accessors_update ();
+    test_template_spread_updates ();
+    test_template_ref_binding ();
     test_template_suspense_boundary ();
     test_multiple_hydration_contexts_isolated ();
     test_cleanup_removes_listeners ();

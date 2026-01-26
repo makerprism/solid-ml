@@ -4,6 +4,8 @@
     On SSR, events are never instantiated - handlers are ignored. *)
 type event = unit
 
+type element = unit
+
 type 'a signal = 'a Solid_ml.Signal.t
 
 (** Hydration key counter for marking reactive elements *)
@@ -78,6 +80,12 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
   type nodes_slot = {
     inst : instance;
     id : int;
+  }
+
+  type event_options = {
+    capture : bool;
+    passive : bool;
+    once : bool;
   }
 
   type element = template_element
@@ -208,8 +216,11 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
   let get_checked (_el : element) : bool =
     false
 
-  let on_ (_el : element) ~event:_ _ = ()
-  let off_ (_el : element) ~event:_ _ = ()
+  let wrap_handler ?prevent_default:_ ?stop_propagation:_ handler =
+    handler
+
+  let on_ (_el : element) ~event:_ ?options:_ _ = ()
+  let off_ (_el : element) ~event:_ ?options:_ _ = ()
 
   let set_nodes_keyed (slot : nodes_slot) ~key ~render items =
     let children, disposers =
@@ -1111,6 +1122,10 @@ let img ?id ?class_ ?src ?alt ?width ?height ?loading ?srcset ?sizes ?(data=[]) 
     |> add_attrs attrs
   in
   element "img" ~self_closing:true attrs []
+
+(** Portal *)
+let portal ?target:_ ?is_svg:_ ~children () =
+  children
 
 let video ?id ?class_ ?src ?(controls=false) ?(autoplay=false) ?(loop=false) ?(muted=false) ?poster ?(attrs=[]) ~children () =
   let attrs = [] 

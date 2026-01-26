@@ -18,6 +18,9 @@ type 'a signal = 'a Reactive_core.signal
 type event = Dom.event
 (** Browser DOM event. *)
 
+type element = Dom.element
+(** DOM element handle. *)
+
 (** {1 Node Conversion} *)
 
 val to_dom_node : node -> Dom.node
@@ -161,6 +164,10 @@ val button : ?id:string -> ?class_:string -> ?type_:string -> ?disabled:bool ->
 
 val img : ?id:string -> ?class_:string -> ?src:string -> ?alt:string ->
   ?width:int -> ?height:int -> ?loading:string -> ?srcset:string -> ?sizes:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> unit -> node
+
+(** {1 Portal} *)
+
+val portal : ?target:element -> ?is_svg:bool -> children:node -> unit -> node
 
 (** {1 SVG Elements} *)
 

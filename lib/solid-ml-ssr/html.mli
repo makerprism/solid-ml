@@ -25,6 +25,9 @@ type node
     On SSR, events are never instantiated - handlers are ignored. *)
 type event = unit
 
+(** Element handle stub for unified SSR/browser interface. *)
+type element = unit
+
 type 'a signal = 'a Solid_ml.Signal.t
 (** A reactive signal type for unified SSR/browser components. *)
 
@@ -159,6 +162,10 @@ val legend : ?attrs:(string * string) list -> children:node list -> unit -> node
 (** {2 Media} *)
 
 val img : ?id:string -> ?class_:string -> ?src:string -> ?alt:string -> ?width:int -> ?height:int -> ?loading:string -> ?srcset:string -> ?sizes:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> unit -> node
+
+(** {1 Portal} *)
+
+val portal : ?target:element -> ?is_svg:bool -> children:node -> unit -> node
 val video : ?id:string -> ?class_:string -> ?src:string -> ?controls:bool -> ?autoplay:bool -> ?loop:bool -> ?muted:bool -> ?poster:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val audio : ?id:string -> ?class_:string -> ?src:string -> ?controls:bool -> ?autoplay:bool -> ?loop:bool -> ?muted:bool -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val source : ?src:string -> ?type_:string -> ?attrs:(string * string) list -> unit -> node

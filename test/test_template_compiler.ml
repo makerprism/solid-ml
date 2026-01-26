@@ -157,6 +157,60 @@ module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
                 ()) ]
       ()
 
+  let render_div_style ~styles () =
+    Html.div
+      ~style:(Solid_ml_template_runtime.Tpl.style (fun () -> Signal.get styles))
+      ~children:[ Html.text "Styled" ]
+      ()
+
+  let render_div_spread ~spread () =
+    Html.div
+      ~attrs:(Solid_ml_template_runtime.Tpl.spread (fun () -> Signal.get spread))
+      ~children:[ Html.text "Spread" ]
+      ()
+
+  let render_div_dynamic ~flag () =
+    let comp_a label =
+      Html.span ~children:[ Html.text label ] ()
+    in
+    let comp_b label =
+      Html.em ~children:[ Html.text label ] ()
+    in
+    Html.div
+      ~children:
+        [ Solid_ml_template_runtime.Tpl.dynamic
+            ~component:(fun () -> if Signal.get flag then comp_a else comp_b)
+            ~props:(fun () -> "Hi") ]
+      ()
+
+  let render_div_portal () =
+    Html.div
+      ~children:
+        [ Solid_ml_template_runtime.Tpl.portal
+            ~render:(fun () -> Html.text "Portaled") ]
+      ()
+
+  let render_div_suspense_list () =
+    Html.div
+      ~children:
+        [ Solid_ml_template_runtime.Tpl.suspense_list
+            ~render:(fun () -> Html.text "List") ]
+      ()
+
+  let render_div_deferred () =
+    Html.div
+      ~children:
+        [ Solid_ml_template_runtime.Tpl.deferred
+            ~render:(fun () -> Html.text "Deferred") ]
+      ()
+
+  let render_div_transition () =
+    Html.div
+      ~children:
+        [ Solid_ml_template_runtime.Tpl.transition
+            ~render:(fun () -> Html.text "Transition") ]
+      ()
+
   let render_div_suspense () =
     Html.div
       ~children:
@@ -373,6 +427,69 @@ let () =
   in
   if html_each_indexed <> expected_each_indexed then
     failwith ("each_indexed mismatch: " ^ html_each_indexed);
+
+  let styles, _set_styles = Solid_ml_ssr.Env.Signal.create [ ("color", Some "red") ] in
+  let html_style =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_div_style ~styles ())
+  in
+  assert (html_style = "<div style=\"color:red\">Styled</div>");
+
+  let spread_value =
+    Solid_ml_template_runtime.Spread.attrs [ ("data-x", Some "1") ]
+  in
+  let spread, _set_spread = Solid_ml_ssr.Env.Signal.create spread_value in
+  let html_spread =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_div_spread ~spread ())
+  in
+  assert (html_spread = "<div data-x=\"1\">Spread</div>");
+
+  let flag_true, _set_flag_true = Solid_ml_ssr.Env.Signal.create true in
+  let html_dynamic_true =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_div_dynamic ~flag:flag_true ())
+  in
+  assert (html_dynamic_true = "<div><!--$--><span>Hi</span><!--$--></div>");
+
+  let flag_false, _set_flag_false = Solid_ml_ssr.Env.Signal.create false in
+  let html_dynamic_false =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_div_dynamic ~flag:flag_false ())
+  in
+  assert (html_dynamic_false = "<div><!--$--><em>Hi</em><!--$--></div>");
+
+  let html_portal =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_div_portal ())
+  in
+  assert (html_portal = "<div><!--$-->Portaled<!--$--></div>");
+
+  let html_suspense_list =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_div_suspense_list ())
+  in
+  assert (html_suspense_list = "<div><!--$-->List<!--$--></div>");
+
+  let html_deferred =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_div_deferred ())
+  in
+  assert (html_deferred = "<div><!--$-->Deferred<!--$--></div>");
+
+  let html_transition =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_div_transition ())
+  in
+  assert (html_transition = "<div><!--$-->Transition<!--$--></div>");
 
   let html_suspense =
     Solid_ml_ssr.Render.to_string (fun () ->
