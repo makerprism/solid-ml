@@ -126,21 +126,45 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
   (** App Layout with Navigation *)
   let app_layout ~current_path ~children () =
-    let nav_children =
-      Routes.all
-      |> List.mapi (fun index route ->
+    (* Group routes into sections for better organization *)
+    let basic_routes = [ Routes.Home; Routes.Counter; Routes.Todos ] in
+    let advanced_routes = [ Routes.Filters; Routes.Inline_edit; Routes.Async ] in
+    let demo_routes = [ Routes.Undo_redo; Routes.Theme; Routes.Wizard ] in
+    let internal_routes = [ Routes.Keyed; Routes.Template_keyed ] in
+
+    let render_nav_links routes =
+      let rec intersperse sep = function
+        | [] -> []
+        | [x] -> [x]
+        | x :: xs -> x :: sep :: intersperse sep xs
+      in
+      let links = List.map (fun route ->
         let href = Routes.path route in
         let class_ =
           if Routes.is_active ~current_path route then "nav-link active" else "nav-link"
         in
-        let link = <a href=href class_=class_>(text (Routes.label route))</a> in
-        if index = 0 then [ link ] else [ <span>(text " | ")</span>; link ])
-      |> List.concat
+        <a href=href class_=class_>(text (Routes.label route))</a>
+      ) routes in
+      Html.fragment (intersperse <span>(text " · ")</span> links)
     in
+
+    let render_section title routes =
+      match title with
+      | None -> render_nav_links routes
+      | Some t ->
+          <div class_="nav-section">
+            <span class_="nav-section-title">(text t)</span>
+            (render_nav_links routes)
+          </div>
+    in
+
     <div class_="app-container">
-      <div class_="nav">
-        (Html.fragment nav_children)
-      </div>
+      <nav class_="nav">
+        (render_section (Some "Basics") basic_routes)
+        (render_section (Some "Advanced") advanced_routes)
+        (render_section (Some "Demos") demo_routes)
+        (render_section (Some "Internal") internal_routes)
+      </nav>
       <div class_="content">
         (children)
       </div>

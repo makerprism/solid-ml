@@ -9,6 +9,10 @@ module Shared = Shared_components.Components.Make(Solid_ml_browser.Env)
 module Routes = Shared_components.Routes
 module Filters = Shared_components.Filters.Make(Solid_ml_browser.Env)
 module Inline_edit = Shared_components.Inline_edit.Make(Solid_ml_browser.Env)
+module Async = Shared_components.Async.Make(Solid_ml_browser.Env)
+module Undo_redo = Shared_components.Undo_redo.Make(Solid_ml_browser.Env)
+module Theme = Shared_components.Theme.Make(Solid_ml_browser.Env)
+module Wizard = Shared_components.Wizard.Make(Solid_ml_browser.Env)
 
 (** {1 Shared Data Types} *)
 (* open Shared_components *)
@@ -350,6 +354,111 @@ let hydrate_inline_edit () =
     Dom.log "Inline edit hydrated!"
   | None -> ()
 
+let hydrate_async () =
+  match get_element "app" with
+  | Some app_el ->
+    (* Hydrate with Async view *)
+    let _disposer =
+      Render.render app_el (fun () ->
+        Shared.app_layout
+          ~current_path:(Routes.path Routes.Async)
+          ~children:(Async.view ())
+          ())
+    in
+
+    (* Setup client-side interactivity for refresh/retry buttons *)
+    let doc = Dom.document () in
+
+    (* Refresh buttons in resource demo *)
+    (match Dom.query_selector doc ".resource-demo" with
+     | Some _demo ->
+         let refresh_buttons = Dom.query_selector_all doc ".btn-refresh" in
+         List.iter (fun button ->
+           ignore (Dom.add_event_listener button "click" (fun _ev ->
+             (* Signal will handle the refresh trigger *)
+             ()
+           ))
+         ) refresh_buttons
+     | None -> ());
+
+    (* Retry buttons in error states *)
+    let retry_buttons = Dom.query_selector_all doc ".btn-retry" in
+    List.iter (fun button ->
+      ignore (Dom.add_event_listener button "click" (fun _ev ->
+        (* Signal will handle the retry *)
+        ()
+      ))
+    ) retry_buttons;
+
+    (* Setup sequential demo controls *)
+    (match Dom.query_selector doc ".sequential-demo" with
+     | Some _demo ->
+         let next_buttons = Dom.query_selector_all doc ".btn-primary" in
+         List.iter (fun button ->
+           ignore (Dom.add_event_listener button "click" (fun _ev ->
+             (* Signal will handle the step increment *)
+             ()
+           ))
+         ) next_buttons;
+
+         let reset_buttons = Dom.query_selector_all doc ".btn-secondary" in
+         List.iter (fun button ->
+           ignore (Dom.add_event_listener button "click" (fun _ev ->
+             (* Signal will handle the reset *)
+             ()
+           ))
+         ) reset_buttons
+     | None -> ());
+
+    Dom.log "Async hydrated!"
+  | None -> ()
+
+let hydrate_undo_redo () =
+  match get_element "app" with
+  | Some app_el ->
+    (* Hydrate with Undo_redo view *)
+    let _disposer =
+      Render.render app_el (fun () ->
+        Shared.app_layout
+          ~current_path:(Routes.path Routes.Undo_redo)
+          ~children:(Undo_redo.view ())
+          ())
+    in
+
+    (* Setup client-side interactivity for buttons is handled by signals *)
+    Dom.log "Undo-Redo hydrated!"
+  | None -> ()
+
+let hydrate_theme () =
+  match get_element "app" with
+  | Some app_el ->
+    (* Hydrate with Theme view *)
+    let _disposer =
+      Render.render app_el (fun () ->
+        Shared.app_layout
+          ~current_path:(Routes.path Routes.Theme)
+          ~children:(Theme.view ())
+          ())
+    in
+
+    (* Setup client-side interactivity for theme switching is handled by signals *)
+    Dom.log "Theme hydrated!"
+  | None -> ()
+
+let hydrate_wizard () =
+  match get_element "app" with
+  | Some app_el ->
+    (* Hydrate with Wizard view - the wizard uses reactive signals internally *)
+    let _disposer =
+      Render.render app_el (fun () ->
+        Shared.app_layout
+          ~current_path:(Routes.path Routes.Wizard)
+          ~children:(Wizard.view ())
+          ())
+    in
+    Dom.log "Wizard hydrated with reactive signals!"
+  | None -> ()
+
 let show_hydration_status () =
   match get_element "hydration-status" with
   | Some el -> Dom.add_class el "active"
@@ -371,6 +480,14 @@ let () =
       hydrate_filters ()
     else if path = Routes.path Routes.Inline_edit then
       hydrate_inline_edit ()
+    else if path = Routes.path Routes.Async then
+      hydrate_async ()
+    else if path = Routes.path Routes.Undo_redo then
+      hydrate_undo_redo ()
+    else if path = Routes.path Routes.Theme then
+      hydrate_theme ()
+    else if path = Routes.path Routes.Wizard then
+      hydrate_wizard ()
     else if path = Routes.path Routes.Home then (
       match get_element "app" with
       | None -> ()

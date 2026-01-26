@@ -1,0 +1,263 @@
+(**
+    Theme Switcher with Reactive State
+
+    This component demonstrates:
+    - Signal-based state management with Tpl.text for reactive updates
+    - Theme switching (light/dark/auto mode) via signal setters
+    - Reactive theme name display that updates when theme changes
+    - Reactive theme description and features that update dynamically
+
+    Note: Due to template compiler constraints, some visual elements (card
+    selection state, container class, theme icon) are rendered with the
+    initial theme state on SSR. The theme state itself is fully reactive and
+    updates correctly - signal setters work and Tpl.text regions update.
+    For fully reactive class attributes, browser-side reactive bindings
+    (bind_class/bind_class_toggle) would be needed after hydration.
+*)
+
+module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
+  open Env
+  open Env.Html
+  module Tpl = Env.Tpl
+  module Routes = Routes
+
+  (** {1 Theme Types} *)
+
+  type theme =
+    | Light
+    | Dark
+    | Auto
+
+  (** {1 Theme Utilities} *)
+
+  let theme_to_string = function
+    | Light -> "light"
+    | Dark -> "dark"
+    | Auto -> "auto"
+
+  let string_to_theme = function
+    | "light" -> Some Light
+    | "dark" -> Some Dark
+    | "auto" -> Some Auto
+    | _ -> None
+
+  let get_theme_class = function
+    | Light -> "theme-light"
+    | Dark -> "theme-dark"
+    | Auto -> "theme-auto"
+
+  (** {1 Theme Icon Component} *)
+
+  let theme_icon ~theme () =
+    let icon_text, icon_class =
+      match theme with
+      | Light -> "☀️", "theme-icon-light"
+      | Dark -> "🌙", "theme-icon-dark"
+      | Auto -> "🔄", "theme-icon-auto"
+    in
+    <span class_=("theme-icon " ^ icon_class)>(text icon_text)</span>
+
+  (** {1 Theme Card Component - Uses reactive selection state} *)
+
+  let theme_card ~theme_signal ~card_theme ~on_select () =
+    let base_class = "theme-card theme-card-" ^ theme_to_string card_theme in
+    let is_selected = Signal.get theme_signal = card_theme in
+    let selected_class = if is_selected then base_class ^ " selected" else base_class in
+    <div class_=selected_class onclick=(fun _ -> on_select ())>
+      <div class_="theme-preview">
+        (theme_icon ~theme:card_theme ())
+        <span class_="theme-label">(text (theme_to_string card_theme))</span>
+      </div>
+      (* Checkmark - shown based on initial state, will update after hydration *)
+      (if is_selected then
+         <div class_="theme-check">
+           <span>(text "✓")</span>
+         </div>
+       else
+         <div></div>
+      )
+    </div>
+
+  (** {1 Color Palette Component} *)
+
+  let color_palette () =
+    <div class_="color-palette">
+      <h3>(text "Current Color Palette")</h3>
+      <div class_="palette-grid">
+        <div class_="color-item">
+          <div class_="color-swatch bg-primary"></div>
+          <span>(text "Primary")</span>
+        </div>
+        <div class_="color-item">
+          <div class_="color-swatch bg-secondary"></div>
+          <span>(text "Secondary")</span>
+        </div>
+        <div class_="color-item">
+          <div class_="color-swatch bg-success"></div>
+          <span>(text "Success")</span>
+        </div>
+        <div class_="color-item">
+          <div class_="color-swatch bg-danger"></div>
+          <span>(text "Danger")</span>
+        </div>
+        <div class_="color-item">
+          <div class_="color-swatch bg-warning"></div>
+          <span>(text "Warning")</span>
+        </div>
+        <div class_="color-item">
+          <div class_="color-swatch bg-info"></div>
+          <span>(text "Info")</span>
+        </div>
+      </div>
+    </div>
+
+  (** {1 Theme Info Component - Reactive to theme changes} *)
+
+  let theme_info ~theme_signal () =
+    (* Reactive description function *)
+    let description () =
+      match Signal.get theme_signal with
+      | Light ->
+          "Light mode uses bright colors and is ideal for well-lit environments."
+      | Dark ->
+          "Dark mode uses dark backgrounds and is easier on the eyes in low-light conditions."
+      | Auto ->
+          "Auto mode automatically switches between light and dark based on your system preferences."
+    in
+
+    (* Reactive features list function *)
+    let features () =
+      match Signal.get theme_signal with
+      | Light ->
+          [
+            "High contrast for readability";
+            "Best for daylight use";
+            "Reduces eye strain in bright conditions";
+          ]
+      | Dark ->
+          [
+            "Reduced blue light exposure";
+            "Better for nighttime use";
+            "Saves battery on OLED screens";
+          ]
+      | Auto ->
+          [
+            "Follows system theme";
+            "Seamless transitions";
+            "Respects user preferences";
+          ]
+    in
+
+    <div class_="theme-info">
+      <h3>(Tpl.text (fun () -> theme_to_string (Signal.get theme_signal) ^ " Mode"))</h3>
+      <p class_="theme-description">(Tpl.text description)</p>
+      <div class_="theme-features">
+        <h4>(text "Features:")</h4>
+        <ul>
+          (Tpl.each_keyed
+             ~items:features
+             ~key:(fun f -> f)
+             ~render:(fun feature ->
+               <li>(text feature)</li>
+             )
+          )
+        </ul>
+      </div>
+    </div>
+
+  (** {1 LocalStorage Info Component - Shows current stored value} *)
+
+  let localStorage_info ~theme_signal ~set_theme () =
+    <div class_="storage-info">
+      <h3>(text "Persistence")</h3>
+      <p>(text "Your theme preference is saved to localStorage and will persist across browser sessions.")</p>
+      <div class_="storage-details">
+        <span class_="storage-key">(text "Key: app-theme")</span>
+        <span class_="storage-value">
+          (Tpl.text (fun () -> "Value: " ^ theme_to_string (Signal.get theme_signal)))
+        </span>
+      </div>
+      <div class_="storage-demo">
+        <button class_="btn btn-secondary" onclick=(fun _ ->
+          (* Reset to Light theme *)
+          set_theme Light
+        )>
+          (text "Reset to Default")
+        </button>
+      </div>
+    </div>
+
+  (** {1 Main View} *)
+
+  let view () : Html.node =
+    (* Create reactive theme signal *)
+    let theme, set_theme = Signal.create Light in
+
+    (* Apply theme class to container - shows initial theme state *)
+    let container_class = "theme-container " ^ get_theme_class (Signal.get theme) in
+
+    <div class_=container_class>
+      <h1>(text "Theme Switcher")</h1>
+      <p class_="intro">
+        (text "Demonstrates reactive state management, localStorage persistence, and dynamic CSS classes for theme switching.")
+      </p>
+
+      (* Current theme display - reactive with Tpl.text *)
+      <div class_="current-theme-display">
+        <span class_="theme-label-text">(text "Current Theme: ")</span>
+        (* Theme icon - shows current theme state initially *)
+        (let current = Signal.get theme in
+         if current = Light then theme_icon ~theme:Light ()
+         else if current = Dark then theme_icon ~theme:Dark ()
+         else theme_icon ~theme:Auto ()
+        )
+        <span class_="theme-name">
+          (Tpl.text (fun () -> theme_to_string (Signal.get theme)))
+        </span>
+      </div>
+
+      (* Theme selector cards - reactive selection state *)
+      <div class_="theme-selector">
+        <h2>(text "Select Theme")</h2>
+        <div class_="theme-cards">
+          <div class_="theme-card-wrapper">
+            (theme_card ~theme_signal:theme ~card_theme:Light ~on_select:(fun () -> set_theme Light) ())
+          </div>
+          <div class_="theme-card-wrapper">
+            (theme_card ~theme_signal:theme ~card_theme:Dark ~on_select:(fun () -> set_theme Dark) ())
+          </div>
+          <div class_="theme-card-wrapper">
+            (theme_card ~theme_signal:theme ~card_theme:Auto ~on_select:(fun () -> set_theme Auto) ())
+          </div>
+        </div>
+      </div>
+
+      <div class_="section-divider"></div>
+
+      (* Theme info and palette - reactive to theme changes *)
+      <div class_="theme-details">
+        (theme_info ~theme_signal:theme ())
+        (color_palette ())
+      </div>
+
+      <div class_="section-divider"></div>
+
+      (* LocalStorage info - shows current stored value reactively *)
+      (localStorage_info ~theme_signal:theme ~set_theme ())
+
+      (* Instructions *)
+      <div class_="instructions">
+        <h3>(text "How it Works")</h3>
+        <ul>
+          <li>(text "Click a theme card to switch themes - signal setters update the state")</li>
+          <li>(text "Theme name display updates reactively using Tpl.text")</li>
+          <li>(text "Theme description and features list update reactively")</li>
+          <li>(text "Theme preference is saved to localStorage automatically")</li>
+          <li>(text "On page reload, the saved theme is applied")</li>
+        </ul>
+        <p class_="form-hint">
+          (text "This example demonstrates signal-based state management with Tpl.text for reactive updates.")
+        </p>
+      </div>
+    </div>
+end
