@@ -122,6 +122,10 @@ let dispatch_click (el : element) : unit =
   let _ = el in
   [%mel.raw {| el.dispatchEvent(new Event('click', {bubbles:true,cancelable:true})) |}]
 
+let dispatch_input (el : element) : unit =
+  let _ = el in
+  [%mel.raw {| el.dispatchEvent(new Event('input', {bubbles:true,cancelable:true})) |}]
+
 let error_stack : exn -> string option =
   [%mel.raw
     {| function(exn) {
@@ -1128,6 +1132,79 @@ let test_hydration_error_context_clears () =
   assert_eq ~name:"error clear third" (get_text_content root) "Third";
   dispose3 ()
 
+let test_template_reactive_text () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+  let message, set_message = Solid_ml_browser.Env.Signal.create "Hello" in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      Html.append_to_element root
+        (Solid_ml_browser.Env.Html.div
+           ~children:[
+             Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get message)
+           ]
+           ())
+    )
+  in
+
+  assert_eq ~name:"tpl.text initial" (get_text_content root) "Hello";
+  set_message "World";
+  assert_eq ~name:"tpl.text update" (get_text_content root) "World";
+  dispose ()
+
+let test_template_show_when () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+  let visible, set_visible = Solid_ml_browser.Env.Signal.create false in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      Html.append_to_element root
+        (Solid_ml_browser.Env.Html.div
+           ~children:[
+             Solid_ml_template_runtime.Tpl.show_when
+               ~when_:(fun () -> Signal.get visible)
+               (fun () -> Solid_ml_browser.Env.Html.text "Shown")
+           ]
+           ())
+    )
+  in
+
+  assert_eq ~name:"tpl.show_when initial" (get_text_content root) "";
+  set_visible true;
+  assert_eq ~name:"tpl.show_when update" (get_text_content root) "Shown";
+  dispose ()
+
+let test_template_bind_input () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+  let value, set_value = Solid_ml_browser.Env.Signal.create "start" in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      Html.append_to_element root
+        (Solid_ml_browser.Env.Html.input
+           ~value:
+             (Solid_ml_template_runtime.Tpl.bind_input
+                ~signal:(fun () -> Signal.get value)
+                ~setter:set_value)
+           ())
+    )
+  in
+
+  let children = get_child_nodes root in
+  let input_el = element_of_node children.(0) in
+  assert_eq ~name:"tpl.bind_input initial" (element_value input_el) "start";
+  element_set_value input_el "next";
+  dispatch_input input_el;
+  assert_eq ~name:"tpl.bind_input update" (Signal.get value) "next";
+  dispose ()
+
+
 let () =
   try
     test_instantiate_text_slot ();
@@ -1156,6 +1233,9 @@ let () =
     test_resource_hydration ();
     test_event_replay_click ();
     test_hydration_error_context_clears ();
+    test_template_reactive_text ();
+    test_template_show_when ();
+    test_template_bind_input ();
     set_result "PASS" "PASS"
   with exn ->
     let err_msg = exn_to_string exn in

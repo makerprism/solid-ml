@@ -221,7 +221,9 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
           <h3>(text "Modify Items")</h3>
           <button
             class_="btn btn-secondary"
-            disabled=(not (can_modify ()))
+            disabled=(Tpl.attr_opt
+              ~name:"disabled"
+              (fun () -> if can_modify () then None else Some ""))
             onclick=(fun _ ->
               let texts = present_texts () in
               match texts with
@@ -234,7 +236,9 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
           </button>
           <button
             class_="btn btn-secondary"
-            disabled=(not (can_modify ()))
+            disabled=(Tpl.attr_opt
+              ~name:"disabled"
+              (fun () -> if can_modify () then None else Some ""))
             onclick=(fun _ ->
               let cmd = RemoveLast "" in
               set_history (execute (Signal.get history) cmd)
@@ -243,7 +247,9 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
           </button>
           <button
             class_="btn btn-danger"
-            disabled=(not (can_modify ()))
+            disabled=(Tpl.attr_opt
+              ~name:"disabled"
+              (fun () -> if can_modify () then None else Some ""))
             onclick=(fun _ ->
               let cmd = Clear (present_texts ()) in
               set_history (execute (Signal.get history) cmd)
@@ -256,7 +262,9 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
           <h3>(text "Time Travel")</h3>
           <button
             class_="btn btn-undo"
-            disabled=(not (can_undo ()))
+            disabled=(Tpl.attr_opt
+              ~name:"disabled"
+              (fun () -> if can_undo () then None else Some ""))
             onclick=(fun _ ->
               set_history (undo (Signal.get history))
             )>
@@ -264,7 +272,9 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
           </button>
           <button
             class_="btn btn-redo"
-            disabled=(not (can_redo ()))
+            disabled=(Tpl.attr_opt
+              ~name:"disabled"
+              (fun () -> if can_redo () then None else Some ""))
             onclick=(fun _ ->
               set_history (redo (Signal.get history))
             )>

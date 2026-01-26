@@ -464,6 +464,18 @@ If a tag is not listed here, it is not an intrinsic MLX tag. You can still use t
 
 SVG tags are available via `Html.Svg` (use the HTML DSL for SVG trees).
 
+### MLX Reactive Attributes
+
+MLX does not auto-track arbitrary attribute expressions. Use template helpers to
+opt into reactivity:
+
+- **Reactive attributes:** `Tpl.attr` / `Tpl.attr_opt` (e.g. `disabled=(Tpl.attr ~name:"disabled" ...)`)
+- **Reactive class lists:** `Tpl.class_list` (e.g. `class_=(Tpl.class_list (fun () -> ["active", cond]))`)
+- **Reactive style lists:** `Tpl.style`
+
+Plain expressions like `disabled=(condition)` or `class_=(fun () -> ...)` are
+evaluated once at render time.
+
 **Recommended pattern for full-page rendering:**
 
 MLX now supports full document tags (`html`, `head`, `body`), but we still
