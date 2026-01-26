@@ -1,5 +1,8 @@
 (**
     Shared components for SSR + browser.
+
+    Best practice: use [Tpl.text] for signal-backed text that must update,
+    and [Tpl.text_once] for computed values that render once.
 *)
 
 type todo = {
