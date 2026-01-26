@@ -33,6 +33,16 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     | Success of user
     | Error of string
 
+  type step_item = {
+    idx: int;
+    title: string;
+    step_class: string;
+    status_class: string;
+    status_text: string;
+    step_number: string;
+    is_complete: bool;
+  }
+
   (** {1 Mock Data Fetcher}
 
       In a real app, this would make an HTTP request.
@@ -149,29 +159,31 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
               <div class_="user-card">
                 <div class_="user-header">
                   <div class_="user-avatar">
-                    (Tpl.text (fun () ->
+                    (Tpl.text_once (fun () ->
                       let name = user.name in
                       if String.length name > 0 then
                         String.sub name 0 1 |> String.uppercase_ascii
                       else "?"))
                   </div>
                   <div>
-                    <h2 class_="user-name">(text user.name)</h2>
-                    <p class_="user-email">(text user.email)</p>
+                    <h2 class_="user-name">(Tpl.text_once (fun () -> user.name))</h2>
+                    <p class_="user-email">(Tpl.text_once (fun () -> user.email))</p>
                   </div>
                 </div>
-                (match user.bio with
-                 | Some bio ->
-                     <div class_="user-bio">
-                       <h3>(text "Bio")</h3>
-                       <p>(text bio)</p>
-                     </div>
-                 | None -> Html.text "")
+                (Tpl.nodes (fun () ->
+                   match user.bio with
+                   | Some bio ->
+                       <div class_="user-bio">
+                         <h3>(text "Bio")</h3>
+                         <p>(Tpl.text_once (fun () -> bio))</p>
+                       </div>
+                   | None -> Html.text ""
+                 ))
 
                 (* User controls *)
                 <div class_="user-meta">
                   <span class_="user-id">
-                    (Tpl.text (fun () -> "ID: " ^ string_of_int user.id))
+                    (Tpl.text_once (fun () -> "ID: " ^ string_of_int user.id))
                   </span>
                   <div class_="button-group">
                     <button
@@ -252,24 +264,26 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
                  else "Pending"
                in
                let step_number = string_of_int (idx + 1) in
-
-               <div class_=step_class>
-                 <div class_="step-indicator">
-                   (if is_complete then
-                      <span class_="check">(text "✓")</span>
-                    else
-                      <span class_="step-number">(text step_number)</span>
-                   )
-                 </div>
-                 <div class_="step-content">
-                   <h3>(text title)</h3>
-                   <p class_=("step-status " ^ status_class)>(text status_text)</p>
-                 </div>
-               </div>
+               { idx; title; step_class; status_class; status_text; step_number; is_complete }
              ) steps_data
            )
-           ~key:(fun _item -> "")
-           ~render:(fun item -> item)
+           ~key:(fun item -> string_of_int item.idx)
+           ~render:(fun item ->
+             <div class_=(fun () -> item.step_class)>
+               <div class_="step-indicator">
+                 (Tpl.nodes (fun () ->
+                   if item.is_complete then
+                     <span class_="check">(text "✓")</span>
+                   else
+                     <span class_="step-number">(Tpl.text_once (fun () -> item.step_number))</span>
+                 ))
+               </div>
+               <div class_="step-content">
+                <h3>(Tpl.text_once (fun () -> item.title))</h3>
+                <p class_=(fun () -> "step-status " ^ item.status_class)>(Tpl.text_once (fun () -> item.status_text))</p>
+               </div>
+             </div>
+           )
         )
       </div>
 

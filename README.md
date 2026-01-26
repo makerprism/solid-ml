@@ -469,12 +469,25 @@ SVG tags are available via `Html.Svg` (use the HTML DSL for SVG trees).
 MLX does not auto-track arbitrary attribute expressions. Use template helpers to
 opt into reactivity:
 
-- **Reactive attributes:** `Tpl.attr` / `Tpl.attr_opt` (e.g. `disabled=(Tpl.attr ~name:"disabled" ...)`)
+- **Text nodes:** `Html.text "literal"` renders static text; `Html.text expr` renders once without reactivity (use `Tpl.text_once` to make this explicit); use `Tpl.text` for reactive text updates.
+
+- **Reactive attributes:** pass a thunk (`disabled=(fun () -> ...)`) or use `Tpl.attr` / `Tpl.attr_opt` for custom attribute names. Boolean attributes are mapped to presence/absence automatically.
 - **Reactive class lists:** `Tpl.class_list` (e.g. `class_=(Tpl.class_list (fun () -> ["active", cond]))`)
 - **Reactive style lists:** `Tpl.style`
 
 Plain expressions like `disabled=(condition)` or `class_=(fun () -> ...)` are
 evaluated once at render time.
+
+Example:
+
+```ocaml
+<p>
+  (Html.text "Hello ")
+  (Tpl.text_once (fun () -> name))
+  (Html.text ", count: ")
+  (Tpl.text (fun () -> string_of_int (Signal.get count)))
+</p>
+```
 
 **Recommended pattern for full-page rendering:**
 

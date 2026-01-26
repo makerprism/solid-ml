@@ -23,7 +23,6 @@ type edit_state =
 
 module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Env
-  open Env.Html
   module Tpl = Env.Tpl
   module Routes = Routes
 
@@ -36,17 +35,17 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     in
     match is_editing with
     | Not_editing ->
-        <li class_=(item_class "")>
+        <li class_=(fun () -> item_class "")>
           <span class_="checkbox"></span>
           <span class_="todo-text" onclick=(fun _ -> on_edit ())>
-            (text todo.text)
+            (Tpl.text_once (fun () -> todo.text))
           </span>
           <button class_="btn-edit" onclick=(fun _ -> on_edit ())>
             (Html.text "Edit")
           </button>
         </li>
     | Editing _ ->
-        <li class_=(item_class " editing")>
+        <li class_=(fun () -> item_class " editing")>
           <input
             type_="text"
             value=(Tpl.bind_input

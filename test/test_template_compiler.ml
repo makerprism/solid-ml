@@ -399,7 +399,7 @@ let () =
       C.render_div_each ~items ())
   in
   let expected_each =
-    "<div><!--$--><!--k:30--><span>a</span><!--/k--><!--k:31--><span>b</span><!--/k--><!--$--></div>"
+    "<div><!--$--><!--k:30--><span><!--#-->a<!--#--></span><!--/k--><!--k:31--><span><!--#-->b<!--#--></span><!--/k--><!--$--></div>"
   in
   if html_each <> expected_each then
     failwith ("each mismatch: " ^ html_each);
@@ -411,7 +411,7 @@ let () =
       C.render_div_eachi ~items:items_i ())
   in
   let expected_eachi =
-    "<div><!--$--><!--k:30--><span>0:x</span><!--/k--><!--k:31--><span>1:y</span><!--/k--><!--$--></div>"
+    "<div><!--$--><!--k:30--><span><!--#-->0:x<!--#--></span><!--/k--><!--k:31--><span><!--#-->1:y<!--#--></span><!--/k--><!--$--></div>"
   in
   if html_eachi <> expected_eachi then
     failwith ("eachi mismatch: " ^ html_eachi);
@@ -453,7 +453,7 @@ let () =
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_dynamic ~flag:flag_true ())
   in
-  assert (html_dynamic_true = "<div><!--$--><span>Hi</span><!--$--></div>");
+  assert (html_dynamic_true = "<div><!--$--><span><!--#-->Hi<!--#--></span><!--$--></div>");
 
   let flag_false, _set_flag_false = Solid_ml_ssr.Env.Signal.create false in
   let html_dynamic_false =
@@ -461,7 +461,7 @@ let () =
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_dynamic ~flag:flag_false ())
   in
-  assert (html_dynamic_false = "<div><!--$--><em>Hi</em><!--$--></div>");
+  assert (html_dynamic_false = "<div><!--$--><em><!--#-->Hi<!--#--></em><!--$--></div>");
 
   let html_portal =
     Solid_ml_ssr.Render.to_string (fun () ->

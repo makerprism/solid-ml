@@ -55,7 +55,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       | Dark -> "🌙", "theme-icon-dark"
       | Auto -> "🔄", "theme-icon-auto"
     in
-    <span class_=("theme-icon " ^ icon_class)>(text icon_text)</span>
+    <span class_=(fun () -> "theme-icon " ^ icon_class)>(Tpl.text_once (fun () -> icon_text))</span>
 
   (** {1 Theme Card Component - Uses reactive selection state} *)
 
@@ -66,7 +66,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     <div class_=selected_class onclick=(fun _ -> on_select ())>
       <div class_="theme-preview">
         (theme_icon ~theme:card_theme ())
-        <span class_="theme-label">(text (theme_to_string card_theme))</span>
+        <span class_="theme-label">(Tpl.text_once (fun () -> theme_to_string card_theme))</span>
       </div>
       (* Checkmark - shown based on initial state, will update after hydration *)
       (if is_selected then
@@ -157,9 +157,9 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
           (Tpl.each_keyed
              ~items:features
              ~key:(fun f -> f)
-             ~render:(fun feature ->
-               <li>(text feature)</li>
-             )
+              ~render:(fun feature ->
+              <li>(Tpl.text_once (fun () -> feature))</li>
+              )
           )
         </ul>
       </div>

@@ -1204,6 +1204,32 @@ let test_template_bind_input () =
   assert_eq ~name:"tpl.bind_input update" (Signal.get value) "next";
   dispose ()
 
+let test_template_auto_bool_attr () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+  let enabled, set_enabled = Solid_ml_browser.Env.Signal.create false in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      Html.append_to_element root
+        (Solid_ml_browser.Env.Html.button
+           ~disabled:(fun () -> not (Signal.get enabled))
+           ~children:[ Solid_ml_browser.Env.Html.text "Save" ]
+           ())
+    )
+  in
+
+  let button_el = element_of_node (get_child_nodes root).(0) in
+  (match get_attribute button_el "disabled" with
+   | Some _ -> ()
+   | None -> fail "tpl.auto bool attr: disabled missing");
+  set_enabled true;
+  (match get_attribute button_el "disabled" with
+   | Some _ -> fail "tpl.auto bool attr: disabled should be removed"
+   | None -> ());
+  dispose ()
+
 
 let () =
   try
@@ -1236,6 +1262,7 @@ let () =
     test_template_reactive_text ();
     test_template_show_when ();
     test_template_bind_input ();
+    test_template_auto_bool_attr ();
     set_result "PASS" "PASS"
   with exn ->
     let err_msg = exn_to_string exn in

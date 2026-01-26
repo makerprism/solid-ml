@@ -34,7 +34,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         (Tpl.each_keyed
           ~items:(fun () -> Signal.get items)
           ~key:(fun s -> s)
-          ~render:(fun s -> <li>(text s)</li>))
+          ~render:(fun s -> <li>(Tpl.text_once (fun () -> s))</li>))
       </ul>
     </div>
 end

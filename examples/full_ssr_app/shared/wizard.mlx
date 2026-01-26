@@ -96,27 +96,28 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
           (if idx = current_idx then " current" else "") ^
           (if idx < current_idx then " completed" else "")
         in
-        <div class_=current_class>
+        <div class_=(fun () -> current_class)>
           <div class_="progress-circle">
-            (if idx < current_idx then
-               <span>(text "✓")</span>
-             else
-               <span>(text num)</span>
-            )
+            (Tpl.nodes (fun () ->
+              if idx < current_idx then
+                <span>(text "✓")</span>
+              else
+                <span>(Tpl.text_once (fun () -> num))</span>
+            ))
           </div>
-          <span class_="progress-label">(text label)</span>
+           <span class_="progress-label">(Tpl.text_once (fun () -> label))</span>
         </div>
       in
       <div class_="progress-bar">
         <div class_="progress-line">
-          <div class_=("progress-fill progress-step-" ^ string_of_int current_idx)>
+          <div class_=(fun () -> "progress-fill progress-step-" ^ string_of_int current_idx)>
           </div>
         </div>
-        (progress_bar_step ~idx:0 ~label:"Welcome" ~num:"1" ())
-        (progress_bar_step ~idx:1 ~label:"Personal" ~num:"2" ())
-        (progress_bar_step ~idx:2 ~label:"Preferences" ~num:"3" ())
-        (progress_bar_step ~idx:3 ~label:"Confirm" ~num:"4" ())
-        (progress_bar_step ~idx:4 ~label:"Done" ~num:"5" ())
+        (Tpl.nodes (fun () -> progress_bar_step ~idx:0 ~label:"Welcome" ~num:"1" ()))
+        (Tpl.nodes (fun () -> progress_bar_step ~idx:1 ~label:"Personal" ~num:"2" ()))
+        (Tpl.nodes (fun () -> progress_bar_step ~idx:2 ~label:"Preferences" ~num:"3" ()))
+        (Tpl.nodes (fun () -> progress_bar_step ~idx:3 ~label:"Confirm" ~num:"4" ()))
+        (Tpl.nodes (fun () -> progress_bar_step ~idx:4 ~label:"Done" ~num:"5" ()))
       </div>
     in
 
@@ -346,7 +347,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
                | _ ->
                    set_step (next_step (Signal.get current_step))
              )>
-               (text next_label)
+            (Tpl.text_once (fun () -> next_label))
              </button>
            ))
         <span class_="nav-spacer"></span>

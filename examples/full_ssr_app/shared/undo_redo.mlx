@@ -10,7 +10,6 @@
 
 module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Env
-  open Env.Html
   module Tpl = Env.Tpl
   module Routes = Routes
 
@@ -136,9 +135,9 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     in
 
     <div class_="undo-redo-container">
-      <h1>(text "Undo/Redo History Management")</h1>
+      <h1>(Html.text "Undo/Redo History Management")</h1>
       <p class_="intro">
-        (text "Demonstrates command pattern, history stack, and immutable state updates with time-travel debugging.")
+        (Html.text "Demonstrates command pattern, history stack, and immutable state updates with time-travel debugging.")
       </p>
 
       (* History indicator - reactive counters *)
@@ -165,16 +164,16 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
       (* Current text list *)
       <div class_="text-list-container">
-        <h3>(text "Current Text List")</h3>
+        <h3>(Html.text "Current Text List")</h3>
         <ul class_="text-list">
           (Tpl.each_keyed
              ~items:present_texts
              ~key:(fun text -> text)
              ~render:(fun text ->
                <li class_="text-item">
-                 <span class_="text-index">(text "")</span>
-                 <span class_="text-content">(text text)</span>
-               </li>
+                  <span class_="text-index">(Html.text "")</span>
+                  <span class_="text-content">(Tpl.text_once (fun () -> text))</span>
+                </li>
              )
           )
         </ul>
@@ -190,14 +189,14 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       (* Action buttons *)
       <div class_="action-buttons">
         <div class_="button-group">
-          <h3>(text "Add Items")</h3>
+          <h3>(Html.text "Add Items")</h3>
           <button
             class_="btn"
             onclick=(fun _ ->
               let cmd = AddText "Hello" in
               set_history (execute (Signal.get history) cmd)
             )>
-            (text "Add 'Hello'")
+            (Html.text "Add 'Hello'")
           </button>
           <button
             class_="btn"
@@ -205,7 +204,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
               let cmd = AddText "World" in
               set_history (execute (Signal.get history) cmd)
             )>
-            (text "Add 'World'")
+            (Html.text "Add 'World'")
           </button>
           <button
             class_="btn"
@@ -213,12 +212,12 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
               let cmd = AddText ("Item " ^ string_of_int (List.length (present_texts ()) + 1)) in
               set_history (execute (Signal.get history) cmd)
             )>
-            (text "Add Item")
+            (Html.text "Add Item")
           </button>
         </div>
 
         <div class_="button-group">
-          <h3>(text "Modify Items")</h3>
+          <h3>(Html.text "Modify Items")</h3>
           <button
             class_="btn btn-secondary"
             disabled=(Tpl.attr_opt
@@ -232,7 +231,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
                   let cmd = Replace {index = 0; old_text = first; new_text = "UPDATED"} in
                   set_history (execute (Signal.get history) cmd)
             )>
-            (text "Replace First")
+            (Html.text "Replace First")
           </button>
           <button
             class_="btn btn-secondary"
@@ -243,7 +242,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
               let cmd = RemoveLast "" in
               set_history (execute (Signal.get history) cmd)
             )>
-            (text "Remove Last")
+            (Html.text "Remove Last")
           </button>
           <button
             class_="btn btn-danger"
@@ -254,12 +253,12 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
               let cmd = Clear (present_texts ()) in
               set_history (execute (Signal.get history) cmd)
             )>
-            (text "Clear All")
+            (Html.text "Clear All")
           </button>
         </div>
 
         <div class_="button-group history-controls">
-          <h3>(text "Time Travel")</h3>
+          <h3>(Html.text "Time Travel")</h3>
           <button
             class_="btn btn-undo"
             disabled=(Tpl.attr_opt
@@ -268,7 +267,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
             onclick=(fun _ ->
               set_history (undo (Signal.get history))
             )>
-            (text "Undo")
+            (Html.text "Undo")
           </button>
           <button
             class_="btn btn-redo"
@@ -278,20 +277,20 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
             onclick=(fun _ ->
               set_history (redo (Signal.get history))
             )>
-            (text "Redo")
+            (Html.text "Redo")
           </button>
         </div>
       </div>
 
       (* Instructions *)
       <div class_="instructions">
-        <h3>(text "How it Works")</h3>
+        <h3>(Html.text "How it Works")</h3>
         <ul>
-          <li>(text "Each action creates a command that's added to the history stack")</li>
-          <li>(text "Undo reverses the last command and moves it to the future stack")</li>
-          <li>(text "Redo re-applies commands from the future stack")</li>
-          <li>(text "New actions clear the future stack (new timeline branch)")</li>
-          <li>(text "All state updates are immutable - state is never modified in place")</li>
+          <li>(Html.text "Each action creates a command that's added to the history stack")</li>
+          <li>(Html.text "Undo reverses the last command and moves it to the future stack")</li>
+          <li>(Html.text "Redo re-applies commands from the future stack")</li>
+          <li>(Html.text "New actions clear the future stack (new timeline branch)")</li>
+          <li>(Html.text "All state updates are immutable - state is never modified in place")</li>
         </ul>
       </div>
     </div>

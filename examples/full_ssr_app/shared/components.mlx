@@ -48,7 +48,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         (Tpl.each_keyed
            ~items:(fun () -> Signal.get items)
            ~key:(fun s -> s)
-           ~render:(fun s -> <li id=("k-" ^ s)>(text s)</li>))
+           ~render:(fun s -> <li id=(fun () -> "k-" ^ s)>(Tpl.text_once (fun () -> s))</li>))
       </ul>
     </div>
 
@@ -107,10 +107,10 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
            ~items:(fun () -> Signal.get todos)
            ~key:(fun todo -> Int.to_string todo.id)
            ~render:(fun todo ->
-             <li class_=("todo" ^ if todo.completed then " completed" else "")>
-               <span class_="checkbox"></span>
-               (text todo.text)
-             </li>
+              <li class_=(fun () -> "todo" ^ if todo.completed then " completed" else "")>
+                <span class_="checkbox"></span>
+               (Tpl.text_once (fun () -> todo.text))
+              </li>
            )
         )
       </ul>
@@ -143,7 +143,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         let class_ =
           if Routes.is_active ~current_path route then "nav-link active" else "nav-link"
         in
-        <a href=href class_=class_>(text (Routes.label route))</a>
+        <a href=(fun () -> href) class_=(fun () -> class_)>(Tpl.text_once (fun () -> Routes.label route))</a>
       ) routes in
       Html.fragment (intersperse <span>(text " · ")</span> links)
     in
@@ -153,21 +153,21 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       | None -> render_nav_links routes
       | Some t ->
           <div class_="nav-section">
-            <span class_="nav-section-title">(text t)</span>
-            (render_nav_links routes)
+            <span class_="nav-section-title">(Tpl.text_once (fun () -> t))</span>
+            (Tpl.nodes (fun () -> render_nav_links routes))
           </div>
     in
 
     <div class_="app-container">
-      <nav class_="nav">
-        (render_section (Some "Basics") basic_routes)
-        (render_section (Some "Advanced") advanced_routes)
-        (render_section (Some "Demos") demo_routes)
-        (render_section (Some "Internal") internal_routes)
-      </nav>
-      <div class_="content">
-        (children)
-      </div>
+        <nav class_="nav">
+          (Tpl.nodes (fun () -> render_section (Some "Basics") basic_routes))
+          (Tpl.nodes (fun () -> render_section (Some "Advanced") advanced_routes))
+          (Tpl.nodes (fun () -> render_section (Some "Demos") demo_routes))
+          (Tpl.nodes (fun () -> render_section (Some "Internal") internal_routes))
+        </nav>
+        <div class_="content">
+          (Tpl.nodes (fun () -> children))
+        </div>
     </div>
 
   (** Home Page *)

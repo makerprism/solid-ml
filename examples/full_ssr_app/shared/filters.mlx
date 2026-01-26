@@ -21,7 +21,6 @@ type todo = {
 
 module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Env
-  open Env.Html
   module Tpl = Env.Tpl
   module Routes = Routes
 
@@ -89,17 +88,17 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     in
 
     <div class_="filters-container">
-      <h1>(text "Reactive Filters Demo")</h1>
+      <h1>(Html.text "Reactive Filters Demo")</h1>
 
       <div class_="filter-bar">
-        <button class_=(filter_class All) onclick=(fun _ -> set_filter All)>
-          (text "All")
+        <button class_=(fun () -> filter_class All) onclick=(fun _ -> set_filter All)>
+          (Html.text "All")
         </button>
-        <button class_=(filter_class Active) onclick=(fun _ -> set_filter Active)>
-          (text "Active")
+        <button class_=(fun () -> filter_class Active) onclick=(fun _ -> set_filter Active)>
+          (Html.text "Active")
         </button>
-        <button class_=(filter_class Completed) onclick=(fun _ -> set_filter Completed)>
-          (text "Completed")
+        <button class_=(fun () -> filter_class Completed) onclick=(fun _ -> set_filter Completed)>
+          (Html.text "Completed")
         </button>
       </div>
 
@@ -138,10 +137,10 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
            ~items:filtered_todos
            ~key:(fun todo -> Int.to_string todo.id)
            ~render:(fun todo ->
-              <li class_=("todo" ^ if todo.completed then " completed" else "")>
-                <span class_="checkbox"></span>
-                (text todo.text)
-              </li>
+            <li class_=(fun () -> "todo" ^ if todo.completed then " completed" else "")>
+              <span class_="checkbox"></span>
+              (Tpl.text_once (fun () -> todo.text))
+            </li>
             )
         )
       </ul>

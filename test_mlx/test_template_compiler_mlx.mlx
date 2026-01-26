@@ -12,6 +12,11 @@ module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       (Tpl.text (fun () -> Signal.get name))
     </div>
 
+  let render_div_once ~name () =
+    <div>
+      (Tpl.text_once (fun () -> name))
+    </div>
+
   let render_div_props ~name () =
     <div id="root" class_="c1 c2">
       (Tpl.text (fun () -> Signal.get name))
@@ -102,6 +107,13 @@ let () =
       C.render_div_props ~name ())
   in
   assert (html_props = "<div id=\"root\" class=\"c1 c2\"><!--#-->World<!--#--></div>");
+
+  let html_div_once =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_div_once ~name:"Once" ())
+  in
+  assert (html_div_once = "<div><!--#-->Once<!--#--></div>");
 
   let html_span =
     Solid_ml_ssr.Render.to_string (fun () ->

@@ -94,6 +94,7 @@ module Tpl : sig
   type spread = Spread.t
 
   val text : (unit -> string) -> 'a t
+  val text_once : (unit -> string) -> 'a t
   val text_value : string -> 'a t
   val attr : name:string -> (unit -> string) -> 'a t
   val attr_opt : name:string -> (unit -> string option) -> 'a t
@@ -169,6 +170,9 @@ end = struct
 
   let text (_thunk : unit -> string) : 'a t =
     Uncompiled "text"
+
+  let text_once (_thunk : unit -> string) : 'a t =
+    Uncompiled "text_once"
 
   let text_value (_value : string) : 'a t =
     Uncompiled "text_value"
