@@ -2,11 +2,17 @@
     Theme Switcher with Reactive State
 
     This component demonstrates:
-    - Reactive theme switching (light/dark/auto mode)
     - Signal-based state management with Tpl.text for reactive updates
-    - localStorage persistence for theme preference
-    - Visual feedback with dynamic CSS classes using Tpl.attr
-    - Reactive UI updates after client-side hydration
+    - Theme switching (light/dark/auto mode) via signal setters
+    - Reactive theme name display that updates when theme changes
+    - Reactive theme description and features that update dynamically
+
+    Note: Due to template compiler constraints, some visual elements (card
+    selection state, container class, theme icon) are rendered with the
+    initial theme state on SSR. The theme state itself is fully reactive and
+    updates correctly - signal setters work and Tpl.text regions update.
+    For fully reactive class attributes, browser-side reactive bindings
+    (bind_class/bind_class_toggle) would be needed after hydration.
 *)
 
 module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
@@ -54,19 +60,16 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   (** {1 Theme Card Component - Uses reactive selection state} *)
 
   let theme_card ~theme_signal ~card_theme ~on_select () =
-    let card_class =
-      let base = "theme-card theme-card-" ^ theme_to_string card_theme in
-      if Signal.get theme_signal = card_theme
-      then base ^ " selected"
-      else base
-    in
-    <div class_=card_class onclick=(fun _ -> on_select ())>
+    let base_class = "theme-card theme-card-" ^ theme_to_string card_theme in
+    let is_selected = Signal.get theme_signal = card_theme in
+    let selected_class = if is_selected then base_class ^ " selected" else base_class in
+    <div class_=selected_class onclick=(fun _ -> on_select ())>
       <div class_="theme-preview">
         (theme_icon ~theme:card_theme ())
         <span class_="theme-label">(text (theme_to_string card_theme))</span>
       </div>
-      (* Checkmark - using OCaml conditional for now, will be reactive after hydration *)
-      (if Signal.get theme_signal = card_theme then
+      (* Checkmark - shown based on initial state, will update after hydration *)
+      (if is_selected then
          <div class_="theme-check">
            <span>(text "✓")</span>
          </div>
@@ -111,24 +114,33 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   (** {1 Theme Info Component - Reactive to theme changes} *)
 
   let theme_info ~theme_signal () =
-    let description, features =
+    (* Reactive description function *)
+    let description () =
       match Signal.get theme_signal with
       | Light ->
-          "Light mode uses bright colors and is ideal for well-lit environments.",
+          "Light mode uses bright colors and is ideal for well-lit environments."
+      | Dark ->
+          "Dark mode uses dark backgrounds and is easier on the eyes in low-light conditions."
+      | Auto ->
+          "Auto mode automatically switches between light and dark based on your system preferences."
+    in
+
+    (* Reactive features list function *)
+    let features () =
+      match Signal.get theme_signal with
+      | Light ->
           [
             "High contrast for readability";
             "Best for daylight use";
             "Reduces eye strain in bright conditions";
           ]
       | Dark ->
-          "Dark mode uses dark backgrounds and is easier on the eyes in low-light conditions.",
           [
             "Reduced blue light exposure";
             "Better for nighttime use";
             "Saves battery on OLED screens";
           ]
       | Auto ->
-          "Auto mode automatically switches between light and dark based on your system preferences.",
           [
             "Follows system theme";
             "Seamless transitions";
@@ -136,15 +148,14 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
           ]
     in
 
-    let items () = features in
     <div class_="theme-info">
       <h3>(Tpl.text (fun () -> theme_to_string (Signal.get theme_signal) ^ " Mode"))</h3>
-      <p class_="theme-description">(text description)</p>
+      <p class_="theme-description">(Tpl.text description)</p>
       <div class_="theme-features">
         <h4>(text "Features:")</h4>
         <ul>
           (Tpl.each_keyed
-             ~items
+             ~items:features
              ~key:(fun f -> f)
              ~render:(fun feature ->
                <li>(text feature)</li>
@@ -182,10 +193,8 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     (* Create reactive theme signal *)
     let theme, set_theme = Signal.create Light in
 
-    (* Apply theme class to container reactively *)
-    let container_class =
-      "theme-container " ^ get_theme_class (Signal.get theme)
-    in
+    (* Apply theme class to container - shows initial theme state *)
+    let container_class = "theme-container " ^ get_theme_class (Signal.get theme) in
 
     <div class_=container_class>
       <h1>(text "Theme Switcher")</h1>
@@ -196,7 +205,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       (* Current theme display - reactive with Tpl.text *)
       <div class_="current-theme-display">
         <span class_="theme-label-text">(text "Current Theme: ")</span>
-        (* Theme icon - displayed based on current theme state *)
+        (* Theme icon - shows current theme state initially *)
         (let current = Signal.get theme in
          if current = Light then theme_icon ~theme:Light ()
          else if current = Dark then theme_icon ~theme:Dark ()
@@ -240,12 +249,15 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       <div class_="instructions">
         <h3>(text "How it Works")</h3>
         <ul>
-          <li>(text "Click a theme card to switch themes")</li>
+          <li>(text "Click a theme card to switch themes - signal setters update the state")</li>
+          <li>(text "Theme name display updates reactively using Tpl.text")</li>
+          <li>(text "Theme description and features list update reactively")</li>
           <li>(text "Theme preference is saved to localStorage automatically")</li>
           <li>(text "On page reload, the saved theme is applied")</li>
-          <li>(text "The theme state is reactive and updates all components automatically")</li>
-          <li>(text "Uses Tpl.text for reactive text and Tpl.attr for dynamic CSS classes")</li>
         </ul>
+        <p class_="form-hint">
+          (text "This example demonstrates signal-based state management with Tpl.text for reactive updates.")
+        </p>
       </div>
     </div>
 end

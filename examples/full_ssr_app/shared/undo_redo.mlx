@@ -141,19 +141,25 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         (text "Demonstrates command pattern, history stack, and immutable state updates with time-travel debugging.")
       </p>
 
-      (* History indicator *)
+      (* History indicator - reactive counters *)
       <div class_="history-indicator">
         <span class_="history-past">
-          (text (let (past, _, _) = history_stats () in
-                 "Undo: " ^ string_of_int past))
+          (Tpl.text (fun () ->
+            let (past, _, _) = history_stats () in
+            "Undo: " ^ string_of_int past
+          ))
         </span>
         <span class_="history-present">
-          (text (let (_, present, _) = history_stats () in
-                 "Current: " ^ string_of_int present ^ " items"))
+          (Tpl.text (fun () ->
+            let (_, present, _) = history_stats () in
+            "Current: " ^ string_of_int present ^ " items"
+          ))
         </span>
         <span class_="history-future">
-          (text (let (_, _, future) = history_stats () in
-                 "Redo: " ^ string_of_int future))
+          (Tpl.text (fun () ->
+            let (_, _, future) = history_stats () in
+            "Redo: " ^ string_of_int future
+          ))
         </span>
       </div>
 
@@ -174,7 +180,9 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         </ul>
         <div class_="list-info">
           <span class_="count">
-            (text (string_of_int (List.length (present_texts ())) ^ " items"))
+            (Tpl.text (fun () ->
+              string_of_int (List.length (present_texts ())) ^ " items"
+            ))
           </span>
         </div>
       </div>
