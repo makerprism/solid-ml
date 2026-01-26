@@ -120,18 +120,20 @@ module Make (B : Backend.S) = struct
   let transition_enqueue rt = rt.transition_depth > 0 || rt.transition_processing
 
   let set_transition_pending_ref : (runtime -> bool -> unit) ref = ref (fun _ _ -> ())
+  let process_transition_queue_ref : (runtime -> unit) ref = ref (fun _ -> ())
+  let schedule_transition_ref : (runtime -> unit) ref = ref (fun _ -> ())
 
   let push_update rt comp =
     if transition_enqueue rt then (
       push_update_transition rt comp;
-      !set_transition_pending_ref rt true)
+      !schedule_transition_ref rt)
     else
       push_update_immediate rt comp
 
   let push_effect rt comp =
     if transition_enqueue rt then (
       push_effect_transition rt comp;
-      !set_transition_pending_ref rt true)
+      !schedule_transition_ref rt)
     else
       push_effect_immediate rt comp
 
@@ -247,14 +249,22 @@ module Make (B : Backend.S) = struct
     match node.memo_observers with
     | None -> ()
     | Some observers ->
+      let enqueue_observer (o : computation) =
+        if o.transition then
+          if o.pure then
+            push_update_transition rt o
+          else
+            push_effect_transition rt o
+        else if o.pure then
+          push_update rt o
+        else
+          push_effect rt o
+      in
       for i = 0 to node.memo_observers_len - 1 do
         let o = Array.get observers i in
         if o.state = Clean then begin
           o.state <- Pending;
-          if o.pure then
-            push_update rt o
-          else
-            push_effect rt o;
+          enqueue_observer o;
           if o.memo_observers <> None then
             mark_downstream o
         end
@@ -282,14 +292,22 @@ module Make (B : Backend.S) = struct
           (* Cache array accesses for performance *)
           let observers = signal.observers in
           let observers_len = signal.observers_len in
+          let enqueue_observer (o : computation) =
+            if o.transition then
+              if o.pure then
+                push_update_transition rt o
+              else
+                push_effect_transition rt o
+            else if o.pure then
+              push_update rt o
+            else
+              push_effect rt o
+          in
           
           for i = 0 to observers_len - 1 do
             let o = Array.unsafe_get observers i in
             if o.state = Clean then begin
-              if o.pure then
-                push_update rt o
-              else
-                push_effect rt o;
+              enqueue_observer o;
               if o.memo_observers <> None then
                 mark_downstream o
               end;
@@ -305,6 +323,23 @@ module Make (B : Backend.S) = struct
       write_signal rt.transition_pending (Obj.repr value)
 
   let () = set_transition_pending_ref := set_transition_pending
+
+  let schedule_transition rt =
+    if not rt.transition_scheduled then begin
+      rt.transition_scheduled <- true;
+      set_transition_pending rt true;
+      B.schedule_transition (fun () ->
+          match get_runtime_opt () with
+          | None -> ()
+          | Some runtime ->
+            if runtime.in_update then
+              ()
+            else
+              !process_transition_queue_ref runtime)
+    end
+
+  let () = schedule_transition_ref := schedule_transition
+
 
   (** {1 Clean Node} *)
   
@@ -451,19 +486,6 @@ module Make (B : Backend.S) = struct
   let complete_updates () =
     let rt = get_runtime () in
 
-    let promote_transitions () =
-      let updates = rt.updates in
-      let effects = rt.effects in
-      rt.updates <- rt.transition_updates;
-      rt.effects <- rt.transition_effects;
-      rt.updates_len <- rt.transition_updates_len;
-      rt.effects_len <- rt.transition_effects_len;
-      rt.transition_updates <- updates;
-      rt.transition_effects <- effects;
-      rt.transition_updates_len <- 0;
-      rt.transition_effects_len <- 0
-    in
-    
     let rec loop () =
       if rt.updates_len > 0 || rt.effects_len > 0 then begin
         (* Process updates (memos) - already in correct order *)
@@ -500,14 +522,6 @@ module Make (B : Backend.S) = struct
         done;
         
         loop ()
-      end else if rt.transition_updates_len > 0 || rt.transition_effects_len > 0 then begin
-        rt.transition_processing <- true;
-        set_transition_pending rt true;
-        promote_transitions ();
-        loop ()
-      end else begin
-        if rt.transition_processing then rt.transition_processing <- false;
-        set_transition_pending rt false
       end
     in
     loop ()
@@ -541,10 +555,50 @@ module Make (B : Backend.S) = struct
       in
       
       rt.in_update <- false;
+      if rt.transition_scheduled then
+        !process_transition_queue_ref rt;
       result
     end
 
   let () = run_updates_ref := run_updates
+
+  let process_transition_queue rt =
+    if rt.in_update then
+      ()
+    else if rt.transition_updates_len = 0 && rt.transition_effects_len = 0 then (
+      rt.transition_scheduled <- false;
+      set_transition_pending rt false)
+    else begin
+      rt.transition_processing <- true;
+      rt.transition_scheduled <- false;
+
+      let normal_updates = rt.updates in
+      let normal_updates_len = rt.updates_len in
+      let normal_effects = rt.effects in
+      let normal_effects_len = rt.effects_len in
+
+      rt.updates <- rt.transition_updates;
+      rt.effects <- rt.transition_effects;
+      rt.updates_len <- rt.transition_updates_len;
+      rt.effects_len <- rt.transition_effects_len;
+      rt.transition_updates_len <- 0;
+      rt.transition_effects_len <- 0;
+
+      complete_updates ();
+
+      rt.updates <- normal_updates;
+      rt.effects <- normal_effects;
+      rt.updates_len <- normal_updates_len;
+      rt.effects_len <- normal_effects_len;
+
+      rt.transition_processing <- false;
+      if rt.transition_updates_len > 0 || rt.transition_effects_len > 0 then
+        schedule_transition rt
+      else
+        set_transition_pending rt false
+    end
+
+  let () = process_transition_queue_ref := process_transition_queue
 
   let run_transition fn =
     let rt = get_runtime () in
@@ -586,6 +640,7 @@ module Make (B : Backend.S) = struct
       memo_observer_slots = None;
       memo_observers_len = 0;
       memo_comparator = None;
+      transition = rt.transition_depth > 0;
     } in
     
     begin match rt.owner with

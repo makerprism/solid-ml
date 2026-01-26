@@ -342,6 +342,7 @@ type static_prop =
     | Static_text of string
     | Text_slot of Parsetree.expression
     | Nodes_slot of Parsetree.expression
+    | Nodes_transition_slot of Parsetree.expression
     | Nodes_keyed_slot of {
         items_thunk : Parsetree.expression;
         key_fn : Parsetree.expression;
@@ -460,14 +461,15 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
   (* Build segments + slots by walking the element tree. *)
   let segments_rev = ref [] in
   let slots_rev :
-    (int *
-     [ `Text
-     | `Nodes
-     | `Nodes_keyed
-     | `Nodes_indexed
-     | `Nodes_indexed_i
-     | `Nodes_indexed_accessors ]
-     * int list * Parsetree.expression)
+     (int *
+      [ `Text
+      | `Nodes
+      | `Nodes_transition
+      | `Nodes_keyed
+      | `Nodes_indexed
+      | `Nodes_indexed_i
+      | `Nodes_indexed_accessors ]
+      * int list * Parsetree.expression)
     list ref =
     ref []
   in
@@ -555,6 +557,16 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
             :: !slots_rev;
           incr slot_id;
           child_index := !child_index + 2
+        | Nodes_transition_slot thunk ->
+          Buffer.add_string current_segment "<!--$-->";
+          segments_rev := Buffer.contents current_segment :: !segments_rev;
+          Buffer.reset current_segment;
+          Buffer.add_string current_segment "<!--$-->";
+          slots_rev :=
+            (!slot_id, `Nodes_transition, path_to_element @ [ !child_index + 1 ], thunk)
+            :: !slots_rev;
+          incr slot_id;
+          child_index := !child_index + 2
         | Nodes_keyed_slot { items_thunk; key_fn; render_fn } ->
           Buffer.add_string current_segment "<!--$-->";
           segments_rev := Buffer.contents current_segment :: !segments_rev;
@@ -618,13 +630,14 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
     pexp_array ~loc
       (List.map
            (fun (_id, kind, _path, _thunk) ->
-             match kind with
-             | `Text -> pexp_variant ~loc "Text" None
-             | `Nodes -> pexp_variant ~loc "Nodes" None
-             | `Nodes_keyed -> pexp_variant ~loc "Nodes" None
-             | `Nodes_indexed -> pexp_variant ~loc "Nodes" None
-             | `Nodes_indexed_i -> pexp_variant ~loc "Nodes" None
-             | `Nodes_indexed_accessors -> pexp_variant ~loc "Nodes" None)
+              match kind with
+              | `Text -> pexp_variant ~loc "Text" None
+              | `Nodes -> pexp_variant ~loc "Nodes" None
+              | `Nodes_transition -> pexp_variant ~loc "Nodes" None
+              | `Nodes_keyed -> pexp_variant ~loc "Nodes" None
+              | `Nodes_indexed -> pexp_variant ~loc "Nodes" None
+              | `Nodes_indexed_i -> pexp_variant ~loc "Nodes" None
+              | `Nodes_indexed_accessors -> pexp_variant ~loc "Nodes" None)
            slots)
 
   in
@@ -1033,6 +1046,36 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
           pexp_apply ~loc
             (pexp_ident ~loc (lid "Effect.create_with_cleanup"))
             [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) body) ]
+        | `Nodes_transition ->
+          let slot_var = "__solid_ml_tpl_nodes" ^ string_of_int id in
+          let node_var = "__solid_ml_tpl_nodes_value" ^ string_of_int id in
+          let dispose_var = "__solid_ml_tpl_nodes_dispose" ^ string_of_int id in
+          let thunk_call = pexp_apply ~loc thunk [ (Nolabel, eunit ~loc) ] in
+          let pair =
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid "Owner.run_with_owner"))
+              [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) thunk_call) ]
+          in
+          let set_nodes_call =
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid "Html.Internal_template.set_nodes"))
+              [ (Nolabel, evar ~loc slot_var); (Nolabel, evar ~loc node_var) ]
+          in
+          let body =
+            pexp_let ~loc Nonrecursive
+              [ value_binding ~loc
+                  ~pat:(ppat_tuple ~loc [ pvar ~loc node_var; pvar ~loc dispose_var ])
+                  ~expr:pair ]
+              (pexp_sequence ~loc set_nodes_call (evar ~loc dispose_var))
+          in
+          let effect_call =
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid "Effect.create_with_cleanup"))
+              [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) body) ]
+          in
+          pexp_apply ~loc
+            (pexp_ident ~loc (lid "Transition.run"))
+            [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) effect_call) ]
         | `Nodes_keyed ->
           let slot_var = "__solid_ml_tpl_nodes" ^ string_of_int id in
           let items_var = "__solid_ml_tpl_items" ^ string_of_int id in
@@ -1185,7 +1228,12 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
       pexp_let ~loc Nonrecursive
         [ value_binding ~loc ~pat:(pvar ~loc slot_var) ~expr:bind_call ]
         acc
-    | `Nodes | `Nodes_keyed | `Nodes_indexed | `Nodes_indexed_i | `Nodes_indexed_accessors ->
+    | `Nodes
+    | `Nodes_transition
+    | `Nodes_keyed
+    | `Nodes_indexed
+    | `Nodes_indexed_i
+    | `Nodes_indexed_accessors ->
       let slot_var = "__solid_ml_tpl_nodes" ^ string_of_int id in
       let bind_call =
         pexp_apply ~loc
@@ -2244,7 +2292,7 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                               (Ast_builder.Default.punit ~loc:child_loc)
                               call
                           in
-                          parts_rev := Nodes_slot thunk :: !parts_rev;
+                          parts_rev := Nodes_transition_slot thunk :: !parts_rev;
                           true
                         | None ->
                         match extract_tpl_portal ~aliases child with
@@ -2287,7 +2335,7 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                               (Ast_builder.Default.punit ~loc:child_loc)
                               portal_call
                           in
-                          parts_rev := Nodes_slot thunk :: !parts_rev;
+                          parts_rev := Nodes_transition_slot thunk :: !parts_rev;
                           true
                         | None ->
                         match extract_tpl_suspense_list ~aliases child with
@@ -2299,19 +2347,10 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                               [ (Nolabel, Ast_builder.Default.eunit ~loc:child_loc) ]
                           in
                           let render_call = compile_expr_force render_call in
-                          let transition_call =
-                            Ast_builder.Default.pexp_apply ~loc:child_loc
-                              (Ast_builder.Default.pexp_ident ~loc:child_loc
-                                 { loc = child_loc; txt = Longident.parse "Transition.run" })
-                              [ (Nolabel,
-                                 Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
-                                   (Ast_builder.Default.punit ~loc:child_loc)
-                                   render_call) ]
-                          in
                           let thunk =
                             Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
                               (Ast_builder.Default.punit ~loc:child_loc)
-                              transition_call
+                              render_call
                           in
                           parts_rev := Nodes_slot thunk :: !parts_rev;
                           true
@@ -2325,21 +2364,12 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                               [ (Nolabel, Ast_builder.Default.eunit ~loc:child_loc) ]
                           in
                           let render_call = compile_expr_force render_call in
-                          let transition_call =
-                            Ast_builder.Default.pexp_apply ~loc:child_loc
-                              (Ast_builder.Default.pexp_ident ~loc:child_loc
-                                 { loc = child_loc; txt = Longident.parse "Transition.run" })
-                              [ (Nolabel,
-                                 Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
-                                   (Ast_builder.Default.punit ~loc:child_loc)
-                                   render_call) ]
-                          in
                           let thunk =
                             Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
                               (Ast_builder.Default.punit ~loc:child_loc)
-                              transition_call
+                              render_call
                           in
-                          parts_rev := Nodes_slot thunk :: !parts_rev;
+                          parts_rev := Nodes_transition_slot thunk :: !parts_rev;
                           true
                         | None ->
                         match extract_tpl_transition ~aliases child with
@@ -2356,7 +2386,7 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                               (Ast_builder.Default.punit ~loc:child_loc)
                               render_call
                           in
-                          parts_rev := Nodes_slot thunk :: !parts_rev;
+                          parts_rev := Nodes_transition_slot thunk :: !parts_rev;
                           true
                         | None ->
                         match extract_tpl_resource ~aliases child with

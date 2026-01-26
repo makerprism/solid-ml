@@ -90,7 +90,7 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
         | `Text ->
           (* Emit nothing; bind_text will create/insert the text node by path. *)
           ()
-        | `Nodes ->
+        | `Nodes | `Nodes_transition ->
           (* Emit nothing; bind_nodes/set_nodes will manage the region. *)
           ());
 

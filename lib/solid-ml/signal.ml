@@ -67,6 +67,7 @@ let subscribe (_token : token) (signal : 'a t) callback =
     memo_observer_slots = None;
     memo_observers_len = 0;
     memo_comparator = None;
+    transition = false;
   } in
   
   (* Manually add to signal's observers *)
@@ -150,6 +151,7 @@ module Unsafe = struct
       memo_observer_slots = None;
       memo_observers_len = 0;
       memo_comparator = None;
+      transition = false;
     } in
 
     let open Reactive.Internal.Types in

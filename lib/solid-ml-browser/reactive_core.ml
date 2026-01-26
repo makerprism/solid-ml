@@ -36,6 +36,9 @@ module Backend_Browser : Internal.Backend.S = struct
      Note: We use our local exn_to_string to avoid circular dependency with Dom. *)
   let handle_error exn context =
     console_error ("solid-ml: Error in " ^ context ^ ": " ^ exn_to_string exn)
+
+  let schedule_transition fn =
+    ignore (Dom.set_timeout fn 0)
 end
 
 (** {1 Instantiate with Browser Backend} *)

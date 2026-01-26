@@ -79,6 +79,9 @@ module ErrorBoundary = Error_boundary
 (** Transition scheduling for deferred updates *)
 module Transition = Transition
 
+(** Deferred signals (createDeferred parity) *)
+module Deferred = Deferred
+
 (** Generate unique IDs for SSR hydration *)
 module Unique_id = Unique_id
 

@@ -27,6 +27,10 @@ module type S = sig
       
       Server implementation re-raises, browser logs to console. *)
   val handle_error : exn -> string -> unit
+
+  (** Schedule a transition flush. Browser should defer (setTimeout),
+      server can run immediately. *)
+  val schedule_transition : (unit -> unit) -> unit
 end
 
 (** Global ref backend - works on both server and browser.
@@ -42,4 +46,6 @@ module Global : S = struct
   (* Default error handling - re-raise. 
      Browser package can shadow this with console.error *)
   let handle_error exn _context = raise exn
+
+  let schedule_transition fn = fn ()
 end

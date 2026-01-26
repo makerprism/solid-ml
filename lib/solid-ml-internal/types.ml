@@ -66,6 +66,7 @@ and computation = {
   mutable memo_observer_slots: int array option;
   mutable memo_observers_len: int;
   mutable memo_comparator: (Obj.t -> Obj.t -> bool) option;
+  mutable transition: bool;
 }
 
 (** {1 Runtime} *)
@@ -88,6 +89,7 @@ type runtime = {
   mutable transition_effects_len: int;
   mutable transition_depth: int;
   mutable transition_processing: bool;
+  mutable transition_scheduled: bool;
   transition_pending: signal_state;
   mutable exec_count: int;
   mutable in_update: bool;
@@ -117,6 +119,7 @@ let dummy_computation : computation = {
   memo_observer_slots = None;
   memo_observers_len = 0;
   memo_comparator = None;
+  transition = false;
 }
 
 let create_runtime () = {
@@ -132,6 +135,7 @@ let create_runtime () = {
   transition_effects_len = 0;
   transition_depth = 0;
   transition_processing = false;
+  transition_scheduled = false;
   transition_pending = {
     sig_value = Obj.repr false;
     observers = [||];
@@ -164,6 +168,7 @@ let empty_computation () = {
   memo_observer_slots = None;
   memo_observers_len = 0;
   memo_comparator = None;
+  transition = false;
 }
 
 (** {1 Typed Signal}

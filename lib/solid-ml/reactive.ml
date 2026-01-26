@@ -23,6 +23,8 @@ module Backend_DLS : Internal.Backend.S = struct
   
   (* Server should not swallow errors *)
   let handle_error exn _context = raise exn
+
+  let schedule_transition fn = fn ()
 end
 
 (** {1 Instantiate with DLS Backend} *)

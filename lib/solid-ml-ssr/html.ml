@@ -418,7 +418,7 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
       let raw_value = inst.values.(i) in
       let rendered_value =
         match slot_kinds.(i) with
-        | `Nodes -> raw_value
+        | `Nodes | `Nodes_transition -> raw_value
         | `Text | `Attr -> escape_html raw_value
       in
       Buffer.add_string buf rendered_value;
@@ -438,9 +438,9 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
       Buffer.add_string buf segments.(0);
       for i = 0 to Array.length slot_kinds - 1 do
         let raw_value = inst.values.(i) in
-        (match slot_kinds.(i) with
-         | `Nodes -> Buffer.add_string buf raw_value
-         | `Attr | `Text -> Buffer.add_string buf (escape_html raw_value));
+         (match slot_kinds.(i) with
+          | `Nodes | `Nodes_transition -> Buffer.add_string buf raw_value
+          | `Attr | `Text -> Buffer.add_string buf (escape_html raw_value));
         Buffer.add_string buf segments.(i + 1)
       done;
       Buffer.contents buf

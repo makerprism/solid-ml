@@ -15,7 +15,7 @@
     - [`Nodes] slots represent a dynamic child region (control flow)
 *)
 
-type slot_kind = [ `Text | `Attr | `Nodes ]
+type slot_kind = [ `Text | `Attr | `Nodes | `Nodes_transition ]
 
 module type TEMPLATE = sig
   type node
