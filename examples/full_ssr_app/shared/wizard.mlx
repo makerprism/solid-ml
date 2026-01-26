@@ -87,6 +87,9 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     let theme, set_theme = Signal.create "light" in
     let newsletter, set_newsletter = Signal.create false in
 
+    (* Validation error signal *)
+    let validation_errors, set_validation_errors = Signal.create [] in
+
     (* Progress bar component *)
     let progress_bar ~step () =
       let current_idx = step_index step in
@@ -185,6 +188,27 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
             />
           </div>
           <p class_="form-hint">(text "* Required fields")</p>
+
+          (* Validation errors display *)
+          (Tpl.show_when
+             ~when_:(fun () -> not (List.is_empty (Signal.get validation_errors)))
+             (fun () ->
+               <div class_="validation-errors">
+                 <h3>(text "Please fix the following errors:")</h3>
+                 <ul>
+                   (Tpl.each_keyed
+                      ~items:(fun () -> Signal.get validation_errors)
+                      ~key:(fun (field, _) -> field)
+                      ~render:(fun (field, error_msg) ->
+                        <li>
+                           (Tpl.text_once (fun () -> field ^ ": " ^ error_msg))
+                        </li>
+                      )
+                   )
+                 </ul>
+               </div>
+             )
+          )
         </div>
       </div>
     in
@@ -339,11 +363,11 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
                      ~name:(Signal.get name)
                      ~email:(Signal.get email)
                      ~age:(Signal.get age) in
-                   if errors = [] then
+                   if errors = [] then (
+                     set_validation_errors [];
                      set_step (next_step (Signal.get current_step))
-                   else
-                     (* TODO: Show validation errors to user *)
-                     ()
+                   ) else
+                     set_validation_errors errors
                | _ ->
                    set_step (next_step (Signal.get current_step))
              )>
@@ -357,11 +381,11 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       <div class_="instructions">
         <h3>(text "Current Status")</h3>
         <ul>
-          <li>(text "✓ Step navigation works (Next/Back buttons)")</li>
-          <li>(text "✓ Progress bar tracks current step")</li>
-          <li>(text "✓ Form inputs collect data via Tpl.bind_input")</li>
-          <li>(text "✓ Validation checks form fields")</li>
-          <li>(text "✓ Confirm step shows collected data")</li>
+          <li>(text "[OK] Step navigation works (Next/Back buttons)")</li>
+          <li>(text "[OK] Progress bar tracks current step")</li>
+          <li>(text "[OK] Form inputs collect data via Tpl.bind_input")</li>
+          <li>(text "[OK] Validation checks form fields")</li>
+          <li>(text "[OK] Confirm step shows collected data")</li>
         </ul>
         <p class_="form-hint">
           (text "This wizard demonstrates two-way input binding using Tpl.bind_input.")
