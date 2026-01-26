@@ -207,8 +207,16 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
   let set_value (el : element) (value : string) =
     set_attr el ~name:"value" (Some value)
 
-  let get_value (_el : element) : string =
-    ""
+  let get_value (el : element) : string =
+    let rec find = function
+      | [] -> ""
+      | (p, attrs) :: _rest when path_equal p el.path ->
+        (match List.find_opt (fun (k, _) -> String.equal k "value") attrs with
+         | Some (_, v) -> v
+         | None -> "")
+      | _ :: rest -> find rest
+    in
+    find el.inst.attrs_by_path
 
   let set_checked (el : element) (value : bool) =
     if value then set_attr el ~name:"checked" (Some "") else set_attr el ~name:"checked" None

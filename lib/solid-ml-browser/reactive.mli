@@ -65,6 +65,17 @@ module Batch : sig
   val run : (unit -> 'a) -> 'a
 end
 
+(** {1 Form Bindings} *)
+
+val bind_input : Dom.element -> string Signal.t -> (string -> unit) -> unit
+(** Two-way binding for text inputs (updates DOM and signal). *)
+
+val bind_checkbox : Dom.element -> bool Signal.t -> (bool -> unit) -> unit
+(** Two-way binding for checkboxes (updates DOM and signal). *)
+
+val bind_select : Dom.element -> string Signal.t -> (string -> unit) -> unit
+(** Two-way binding for select elements (updates DOM and signal). *)
+
 (** {1 Selector} *)
 
 val create_selector : ?equals:('a -> 'a -> bool) -> 'a Signal.t -> ('a -> bool)

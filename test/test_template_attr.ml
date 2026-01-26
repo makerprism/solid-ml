@@ -61,6 +61,27 @@ module C (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
            ~signal:(fun () -> Signal.get value)
            ~setter:(fun _ -> ()))
       ()
+
+  let render_checkbox_bind ~checked () =
+    Html.input
+      ~type_:"checkbox"
+      ~checked:
+        (Solid_ml_template_runtime.Tpl.bind_checkbox
+           ~signal:(fun () -> Signal.get checked)
+           ~setter:(fun _ -> ()))
+      ()
+
+  let render_select_bind ~value () =
+    Html.select
+      ~value:
+        (Solid_ml_template_runtime.Tpl.bind_select
+           ~signal:(fun () -> Signal.get value)
+           ~setter:(fun _ -> ()))
+      ~children:[
+        Html.option ~value:"a" ~children:[ Html.text "A" ] ();
+        Html.option ~value:"b" ~children:[ Html.text "B" ] ();
+      ]
+      ()
 end
 
 let () =
@@ -124,12 +145,28 @@ let () =
   in
   assert (dynamic_class_html = "<div class=\"hot\">X</div>");
 
-  let value, _set_value = Solid_ml_ssr.Env.Signal.create "Hello" in
+  let value, _set_value = Solid_ml_ssr.Env.Signal.create "hello" in
   let bind_html =
     Solid_ml_ssr.Render.to_string (fun () ->
       let module R = C (Solid_ml_ssr.Env) in
       R.render_input_bind ~value ())
   in
-  assert (bind_html = "<input value=\"Hello\"></input>");
+  assert (bind_html = "<input value=\"hello\"></input>");
+
+  let checked, _set_checked = Solid_ml_ssr.Env.Signal.create true in
+  let checkbox_html =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module R = C (Solid_ml_ssr.Env) in
+      R.render_checkbox_bind ~checked ())
+  in
+  assert (checkbox_html = "<input type=\"checkbox\" checked=\"\"></input>");
+
+  let selected, _set_selected = Solid_ml_ssr.Env.Signal.create "b" in
+  let select_html =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module R = C (Solid_ml_ssr.Env) in
+      R.render_select_bind ~value:selected ())
+  in
+  assert (select_html = "<select value=\"b\"><option value=\"a\">A</option><option value=\"b\" selected=\"\">B</option></select>");
 
   print_endline "  PASSED"

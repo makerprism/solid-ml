@@ -486,15 +486,31 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
     list
     ref =
     ref [] in
+  let select_option_bindings_rev : (Parsetree.expression * int) list ref = ref [] in
 
   let current_segment = Buffer.create 64 in
   let slot_id = ref 0 in
   let element_id = ref 0 in
 
-  let rec emit_element (path_to_element : int list) (el : element_node) : unit =
+  let rec emit_element (path_to_element : int list)
+      (active_select_signal : Parsetree.expression option)
+      (el : element_node) : unit =
     let static_attrs_string = static_attrs_string_of_props el.static_props in
     Buffer.add_string current_segment ("<" ^ el.tag ^ static_attrs_string ^ ">");
 
+    let select_binding_signal =
+      List.find_map
+        (fun (b : bind_binding) ->
+          match b.kind with
+          | Bind_select -> Some b.signal
+          | _ -> None)
+        el.bindings
+    in
+    let force_bind =
+      match (active_select_signal, el.tag) with
+      | (Some _, "option") -> true
+      | _ -> false
+    in
     if el.attrs <> []
        || el.events <> []
        || Option.is_some el.class_list
@@ -502,9 +518,11 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
        || Option.is_some el.spread
        || el.refs <> []
        || el.bindings <> []
+       || force_bind
     then (
+      let current_id = !element_id in
       element_bindings_rev :=
-        ( !element_id,
+        ( current_id,
           path_to_element,
           el.attrs,
           el.events,
@@ -514,16 +532,26 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
           el.refs,
           el.bindings )
         :: !element_bindings_rev;
+      (match active_select_signal with
+       | Some signal when String.equal el.tag "option" ->
+         select_option_bindings_rev := (signal, current_id) :: !select_option_bindings_rev
+       | _ -> ());
       incr element_id);
 
     let child_index = ref 0 in
+    let child_select_signal =
+      match (el.tag, select_binding_signal) with
+      | ("select", Some signal) -> Some signal
+      | ("select", None) -> None
+      | _ -> active_select_signal
+    in
     List.iter
       (function
         | Static_text s ->
           Buffer.add_string current_segment (escape_html s);
           incr child_index
         | Element child_el ->
-          emit_element (path_to_element @ [ !child_index ]) child_el;
+          emit_element (path_to_element @ [ !child_index ]) child_select_signal child_el;
           incr child_index
         | Text_slot thunk ->
           (* SolidJS-style stable placeholders: we emit a comment marker on both
@@ -618,7 +646,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
     Buffer.add_string current_segment ("</" ^ el.tag ^ ">")
   in
 
-  emit_element [] root;
+  emit_element [] None root;
   segments_rev := Buffer.contents current_segment :: !segments_rev;
 
   let segments = List.rev !segments_rev in
@@ -1005,6 +1033,39 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
       element_bindings
   in
 
+  let select_option_effects =
+    List.map
+      (fun (signal, option_id) ->
+        let option_var = "__solid_ml_tpl_el" ^ string_of_int option_id in
+        let signal_call = pexp_apply ~loc signal [ (Nolabel, eunit ~loc) ] in
+        let option_value =
+          pexp_apply ~loc
+            (pexp_ident ~loc (lid "Html.Internal_template.get_value"))
+            [ (Nolabel, evar ~loc option_var) ]
+        in
+        let selected =
+          pexp_apply ~loc
+            (pexp_ident ~loc (lid "String.equal"))
+            [ (Nolabel, option_value); (Nolabel, signal_call) ]
+        in
+        let selected_value =
+          pexp_ifthenelse ~loc selected
+            (pexp_construct ~loc (lid "Some") (Some (estring ~loc "")))
+            (Some (pexp_construct ~loc (lid "None") None))
+        in
+        let set_selected =
+          pexp_apply ~loc
+            (pexp_ident ~loc (lid "Html.Internal_template.set_attr"))
+            [ (Nolabel, evar ~loc option_var);
+              (Labelled "name", estring ~loc "selected");
+              (Nolabel, selected_value) ]
+        in
+        pexp_apply ~loc
+          (pexp_ident ~loc (lid "Effect.create"))
+          [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) set_selected) ])
+      (List.rev !select_option_bindings_rev)
+  in
+
   let slot_effects =
     List.map
       (fun (id, kind, _path, thunk) ->
@@ -1195,6 +1256,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
     @ spread_effects
     @ ref_effects
     @ binding_effects
+    @ select_option_effects
     @ slot_effects
   in
 

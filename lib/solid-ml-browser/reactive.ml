@@ -315,6 +315,21 @@ let bind_checkbox element (signal : bool Signal.t) (set_signal : bool -> unit) =
     Dom.remove_event_listener element "change" handler
   )
 
+(** Create a two-way binding between a select element and a string signal. *)
+let bind_select element (signal : string Signal.t) (set_signal : string -> unit) =
+  Effect.create (fun () ->
+    let value = Signal.get signal in
+    if Dom.element_value element <> value then
+      Dom.element_set_value element value
+  );
+  let handler = fun evt ->
+    set_signal (Dom.input_value evt)
+  in
+  Dom.add_event_listener element "change" handler;
+  Owner.on_cleanup (fun () ->
+    Dom.remove_event_listener element "change" handler
+  )
+
 (** {1 List Rendering} *)
 
 (** Render a reactive list.

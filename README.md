@@ -177,6 +177,31 @@ Owner.on_cleanup (fun () ->
 )
 ```
 
+### Template Bindings (Two-way Inputs)
+
+When using the template compiler (MLX + `solid-ml-template-ppx`), you can bind
+form fields without touching browser-only APIs. The compiler rewrites these
+markers into SSR-friendly attributes and client-side bindings.
+
+```ocaml
+let name, set_name = Signal.create "" in
+let subscribed, set_subscribed = Signal.create false in
+
+Html.div ~children:[
+  Html.input
+    ~value:(Tpl.bind_input
+      ~signal:(fun () -> Signal.get name)
+      ~setter:set_name)
+    ();
+  Html.input
+    ~type_:"checkbox"
+    ~checked:(Tpl.bind_checkbox
+      ~signal:(fun () -> Signal.get subscribed)
+      ~setter:set_subscribed)
+    ();
+] ()
+```
+
 ### Context
 
 ```ocaml
