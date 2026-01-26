@@ -14,6 +14,7 @@ let known_tpl_markers =
     "bind_input";
     "bind_checkbox";
     "bind_select";
+    "bind_select_multiple";
     "show";
     "show_when";
     "if_";
@@ -205,7 +206,7 @@ let contains_tpl_markers (structure : Parsetree.structure) : (Location.t * strin
      - ignores formatting-only whitespace Html.text literals containing newlines/tabs (except under <pre>/<code>)\n\
      - supports static ~id:\"...\" and ~class_:\"...\"\n\
      - supports dynamic labelled args (e.g. ~class_:(fun () -> ...)) and Tpl.attr/Tpl.attr_opt\n\
-     - supports Tpl.on, Tpl.class_list, Tpl.bind_input/bind_checkbox/bind_select in labelled args\n\
+     - supports Tpl.on, Tpl.class_list, Tpl.bind_input/bind_checkbox/bind_select/bind_select_multiple in labelled args\n\
      - no other props; <tag> in {div,span,p,a,button,form,input,label,textarea,select,option,ul,li,strong,em,section,main,header,footer,nav,pre,code,h1..h6}\n\
      \n\
      For JSX syntax help, see: https://github.com/makerprism/solid-ml/blob/main/README.md#mlx-dialect-jsx-like-syntax"
@@ -312,6 +313,7 @@ let extract_intrinsic_tag (longident : Longident.t) : string option =
     | Bind_input
     | Bind_checkbox
     | Bind_select
+    | Bind_select_multiple
 
   type bind_binding = {
     kind : bind_kind;
@@ -325,6 +327,7 @@ type static_prop =
   | Static_class of string
 
    type element_node = {
+     loc : Location.t;
      tag : string;
      children : node_part list;
      attrs : attr_binding list;
@@ -486,23 +489,24 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
     list
     ref =
     ref [] in
-  let select_option_bindings_rev : (Parsetree.expression * int) list ref = ref [] in
+  let select_option_bindings_rev : (bind_kind * Parsetree.expression * int) list ref = ref [] in
 
   let current_segment = Buffer.create 64 in
   let slot_id = ref 0 in
   let element_id = ref 0 in
 
   let rec emit_element (path_to_element : int list)
-      (active_select_signal : Parsetree.expression option)
+      (active_select_signal : (bind_kind * Parsetree.expression) option)
       (el : element_node) : unit =
     let static_attrs_string = static_attrs_string_of_props el.static_props in
     Buffer.add_string current_segment ("<" ^ el.tag ^ static_attrs_string ^ ">");
 
-    let select_binding_signal =
+    let select_binding =
       List.find_map
         (fun (b : bind_binding) ->
           match b.kind with
-          | Bind_select -> Some b.signal
+          | Bind_select -> Some (Bind_select, b.signal)
+          | Bind_select_multiple -> Some (Bind_select_multiple, b.signal)
           | _ -> None)
         el.bindings
     in
@@ -511,6 +515,14 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
       | (Some _, "option") -> true
       | _ -> false
     in
+    let option_has_value =
+      List.exists (fun (b : attr_binding) -> String.equal b.name "value") el.attrs
+    in
+    (match (active_select_signal, el.tag) with
+     | (Some _, "option") when not option_has_value ->
+       Location.raise_errorf ~loc:el.loc
+         "solid-ml-template-ppx: <option> under Tpl.bind_select must include an explicit ~value"
+     | _ -> ());
     if el.attrs <> []
        || el.events <> []
        || Option.is_some el.class_list
@@ -533,15 +545,15 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
           el.bindings )
         :: !element_bindings_rev;
       (match active_select_signal with
-       | Some signal when String.equal el.tag "option" ->
-         select_option_bindings_rev := (signal, current_id) :: !select_option_bindings_rev
+       | Some (kind, signal) when String.equal el.tag "option" ->
+         select_option_bindings_rev := (kind, signal, current_id) :: !select_option_bindings_rev
        | _ -> ());
       incr element_id);
 
     let child_index = ref 0 in
     let child_select_signal =
-      match (el.tag, select_binding_signal) with
-      | ("select", Some signal) -> Some signal
+      match (el.tag, select_binding) with
+      | ("select", Some binding) -> Some binding
       | ("select", None) -> None
       | _ -> active_select_signal
     in
@@ -974,17 +986,25 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
         List.concat
           (List.mapi
              (fun idx (binding : bind_binding) ->
-               let set_fn, get_fn, event_name =
-                 match binding.kind with
-                 | Bind_input -> ("set_value", "get_value", "input")
-                 | Bind_checkbox -> ("set_checked", "get_checked", "change")
-                 | Bind_select -> ("set_value", "get_value", "change")
-               in
-               let signal_call = pexp_apply ~loc binding.signal [ (Nolabel, eunit ~loc) ] in
-               let set_call =
-                 pexp_apply ~loc
-                   (pexp_ident ~loc (lid ("Html.Internal_template." ^ set_fn)))
-                   [ (Nolabel, evar ~loc el_var); (Nolabel, signal_call) ]
+        let set_fn, get_fn, event_name =
+          match binding.kind with
+          | Bind_input -> ("set_value", "get_value", "input")
+          | Bind_checkbox -> ("set_checked", "get_checked", "change")
+          | Bind_select -> ("set_value", "get_value", "change")
+          | Bind_select_multiple -> ("set_selected_values", "get_selected_values", "change")
+        in
+        let signal_call = pexp_apply ~loc binding.signal [ (Nolabel, eunit ~loc) ] in
+        let signal_call =
+          match binding.kind with
+          | Bind_select_multiple ->
+            pexp_apply ~loc (pexp_ident ~loc (lid "Array.of_list"))
+              [ (Nolabel, signal_call) ]
+          | _ -> signal_call
+        in
+        let set_call =
+          pexp_apply ~loc
+            (pexp_ident ~loc (lid ("Html.Internal_template." ^ set_fn)))
+            [ (Nolabel, evar ~loc el_var); (Nolabel, signal_call) ]
                in
                let set_effect =
                  pexp_apply ~loc
@@ -996,8 +1016,15 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
                    (pexp_ident ~loc (lid ("Html.Internal_template." ^ get_fn)))
                    [ (Nolabel, evar ~loc el_var) ]
                in
-               let setter_call =
-                 pexp_apply ~loc binding.setter [ (Nolabel, get_call) ]
+        let get_call =
+          match binding.kind with
+          | Bind_select_multiple ->
+            pexp_apply ~loc (pexp_ident ~loc (lid "Array.to_list"))
+              [ (Nolabel, get_call) ]
+          | _ -> get_call
+        in
+        let setter_call =
+          pexp_apply ~loc binding.setter [ (Nolabel, get_call) ]
                in
                let handler_var =
                  "__solid_ml_tpl_bind_handler_" ^ string_of_int el_id ^ "_" ^ string_of_int idx
@@ -1035,7 +1062,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
 
   let select_option_effects =
     List.map
-      (fun (signal, option_id) ->
+      (fun (kind, signal, option_id) ->
         let option_var = "__solid_ml_tpl_el" ^ string_of_int option_id in
         let signal_call = pexp_apply ~loc signal [ (Nolabel, eunit ~loc) ] in
         let option_value =
@@ -1044,9 +1071,17 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
             [ (Nolabel, evar ~loc option_var) ]
         in
         let selected =
-          pexp_apply ~loc
-            (pexp_ident ~loc (lid "String.equal"))
-            [ (Nolabel, option_value); (Nolabel, signal_call) ]
+          match kind with
+          | Bind_select ->
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid "String.equal"))
+              [ (Nolabel, option_value); (Nolabel, signal_call) ]
+          | Bind_select_multiple ->
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid "List.mem"))
+              [ (Nolabel, option_value); (Nolabel, signal_call) ]
+          | _ ->
+            pexp_construct ~loc (lid "false") None
         in
         let selected_value =
           pexp_ifthenelse ~loc selected
@@ -1341,6 +1376,7 @@ let compile_tag_with_text ~(loc : Location.t) ~(tag : string)
     ~(thunk : Parsetree.expression) : Parsetree.expression =
   compile_element_tree ~loc
     ~root:{
+      loc;
       tag;
       children = [ Text_slot thunk ];
       attrs = [];
@@ -2050,7 +2086,7 @@ let extract_tpl_bind ~(aliases : string list) (expr : Parsetree.expression)
      | None -> None
      | Some longident ->
        (match tpl_marker_name ~aliases longident with
-        | Some ("bind_input" | "bind_checkbox" | "bind_select" as kind) ->
+         | Some ("bind_input" | "bind_checkbox" | "bind_select" | "bind_select_multiple" as kind) ->
           let signal_opt =
             List.find_map
               (function
@@ -2069,7 +2105,8 @@ let extract_tpl_bind ~(aliases : string list) (expr : Parsetree.expression)
             match kind with
             | "bind_input" -> Bind_input
             | "bind_checkbox" -> Bind_checkbox
-            | _ -> Bind_select
+             | "bind_select" -> Bind_select
+             | _ -> Bind_select_multiple
           in
           (match (signal_opt, setter_opt) with
            | (Some signal, Some setter) -> Some { kind; signal; setter }
@@ -2800,7 +2837,8 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                 if List.for_all add_child children_list then (
                   let children = List.rev !parts_rev in
                   Some
-                      ( { tag;
+                      ( { loc = expr.pexp_loc;
+                          tag;
                           children;
                           attrs = attr_bindings;
                           events = event_bindings;

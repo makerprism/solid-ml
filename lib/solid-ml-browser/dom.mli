@@ -200,8 +200,11 @@ val element_value : element -> string
 val element_set_value : element -> string -> unit
 val element_checked : element -> bool
 val element_set_checked : element -> bool -> unit
+val element_selected_values : element -> string array
+val element_set_selected_values : element -> string array -> unit
 val input_value : event -> string
 val input_checked : event -> bool
+val input_selected_values : event -> string array
 
 (** {1 Focus} *)
 

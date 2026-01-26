@@ -116,6 +116,7 @@ module Tpl : sig
   val bind_input : signal:(unit -> string) -> setter:(string -> unit) -> 'a t
   val bind_checkbox : signal:(unit -> bool) -> setter:(bool -> unit) -> 'a t
   val bind_select : signal:(unit -> string) -> setter:(string -> unit) -> 'a t
+  val bind_select_multiple : signal:(unit -> string list) -> setter:(string list -> unit) -> 'a t
 
   val nodes : (unit -> 'a) -> 'a t
   (** Marker for a dynamic child region (control flow).
@@ -205,6 +206,9 @@ end = struct
 
   let bind_select ~signal:_ ~setter:_ : 'a t =
     Uncompiled "bind_select"
+
+  let bind_select_multiple ~signal:_ ~setter:_ : 'a t =
+    Uncompiled "bind_select_multiple"
 
   let nodes (_thunk : unit -> 'a) : 'a t =
     Uncompiled "nodes"

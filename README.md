@@ -186,6 +186,7 @@ markers into SSR-friendly attributes and client-side bindings.
 ```ocaml
 let name, set_name = Signal.create "" in
 let subscribed, set_subscribed = Signal.create false in
+let tags, set_tags = Signal.create ["a"; "c"] in
 
 Html.div ~children:[
   Html.input
@@ -198,6 +199,16 @@ Html.div ~children:[
     ~checked:(Tpl.bind_checkbox
       ~signal:(fun () -> Signal.get subscribed)
       ~setter:set_subscribed)
+    ();
+  Html.select
+    ~value:(Tpl.bind_select_multiple
+      ~signal:(fun () -> Signal.get tags)
+      ~setter:set_tags)
+    ~children:[
+      Html.option ~value:"a" ~children:[Html.text "A"] ();
+      Html.option ~value:"b" ~children:[Html.text "B"] ();
+      Html.option ~value:"c" ~children:[Html.text "C"] ();
+    ]
     ();
 ] ()
 ```

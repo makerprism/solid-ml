@@ -448,6 +448,12 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
   let get_checked (el : element) : bool =
     element_checked el
 
+  let set_selected_values (el : element) (values : string array) =
+    Dom.element_set_selected_values el values
+
+  let get_selected_values (el : element) : string array =
+    Dom.element_selected_values el
+
   let wrap_handler ?(prevent_default=false) ?(stop_propagation=false) handler =
     if not prevent_default && not stop_propagation then
       handler

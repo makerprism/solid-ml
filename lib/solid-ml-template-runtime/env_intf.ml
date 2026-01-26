@@ -209,6 +209,7 @@ module type TPL = sig
   val bind_input : signal:(unit -> string) -> setter:(string -> unit) -> 'a t
   val bind_checkbox : signal:(unit -> bool) -> setter:(bool -> unit) -> 'a t
   val bind_select : signal:(unit -> string) -> setter:(string -> unit) -> 'a t
+  val bind_select_multiple : signal:(unit -> string list) -> setter:(string list -> unit) -> 'a t
   val nodes : (unit -> 'a) -> 'a t
   val show : when_:(unit -> bool) -> (unit -> 'a) -> 'a t
   val show_when : when_:(unit -> bool) -> (unit -> 'a) -> 'a t

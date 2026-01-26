@@ -120,6 +120,12 @@ module type TEMPLATE = sig
   val get_checked : element -> bool
   (** Read the element's current checked property. *)
 
+  val set_selected_values : element -> string array -> unit
+  (** Set selected values on a multi-select element. *)
+
+  val get_selected_values : element -> string array
+  (** Read selected values from a multi-select element. *)
+
   val wrap_handler :
     ?prevent_default:bool
     -> ?stop_propagation:bool

@@ -82,6 +82,19 @@ module C (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         Html.option ~value:"b" ~children:[ Html.text "B" ] ();
       ]
       ()
+
+  let render_select_multiple_bind ~values () =
+    Html.select
+      ~value:
+        (Solid_ml_template_runtime.Tpl.bind_select_multiple
+           ~signal:(fun () -> Signal.get values)
+           ~setter:(fun _ -> ()))
+      ~children:[
+        Html.option ~value:"a" ~children:[ Html.text "A" ] ();
+        Html.option ~value:"b" ~children:[ Html.text "B" ] ();
+        Html.option ~value:"c" ~children:[ Html.text "C" ] ();
+      ]
+      ()
 end
 
 let () =
@@ -168,5 +181,13 @@ let () =
       R.render_select_bind ~value:selected ())
   in
   assert (select_html = "<select value=\"b\"><option value=\"a\">A</option><option value=\"b\" selected=\"\">B</option></select>");
+
+  let selected_multi, _set_selected_multi = Solid_ml_ssr.Env.Signal.create [ "a"; "c" ] in
+  let select_multi_html =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module R = C (Solid_ml_ssr.Env) in
+      R.render_select_multiple_bind ~values:selected_multi ())
+  in
+  assert (select_multi_html = "<select><option value=\"a\" selected=\"\">A</option><option value=\"b\">B</option><option value=\"c\" selected=\"\">C</option></select>");
 
   print_endline "  PASSED"

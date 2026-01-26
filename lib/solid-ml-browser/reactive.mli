@@ -76,6 +76,9 @@ val bind_checkbox : Dom.element -> bool Signal.t -> (bool -> unit) -> unit
 val bind_select : Dom.element -> string Signal.t -> (string -> unit) -> unit
 (** Two-way binding for select elements (updates DOM and signal). *)
 
+val bind_select_multiple : Dom.element -> string list Signal.t -> (string list -> unit) -> unit
+(** Two-way binding for multi-select elements (updates DOM and signal). *)
+
 (** {1 Selector} *)
 
 val create_selector : ?equals:('a -> 'a -> bool) -> 'a Signal.t -> ('a -> bool)

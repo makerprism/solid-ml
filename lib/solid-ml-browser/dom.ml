@@ -336,6 +336,31 @@ external element_checked : element -> bool = "checked"
 external element_set_checked : element -> bool -> unit = "checked"
   [@@mel.set]
 
+let element_selected_values : element -> string array = [%mel.raw {|
+  function(element) {
+    var options = element.selectedOptions || [];
+    var out = new Array(options.length);
+    for (var i = 0; i < options.length; i++) {
+      out[i] = options[i].value;
+    }
+    return out;
+  }
+|}]
+
+let element_set_selected_values : element -> string array -> unit = [%mel.raw {|
+  function(element, values) {
+    var set = Object.create(null);
+    for (var i = 0; i < values.length; i++) {
+      set[values[i]] = true;
+    }
+    var options = element.options || [];
+    for (var j = 0; j < options.length; j++) {
+      var opt = options[j];
+      opt.selected = !!set[opt.value];
+    }
+  }
+|}]
+
 (* Get target element's value from event *)
 let input_value evt =
   let target = element_of_event_target (event_target evt) in
@@ -344,6 +369,10 @@ let input_value evt =
 let input_checked evt =
   let target = element_of_event_target (event_target evt) in
   element_checked target
+
+let input_selected_values evt =
+  let target = element_of_event_target (event_target evt) in
+  element_selected_values target
 
 (** {1 Focus} *)
 

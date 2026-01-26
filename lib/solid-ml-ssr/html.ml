@@ -224,6 +224,12 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
   let get_checked (_el : element) : bool =
     false
 
+  let set_selected_values (_el : element) (_values : string array) =
+    ()
+
+  let get_selected_values (_el : element) : string array =
+    [||]
+
   let wrap_handler ?prevent_default:_ ?stop_propagation:_ handler =
     handler
 

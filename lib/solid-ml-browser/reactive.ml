@@ -330,6 +330,21 @@ let bind_select element (signal : string Signal.t) (set_signal : string -> unit)
     Dom.remove_event_listener element "change" handler
   )
 
+(** Create a two-way binding between a multi-select element and a string list signal. *)
+let bind_select_multiple element (signal : string list Signal.t) (set_signal : string list -> unit) =
+  Effect.create (fun () ->
+    let values = Array.of_list (Signal.get signal) in
+    Dom.element_set_selected_values element values
+  );
+  let handler = fun evt ->
+    let values = Dom.input_selected_values evt |> Array.to_list in
+    set_signal values
+  in
+  Dom.add_event_listener element "change" handler;
+  Owner.on_cleanup (fun () ->
+    Dom.remove_event_listener element "change" handler
+  )
+
 (** {1 List Rendering} *)
 
 (** Render a reactive list.
