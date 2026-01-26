@@ -1005,12 +1005,25 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
           pexp_apply ~loc
             (pexp_ident ~loc (lid ("Html.Internal_template." ^ set_fn)))
             [ (Nolabel, evar ~loc el_var); (Nolabel, signal_call) ]
-               in
-               let set_effect =
-                 pexp_apply ~loc
-                   (pexp_ident ~loc (lid "Effect.create"))
-                   [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) set_call) ]
-               in
+        in
+        let set_call =
+          match binding.kind with
+          | Bind_select_multiple ->
+            let set_multiple =
+              pexp_apply ~loc
+                (pexp_ident ~loc (lid "Html.Internal_template.set_attr"))
+                [ (Nolabel, evar ~loc el_var);
+                  (Labelled "name", estring ~loc "multiple");
+                  (Nolabel, pexp_construct ~loc (lid "Some") (Some (estring ~loc ""))) ]
+            in
+            pexp_sequence ~loc set_multiple set_call
+          | _ -> set_call
+        in
+        let set_effect =
+          pexp_apply ~loc
+            (pexp_ident ~loc (lid "Effect.create"))
+            [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) set_call) ]
+        in
                let get_call =
                  pexp_apply ~loc
                    (pexp_ident ~loc (lid ("Html.Internal_template." ^ get_fn)))
@@ -1026,9 +1039,9 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
         let setter_call =
           pexp_apply ~loc binding.setter [ (Nolabel, get_call) ]
                in
-               let handler_var =
-                 "__solid_ml_tpl_bind_handler_" ^ string_of_int el_id ^ "_" ^ string_of_int idx
-               in
+        let handler_var =
+          "__solid_ml_tpl_bind_handler_" ^ string_of_int el_id ^ "_" ^ string_of_int idx
+        in
                let handler_expr =
                  pexp_fun ~loc Nolabel None (pvar ~loc "_evt") setter_call
                in
@@ -1055,7 +1068,36 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
                    [ value_binding ~loc ~pat:(pvar ~loc handler_var) ~expr:handler_expr ]
                    (pexp_sequence ~loc on_call cleanup)
                in
-               [ set_effect; event_effect ])
+        let observe_effect =
+          match binding.kind with
+          | Bind_select | Bind_select_multiple ->
+            let observe_call =
+              pexp_apply ~loc
+                (pexp_ident ~loc (lid "Html.Internal_template.observe_children"))
+                [ (Nolabel, evar ~loc el_var);
+                  (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) set_call) ]
+            in
+            let observe_var =
+              "__solid_ml_tpl_bind_observe_" ^ string_of_int el_id ^ "_" ^ string_of_int idx
+            in
+            let cleanup_observe =
+              pexp_apply ~loc (pexp_ident ~loc (lid "Owner.on_cleanup"))
+                [ (Nolabel, evar ~loc observe_var) ]
+            in
+            let observe_expr =
+              pexp_let ~loc Nonrecursive
+                [ value_binding ~loc ~pat:(pvar ~loc observe_var) ~expr:observe_call ]
+                cleanup_observe
+            in
+            Some observe_expr
+          | _ -> None
+        in
+        let effects =
+          match observe_effect with
+          | Some observe_expr -> [ set_effect; event_effect; observe_expr ]
+          | None -> [ set_effect; event_effect ]
+        in
+        effects )
              bindings))
       element_bindings
   in

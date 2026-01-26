@@ -188,6 +188,6 @@ let () =
       let module R = C (Solid_ml_ssr.Env) in
       R.render_select_multiple_bind ~values:selected_multi ())
   in
-  assert (select_multi_html = "<select><option value=\"a\" selected=\"\">A</option><option value=\"b\">B</option><option value=\"c\" selected=\"\">C</option></select>");
+  assert (select_multi_html = "<select multiple=\"\"><option value=\"a\" selected=\"\">A</option><option value=\"b\">B</option><option value=\"c\" selected=\"\">C</option></select>");
 
   print_endline "  PASSED"

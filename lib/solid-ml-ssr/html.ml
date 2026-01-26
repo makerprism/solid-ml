@@ -230,6 +230,9 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
   let get_selected_values (_el : element) : string array =
     [||]
 
+  let observe_children (_el : element) (_handler : unit -> unit) : unit -> unit =
+    fun () -> ()
+
   let wrap_handler ?prevent_default:_ ?stop_propagation:_ handler =
     handler
 

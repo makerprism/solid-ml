@@ -374,6 +374,16 @@ let input_selected_values evt =
   let target = element_of_event_target (event_target evt) in
   element_selected_values target
 
+let observe_child_list : element -> (unit -> unit) -> (unit -> unit) = [%mel.raw {|
+  function(element, callback) {
+    var observer = new MutationObserver(function() {
+      callback();
+    });
+    observer.observe(element, { childList: true, subtree: true });
+    return function() { observer.disconnect(); };
+  }
+|}]
+
 (** {1 Focus} *)
 
 external focus : element -> unit = "focus"

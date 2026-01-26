@@ -126,6 +126,9 @@ module type TEMPLATE = sig
   val get_selected_values : element -> string array
   (** Read selected values from a multi-select element. *)
 
+  val observe_children : element -> (unit -> unit) -> (unit -> unit)
+  (** Observe child list changes, returns a disposer. *)
+
   val wrap_handler :
     ?prevent_default:bool
     -> ?stop_propagation:bool

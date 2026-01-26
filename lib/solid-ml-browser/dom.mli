@@ -206,6 +206,8 @@ val input_value : event -> string
 val input_checked : event -> bool
 val input_selected_values : event -> string array
 
+val observe_child_list : element -> (unit -> unit) -> (unit -> unit)
+
 (** {1 Focus} *)
 
 val focus : element -> unit
