@@ -69,7 +69,7 @@ example-browser:
 	@rm -f examples/browser_counter/dist/counter.js
 	@echo "Bundling with esbuild..."
 	@cd _build/default/examples/browser_counter/output/examples/browser_counter && \
-		npx esbuild counter.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/browser_counter/dist/counter.js --format=esm 2>/dev/null
+		npx esbuild counter.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/browser_counter/dist/counter.js --format=esm
 	@echo ""
 	@echo "Build complete! Run 'make serve' then open http://localhost:8000/browser_counter/"
 
@@ -81,7 +81,7 @@ example-browser-router:
 	@rm -f examples/browser_router/dist/router_demo.js
 	@echo "Bundling with esbuild..."
 	@cd _build/default/examples/browser_router/output/examples/browser_router && \
-		npx esbuild router_demo.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/browser_router/dist/router_demo.js --format=esm 2>/dev/null
+		npx esbuild router_demo.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/browser_router/dist/router_demo.js --format=esm
 	@echo ""
 	@echo "Build complete! Run 'make serve' then open http://localhost:8000/browser_router/"
 
@@ -91,7 +91,7 @@ example-full-ssr-client:
 	@$(DUNE) build @examples/full_ssr_app/client/melange
 	@mkdir -p examples/full_ssr_app/static
 	@echo "Bundling with esbuild..."
-	@npx esbuild _build/default/examples/full_ssr_app/client/client_output/examples/full_ssr_app/client/client.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/full_ssr_app/static/client.js --format=esm 2>/dev/null
+	@npx esbuild _build/default/examples/full_ssr_app/client/client_output/examples/full_ssr_app/client/client.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/full_ssr_app/static/client.js --format=esm
 	@echo ""
 	@echo "Client built: examples/full_ssr_app/static/client.js"
 
@@ -109,22 +109,23 @@ example-full-ssr-server:
 # Build full SSR example
 example-full-ssr:
 	@echo "Building full SSR example..."
-	@$(DUNE) build @examples/full_ssr_app/client/melange
-	@make example-full-ssr-client
-	@make example-full-ssr-server
+	@$(MAKE) example-full-ssr-client
+	@$(MAKE) example-full-ssr-server
 	@echo ""
 	@echo "Build complete! Run 'make run-full-ssr-server' to start the server."
 	@echo "Visit http://localhost:8080"
 	@echo ""
 
 # Run full SSR server
+PORT ?= 8080
+
 run-full-ssr-server:
 	@echo ""
 	@echo "=== Starting Full SSR Server ==="
 	@echo "Visit http://localhost:8080"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	@PORT=8080 $(DUNE) exec examples/full_ssr_app/server.exe
+	@PORT=$(PORT) $(DUNE) exec examples/full_ssr_app/server.exe
 
 # ==============================================================================
 # Browser Tests
