@@ -15,7 +15,7 @@
       let api_error_to_string = function
         | Fetch_failed msg -> "Fetch failed: " ^ msg
 
-      let data = Resource.create_with_error token
+      let data = Resource.create_with_error
         ~on_error:(fun exn -> Fetch_failed (Printexc.to_string exn))
         (fun () -> fetch_data ())
       in
@@ -51,13 +51,10 @@ let next_resource_id = ref 0
 
 (** {1 Creation} *)
 
-(** Create a resource with a synchronous fetcher. *)
-type token = Runtime.token
-
 (** Create a resource with a synchronous fetcher and custom error mapping. *)
-let create_with_error (token : token) ~on_error (fetcher : unit -> 'a)
+let create_with_error ~on_error (fetcher : unit -> 'a)
   : ('a, 'e) resource =
-  let state, set_state = Signal.create token Pending in
+  let state, set_state = Signal.create Pending in
   let id = !next_resource_id in
   incr next_resource_id;
   
@@ -84,12 +81,12 @@ let create_with_error (token : token) ~on_error (fetcher : unit -> 'a)
   { state; actions; id }
 
 (** Create a resource with a synchronous fetcher. *)
-let create (token : token) (fetcher : unit -> 'a) : ('a, string) resource =
-  create_with_error token ~on_error:Printexc.to_string fetcher
+let create (fetcher : unit -> 'a) : ('a, string) resource =
+  create_with_error ~on_error:Printexc.to_string fetcher
 
 (** Create a resource with an initial value (already ready). *)
-let of_value (token : token) (value : 'a) : ('a, 'e) resource =
-  let state, set_state = Signal.create token (Ready value) in
+let of_value (value : 'a) : ('a, 'e) resource =
+  let state, set_state = Signal.create (Ready value) in
   let id = !next_resource_id in
   incr next_resource_id;
   let actions = {
@@ -104,8 +101,8 @@ let of_value (token : token) (value : 'a) : ('a, 'e) resource =
   { state; actions; id }
 
 (** Create a resource in loading state. *)
-let create_loading (token : token) : ('a, 'e) resource =
-  let state, set_state = Signal.create token Pending in
+let create_loading () : ('a, 'e) resource =
+  let state, set_state = Signal.create Pending in
   let id = !next_resource_id in
   incr next_resource_id;
   let actions = {
@@ -120,8 +117,8 @@ let create_loading (token : token) : ('a, 'e) resource =
   { state; actions; id }
 
 (** Create a resource in error state. *)
-let of_error (token : token) (error : 'e) : ('a, 'e) resource =
-  let state, set_state = Signal.create token (Error error) in
+let of_error (error : 'e) : ('a, 'e) resource =
+  let state, set_state = Signal.create (Error error) in
   let id = !next_resource_id in
   incr next_resource_id;
   let actions = {
@@ -221,9 +218,9 @@ let map f resource =
   | Error err -> Error err
 
 (** Combine two resources *)
-let combine (token : token) (r1 : ('a, 'e) resource) (r2 : ('b, 'e) resource)
+let combine (r1 : ('a, 'e) resource) (r2 : ('b, 'e) resource)
   : (('a * 'b), 'e) resource =
-  let state, set_state = Signal.create token Pending in
+  let state, set_state = Signal.create Pending in
   let id = !next_resource_id in
   incr next_resource_id;
   
@@ -248,14 +245,14 @@ let combine (token : token) (r1 : ('a, 'e) resource) (r2 : ('b, 'e) resource)
     set_error = (fun err -> set_state (Error err));
   } in
   
-  Effect.create token (fun () -> update ());
-  Effect.create token (fun () -> update ());
+  Effect.create (fun () -> update ());
+  Effect.create (fun () -> update ());
   
   { state; actions; id }
 
 (** Combine a list of resources *)
-let combine_all (token : token) (resources : ('a, 'e) resource list) : ('a list, 'e) resource =
-  let state, set_state = Signal.create token Pending in
+let combine_all (resources : ('a, 'e) resource list) : ('a list, 'e) resource =
+  let state, set_state = Signal.create Pending in
   let id = !next_resource_id in
   incr next_resource_id;
   
@@ -281,7 +278,7 @@ let combine_all (token : token) (resources : ('a, 'e) resource list) : ('a list,
     set_error = (fun err -> set_state (Error err));
   } in
   
-  List.iter (fun _ -> Effect.create token (fun () -> update ())) resources;
+  List.iter (fun _ -> Effect.create (fun () -> update ())) resources;
   
   { state; actions; id }
 

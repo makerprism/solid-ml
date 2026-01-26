@@ -65,26 +65,6 @@ module Batch : sig
   val run : (unit -> 'a) -> 'a
 end
 
-module Strict : sig
-  type token
-
-  val create_root : (token -> 'a) -> (unit -> unit)
-
-  val create_signal : token -> ?equals:('a -> 'a -> bool) -> 'a -> 'a Signal.t * ('a -> unit)
-  val get_signal : token -> 'a Signal.t -> 'a
-  val set_signal : token -> 'a Signal.t -> 'a -> unit
-  val update_signal : token -> 'a Signal.t -> ('a -> 'a) -> unit
-  val peek_signal : token -> 'a Signal.t -> 'a
-
-  val create_memo : token -> ?equals:('a -> 'a -> bool) -> (unit -> 'a) -> 'a Memo.t
-  val get_memo : token -> 'a Memo.t -> 'a
-  val peek_memo : token -> 'a Memo.t -> 'a
-
-  val create_effect : token -> (unit -> unit) -> unit
-  val create_effect_with_cleanup : token -> (unit -> (unit -> unit)) -> unit
-  val untrack : token -> (unit -> 'a) -> 'a
-end
-
 (** {1 Selector} *)
 
 val create_selector : ?equals:('a -> 'a -> bool) -> 'a Signal.t -> ('a -> bool)

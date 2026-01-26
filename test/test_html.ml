@@ -242,13 +242,13 @@ let test_render_with_signals () =
 let test_hydration_script () =
   print_endline "Test: Hydration script";
   let script =
-    Solid_ml.Runtime.run (fun token ->
+    Solid_ml.Runtime.run (fun () ->
       Solid_ml_ssr.State.reset ();
       Solid_ml_ssr.State.set_encoded
         ~key:"count"
         ~encode:Solid_ml_ssr.State.encode_int
         3;
-      let resource = Solid_ml.Resource.of_value token 7 in
+      let resource = Solid_ml.Resource.of_value 7 in
       Solid_ml_ssr.Resource_state.set
         ~key:"resource"
         ~encode:Solid_ml_ssr.State.encode_int

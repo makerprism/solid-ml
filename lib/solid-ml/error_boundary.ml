@@ -41,11 +41,9 @@ type error_state =
       - [~error]: The error message (from Printexc.to_string)
       - [~reset]: Function to call to retry rendering children
     @param children Function that renders the normal content *)
-type token = Runtime.token
-
-let make (_token : token) ~fallback children =
+let make ~fallback children =
   (* Signal to track error state *)
-  let state, set_state = Signal.create _token No_error in
+  let state, set_state = Signal.create No_error in
   
   (* Attempt counter to force re-render on reset *)
   let attempt = ref 0 in
@@ -57,7 +55,7 @@ let make (_token : token) ~fallback children =
   in
   
   (* Create memo that handles rendering *)
-  let content = Memo.create _token (fun () ->
+  let content = Memo.create (fun () ->
     match Signal.get state with
     | Has_error msg ->
       (* In error state - render fallback *)

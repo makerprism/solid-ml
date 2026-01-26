@@ -49,8 +49,6 @@
 
 (** {1 Error Boundary} *)
 
-type token = Runtime.token
-
 (** Create an error boundary.
     
     Catches any exception thrown by [children] and renders [fallback] instead.
@@ -70,7 +68,7 @@ type token = Runtime.token
     @param fallback Function receiving [~error] message and [~reset] function
     @param children Function that renders the normal content
     @return The rendered content, or fallback if an error occurred *)
-val make : token -> fallback:(error:string -> reset:(unit -> unit) -> 'a) -> (unit -> 'a) -> 'a
+val make : fallback:(error:string -> reset:(unit -> unit) -> 'a) -> (unit -> 'a) -> 'a
 
 (** Simpler error boundary without reset capability.
     

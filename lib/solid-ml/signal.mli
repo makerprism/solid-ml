@@ -5,11 +5,10 @@
     automatically subscribes to the signal and re-runs when it changes.
     
     {[
-      (* token comes from Runtime.run *)
-      let count, set_count = Signal.create token 0
+      let count, set_count = Signal.create 0
       
       (* Reading tracks dependency *)
-      Effect.create token (fun () ->
+      Effect.create (fun () ->
         print_endline ("Count: " ^ string_of_int (Signal.get count))
       )
       
@@ -26,8 +25,6 @@
 (** A reactive value that tracks its dependents. *)
 type 'a t = 'a Reactive.signal
 
-type token = Runtime.token
-
 (** Create a new signal with an initial value.
     Returns a tuple of (signal, setter function).
     
@@ -35,12 +32,12 @@ type token = Runtime.token
     the new value equals the current value.
     
     {[
-      let count, set_count = Signal.create token 0
+      let count, set_count = Signal.create 0
       set_count 0  (* No update - same value *)
       set_count 1  (* Updates and notifies *)
     ]}
 *)
-val create : token -> ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
+val create : ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
 
 (** Create a signal with a custom equality function.
     
@@ -51,7 +48,7 @@ val create : token -> ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
           []
     ]}
 *)
-val create_eq : token -> equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
+val create_eq : equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
 
 (** Create a signal using physical equality [(==)] for comparisons.
     
@@ -60,10 +57,10 @@ val create_eq : token -> equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
     - When you want updates on every [set] call regardless of value
     
     {[
-      let buffer, set_buffer = Signal.create_physical token (Bytes.create 1024)
+      let buffer, set_buffer = Signal.create_physical (Bytes.create 1024)
     ]}
 *)
-val create_physical : token -> 'a -> 'a t * ('a -> unit)
+val create_physical : 'a -> 'a t * ('a -> unit)
 
 (** Read the current value of a signal.
     If called inside an effect or memo, registers a dependency.
@@ -104,7 +101,7 @@ val update : 'a t -> ('a -> 'a) -> unit
 
 (** Subscribe to a signal manually. Returns an unsubscribe function.
     Prefer using [Effect.create] for automatic dependency tracking. *)
-val subscribe : token -> 'a t -> (unit -> unit) -> (unit -> unit)
+val subscribe : 'a t -> (unit -> unit) -> (unit -> unit)
 
 module Unsafe : sig
   type 'a t = 'a Reactive.signal

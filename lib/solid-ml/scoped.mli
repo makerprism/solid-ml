@@ -1,10 +1,8 @@
 (** Token-bound helpers for strict APIs.
 
-    This module provides a scoped API that binds a strict token once and
-    exposes token-free helpers for Signal, Effect, Memo, Batch, and Owner.
+    This module provides a scoped API and exposes helpers for Signal, Effect,
+    Memo, Batch, and Owner.
 *)
-
-type token = Runtime.token
 
 module type S = sig
   module Signal : sig
@@ -51,8 +49,5 @@ module type S = sig
   end
 end
 
-(** Create a token-bound API for the given token. *)
-val with_token : token -> ((module S) -> 'a) -> 'a
-
-(** Run a function within a new runtime with token-bound helpers. *)
+(** Run a function within a new runtime with scoped helpers. *)
 val run : ((module S) -> 'a) -> 'a

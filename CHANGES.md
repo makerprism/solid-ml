@@ -15,3 +15,6 @@
 - Unique ID generation for SSR hydration.
 - Example apps: counters, todo, router, SSR server, browser examples.
 - Template runtime/PPX integration for MLX syntax.
+
+### Changed
+- Removed token-based strict APIs; reactive primitives now follow SolidJS-style implicit runtime semantics. Create a per-request runtime with `Runtime.run` on servers to avoid cross-request state.

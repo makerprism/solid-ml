@@ -13,12 +13,10 @@
 
 open Solid_ml_browser
 
-module Strict = Reactive.Strict
-
 (** Simple counter component *)
-let counter token =
-  let count, set_count = Strict.create_signal token 0 in
-  let doubled = Strict.create_memo token (fun () -> Strict.get_signal token count * 2) in
+let counter () =
+  let count, set_count = Reactive.Signal.create 0 in
+  let doubled = Reactive.Memo.create (fun () -> Reactive.Signal.get count * 2) in
   
   Html.(
     div ~id:"counter" ~class_:"counter-app" ~children:[
@@ -38,12 +36,12 @@ let counter token =
       div ~class_:"buttons" ~children:[
         button 
           ~class_:"btn" 
-          ~onclick:(fun _ -> Strict.update_signal token count (fun n -> n - 1))
+          ~onclick:(fun _ -> Reactive.Signal.update count (fun n -> n - 1))
           ~children:[text "-"] 
           ();
         button 
           ~class_:"btn" 
-          ~onclick:(fun _ -> Strict.update_signal token count (fun n -> n + 1))
+          ~onclick:(fun _ -> Reactive.Signal.update count (fun n -> n + 1))
           ~children:[text "+"] 
           ();
         button 
@@ -63,26 +61,26 @@ type todo = {
 }
 
 (** Todo list component *)
-let todo_list token =
-  let todos, _set_todos = Strict.create_signal token [
+let todo_list () =
+  let todos, _set_todos = Reactive.Signal.create [
     { id = 0; text = "Learn solid-ml"; completed = false };
     { id = 1; text = "Build something cool"; completed = false };
   ] in
   let next_id = ref 2 in
-  let new_todo_text, set_new_todo_text = Strict.create_signal token "" in
+  let new_todo_text, set_new_todo_text = Reactive.Signal.create "" in
   
   let add_todo () =
-    let text = Strict.get_signal token new_todo_text in
+    let text = Reactive.Signal.get new_todo_text in
     if String.length text > 0 then begin
       let id = !next_id in
       incr next_id;
-      Strict.update_signal token todos (fun ts -> ts @ [{ id; text; completed = false }]);
+      Reactive.Signal.update todos (fun ts -> ts @ [{ id; text; completed = false }]);
       set_new_todo_text ""
     end
   in
   
   let toggle_todo id =
-    Strict.update_signal token todos (fun ts ->
+    Reactive.Signal.update todos (fun ts ->
       List.map (fun t ->
         if t.id = id then { t with completed = not t.completed }
         else t
@@ -91,13 +89,13 @@ let todo_list token =
   in
   
   let remove_todo id =
-    Strict.update_signal token todos (fun ts ->
+    Reactive.Signal.update todos (fun ts ->
       List.filter (fun t -> t.id <> id) ts
     )
   in
   
-  let incomplete_count = Strict.create_memo token (fun () ->
-    List.filter (fun t -> not t.completed) (Strict.get_signal token todos)
+  let incomplete_count = Reactive.Memo.create (fun () ->
+    List.filter (fun t -> not t.completed) (Reactive.Signal.get todos)
     |> List.length
   ) in
   
@@ -161,11 +159,11 @@ let () =
   match Dom.get_element_by_id (Dom.document ()) "app" with
   | Some root ->
     (* Render the component and get the dispose function *)
-    let dispose = Render.render_strict root (fun token ->
+    let dispose = Render.render root (fun () ->
       Html.fragment [
-        counter token;
+        counter ();
         Html.hr ();
-        todo_list token;
+        todo_list ();
       ]
     ) in
 

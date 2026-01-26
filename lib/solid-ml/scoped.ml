@@ -1,5 +1,3 @@
-type token = Runtime.token
-
 module type S = sig
   module Signal : sig
     type 'a t
@@ -45,46 +43,46 @@ module type S = sig
   end
 end
 
-let with_token token f =
+let with_scoped f =
   let module Scoped = struct
     module Signal = struct
       type 'a t = 'a Signal.t
 
-      let create ?equals value = Signal.create token ?equals value
-      let create_eq ~equals value = Signal.create_eq token ~equals value
-      let create_physical value = Signal.create_physical token value
+      let create ?equals value = Signal.create ?equals value
+      let create_eq ~equals value = Signal.create_eq ~equals value
+      let create_physical value = Signal.create_physical value
       let get = Signal.get
       let set = Signal.set
       let update = Signal.update
       let peek = Signal.peek
-      let subscribe signal callback = Signal.subscribe token signal callback
+      let subscribe signal callback = Signal.subscribe signal callback
     end
 
     module Memo = struct
       type 'a t = 'a Memo.t
 
-      let create ?equals f = Memo.create token ?equals f
-      let create_with_equals ~eq f = Memo.create_with_equals token ~eq f
+      let create ?equals f = Memo.create ?equals f
+      let create_with_equals ~eq f = Memo.create_with_equals ~eq f
       let get = Memo.get
       let peek = Memo.peek
     end
 
     module Effect = struct
-      let create f = Effect.create token f
-      let create_with_cleanup f = Effect.create_with_cleanup token f
-      let create_deferred ~track ~run = Effect.create_deferred token ~track ~run
-      let untrack f = Effect.untrack token f
-      let on ?defer deps fn = Effect.on token ?defer deps fn
+      let create = Effect.create
+      let create_with_cleanup = Effect.create_with_cleanup
+      let create_deferred = Effect.create_deferred
+      let untrack = Effect.untrack
+      let on ?defer deps fn = Effect.on ?defer deps fn
     end
 
     module Batch = struct
-      let run f = Batch.run token f
+      let run = Batch.run
       let is_batching = Batch.is_batching
     end
 
     module Owner = struct
-      let create_root f = Owner.create_root token f
-      let run_with_owner f = Owner.run_with_owner token f
+      let create_root = Owner.create_root
+      let run_with_owner = Owner.run_with_owner
       let on_cleanup = Owner.on_cleanup
       let get_owner = Owner.get_owner
       let catch_error = Owner.catch_error
@@ -93,4 +91,4 @@ let with_token token f =
   f (module Scoped : S)
 
 let run f =
-  Runtime.run (fun token -> with_token token f)
+  Runtime.run (fun () -> with_scoped f)

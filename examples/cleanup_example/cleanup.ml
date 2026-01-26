@@ -15,7 +15,6 @@
 
 open Solid_ml_browser
 
-module Strict = Reactive.Strict
 module Owner = Reactive.Owner
 
 (** {1 Cleanup API 1: Effect.create_with_cleanup} *)
@@ -24,16 +23,16 @@ module Owner = Reactive.Owner
 
     The effect returns a cleanup function that clears the interval
     when the component is disposed. *)
-let timer_component token =
-  let count, _set_count = Strict.create_signal token 0 in
+let timer_component () =
+  let count, _set_count = Reactive.Signal.create 0 in
 
   (* Effect with cleanup - runs on initial execution and re-execution *)
-  Strict.create_effect_with_cleanup token (fun () ->
+  Reactive.Effect.create_with_cleanup (fun () ->
     Dom.log "Timer effect: starting interval";
 
     (* Start a timer that increments the counter every second *)
     let interval_id = Dom.set_interval (fun () ->
-      Strict.update_signal token count (fun n -> n + 1)
+      Reactive.Signal.update count (fun n -> n + 1)
     ) 1000 in
 
     (* Return cleanup function - clears the timer *)
@@ -56,8 +55,8 @@ let timer_component token =
 
     Uses Owner.on_cleanup to register cleanup that runs when the
     component's owner is disposed. *)
-let resource_component token =
-  let messages, _set_messages = Strict.create_signal token [] in
+let resource_component () =
+  let messages, _set_messages = Reactive.Signal.create [] in
 
   (* Simulate adding a resource that needs cleanup *)
   let add_resource () =
@@ -68,7 +67,7 @@ let resource_component token =
       Dom.log ("Resource cleanup: freeing resource " ^ string_of_int resource_id)
     );
 
-    Strict.update_signal token messages (fun msgs ->
+    Reactive.Signal.update messages (fun msgs ->
       ("Added resource " ^ string_of_int resource_id) :: msgs
     )
   in
@@ -97,7 +96,7 @@ let resource_component token =
     The render/hydrate functions return a dispose function that cleans
     up all effects and event handlers when called. This should be called
     on page unload to prevent memory leaks. *)
-let main_component token =
+let main_component () =
   Html.(
     div ~id:"app" ~class_:"cleanup-demo" ~children:[
       h1 ~children:[text "solid-ml Cleanup Demo"] ();
@@ -110,12 +109,12 @@ let main_component token =
       p ~children:[text "The timer effect will be cleaned up on page unload."] ();
 
       (* Timer component - demonstrates cleanup via create_effect_with_cleanup *)
-      timer_component token;
+      timer_component ();
 
       hr () ;
 
       h2 ~children:[text "2. Owner.on_cleanup"] ();
-      resource_component token;
+      resource_component ();
 
       hr () ;
 
@@ -131,7 +130,7 @@ let () =
   match Dom.get_element_by_id (Dom.document ()) "app" with
   | Some root ->
     (* Render the component and get the dispose function *)
-    let dispose = Render.render_strict root main_component in
+    let dispose = Render.render root main_component in
 
     (* Register cleanup on page unload - critical for SPAs! *)
     Dom.on_unload (fun _evt ->

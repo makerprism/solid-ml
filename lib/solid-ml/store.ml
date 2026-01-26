@@ -25,14 +25,12 @@ type 'a t = {
   set_value : 'a -> unit;
 }
 
-type token = Runtime.token
-
 type ('a, 'b) setter = 'a t -> 'b -> unit
 
 (** {1 Store Creation} *)
 
-let create (token : token) (initial : 'a) : 'a t =
-  let signal, set = Signal.create token initial in
+let create (initial : 'a) : 'a t =
+  let signal, set = Signal.create initial in
   { value = signal; set_value = set }
 
 module Unsafe = struct

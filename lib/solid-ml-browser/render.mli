@@ -8,11 +8,6 @@ val render : Dom.element -> (unit -> Html.node) -> (unit -> unit)
     
     Returns a dispose function that cleans up effects and event handlers. *)
 
-val render_strict :
-  Dom.element -> (Reactive.Strict.token -> Html.node) -> (unit -> unit)
-(** [render_strict root component] is like [render] but passes a
-    [Reactive.Strict] token to enforce runtime usage at compile time. *)
-
 val render_append : Dom.element -> (unit -> Html.node) -> (unit -> unit)
 (** [render_append root component] renders a component, appending to
     existing content. Returns a dispose function. *)

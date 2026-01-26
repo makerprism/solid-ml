@@ -35,19 +35,19 @@ See `CHANGES.md` for unreleased and release notes.
 open Solid_ml
 
 let () =
-  Runtime.run (fun token ->
+  Runtime.run (fun () ->
     let dispose =
-      Owner.create_root token (fun () ->
+      Owner.create_root (fun () ->
         (* Create a signal (reactive value) *)
-        let count, set_count = Signal.create token 0 in
+        let count, set_count = Signal.create 0 in
 
         (* Create a memo (derived value) *)
-        let doubled = Memo.create token (fun () ->
+        let doubled = Memo.create (fun () ->
           Signal.get count * 2
         ) in
 
         (* Create an effect (side effect that re-runs when dependencies change) *)
-        Effect.create token (fun () ->
+        Effect.create (fun () ->
           Printf.printf "Count: %d, Doubled: %d\n"
             (Signal.get count)
             (Memo.get doubled)
@@ -64,30 +64,29 @@ let () =
 
 ## Core API
 
-### Runtime Tokens (Strict by Default)
+### Runtime Context
 
-All reactive code must run within a `Runtime.run` context. It hands you a
-`token` that must be threaded into signal/effect/memo creation. This is a
-compile-time guardrail that prevents accidental use of reactivity outside a
-runtime. Do not stash tokens globally or across runtimes.
+Reactive primitives follow SolidJS semantics: they can be called anywhere and
+bind to the current owner/runtime if present. If no runtime is active, solid-ml
+creates a per-domain runtime implicitly. This makes top-level usage ergonomic,
+but for server-side code you should still wrap each request in `Runtime.run`
+to keep reactive state isolated.
+
+**Behavior change:** implicit runtime creation means top-level signals/effects
+persist for the life of the domain. On servers, always use `Runtime.run` per
+request to avoid cross-request state.
 
 ```ocaml
-(* Create isolated reactive context *)
-Runtime.run (fun token ->
-  (* Reactive code here *)
-  let _count, _set_count = Signal.create token 0
+(* Create isolated reactive context (recommended for SSR per-request) *)
+Runtime.run (fun () ->
+  let _count, _set_count = Signal.create 0 in
   ()
 )
 
-(* If you need legacy API, use explicit `Unsafe` modules (e.g.
-`Signal.Unafe.create`). This is intentionally opt-in. Avoid `Obj.magic`.
-```
-
 SSR helpers like `Solid_ml_ssr.Render.to_string` create and dispose a runtime
-internally and therefore do not expose a token. Prefer strict APIs in app code,
-and only rely on `Unsafe` modules when integrating with those helpers.
+internally.
 
-For less token plumbing, you can use the scoped helper to bind a token once:
+For less wiring, you can use the scoped helper for a module-style API:
 
 ```ocaml
 Scoped.run (fun (module R) ->
@@ -102,12 +101,11 @@ Scoped.run (fun (module R) ->
 ### Signals
 
 ```ocaml
-(* Assume [token] comes from Runtime.run *)
 (* Create a signal with initial value (uses structural equality by default) *)
-let count, set_count = Signal.create token 0
+let count, set_count = Signal.create 0
 
 (* Create with physical equality (for mutable values) *)
-let buffer, set_buffer = Signal.create_physical token (Bytes.create 100)
+let buffer, set_buffer = Signal.create_physical (Bytes.create 100)
 
 (* Create with custom equality *)
 let items, set_items = Signal.create_eq
@@ -127,14 +125,13 @@ Signal.update count (fun n -> n + 1)
 ### Effects
 
 ```ocaml
-(* Assume [token] comes from Runtime.run *)
 (* Effect re-runs when any signal it reads changes *)
-Effect.create token (fun () ->
+Effect.create (fun () ->
   print_endline (string_of_int (Signal.get count))
 )
 
 (* Effect with cleanup *)
-Effect.create_with_cleanup token (fun () ->
+Effect.create_with_cleanup (fun () ->
   let subscription = subscribe_something () in
   fun () -> unsubscribe subscription
 )
@@ -146,9 +143,8 @@ let value = Effect.untrack (fun () -> Signal.get some_signal)
 ### Memos
 
 ```ocaml
-(* Assume [token] comes from Runtime.run *)
 (* Memo caches derived value, only recomputes when deps change *)
-let doubled = Memo.create token (fun () ->
+let doubled = Memo.create (fun () ->
   Signal.get count * 2
 )
 
@@ -159,9 +155,8 @@ let value = Memo.get doubled
 ### Batch
 
 ```ocaml
-(* Assume [token] comes from Runtime.run *)
 (* Batch multiple updates, effects run once at end *)
-Batch.run token (fun () ->
+Batch.run (fun () ->
   Signal.set first_name "John";
   Signal.set last_name "Doe"
 )
@@ -170,10 +165,9 @@ Batch.run token (fun () ->
 ### Owner (Cleanup/Disposal)
 
 ```ocaml
-(* Assume [token] comes from Runtime.run *)
 (* Create a root that owns effects - dispose cleans everything up *)
-let dispose = Owner.create_root token (fun () ->
-  Effect.create token (fun () -> ...)
+let dispose = Owner.create_root (fun () ->
+  Effect.create (fun () -> ...)
 ) in
 dispose ()  (* All effects inside are disposed *)
 

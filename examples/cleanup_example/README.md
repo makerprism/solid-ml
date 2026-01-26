@@ -9,7 +9,7 @@ This example demonstrates the three cleanup APIs available in solid-ml and how t
 Effects that return cleanup functions. The cleanup runs before the effect re-executes and when the owning scope is disposed.
 
 ```ocaml
-Strict.create_effect_with_cleanup token (fun () ->
+Reactive.Effect.create_with_cleanup (fun () ->
   (* Set up resource *)
   let interval_id = Dom.set_timeout ... in
 

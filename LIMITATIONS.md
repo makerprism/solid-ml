@@ -76,10 +76,10 @@ let () =
 ```ocaml
 (* DON'T DO THIS - signal from one runtime used in another *)
 let global_count, set_global = 
-  Runtime.run (fun token -> Signal.create token 0)  (* Signal created here *)
+  Runtime.run (fun () -> Signal.create 0)  (* Signal created here *)
 
 let handler () =
-  Runtime.run (fun _token ->
+  Runtime.run (fun () ->
     Signal.get global_count  (* ERROR: wrong runtime context! *)
   )
 ```
@@ -88,12 +88,16 @@ let handler () =
 ```ocaml
 (* Each request creates its own signals *)
 let handler () =
-  Runtime.run (fun token ->
-    let count, set_count = Signal.create token 0 in
+  Runtime.run (fun () ->
+    let count, set_count = Signal.create 0 in
     (* Use count within this runtime only *)
     ...
   )
 ```
+
+**Note:** If you create signals outside `Runtime.run`, they live in an implicit
+per-domain runtime and will persist across requests. This is convenient for
+clients but unsafe for server request isolation.
 
 ---
 
@@ -149,8 +153,8 @@ let user_page () =
 
 **Correct usage:**
 ```ocaml
-let dispose = Owner.create_root token (fun () ->
-  Effect.create token (fun () -> ...)
+let dispose = Owner.create_root (fun () ->
+  Effect.create (fun () -> ...)
 ) in
 (* Later, when done: *)
 dispose ()
@@ -354,8 +358,8 @@ If you need stable per-item identity across inserts/removals, use `Tpl.each_keye
 ### 1.2 Template ErrorBoundary on SSR
 
 Template-level `Tpl.error_boundary` uses `ErrorBoundary.Unsafe.make` on SSR because the
-template environment does not carry a runtime token. The behavior matches normal
-error boundaries, but the implementation bypasses token safety.
+template environment does not create an owner scope. The behavior matches normal
+error boundaries, but the implementation bypasses ownership tracking.
 
 ### 2. Structural Equality by Default
 

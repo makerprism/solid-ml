@@ -27,17 +27,6 @@ let render root component =
   ) in
   dispose
 
-let render_strict root component =
-  Reactive.reset_hydration_keys ();
-
-  let dispose =
-    Reactive.Strict.create_root (fun token ->
-      Dom.set_inner_html root "";
-      let node = component token in
-      Html.append_to_element root node)
-  in
-  dispose
-
 (** Render a component, appending to existing content.
     
     Returns a dispose function. *)

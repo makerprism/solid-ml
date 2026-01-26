@@ -7,8 +7,6 @@
 
 module Internal = Solid_ml_internal
 
-type token = Runtime.token
-
 (** Check if we're currently inside a batch *)
 let is_batching () =
   match Reactive.get_runtime_opt () with
@@ -21,7 +19,7 @@ let is_batching () =
     Effects and memos will only be updated once at the end of the batch.
     
     Batches can be nested - inner batches are merged with outer ones. *)
-let run (_token : token) fn =
+let run fn =
   Reactive.run_updates fn false
 
 module Unsafe = struct

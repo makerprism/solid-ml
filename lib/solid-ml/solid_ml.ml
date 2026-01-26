@@ -49,7 +49,7 @@ module Reactive = Reactive
 (** Runtime management for reactive contexts *)
 module Runtime = Runtime
 
-(** Token-scoped helper API for strict usage *)
+(** Scoped helper API for runtime-bound usage *)
 module Scoped = Scoped
 
 (** Reactive signals with automatic dependency tracking *)

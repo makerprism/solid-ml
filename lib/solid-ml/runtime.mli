@@ -15,7 +15,7 @@
       (* Or with explicit domain parallelism *)
       let results = Array.init 4 (fun i ->
         Domain.spawn (fun () ->
-          Runtime.run (fun _token ->
+          Runtime.run (fun () ->
             (* Each domain has independent reactive state *)
             ...
           )
@@ -32,13 +32,10 @@
 (** The runtime state for a reactive execution context (opaque) *)
 type t = Reactive.runtime
 
-(** Token required for strict APIs *)
-type token
-
 (** An owner node in the reactive tree (opaque) *)
 type owner = Reactive.owner
 
-(** Get the current runtime. Raises if none active. *)
+(** Get the current runtime. Creates one if none active. *)
 val get_current : unit -> t
 
 (** Get the current runtime if any *)
@@ -48,15 +45,15 @@ val get_current_opt : unit -> t option
     This is the primary entry point for reactive code.
     
     {[
-      Runtime.run (fun token ->
-        let count = Signal.create token 0 in
-        Effect.create token (fun () ->
+      Runtime.run (fun () ->
+        let count, set_count = Signal.create 0 in
+        Effect.create (fun () ->
           print_int (Signal.get count)
         );
-        Signal.set count 1
+        set_count 1
       )
     ]} *)
-val run : (token -> 'a) -> 'a
+val run : (unit -> 'a) -> 'a
 
 module Unsafe : sig
   val run : (unit -> 'a) -> 'a

@@ -12,9 +12,6 @@ module Internal = Solid_ml_internal
 (** Runtime type - opaque to users *)
 type t = Reactive.runtime
 
-(** Token required for strict APIs *)
-type token = Reactive.Strict.token
-
 (** Owner type for cleanup tracking *)
 type owner = Reactive.owner
 
@@ -29,7 +26,7 @@ let get_current_opt () = Reactive.get_runtime_opt ()
     
     This is the main entry point for reactive code.
     Each call creates isolated reactive state. *)
-let run = Reactive.Strict.run
+let run = Reactive.run
 
 module Unsafe = struct
   let run = Reactive.run

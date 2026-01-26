@@ -74,50 +74,6 @@ module Batch = struct
   let run = Reactive_core.batch
 end
 
-module Strict : sig
-  type token
-
-  val create_root : (token -> 'a) -> (unit -> unit)
-
-  val create_signal : token -> ?equals:('a -> 'a -> bool) -> 'a -> 'a Signal.t * ('a -> unit)
-  val get_signal : token -> 'a Signal.t -> 'a
-  val set_signal : token -> 'a Signal.t -> 'a -> unit
-  val update_signal : token -> 'a Signal.t -> ('a -> 'a) -> unit
-  val peek_signal : token -> 'a Signal.t -> 'a
-
-  val create_memo : token -> ?equals:('a -> 'a -> bool) -> (unit -> 'a) -> 'a Memo.t
-  val get_memo : token -> 'a Memo.t -> 'a
-  val peek_memo : token -> 'a Memo.t -> 'a
-
-  val create_effect : token -> (unit -> unit) -> unit
-  val create_effect_with_cleanup : token -> (unit -> (unit -> unit)) -> unit
-  val untrack : token -> (unit -> 'a) -> 'a
-end = struct
-  type token = unit
-
-  let create_root f =
-    let (_, dispose) =
-      Reactive_core.create_root (fun () ->
-        let token = () in
-        f token)
-    in
-    dispose
-
-  let create_signal _ ?equals v = Signal.create ?equals v
-  let get_signal _ = Signal.get
-  let set_signal _ = Signal.set
-  let update_signal _ = Signal.update
-  let peek_signal _ = Signal.peek
-
-  let create_memo _ ?equals f = Memo.create ?equals f
-  let get_memo _ = Memo.get
-  let peek_memo _ = Memo.peek
-
-  let create_effect _ = Effect.create
-  let create_effect_with_cleanup _ = Effect.create_with_cleanup
-  let untrack _ = Effect.untrack
-end
-
 (** {1 Selector} *)
 
 (** Create a selector - an optimized way to check if a value equals the current

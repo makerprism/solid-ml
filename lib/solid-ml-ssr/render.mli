@@ -32,12 +32,6 @@
 *)
 val to_string : (unit -> Html.node) -> string
 
-(** Render a component using a strict runtime token.
-
-    The component receives the token for creating strict signals/effects.
-*)
-val to_string_strict : Solid_ml.Runtime.token -> (Solid_ml.Runtime.token -> Html.node) -> string
-
 (** Render a component to a complete HTML document.
     
     Includes DOCTYPE declaration.
@@ -52,12 +46,6 @@ val to_string_strict : Solid_ml.Runtime.token -> (Solid_ml.Runtime.token -> Html
     ]}
 *)
 val to_document : (unit -> Html.node) -> string
-
-(** Render a document using a strict runtime token.
-
-    The component receives the token for creating strict signals/effects.
-*)
-val to_document_strict : Solid_ml.Runtime.token -> (Solid_ml.Runtime.token -> Html.node) -> string
 
 (** Render a component to a streaming callback.
 

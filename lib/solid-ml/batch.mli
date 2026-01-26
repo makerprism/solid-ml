@@ -11,8 +11,7 @@
       Signal.set last_name "Doe";
       
       (* With batch: single update cycle after both changes *)
-      (* token comes from Runtime.run *)
-      Batch.run token (fun () ->
+      Batch.run (fun () ->
         Signal.set first_name "John";
         Signal.set last_name "Doe"
       )
@@ -24,9 +23,7 @@
     are notified only once after [fn] completes.
     
     Batches can be nested - inner batches are merged with outer ones. *)
-type token = Runtime.token
-
-val run : token -> (unit -> 'a) -> 'a
+val run : (unit -> 'a) -> 'a
 
 (** Check if we're currently inside a batch/update cycle. *)
 val is_batching : unit -> bool

@@ -9,22 +9,20 @@
 (** A signal holds a reactive value *)
 type 'a t = 'a Reactive.signal
 
-type token = Runtime.token
-
 (** Create a signal with an initial value.
     
     By default, uses structural equality (=) to determine if the value
     has changed. Updates are skipped if the new value equals the old. *)
-let create (_token : token) ?equals initial =
+let create ?equals initial =
   let signal = Reactive.create_signal ?equals initial in
   let setter new_value = Reactive.write_signal signal new_value in
   (signal, setter)
 
 (** Create a signal with a custom equality function *)
-let create_eq token ~equals initial = create token ~equals initial
+let create_eq ~equals initial = create ~equals initial
 
 (** Create a signal using physical equality (==). *)
-let create_physical token initial = create token ~equals:(==) initial
+let create_physical initial = create ~equals:(==) initial
 
 (** Read the signal value without tracking. *)
 let peek signal = Reactive.peek_signal signal
@@ -42,7 +40,7 @@ let update signal f = set signal (f (peek signal))
     Returns an unsubscribe function.
     
     Note: For most use cases, prefer using [Effect.create] instead. *)
-let subscribe (_token : token) (signal : 'a t) callback =
+let subscribe (signal : 'a t) callback =
   (* Create a minimal effect just for this subscription *)
   let disposed = ref false in
   let internal = Reactive.Internal.Types.signal_to_internal signal in
