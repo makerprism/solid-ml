@@ -36,6 +36,9 @@ let known_tpl_markers =
 
 let is_known_marker fn = List.exists (String.equal fn) known_tpl_markers
 
+module Compiler_warnings = Ocaml_common.Warnings
+module Compiler_location = Ocaml_common.Location
+
 let longident_to_list (longident : Longident.t) : string list =
   let rec go acc = function
     | Longident.Lident s -> s :: acc
@@ -3144,6 +3147,21 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                   || Option.is_some (extract_tpl_switch ~aliases child)
                 in
 
+                let warn_sibling_conditionals loc =
+                  let warning =
+                    Compiler_warnings.Preprocessor
+                      "solid-ml-template-ppx: sibling conditional blocks (Tpl.show/show_when/if_/switch) can cause DOM nesting bugs.\n\
+                       Wrap them in a single Tpl.nodes with an if/else to render one branch."
+                  in
+                  if Compiler_warnings.is_active warning then
+                    if Compiler_warnings.is_error warning then
+                      Location.raise_errorf ~loc
+                        "solid-ml-template-ppx: sibling conditional blocks (Tpl.show/show_when/if_/switch) can cause DOM nesting bugs.\n\
+                         Wrap them in a single Tpl.nodes with an if/else to render one branch."
+                    else
+                      Compiler_location.prerr_warning loc warning
+                in
+
                 let rec check_sibling_conditionals prev_was_conditional = function
                   | [] -> ()
                   | child :: rest ->
@@ -3153,11 +3171,10 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                       | _ -> false
                     in
                     if is_conditional_child child then
-                      if prev_was_conditional then
-                        Location.raise_errorf ~loc:child.pexp_loc
-                          "solid-ml-template-ppx: sibling conditional blocks (Tpl.show/show_when/if_/switch) can cause DOM nesting bugs.\n\
-                           Wrap them in a single Tpl.nodes with an if/else to render one branch."
-                      else
+                      if prev_was_conditional then (
+                        warn_sibling_conditionals child.pexp_loc;
+                        check_sibling_conditionals true rest
+                      ) else
                         check_sibling_conditionals true rest
                     else if is_whitespace then
                       check_sibling_conditionals prev_was_conditional rest
