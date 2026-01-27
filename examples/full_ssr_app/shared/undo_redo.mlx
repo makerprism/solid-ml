@@ -63,7 +63,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   let execute (history : history) (cmd : command) : history =
     let new_present = apply_command history.present cmd in
     {
-      past = history.past @ [cmd];
+      past = cmd :: history.past;
       present = new_present;
       future = [];  (* Clear future on new action *)
     }
@@ -72,16 +72,18 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     match history.past with
     | [] -> history
     | cmd :: rest ->
-        let inverse =
+        let new_present =
           match cmd with
-          | AddText text -> RemoveLast text
-          | RemoveLast text -> AddText text
-          | Replace {index; old_text; new_text} -> Replace {index; old_text = new_text; new_text = old_text}
+          | AddText _ ->
+              apply_command history.present (RemoveLast "")
+          | RemoveLast text ->
+              apply_command history.present (AddText text)
+          | Replace {index; old_text; new_text} ->
+              apply_command history.present
+                (Replace {index; old_text = new_text; new_text = old_text})
           | Clear texts ->
-              (* For simplicity, just store the clear command itself *)
-              Clear texts
+              texts
         in
-        let new_present = apply_command history.present inverse in
         {
           past = rest;
           present = new_present;
@@ -94,7 +96,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     | cmd :: rest ->
         let new_present = apply_command history.present cmd in
         {
-          past = history.past @ [cmd];
+          past = cmd :: history.past;
           present = new_present;
           future = rest;
         }
@@ -293,8 +295,11 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
               ~name:"disabled"
               (fun () -> if can_modify () then None else Some ""))
             onclick=(fun _ ->
-              let cmd = RemoveLast "" in
-              set_history (execute (Signal.get history) cmd)
+              match List.rev (present_texts ()) with
+              | [] -> ()
+              | last :: _ ->
+                let cmd = RemoveLast last in
+                set_history (execute (Signal.get history) cmd)
             )>
             (Html.text "Remove Last")
           </button>
