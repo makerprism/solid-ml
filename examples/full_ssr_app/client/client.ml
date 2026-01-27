@@ -117,36 +117,6 @@ let hydrate_todos () =
           ~children:(Shared.todos_content ~initial_todos ())
           ())
     in
-
-    let doc = Dom.document () in
-    (match Dom.query_selector doc ".todo-list" with
-     | Some _list_el ->
-       (* Initialize checkbox states *)
-       let todos = Dom.query_selector_all doc ".todo" in
-       List.iter (fun todo ->
-         let todo_el = todo in
-         let checkbox =
-           match Dom.query_selector_within todo_el ".checkbox" with
-           | Some cb -> cb
-           | None -> todo_el
-         in
-         let initial_text = if Dom.has_class todo_el "completed" then "[X]" else "[ ]" in
-         Dom.set_text_content checkbox initial_text;
-
-         ignore (Dom.add_event_listener todo_el "click" (fun _ev ->
-           let is_complete = Dom.has_class todo_el "completed" in
-           if is_complete then (
-             Dom.remove_class todo_el "completed";
-             Dom.set_text_content checkbox "[ ]"
-           ) else (
-             Dom.add_class todo_el "completed";
-             Dom.set_text_content checkbox "[X]"
-           );
-           ()
-         ))
-       ) todos
-     | None -> ());
-
     Dom.log "Todos hydrated!"
   | None -> ()
 
@@ -168,59 +138,6 @@ let hydrate_filters () =
           ~children:(Filters.view ~initial_todos ())
           ())
     in
-
-    (* Setup client-side interactivity for filter buttons *)
-    let doc = Dom.document () in
-    (match Dom.query_selector doc ".filter-bar" with
-     | Some _filter_bar ->
-       let filter_buttons = Dom.query_selector_all doc ".filter-btn" in
-       List.iter (fun button ->
-         ignore (Dom.add_event_listener button "click" (fun _ev ->
-           (* Toggle active class manually for now *)
-           let buttons = Dom.query_selector_all doc ".filter-btn" in
-           List.iter (fun b -> Dom.remove_class b "active") buttons;
-           Dom.add_class button "active";
-           ()
-         ))
-       ) filter_buttons
-     | None -> ());
-
-    (* Setup search input *)
-    (match Dom.query_selector doc ".search-input" with
-     | Some input ->
-       ignore (Dom.add_event_listener input "input" (fun _ev ->
-         (* Signal should handle this, but we'll add manual listener for now *)
-         ()
-       ))
-     | None -> ());
-
-    (* Initialize checkboxes in filtered list *)
-    (match Dom.query_selector doc ".todo-list" with
-     | Some _list_el ->
-       let todos = Dom.query_selector_all doc ".todo" in
-       List.iter (fun todo ->
-         let checkbox =
-           match Dom.query_selector_within todo ".checkbox" with
-           | Some cb -> cb
-           | None -> todo
-         in
-         let initial_text = if Dom.has_class todo "completed" then "[X]" else "[ ]" in
-         Dom.set_text_content checkbox initial_text;
-
-         ignore (Dom.add_event_listener todo "click" (fun _ev ->
-           let is_complete = Dom.has_class todo "completed" in
-           if is_complete then (
-             Dom.remove_class todo "completed";
-             Dom.set_text_content checkbox "[ ]"
-           ) else (
-             Dom.add_class todo "completed";
-             Dom.set_text_content checkbox "[X]"
-           );
-           ()
-         ))
-       ) todos
-     | None -> ());
-
     Dom.log "Filters hydrated!"
   | None -> ()
 
@@ -240,12 +157,17 @@ let hydrate_inline_edit () =
 let hydrate_async () =
   match get_element "app" with
   | Some app_el ->
+    let schedule : delay_ms:int -> (unit -> unit) -> unit =
+      [%mel.raw {|
+        function (delay_ms, fn) { setTimeout(fn, delay_ms); }
+      |}]
+    in
     (* Hydrate with Async view *)
     let _disposer =
       Render.render app_el (fun () ->
         Shared.app_layout
           ~current_path:(Routes.path Routes.Async)
-          ~children:(Async.view ())
+          ~children:(Async.view ~schedule ())
           ())
     in
 
@@ -315,12 +237,49 @@ let hydrate_undo_redo () =
 let hydrate_theme () =
   match get_element "app" with
   | Some app_el ->
+    let get_local_storage_item : string -> string option =
+      [%mel.raw {|
+        function (key) {
+          try {
+            if (!window.localStorage) return null;
+            return window.localStorage.getItem(key);
+          } catch (e) {
+            return null;
+          }
+        }
+      |}]
+    in
+    let set_local_storage_item : string -> string -> unit =
+      [%mel.raw {|
+        function (key, value) {
+          try {
+            if (!window.localStorage) return;
+            window.localStorage.setItem(key, value);
+          } catch (e) {
+            return;
+          }
+        }
+      |}]
+    in
+    let stored_theme () =
+      match get_local_storage_item "app-theme" with
+      | None -> None
+      | Some value -> Theme.string_to_theme value
+    in
+    let initial_theme =
+      match stored_theme () with
+      | Some t -> t
+      | None -> Theme.Light
+    in
+    let on_theme_change theme =
+      set_local_storage_item "app-theme" (Theme.theme_to_string theme)
+    in
     (* Hydrate with Theme view *)
     let _disposer =
       Render.render app_el (fun () ->
         Shared.app_layout
           ~current_path:(Routes.path Routes.Theme)
-          ~children:(Theme.view ())
+          ~children:(Theme.view ~initial_theme ~on_theme_change ())
           ())
     in
 

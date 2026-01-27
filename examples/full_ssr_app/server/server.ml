@@ -119,11 +119,25 @@ let layout ~title:page_title ~children () =
           .btn-secondary { background: #888; }
           .btn-secondary:hover { background: #666; }
           .todo-list { list-style: none; padding: 0; }
+          .todo-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            width: 100%;
+            padding: 12px;
+          }
+          .todo-label input {
+            cursor: pointer;
+          }
+          .todo-text {
+            flex: 1;
+          }
           .todo {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 12px;
+            padding: 0;
             border-bottom: 1px solid #eee;
             cursor: pointer;
             user-select: none;
@@ -364,6 +378,32 @@ let layout ~title:page_title ~children () =
           .status-bar.loading {
             background: #fff3e0;
             color: #f57c00;
+          }
+          .skeleton-card {
+            margin-top: 16px;
+            padding: 16px;
+            background: #ffffff;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+          }
+          .skeleton-line {
+            height: 12px;
+            margin: 10px 0;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #f0f3f7 0%, #e3e7ee 40%, #f0f3f7 100%);
+            background-size: 200% 100%;
+            animation: shimmer 1.2s ease-in-out infinite;
+          }
+          .skeleton-line.short {
+            width: 60%;
+          }
+          .skeleton-title {
+            height: 16px;
+            width: 70%;
+          }
+          @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
           }
           .status-bar.success {
             background: #e8f5e9;

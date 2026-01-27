@@ -47,7 +47,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   (** Main Filters View *)
   let view ~initial_todos () =
     (* Base state signals *)
-    let todos, _ = Signal.create initial_todos in
+    let todos, set_todos = Signal.create initial_todos in
     let current_filter, set_filter = Signal.create All in
     let search_text, set_search_text = Signal.create "" in
 
@@ -85,6 +85,14 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     let filter_class filter_type =
       "filter-btn" ^
       if Signal.get current_filter = filter_type then " active" else ""
+    in
+
+    let toggle_todo id =
+      set_todos
+        (List.map (fun todo ->
+           if todo.id = id then { todo with completed = not todo.completed }
+           else todo
+         ) (Signal.get todos))
     in
 
     <div class_="filters-container">
@@ -136,11 +144,17 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         (Tpl.each_keyed
            ~items:filtered_todos
            ~key:(fun todo -> Int.to_string todo.id)
-           ~render:(fun todo ->
-            <li class_=(fun () -> "todo" ^ if todo.completed then " completed" else "")>
-              <span class_="checkbox"></span>
-              (Tpl.text_once (fun () -> todo.text))
-            </li>
+            ~render:(fun todo ->
+             <li class_=(fun () -> "todo" ^ if todo.completed then " completed" else "")>
+               <label class_="todo-label">
+                 <input
+                   type_="checkbox"
+                   checked=(fun () -> todo.completed)
+                   onclick=(fun _ -> toggle_todo todo.id)
+                 />
+                 <span class_="todo-text">(Tpl.text_once (fun () -> todo.text))</span>
+               </label>
+             </li>
             )
         )
       </ul>

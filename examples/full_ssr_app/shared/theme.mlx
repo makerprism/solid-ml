@@ -247,9 +247,15 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
   (** {1 Main View} *)
 
-  let view () : Html.node =
+  let view ?(initial_theme=Light) ?on_theme_change () : Html.node =
     (* Create reactive theme signal *)
-    let theme, set_theme = Signal.create Light in
+    let theme, set_theme_raw = Signal.create initial_theme in
+    let set_theme t =
+      set_theme_raw t;
+      match on_theme_change with
+      | None -> ()
+      | Some f -> f t
+    in
 
     (* Apply theme class to container - shows initial theme state *)
     <div class_=(Tpl.attr ~name:"class" (fun () ->

@@ -33,6 +33,7 @@ external element_of_event_target : event_target -> element = "%identity"
     like Node.js when only using Promise/Timer APIs. *)
 let document () : document = [%mel.raw "document"]
 
+
 (** {1 Document Methods} *)
 
 external create_element : document -> string -> element = "createElement"
@@ -58,6 +59,7 @@ external query_selector : document -> string -> element option = "querySelector"
 
 external query_selector_all : document -> string -> element array = "querySelectorAll"
   [@@mel.send]
+
 
 (** {1 Node Methods} *)
 

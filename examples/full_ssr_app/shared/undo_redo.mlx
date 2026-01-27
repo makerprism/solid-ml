@@ -225,11 +225,10 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
           (Tpl.each_indexed
              ~items:present_texts
              ~render:(fun ~index ~item ->
-               let idx = index () in
-               let value = item () in
-                <li class_="text-item">
-                  <span class_="text-index">(Tpl.text_once (fun () -> string_of_int (idx + 1)))</span>
-                  <span class_="text-content">(Tpl.text (fun () -> value))</span>
+               (* Accessors from each_indexed must be read inside reactive thunks. *)
+               <li class_="text-item">
+                  <span class_="text-index">(Tpl.text_once (fun () -> string_of_int (index () + 1)))</span>
+                  <span class_="text-content">(Tpl.text (fun () -> item ()))</span>
                 </li>
              )
           )

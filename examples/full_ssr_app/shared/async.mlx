@@ -70,7 +70,9 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       Demonstrates reactive state management for simulated async data fetching
   *)
 
-  let resource_demo () =
+  type schedule = delay_ms:int -> (unit -> unit) -> unit
+
+  let resource_demo ~schedule () =
     (* Reactive state signals *)
     let user_id, set_user_id = Signal.create 1 in
     let loading, set_loading = Signal.create false in
@@ -88,8 +90,10 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       set_error_msg (Some "");
       (* SIMULATED async - in real code this would be an async operation *)
       let next_id = if (Signal.get user_id) >= 5 then 1 else (Signal.get user_id) + 1 in
-      set_user_id next_id;
-      set_loading false
+      schedule ~delay_ms:600 (fun () ->
+        set_user_id next_id;
+        set_loading false
+      )
     in
 
     (* Fetch specific user by ID *)
@@ -98,12 +102,16 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       set_error_msg (Some "");
       (try
          let id = int_of_string id_str in
-         set_user_id id;
-         set_loading false;
-         if fetch_user_by_id ~id = None then
-           set_error_msg (Some ("User not found: " ^ id_str))
+         schedule ~delay_ms:600 (fun () ->
+           set_user_id id;
+           set_loading false;
+           if fetch_user_by_id ~id = None then
+             set_error_msg (Some ("User not found: " ^ id_str))
+         )
        with
-       | _ -> set_error_msg (Some "Invalid ID"); set_loading false)
+       | _ ->
+         set_error_msg (Some "Invalid ID");
+         set_loading false)
     in
 
     <div class_="async-container resource-demo">
@@ -113,15 +121,27 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       </p>
 
       (* Status Bar - reactive based on loading/error state *)
-      (Tpl.show_when
-        ~when_:(fun () -> Signal.get loading)
-        (fun () ->
-          <div class_="status-bar loading">
-            <span class_="spinner"></span>
-            (text "Loading user data...")
-          </div>
+        (Tpl.show_when
+          ~when_:(fun () -> Signal.get loading)
+          (fun () ->
+            <div class_="status-bar loading">
+              <span class_="spinner"></span>
+              (text "Loading user data...")
+            </div>
+          )
         )
-      )
+
+        (Tpl.show_when
+          ~when_:(fun () -> Signal.get loading)
+          (fun () ->
+            <div class_="skeleton-card">
+              <div class_="skeleton-line skeleton-title"></div>
+              <div class_="skeleton-line"></div>
+              <div class_="skeleton-line"></div>
+              <div class_="skeleton-line short"></div>
+            </div>
+          )
+        )
 
       (* Error message display *)
       (Tpl.show_when
@@ -311,8 +331,8 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
   (** {1 Main View} *)
 
-  let view () : Html.node =
-    let resource_node = resource_demo () in
+  let view ?(schedule=(fun ~delay_ms:_ f -> f ())) () : Html.node =
+    let resource_node = resource_demo ~schedule () in
     <div>
       <h1>(text "Reactive State Management")</h1>
       <p class_="intro">
