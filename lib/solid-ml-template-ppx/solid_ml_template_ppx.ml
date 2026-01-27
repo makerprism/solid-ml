@@ -3138,6 +3138,35 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                   | None -> [ children_expr ]
                 in
 
+                let is_conditional_child child =
+                  Option.is_some (extract_tpl_show ~aliases child)
+                  || Option.is_some (extract_tpl_if_ ~aliases child)
+                  || Option.is_some (extract_tpl_switch ~aliases child)
+                in
+
+                let rec check_sibling_conditionals prev_was_conditional = function
+                  | [] -> ()
+                  | child :: rest ->
+                    let is_whitespace =
+                      match extract_static_text_literal ~allow_unqualified_text ~shadowed_text child with
+                      | Some lit when allow_whitespace_normalization && is_formatting_whitespace lit -> true
+                      | _ -> false
+                    in
+                    if is_conditional_child child then
+                      if prev_was_conditional then
+                        Location.raise_errorf ~loc:child.pexp_loc
+                          "solid-ml-template-ppx: sibling conditional blocks (Tpl.show/show_when/if_/switch) can cause DOM nesting bugs.\n\
+                           Wrap them in a single Tpl.nodes with an if/else to render one branch."
+                      else
+                        check_sibling_conditionals true rest
+                    else if is_whitespace then
+                      check_sibling_conditionals prev_was_conditional rest
+                    else
+                      check_sibling_conditionals false rest
+                in
+
+                check_sibling_conditionals false children_list;
+
                 if List.for_all add_child children_list then (
                   let children = List.rev !parts_rev in
                   Some

@@ -478,6 +478,9 @@ opt into reactivity:
 Plain expressions like `disabled=(condition)` or `class_=(fun () -> ...)` are
 evaluated once at render time.
 
+Avoid adjacent sibling conditionals (`Tpl.show`/`Tpl.show_when`/`Tpl.if_`/`Tpl.switch`) in the same parent.
+Wrap the branches in a single `Tpl.nodes` with an `if/else` to prevent DOM nesting bugs.
+
 Example:
 
 ```ocaml
