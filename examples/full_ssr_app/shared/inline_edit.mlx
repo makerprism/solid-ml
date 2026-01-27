@@ -1,126 +1,133 @@
 (**
-    Inline Edit Demo - Two-Way Input Binding
+    Inline Edit Demo - Using ADTs to Make Impossible States Unrepresentable
 
-    This example demonstrates:
-    - Conditional rendering (view vs edit mode)
-    - Input field binding via Tpl.bind_input
-    - Click-to-edit interaction
-    - Save/cancel functionality
-    - Validation feedback
-
-    Uses template bindings for input state.
+    Instead of tracking editing state separately with signals that can get out of sync,
+    we use an ADT where each item is either Viewing or Editing - never both.
 *)
 
-type todo = {
-  id : int;
-  text : string;
-  completed : bool;
-}
+type item_state =
+  | Viewing of string
+  | Editing of {
+      original : string;
+      current : string;
+    }
 
-type edit_state =
-  | Not_editing
-  | Editing of string
+type editable_item = {
+  id : int;
+  state : item_state;
+}
 
 module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Env
   module Tpl = Env.Tpl
   module Routes = Routes
 
-  (** Inline Edit Todo Item Component *)
-  let todo_item ~todo ~is_editing ~edit_text ~set_edit_text ~on_edit ~on_save ~on_cancel () =
-    let item_class extra =
-      "todo-item" ^
-      (if todo.completed then " completed" else "") ^
-      extra
-    in
-    match is_editing with
-    | Not_editing ->
-        <li class_=(fun () -> item_class "")>
-          <span class_="checkbox"></span>
-          <span class_="todo-text" onclick=(fun _ -> on_edit ())>
-            (Tpl.text_once (fun () -> todo.text))
-          </span>
-          <button class_="btn-edit" onclick=(fun _ -> on_edit ())>
-            (Html.text "Edit")
-          </button>
-        </li>
-    | Editing _ ->
-        <li class_=(fun () -> item_class " editing")>
-          <input
-            type_="text"
-            value=(Tpl.bind_input
-              ~signal:(fun () -> Signal.get edit_text)
-              ~setter:set_edit_text)
-            class_="edit-input" />
-          <button class_="btn-save" onclick=(fun _ -> on_save ())>
-            (Html.text "Save")
-          </button>
-          <button class_="btn-cancel" onclick=(fun _ -> on_cancel ())>
-            (Html.text "Cancel")
-          </button>
-        </li>
-
   (** Main Inline Edit View *)
-  let view ~initial_todos () =
-    (* State signals *)
-    let todos, set_todos = Signal.create initial_todos in
-    let editing_id, set_editing_id = Signal.create None in
-    let edit_text, set_edit_text = Signal.create "" in
+  let view () =
+    (* Initial data - all items start in Viewing state *)
+    let initial_items = [
+      { id = 1; state = Viewing "Learn solid-ml" };
+      { id = 2; state = Viewing "Build reactive UIs" };
+      { id = 3; state = Viewing "Master OCaml" };
+      { id = 4; state = Viewing "Deploy to production" };
+    ] in
 
-    (* Helper: Check if a todo is being edited *)
-    let is_editing todo =
-      match Signal.get editing_id with
-      | Some id when id = todo.id -> Editing (Signal.get edit_text)
-      | _ -> Not_editing
-    in
-
-    let start_edit todo =
-      set_editing_id (Some todo.id);
-      set_edit_text todo.text
-    in
-
-    let cancel_edit () =
-      set_editing_id None;
-      set_edit_text ""
-    in
-
-    let save_edit todo =
-      let next_text = Signal.get edit_text in
-      set_todos
-        (List.map
-           (fun t -> if t.id = todo.id then { t with text = next_text } else t)
-           (Signal.get todos));
-      set_editing_id None;
-      set_edit_text ""
-    in
+    (* Single signal: list of items, each with its own state *)
+    let items, set_items = Signal.create initial_items in
 
     <div class_="inline-edit-container">
       <h1>(Html.text "Inline Edit Demo")</h1>
 
       <p class_="instructions">
-        (Html.text "Click 'Edit' on any todo to edit it inline. Changes save instantly.")
+        (Html.text "Click 'Edit' to edit. Press Enter to save, Escape to cancel.")
       </p>
 
-      <ul class_="todo-list">
+      <ul class_="editable-list">
         (Tpl.each_keyed
-           ~items:(fun () -> Signal.get todos)
-           ~key:(fun todo -> Int.to_string todo.id)
-           ~render:(fun todo ->
-              todo_item
-                ~todo
-                ~is_editing:(is_editing todo)
-                ~edit_text
-                ~set_edit_text
-                ~on_edit:(fun () -> start_edit todo)
-                ~on_save:(fun () -> save_edit todo)
-                ~on_cancel:cancel_edit
-                ()
-            )
+           ~items:(fun () -> Signal.get items)
+           ~key:(fun item -> Int.to_string item.id)
+           ~render:(fun item ->
+              <li class_="editable-item">
+                (Tpl.nodes (fun () ->
+                  (* Always get the current state from the signal *)
+                  let current_items = Signal.get items in
+                  let current_item = match List.find_opt (fun i -> i.id = item.id) current_items with
+                    | Some i -> i
+                    | None -> item
+                  in
+
+                  match current_item.state with
+                  | Viewing text ->
+                      Html.fragment [
+                        <span class_="item-text">
+                          (Tpl.text (fun () -> text))
+                        </span>;
+                        <button
+                          class_="btn-edit"
+                          onclick=(fun _ ->
+                            set_items (List.map (fun i ->
+                              if i.id = current_item.id then
+                                { i with state = Editing { original = text; current = text } }
+                              else
+                                i
+                            ) current_items)
+                          )
+                        >
+                          (Html.text "Edit")
+                        </button>;
+                      ]
+
+                  | Editing { original; current } ->
+                      Html.fragment [
+                        <input
+                          type_="text"
+                          class_="edit-input"
+                          value=(Tpl.bind_input
+                            ~signal:(fun () -> current)
+                            ~setter:(fun new_text ->
+                              set_items (List.map (fun i ->
+                                if i.id = current_item.id then
+                                  { i with state = Editing { original; current = new_text } }
+                                else
+                                  i
+                              ) current_items)
+                            ))
+                        />;
+                        <button
+                          class_="btn-save"
+                          onclick=(fun _ ->
+                            set_items (List.map (fun i ->
+                              if i.id = current_item.id then
+                                { i with state = Viewing current }
+                              else
+                                i
+                            ) current_items)
+                          )
+                        >
+                          (Html.text "Save")
+                        </button>;
+                        <button
+                          class_="btn-cancel"
+                          onclick=(fun _ ->
+                            set_items (List.map (fun i ->
+                              if i.id = current_item.id then
+                                { i with state = Viewing original }
+                              else
+                                i
+                            ) current_items)
+                          )
+                        >
+                          (Html.text "Cancel")
+                        </button>;
+                      ]
+                ))
+              </li>
+           )
         )
       </ul>
 
       <div class_="status-bar">
-        (Html.text "Click any Edit button to enter edit mode")
+        (Html.text "Press Enter to save, Escape to cancel, or click Save/Cancel.")
       </div>
     </div>
 end

@@ -31,12 +31,6 @@ let sample_todos_filters : Shared_components.Filters.todo list = [
   { id = 4; text = "Deploy to production"; completed = false };
 ]
 
-let sample_todos_inline_edit : Shared_components.Inline_edit.todo list = [
-  { id = 1; text = "Learn solid-ml"; completed = false };
-  { id = 2; text = "Build an SSR app"; completed = false };
-  { id = 3; text = "Add inline editing"; completed = false };
-]
-
 (** {1 Components} *)
 
 (** Page layout with navigation - Updated to use Shared.app_layout structure *)
@@ -232,17 +226,29 @@ let layout ~title:page_title ~children () =
             color: #666;
             margin-bottom: 20px;
           }
-          .todo-item {
+          .editable-list {
+            list-style: none;
+            padding: 0;
+          }
+          .editable-item {
             display: flex;
             align-items: center;
             gap: 12px;
             padding: 12px;
             border-bottom: 1px solid #eee;
-            user-select: none;
           }
-          .todo-item.editing {
+          .editable-item.editing {
             background: #f0f8ff;
             border-left: 4px solid #4a90d9;
+          }
+          .item-text {
+            flex: 1;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+          }
+          .item-text:hover {
+            background: #f5f5f5;
           }
           .btn-edit {
             margin-left: auto;
@@ -1066,6 +1072,26 @@ let layout ~title:page_title ~children () =
             margin-bottom: 8px;
             color: #495057;
           }
+          .validation-errors {
+            background: #ffebee;
+            border-left: 4px solid #dc3545;
+            padding: 16px;
+            margin-top: 20px;
+            border-radius: 4px;
+          }
+          .validation-errors h3 {
+            margin: 0 0 12px 0;
+            color: #c62828;
+            font-size: 16px;
+          }
+          .validation-errors ul {
+            margin: 0;
+            padding-left: 20px;
+          }
+          .validation-errors li {
+            margin-bottom: 8px;
+            color: #c62828;
+          }
           .form-group {
             margin-bottom: 20px;
           }
@@ -1339,16 +1365,16 @@ let handle_filters _req =
   Dream.html html
 
 (** Inline-edit page - uses Inline_edit.view *)
-let inline_edit_page ~current_path ~todos () =
+let inline_edit_page ~current_path () =
   layout ~title:"Inline Edit - solid-ml SSR" ~children:(
     Shared.app_layout ~current_path ~children:(
-      Inline_edit.view ~initial_todos:todos ()
+      Inline_edit.view ()
     ) ()
   ) ()
 
 let handle_inline_edit _req =
   let html = Render.to_document (fun () ->
-    inline_edit_page ~current_path:(Routes.path Routes.Inline_edit) ~todos:sample_todos_inline_edit ())
+    inline_edit_page ~current_path:(Routes.path Routes.Inline_edit) ())
   in
   Dream.html html
 

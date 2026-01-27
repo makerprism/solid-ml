@@ -1,15 +1,19 @@
 (**
-    Async Data Fetching Example
+    Reactive State Management Demo
 
     This component demonstrates:
     - Reactive signals for state management
     - Loading states with Tpl.show_when
     - Error handling and user feedback
-    - Simulated async data fetching patterns
     - Two-way binding with Tpl.bind_input
+    - Derived state computation
 
-    NOTE: This is a simplified async simulation. In a real app with true async,
-    you would use Resources or async primitives for actual data fetching.
+    NOTE: This is a SYNCHRONOUS SIMULATION of async patterns.
+    In a real app, you would use actual async operations with
+    Resources or async primitives for true data fetching.
+
+    The demo simulates loading states to show how to handle
+    different UI states (loading, success, error) reactively.
 *)
 
 module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
@@ -82,7 +86,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     let fetch_next_user () =
       set_loading true;
       set_error_msg (Some "");
-      (* In a real app, this would be async *)
+      (* SIMULATED async - in real code this would be an async operation *)
       let next_id = if (Signal.get user_id) >= 5 then 1 else (Signal.get user_id) + 1 in
       set_user_id next_id;
       set_loading false
@@ -103,9 +107,9 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     in
 
     <div class_="async-container resource-demo">
-      <h2>(text "Reactive Data Fetching")</h2>
+      <h2>(text "Reactive Resource State")</h2>
       <p class_="instructions">
-        (text "This demonstrates reactive state management. Enter a user ID (1-5) or use the buttons to fetch different users.")
+        (text "This demonstrates reactive state management with loading, success, and error states. Enter a user ID (1-5) or use the buttons to load different users.")
       </p>
 
       (* Status Bar - reactive based on loading/error state *)
@@ -236,9 +240,9 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     ] in
 
     <div class_="async-container sequential-demo">
-      <h2>(text "Sequential Data Loading")</h2>
+      <h2>(text "Step-by-Step State Transitions")</h2>
       <p class_="instructions">
-        (text "This demonstrates handling dependent async operations. Click next to simulate each step.")
+        (text "This demonstrates state transitions with step tracking. Click 'Next Step' to advance through the stages.")
       </p>
 
       <div class_="steps-container">
@@ -309,17 +313,12 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
   let view () : Html.node =
     let resource_node = resource_demo () in
-    let sequential_node = sequential_demo () in
     <div>
-      <h1>(text "Async Data Fetching")</h1>
+      <h1>(text "Reactive State Management")</h1>
       <p class_="intro">
-        (text "Examples of handling asynchronous operations, loading states, and error handling.")
+        (text "Examples of reactive state management with loading states, error handling, and derived computation.")
       </p>
 
       resource_node
-
-      <div class_="section-divider"></div>
-
-      sequential_node
     </div>
 end
