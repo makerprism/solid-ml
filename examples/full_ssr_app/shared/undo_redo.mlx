@@ -222,13 +222,14 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       <div class_="text-list-container">
         <h3>(Html.text "Current Text List")</h3>
         <ul class_="text-list">
-          (Tpl.each_keyed
+          (Tpl.each_indexed
              ~items:present_texts
-             ~key:(fun text -> text)
-             ~render:(fun text ->
+             ~render:(fun ~index ~item ->
+               let idx = index () in
+               let value = item () in
                <li class_="text-item">
-                  <span class_="text-index">(Html.text "")</span>
-                  <span class_="text-content">(Tpl.text_once (fun () -> text))</span>
+                  <span class_="text-index">(Tpl.text_once (fun () -> string_of_int (idx + 1)))</span>
+                  <span class_="text-content">(Tpl.text_once (fun () -> value))</span>
                 </li>
              )
           )
