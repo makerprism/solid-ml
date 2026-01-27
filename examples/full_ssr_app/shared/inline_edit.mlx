@@ -20,7 +20,6 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Env
   module Html = Env.Html
   module Tpl = Env.Tpl
-  module Routes = Routes
 
   open Html
 
