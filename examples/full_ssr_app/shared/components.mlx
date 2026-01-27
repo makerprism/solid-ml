@@ -138,7 +138,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     let rec intersperse sep = function
       | [] -> []
       | [x] -> [x]
-      | x :: xs -> x :: sep :: intersperse sep xs
+      | x :: xs -> x :: sep () :: intersperse sep xs
     in
 
     let render_nav_links routes =
@@ -149,7 +149,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         in
         a ~href ~class_ ~children:[text (Routes.label route)] ()
       ) routes in
-      Html.fragment (intersperse (span ~children:[text " / "] ()) links)
+      Html.fragment (intersperse (fun () -> span ~children:[text " / "] ()) links)
     in
 
     let render_section title routes =
