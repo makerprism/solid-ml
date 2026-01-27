@@ -227,9 +227,9 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
              ~render:(fun ~index ~item ->
                let idx = index () in
                let value = item () in
-               <li class_="text-item">
+                <li class_="text-item">
                   <span class_="text-index">(Tpl.text_once (fun () -> string_of_int (idx + 1)))</span>
-                  <span class_="text-content">(Tpl.text_once (fun () -> value))</span>
+                  <span class_="text-content">(Tpl.text (fun () -> value))</span>
                 </li>
              )
           )
