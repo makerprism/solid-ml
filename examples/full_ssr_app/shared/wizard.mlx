@@ -73,141 +73,139 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       </p>
 
       <div class_="wizard-content">
-        (Tpl.nodes (fun () ->
-          match Signal.get current_step with
-          | Intro ->
-                <div class_="wizard-step">
-                <Html.h2>(Html.text "Welcome")</Html.h2>
-                <p class_="step-intro">
-                  (Html.text "Pick a plan and confirm your details in the next steps.")
-                </p>
-                <div class_="step-content">
-                  <div class_="info-card">
-                    <Html.h3>(Html.text "What you will do")</Html.h3>
-                    <Html.ul>
-                      <Html.li>(Html.text "Add your name and email")</Html.li>
-                      <Html.li>(Html.text "Choose a plan")</Html.li>
-                      <Html.li>(Html.text "Review and finish")</Html.li>
-                    </Html.ul>
-                  </div>
-                </div>
+        <div class_=(Tpl.attr ~name:"class" (fun () ->
+          if Signal.get current_step = Intro then "wizard-step is-active" else "wizard-step is-hidden"
+        ))>
+          <Html.h2>(Html.text "Welcome")</Html.h2>
+          <p class_="step-intro">
+            (Html.text "Pick a plan and confirm your details in the next steps.")
+          </p>
+          <div class_="step-content">
+            <div class_="info-card">
+              <Html.h3>(Html.text "What you will do")</Html.h3>
+              <Html.ul>
+                <Html.li>(Html.text "Add your name and email")</Html.li>
+                <Html.li>(Html.text "Choose a plan")</Html.li>
+                <Html.li>(Html.text "Review and finish")</Html.li>
+              </Html.ul>
+            </div>
+          </div>
+        </div>
+        <div class_=(Tpl.attr ~name:"class" (fun () ->
+          if Signal.get current_step = Details then "wizard-step is-active" else "wizard-step is-hidden"
+        ))>
+          <Html.h2>(Html.text "Your Details")</Html.h2>
+          <p class_="step-intro">
+            (Html.text "We only use this to personalize the demo.")
+          </p>
+          <div class_="step-content">
+            <div class_="form-group">
+              <Html.label for_="wizard-name">(Html.text "Name")</Html.label>
+              <input
+                id="wizard-name"
+                class_="form-control"
+                value=(Tpl.bind_input
+                  ~signal:(fun () -> Signal.get name)
+                  ~setter:set_name)
+                placeholder="Ada Lovelace"
+              />
+            </div>
+            <div class_="form-group">
+              <Html.label for_="wizard-email">(Html.text "Email")</Html.label>
+              <input
+                id="wizard-email"
+                type_="email"
+                class_="form-control"
+                value=(Tpl.bind_input
+                  ~signal:(fun () -> Signal.get email)
+                  ~setter:set_email)
+                placeholder="ada@example.com"
+              />
+            </div>
+            <div class_="form-group">
+              <Html.label for_="wizard-plan">(Html.text "Plan")</Html.label>
+              <select id="wizard-plan" class_="form-control"
+                value=(Tpl.bind_select
+                  ~signal:(fun () -> Signal.get plan)
+                  ~setter:set_plan)
+              >
+                <Html.option value="starter">(Html.text "Starter")</Html.option>
+                <Html.option value="team">(Html.text "Team")</Html.option>
+                <Html.option value="enterprise">(Html.text "Enterprise")</Html.option>
+              </select>
+            </div>
+            <div class_="form-group checkbox-group">
+              <Html.label class_="checkbox-label">
+                <input
+                  type_="checkbox"
+                  checked=(Tpl.bind_checkbox
+                    ~signal:(fun () -> Signal.get updates)
+                    ~setter:set_updates)
+                />
+                <Html.span>(Html.text "Send product updates")</Html.span>
+              </Html.label>
+            </div>
+          </div>
+        </div>
+        <div class_=(Tpl.attr ~name:"class" (fun () ->
+          if Signal.get current_step = Review then "wizard-step is-active" else "wizard-step is-hidden"
+        ))>
+          <Html.h2>(Html.text "Review")</Html.h2>
+          <p class_="step-intro">
+            (Html.text "Confirm your choices before finishing.")
+          </p>
+          <div class_="step-content">
+            <div class_="confirm-section">
+              <Html.h3>(Html.text "Summary")</Html.h3>
+              <div class_="confirm-item">
+                <Html.span class_="label">(Html.text "Name:")</Html.span>
+                <span class_="value">(Tpl.text (fun () -> Signal.get name))</span>
               </div>
-          | Details ->
-              <div class_="wizard-step">
-                <Html.h2>(Html.text "Your Details")</Html.h2>
-                <p class_="step-intro">
-                  (Html.text "We only use this to personalize the demo.")
-                </p>
-                <div class_="step-content">
-                  <div class_="form-group">
-                    <Html.label for_="wizard-name">(Html.text "Name")</Html.label>
-                    <input
-                      id="wizard-name"
-                      class_="form-control"
-                      value=(Tpl.bind_input
-                        ~signal:(fun () -> Signal.get name)
-                        ~setter:set_name)
-                      placeholder="Ada Lovelace"
-                    />
-                  </div>
-                  <div class_="form-group">
-                    <Html.label for_="wizard-email">(Html.text "Email")</Html.label>
-                    <input
-                      id="wizard-email"
-                      type_="email"
-                      class_="form-control"
-                      value=(Tpl.bind_input
-                        ~signal:(fun () -> Signal.get email)
-                        ~setter:set_email)
-                      placeholder="ada@example.com"
-                    />
-                  </div>
-                  <div class_="form-group">
-                    <Html.label for_="wizard-plan">(Html.text "Plan")</Html.label>
-                    <select id="wizard-plan" class_="form-control"
-                      value=(Tpl.bind_select
-                        ~signal:(fun () -> Signal.get plan)
-                        ~setter:set_plan)
-                    >
-                      <Html.option value="starter">(Html.text "Starter")</Html.option>
-                      <Html.option value="team">(Html.text "Team")</Html.option>
-                      <Html.option value="enterprise">(Html.text "Enterprise")</Html.option>
-                    </select>
-                  </div>
-                  <div class_="form-group checkbox-group">
-                    <Html.label class_="checkbox-label">
-                      <input
-                        type_="checkbox"
-                        checked=(Tpl.bind_checkbox
-                          ~signal:(fun () -> Signal.get updates)
-                          ~setter:set_updates)
-                      />
-                      <Html.span>(Html.text "Send product updates")</Html.span>
-                    </Html.label>
-                  </div>
-                </div>
+              <div class_="confirm-item">
+                <Html.span class_="label">(Html.text "Email:")</Html.span>
+                <span class_="value">(Tpl.text (fun () -> Signal.get email))</span>
               </div>
-          | Review ->
-              <div class_="wizard-step">
-                <Html.h2>(Html.text "Review")</Html.h2>
-                <p class_="step-intro">
-                  (Html.text "Confirm your choices before finishing.")
-                </p>
-                <div class_="step-content">
-                  <div class_="confirm-section">
-                    <Html.h3>(Html.text "Summary")</Html.h3>
-                    <div class_="confirm-item">
-                      <Html.span class_="label">(Html.text "Name:")</Html.span>
-                      <span class_="value">(Tpl.text (fun () -> Signal.get name))</span>
-                    </div>
-                    <div class_="confirm-item">
-                      <Html.span class_="label">(Html.text "Email:")</Html.span>
-                      <span class_="value">(Tpl.text (fun () -> Signal.get email))</span>
-                    </div>
-                    <div class_="confirm-item">
-                      <Html.span class_="label">(Html.text "Plan:")</Html.span>
-                      <span class_="value">(Tpl.text (fun () -> Signal.get plan))</span>
-                    </div>
-                    <div class_="confirm-item">
-                      <Html.span class_="label">(Html.text "Updates:")</Html.span>
-                      <span class_="value">(Tpl.text (fun () -> if Signal.get updates then "Yes" else "No"))</span>
-                    </div>
-                  </div>
-                </div>
+              <div class_="confirm-item">
+                <Html.span class_="label">(Html.text "Plan:")</Html.span>
+                <span class_="value">(Tpl.text (fun () -> Signal.get plan))</span>
               </div>
-        ))
+              <div class_="confirm-item">
+                <Html.span class_="label">(Html.text "Updates:")</Html.span>
+                <span class_="value">(Tpl.text (fun () -> if Signal.get updates then "Yes" else "No"))</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class_="wizard-nav">
-        (Tpl.nodes (fun () ->
-          let step = Signal.get current_step in
-          let back_button =
-            if step = Intro then []
-            else [
+        (Tpl.show_when
+           ~when_:(fun () -> Signal.get current_step <> Intro)
+           (fun () ->
               <button class_="btn btn-secondary" onclick=(fun _ ->
-                set_step (prev_step step)
+                set_step (prev_step (Signal.get current_step))
               )>
                 (Html.text "Back")
               </button>
-            ]
-          in
-          let next_button =
-            if step = Review then [
+           ))
+        (Tpl.show_when
+           ~when_:(fun () -> Signal.get current_step <> Review)
+           (fun () ->
+              <button class_="btn btn-primary" onclick=(fun _ ->
+                set_step (next_step (Signal.get current_step))
+              )>
+                (Html.text "Next")
+              </button>
+           ))
+        (Tpl.show_when
+           ~when_:(fun () -> Signal.get current_step = Review)
+           (fun () ->
               <button class_="btn btn-primary" onclick=(fun _ ->
                 set_step Intro
               )>
                 (Html.text "Restart")
               </button>
-            ] else [
-              <button class_="btn btn-primary" onclick=(fun _ ->
-                set_step (next_step step)
-              )>
-                (Html.text "Next")
-              </button>
-            ]
-          in
-          Html.fragment (back_button @ next_button)
-        ))
+           ))
       </div>
 
       <div class_="wizard-state">

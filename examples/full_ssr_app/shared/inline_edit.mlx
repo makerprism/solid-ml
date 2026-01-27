@@ -21,8 +21,6 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   module Html = Env.Html
   module Tpl = Env.Tpl
 
-  open Html
-
   let view () =
     let initial_items = [
       { id = 1; text = "Learn solid-ml" };
@@ -34,11 +32,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     let items, set_items = Signal.create initial_items in
     let editing_id, set_editing_id = Signal.create None in
     let draft, set_draft = Signal.create "" in
-
-    let start_edit item =
-      set_editing_id (Some item.id);
-      set_draft item.text
-    in
+    let skip_outer_click, set_skip_outer_click = Signal.create false in
 
     let cancel_edit () =
       set_editing_id None;
@@ -58,6 +52,15 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         set_draft ""
     in
 
+    let start_edit item =
+      (match Signal.get editing_id with
+       | Some current_id when current_id <> item.id -> save_edit ()
+       | _ -> ());
+      set_editing_id (Some item.id);
+      set_draft item.text;
+      set_skip_outer_click true
+    in
+
     let view_items () =
       let current_editing = Signal.get editing_id in
       Signal.get items
@@ -70,7 +73,16 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         { item; is_editing })
     in
 
-    <div class_="inline-edit-container">
+    let handle_outer_click () =
+      if Signal.get skip_outer_click then
+        set_skip_outer_click false
+      else
+        match Signal.get editing_id with
+        | None -> ()
+        | Some _ -> save_edit ()
+    in
+
+    <div class_="inline-edit-container" onclick=(fun _ -> handle_outer_click ())>
       <h1>(Html.text "Inline Edit Demo")</h1>
 
       <p class_="instructions">
@@ -83,32 +95,39 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
            ~key:(fun view_item -> Int.to_string view_item.item.id)
            ~render:(fun view_item ->
              let item = view_item.item in
-             <li class_="editable-item">
-               (if view_item.is_editing then
-                   Html.fragment [
-                     <input
-                       type_="text"
-                       class_="edit-input"
-                       value=(Tpl.bind_input
-                         ~signal:(fun () -> Signal.get draft)
-                         ~setter:set_draft)
-                     />;
-                     <button class_="btn-save" onclick=(fun _ -> save_edit ())>
-                       (Html.text "Save")
-                     </button>;
-                     <button class_="btn-cancel" onclick=(fun _ -> cancel_edit ())>
-                       (Html.text "Cancel")
-                     </button>;
-                   ]
-                 else
-                   Html.fragment [
-                     <span class_="item-text">(Tpl.text_once (fun () -> item.text))</span>;
-                     <button class_="btn-edit" onclick=(fun _ -> start_edit item)>
-                       (Html.text "Edit")
-                     </button>;
-                   ]
-               )
-             </li>
+              <li class_="editable-item">
+                (Tpl.show_when
+                   ~when_:(fun () -> view_item.is_editing)
+                   (fun () ->
+                      <div class_="edit-controls" onclick=(fun _ -> set_skip_outer_click true)>
+                        <input
+                          type_="text"
+                          class_="edit-input"
+                          value=(Tpl.bind_input
+                            ~signal:(fun () -> Signal.get draft)
+                            ~setter:set_draft)
+                        />
+                        <button class_="btn-save" onclick=(fun _ -> save_edit ())>
+                          (Html.text "Save")
+                        </button>
+                        <button class_="btn-cancel" onclick=(fun _ -> cancel_edit ())>
+                          (Html.text "Cancel")
+                        </button>
+                      </div>
+                   )
+                )
+                (Tpl.show_when
+                   ~when_:(fun () -> not view_item.is_editing)
+                   (fun () ->
+                      <div class_="view-controls" onclick=(fun _ -> set_skip_outer_click true)>
+                        <span class_="item-text">(Tpl.text_once (fun () -> item.text))</span>
+                        <button class_="btn-edit" onclick=(fun _ -> start_edit item)>
+                          (Html.text "Edit")
+                        </button>
+                      </div>
+                   )
+                )
+              </li>
            )
         )
       </ul>

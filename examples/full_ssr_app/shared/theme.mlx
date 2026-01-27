@@ -49,32 +49,90 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   (** {1 Theme Icon Component} *)
 
   let theme_icon ~theme () =
-    let icon_text, icon_class =
+    let icon_class =
       match theme with
-      | Light -> "Sun", "theme-icon-light"
-      | Dark -> "Moon", "theme-icon-dark"
-      | Auto -> "Auto", "theme-icon-auto"
+      | Light -> "theme-icon-light"
+      | Dark -> "theme-icon-dark"
+      | Auto -> "theme-icon-auto"
     in
-    <span class_=(fun () -> "theme-icon " ^ icon_class)>(Tpl.text_once (fun () -> icon_text))</span>
+    let svg =
+      match theme with
+      | Light ->
+          Html.Svg.svg ~viewBox:"0 0 24 24" ~class_:"theme-icon-svg" ~children:[
+            Html.Svg.circle ~cx:"12" ~cy:"12" ~r:"4" ~fill:"currentColor" ~children:[] ();
+            Html.Svg.line ~x1:"12" ~y1:"1" ~x2:"12" ~y2:"4" ~stroke:"currentColor" ~stroke_width:"2" ~stroke_linecap:"round" ~children:[] ();
+            Html.Svg.line ~x1:"12" ~y1:"20" ~x2:"12" ~y2:"23" ~stroke:"currentColor" ~stroke_width:"2" ~stroke_linecap:"round" ~children:[] ();
+            Html.Svg.line ~x1:"1" ~y1:"12" ~x2:"4" ~y2:"12" ~stroke:"currentColor" ~stroke_width:"2" ~stroke_linecap:"round" ~children:[] ();
+            Html.Svg.line ~x1:"20" ~y1:"12" ~x2:"23" ~y2:"12" ~stroke:"currentColor" ~stroke_width:"2" ~stroke_linecap:"round" ~children:[] ();
+            Html.Svg.line ~x1:"4" ~y1:"4" ~x2:"6" ~y2:"6" ~stroke:"currentColor" ~stroke_width:"2" ~stroke_linecap:"round" ~children:[] ();
+            Html.Svg.line ~x1:"18" ~y1:"18" ~x2:"20" ~y2:"20" ~stroke:"currentColor" ~stroke_width:"2" ~stroke_linecap:"round" ~children:[] ();
+            Html.Svg.line ~x1:"4" ~y1:"20" ~x2:"6" ~y2:"18" ~stroke:"currentColor" ~stroke_width:"2" ~stroke_linecap:"round" ~children:[] ();
+            Html.Svg.line ~x1:"18" ~y1:"6" ~x2:"20" ~y2:"4" ~stroke:"currentColor" ~stroke_width:"2" ~stroke_linecap:"round" ~children:[] ();
+          ] ()
+      | Dark ->
+          Html.Svg.svg ~viewBox:"0 0 24 24" ~class_:"theme-icon-svg" ~children:[
+            Html.Svg.path
+              ~d:"M21 15.5A9.5 9.5 0 1 1 8.5 3 7 7 0 0 0 21 15.5Z"
+              ~fill:"currentColor"
+              ~children:[]
+              ()
+          ] ()
+      | Auto ->
+          Html.Svg.svg ~viewBox:"0 0 24 24" ~class_:"theme-icon-svg" ~children:[
+            Html.Svg.rect
+              ~x:"3"
+              ~y:"4"
+              ~width:"18"
+              ~height:"12"
+              ~rx:"2"
+              ~ry:"2"
+              ~fill:"none"
+              ~stroke:"currentColor"
+              ~stroke_width:"2"
+              ~children:[]
+              ();
+            Html.Svg.line
+              ~x1:"8"
+              ~y1:"20"
+              ~x2:"16"
+              ~y2:"20"
+              ~stroke:"currentColor"
+              ~stroke_width:"2"
+              ~stroke_linecap:"round"
+              ~children:[]
+              ();
+            Html.Svg.line
+              ~x1:"12"
+              ~y1:"16"
+              ~x2:"12"
+              ~y2:"20"
+              ~stroke:"currentColor"
+              ~stroke_width:"2"
+              ~stroke_linecap:"round"
+              ~children:[]
+              ()
+          ] ()
+    in
+    <span class_=(fun () -> "theme-icon " ^ icon_class)>(Tpl.nodes (fun () -> svg))</span>
 
   (** {1 Theme Card Component - Uses reactive selection state} *)
 
   let theme_card ~theme_signal ~card_theme ~on_select () =
     let base_class = "theme-card theme-card-" ^ theme_to_string card_theme in
-    let is_selected = Signal.get theme_signal = card_theme in
-    let selected_class = if is_selected then base_class ^ " selected" else base_class in
-    <div class_=selected_class onclick=(fun _ -> on_select ())>
+    <div class_=(Tpl.attr ~name:"class" (fun () ->
+      if Signal.get theme_signal = card_theme then base_class ^ " selected" else base_class
+    )) onclick=(fun _ -> on_select ())>
       <div class_="theme-preview">
-        (theme_icon ~theme:card_theme ())
+        (Tpl.nodes (fun () -> theme_icon ~theme:card_theme ()))
         <span class_="theme-label">(Tpl.text_once (fun () -> theme_to_string card_theme))</span>
       </div>
-      (* Checkmark - shown based on initial state, will update after hydration *)
-      (if is_selected then
-         <div class_="theme-check">
-           <span>(text "OK")</span>
-         </div>
-       else
-         <div></div>
+      (Tpl.show_when
+         ~when_:(fun () -> Signal.get theme_signal = card_theme)
+         (fun () ->
+           <div class_="theme-check">
+             <span>(text "OK")</span>
+           </div>
+         )
       )
     </div>
 
@@ -194,9 +252,9 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     let theme, set_theme = Signal.create Light in
 
     (* Apply theme class to container - shows initial theme state *)
-    let container_class = "theme-container " ^ get_theme_class (Signal.get theme) in
-
-    <div class_=container_class>
+    <div class_=(Tpl.attr ~name:"class" (fun () ->
+      "theme-container " ^ get_theme_class (Signal.get theme)
+    ))>
       <h1>(text "Theme Switcher")</h1>
       <p class_="intro">
         (text "Demonstrates reactive state management, localStorage persistence, and dynamic CSS classes for theme switching.")
@@ -205,11 +263,13 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       (* Current theme display - reactive with Tpl.text *)
       <div class_="current-theme-display">
         <span class_="theme-label-text">(text "Current Theme: ")</span>
-        (* Theme icon - shows current theme state initially *)
-        (let current = Signal.get theme in
-         if current = Light then theme_icon ~theme:Light ()
-         else if current = Dark then theme_icon ~theme:Dark ()
-         else theme_icon ~theme:Auto ()
+        (Tpl.switch
+           ~match_:(fun () -> Signal.get theme)
+           ~cases:[|
+             ((fun t -> t = Light), (fun () -> theme_icon ~theme:Light ()));
+             ((fun t -> t = Dark), (fun () -> theme_icon ~theme:Dark ()));
+             ((fun t -> t = Auto), (fun () -> theme_icon ~theme:Auto ()))
+           |]
         )
         <span class_="theme-name">
           (Tpl.text (fun () -> theme_to_string (Signal.get theme)))
@@ -221,13 +281,13 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         <h2>(text "Select Theme")</h2>
         <div class_="theme-cards">
           <div class_="theme-card-wrapper">
-            (theme_card ~theme_signal:theme ~card_theme:Light ~on_select:(fun () -> set_theme Light) ())
+            (Tpl.nodes (fun () -> theme_card ~theme_signal:theme ~card_theme:Light ~on_select:(fun () -> set_theme Light) ()))
           </div>
           <div class_="theme-card-wrapper">
-            (theme_card ~theme_signal:theme ~card_theme:Dark ~on_select:(fun () -> set_theme Dark) ())
+            (Tpl.nodes (fun () -> theme_card ~theme_signal:theme ~card_theme:Dark ~on_select:(fun () -> set_theme Dark) ()))
           </div>
           <div class_="theme-card-wrapper">
-            (theme_card ~theme_signal:theme ~card_theme:Auto ~on_select:(fun () -> set_theme Auto) ())
+            (Tpl.nodes (fun () -> theme_card ~theme_signal:theme ~card_theme:Auto ~on_select:(fun () -> set_theme Auto) ()))
           </div>
         </div>
       </div>
@@ -236,14 +296,14 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
       (* Theme info and palette - reactive to theme changes *)
       <div class_="theme-details">
-        (theme_info ~theme_signal:theme ())
-        (color_palette ())
+        (Tpl.nodes (fun () -> theme_info ~theme_signal:theme ()))
+        (Tpl.nodes (fun () -> color_palette ()))
       </div>
 
       <div class_="section-divider"></div>
 
       (* LocalStorage info - shows current stored value reactively *)
-      (localStorage_info ~theme_signal:theme ~set_theme ())
+      (Tpl.nodes (fun () -> localStorage_info ~theme_signal:theme ~set_theme ()))
 
       (* Instructions *)
       <div class_="instructions">

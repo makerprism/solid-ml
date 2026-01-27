@@ -1339,6 +1339,42 @@ let test_template_bind_input () =
   assert_eq ~name:"tpl.bind_input update" (Signal.get value) "next";
   dispose ()
 
+let test_template_bind_input_updates_text () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+  let value, set_value = Solid_ml_browser.Env.Signal.create "" in
+  let show, _set_show = Solid_ml_browser.Env.Signal.create true in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      Html.append_to_element root
+        (Solid_ml_browser.Env.Html.div
+           ~children:[
+             Solid_ml_template_runtime.Tpl.show_when
+               ~when_:(fun () -> Signal.get show)
+               (fun () ->
+                 Solid_ml_browser.Env.Html.input
+                   ~value:
+                     (Solid_ml_template_runtime.Tpl.bind_input
+                        ~signal:(fun () -> Signal.get value)
+                        ~setter:set_value)
+                   ());
+             Solid_ml_template_runtime.Tpl.text (fun () -> Signal.get value)
+           ]
+           ())
+    )
+  in
+
+  let children = get_child_nodes root in
+  let container = element_of_node children.(0) in
+  let container_children = get_child_nodes container in
+  let input_el = element_of_node container_children.(0) in
+  element_set_value input_el "typed";
+  dispatch_input input_el;
+  assert_eq ~name:"tpl.bind_input text update" (get_text_content root) "typed";
+  dispose ()
+
 let test_template_auto_bool_attr () =
   let root = create_element (document ()) "div" in
   let body : element = [%mel.raw "document.body"] in
@@ -1401,6 +1437,7 @@ let () =
     test_template_reactive_text ();
     test_template_show_when ();
     test_template_bind_input ();
+    test_template_bind_input_updates_text ();
     test_template_auto_bool_attr ();
     set_result "PASS" "PASS"
   with exn ->
