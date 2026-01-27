@@ -53,7 +53,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
           | [] -> List.rev acc
           | h :: t ->
               if idx = index then
-                List.rev (acc @ [new_text] @ t)
+                List.rev_append acc (new_text :: t)
               else
                 loop (idx + 1) (h :: acc) t
         in

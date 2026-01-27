@@ -325,6 +325,50 @@ let test_hydrate_nodes_fragment_order () =
   assert_eq ~name:"hydrate nodes fragment order" (get_text_content root) "Home / Counter";
   dispose ()
 
+let test_hydrate_nodes_fragment_between_regions () =
+  let template =
+    T.compile
+      ~segments:[| "<nav><!--$-->"; "<!--$--><!--$-->"; "<!--$--></nav>" |]
+      ~slot_kinds:[| `Nodes; `Nodes |]
+  in
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  set_inner_html root
+    "<nav><!--$-->Home<span>/</span>Counter<!--$--><!--$-->Filters<span>/</span>Inline Edit<!--$--></nav>";
+
+  let slot_left = ref None in
+  let slot_right = ref None in
+  let dispose =
+    Render.hydrate root (fun () ->
+      let inst = T.instantiate template in
+      slot_left := Some (T.bind_nodes inst ~id:0 ~path:[| 1 |]);
+      slot_right := Some (T.bind_nodes inst ~id:1 ~path:[| 2 |]);
+      H.empty)
+  in
+
+  (match !slot_left with
+   | None -> fail "hydrate nodes left: did not bind"
+   | Some slot ->
+     T.set_nodes slot
+       (H.fragment
+          [ H.text "Home";
+            H.span ~children:[ H.text " / " ] ();
+            H.text "Counter" ]));
+  (match !slot_right with
+   | None -> fail "hydrate nodes right: did not bind"
+   | Some slot ->
+     T.set_nodes slot
+       (H.fragment
+          [ H.text "Filters";
+            H.span ~children:[ H.text " / " ] ();
+            H.text "Inline Edit" ]));
+
+  assert_eq ~name:"hydrate nodes fragment between regions"
+    (get_text_content root) "Home / CounterFilters / Inline Edit";
+  dispose ()
+
 let test_hydrate_normalizes_nodes_regions () =
   (* SSR may render content inside a node slot region. For path-stable hydration we
      clear it so elements after the region are still addressable by CSR paths. *)
@@ -1329,6 +1373,7 @@ let () =
     test_hydrate_adjacent_nodes_slots ();
     test_hydrate_adjacent_show_when ();
     test_hydrate_nodes_fragment_order ();
+    test_hydrate_nodes_fragment_between_regions ();
     test_hydrate_text_slot ();
     test_hydrate_reactive_text_marker_adoption ();
     test_hydrate_normalizes_nodes_regions ();
