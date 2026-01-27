@@ -120,9 +120,20 @@
     .todo-item {
       display: flex;
       align-items: center;
-      padding: 12px;
+      padding: 0;
       border-bottom: 1px solid #eee;
       gap: 12px;
+    }
+    .todo-label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      width: 100%;
+      cursor: pointer;
+    }
+    .todo-label input {
+      cursor: pointer;
     }
     
     .todo-item.completed span {

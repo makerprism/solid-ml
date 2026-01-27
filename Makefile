@@ -57,7 +57,7 @@ serve:
 	@python3 -m http.server 8000 -d examples || stty sane
 
 # Build all browser examples
-browser-examples: example-browser example-browser-router example-full-ssr-client
+browser-examples: example-browser example-browser-router example-browser-cleanup example-full-ssr-client
 	@echo ""
 	@echo "All browser examples built! Run 'make serve' to view them."
 
@@ -84,6 +84,18 @@ example-browser-router:
 		npx esbuild router_demo.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/browser_router/dist/router_demo.js --format=esm
 	@echo ""
 	@echo "Build complete! Run 'make serve' then open http://localhost:8000/browser_router/"
+
+# Build cleanup example
+example-browser-cleanup:
+	@echo "Building cleanup example..."
+	@$(DUNE) build @examples/cleanup_example/melange
+	@mkdir -p examples/cleanup_example/dist
+	@rm -f examples/cleanup_example/dist/cleanup.js
+	@echo "Bundling with esbuild..."
+	@cd _build/default/examples/cleanup_example/output/examples/cleanup_example && \
+		npx esbuild cleanup.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/cleanup_example/dist/cleanup.js --format=esm
+	@echo ""
+	@echo "Build complete! Run 'make serve' then open http://localhost:8000/cleanup_example/"
 
 # Build full SSR client example
 example-full-ssr-client:

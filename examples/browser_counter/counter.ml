@@ -124,19 +124,21 @@ let todo_list () =
          let item_class =
            if todo.completed then "todo-item completed" else "todo-item"
          in
-         Html.li ~class_:item_class ~children:[
-           Html.input
-             ~type_:"checkbox"
-             ~checked:todo.completed
-             ~onchange:(fun _ -> toggle_todo todo.id)
-             ();
-           Html.span ~children:[Html.text todo.text] ();
-           Html.button
-             ~class_:"delete"
-             ~onclick:(fun _ -> remove_todo todo.id)
-             ~children:[Html.text "x"]
-             ();
-         ] ())
+          Html.li ~class_:item_class ~children:[
+            Html.label ~class_:"todo-label" ~children:[
+              Html.input
+                ~type_:"checkbox"
+                ~checked:todo.completed
+                ~onchange:(fun _ -> toggle_todo todo.id)
+                ();
+              Html.span ~children:[Html.text todo.text] ();
+            ] ();
+            Html.button
+              ~class_:"delete"
+              ~onclick:(fun _ -> remove_todo todo.id)
+              ~children:[Html.text "x"]
+              ();
+          ] ())
        el
    | None -> ());
 

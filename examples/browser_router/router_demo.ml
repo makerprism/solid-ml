@@ -231,10 +231,10 @@ let app () =
 let () =
   match Dom.get_element_by_id (Dom.document ()) "app" with
   | Some root ->
-    (* Set base to /examples/browser_router since we're served from that subdirectory *)
+    (* Set base to /browser_router since we're served from that subdirectory *)
     let config = Router.{ 
       routes = config_routes; 
-      base = "/examples/browser_router";
+      base = "/browser_router";
       scroll_restoration = true 
     } in
     let (_result, _dispose) = Router.init ~config (fun () ->
