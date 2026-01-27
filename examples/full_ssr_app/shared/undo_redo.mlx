@@ -99,6 +99,55 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
           future = rest;
         }
 
+  let json_escape s =
+    let buf = Buffer.create (String.length s + 8) in
+    String.iter (function
+      | '"' -> Buffer.add_string buf "\\\""
+      | '\\' -> Buffer.add_string buf "\\\\"
+      | '\n' -> Buffer.add_string buf "\\n"
+      | '\r' -> Buffer.add_string buf "\\r"
+      | '\t' -> Buffer.add_string buf "\\t"
+      | c -> Buffer.add_char buf c
+    ) s;
+    Buffer.contents buf
+
+  let command_to_json cmd =
+    match cmd with
+    | AddText text ->
+        "{\"type\":\"AddText\",\"text\":\"" ^ json_escape text ^ "\"}"
+    | RemoveLast text ->
+        "{\"type\":\"RemoveLast\",\"text\":\"" ^ json_escape text ^ "\"}"
+    | Replace { index; old_text; new_text } ->
+        "{\"type\":\"Replace\",\"index\":" ^ string_of_int index
+        ^ ",\"old_text\":\"" ^ json_escape old_text ^ "\""
+        ^ ",\"new_text\":\"" ^ json_escape new_text ^ "\"}"
+    | Clear texts ->
+        let items =
+          texts
+          |> List.map (fun t -> "\"" ^ json_escape t ^ "\"")
+          |> String.concat ","
+        in
+        "{\"type\":\"Clear\",\"texts\":[" ^ items ^ "]}"
+
+  let history_json history =
+    let past =
+      history.past
+      |> List.map command_to_json
+      |> String.concat "," in
+    let present =
+      history.present
+      |> List.map (fun t -> "\"" ^ json_escape t ^ "\"")
+      |> String.concat "," in
+    let future =
+      history.future
+      |> List.map command_to_json
+      |> String.concat "," in
+    "{\n" ^
+    "  \"past\": [" ^ past ^ "],\n" ^
+    "  \"present\": [" ^ present ^ "],\n" ^
+    "  \"future\": [" ^ future ^ "]\n" ^
+    "}"
+
   (** {1 Components} *)
 
   let view () : Html.node =
@@ -160,6 +209,11 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
             "Redo: " ^ string_of_int future
           ))
         </span>
+      </div>
+
+      <div class_="history-json">
+        <h3>(Html.text "History Stack (JSON)")</h3>
+        <pre class_="state-json">(Tpl.text (fun () -> history_json (Signal.get history)))</pre>
       </div>
 
       (* Current text list *)
