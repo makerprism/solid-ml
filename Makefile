@@ -98,34 +98,32 @@ example-full-ssr-client:
 # Build full SSR server example
 example-full-ssr-server:
 	@echo "Building full SSR server..."
-	@$(DUNE) build examples/full_ssr_app/server.exe
+	@$(DUNE) build examples/full_ssr_app/server/server.exe
 	@echo ""
-	@echo "Server built: examples/full_ssr_app/server.exe"
+	@echo "Server built: examples/full_ssr_app/server/server.exe"
 
 # ==============================================================================
 # Full SSR (requires: dream + cohttp-lwt-unix, or Docker)
 # ==============================================================================
 
 # Build full SSR example
-example-full-ssr:
-	@echo "Building full SSR example..."
-	@$(MAKE) example-full-ssr-client
-	@$(MAKE) example-full-ssr-server
+example-full-ssr: example-full-ssr-client example-full-ssr-server
 	@echo ""
-	@echo "Build complete! Run 'make run-full-ssr-server' to start the server."
+	@echo "Full SSR build complete."
+	@echo "Run 'make run-full-ssr-server' to start the server."
 	@echo "Visit http://localhost:8080"
 	@echo ""
 
 # Run full SSR server
 PORT ?= 8080
 
-run-full-ssr-server:
+run-full-ssr-server: example-full-ssr
 	@echo ""
 	@echo "=== Starting Full SSR Server ==="
 	@echo "Visit http://localhost:8080"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	@PORT=$(PORT) $(DUNE) exec examples/full_ssr_app/server.exe
+	@PORT=$(PORT) $(DUNE) exec examples/full_ssr_app/server/server.exe
 
 # ==============================================================================
 # Browser Tests

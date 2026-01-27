@@ -89,6 +89,18 @@ module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       (Tpl.text (fun () -> Signal.get last))
       (text "!")
     </p>
+
+  let render_adjacent_nodes () =
+    <div>
+      (Tpl.nodes (fun () -> Html.text "A"))
+      (Tpl.nodes (fun () -> Html.text "B"))
+    </div>
+
+  let render_adjacent_nodes_fragment () =
+    <div>
+      (Tpl.nodes (fun () -> Html.fragment [ Html.text "A"; Html.text "B" ]))
+      (Tpl.nodes (fun () -> Html.text "C"))
+    </div>
 end
 
 let () =
@@ -186,5 +198,19 @@ let () =
       C.render_p_two_slots ~first ~last ())
   in
   assert (html_p_two = "<p>Hello <!--#-->Ada<!--#-->, <!--#-->Lovelace<!--#-->!</p>");
+
+  let html_adjacent_nodes =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_adjacent_nodes ())
+  in
+  assert (html_adjacent_nodes = "<div><!--$-->A<!--$--><!--$-->B<!--$--></div>");
+
+  let html_adjacent_nodes_fragment =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_adjacent_nodes_fragment ())
+  in
+  assert (html_adjacent_nodes_fragment = "<div><!--$-->AB<!--$--><!--$-->C<!--$--></div>");
 
   print_endline "  PASSED"

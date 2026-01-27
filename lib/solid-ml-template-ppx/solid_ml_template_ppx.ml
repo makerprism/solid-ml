@@ -36,10 +36,6 @@ let known_tpl_markers =
 
 let is_known_marker fn = List.exists (String.equal fn) known_tpl_markers
 
-module Compiler_warnings = Ocaml_common.Warnings
-module Compiler_location = Ocaml_common.Location
-
-let warning_hook : (Location.t -> string -> bool) option ref = ref None
 
 let longident_to_list (longident : Longident.t) : string list =
   let rec go acc = function
@@ -3142,53 +3138,6 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                   | Some children_list -> children_list
                   | None -> [ children_expr ]
                 in
-
-                let is_conditional_child child =
-                  Option.is_some (extract_tpl_show ~aliases child)
-                  || Option.is_some (extract_tpl_if_ ~aliases child)
-                  || Option.is_some (extract_tpl_switch ~aliases child)
-                in
-
-                let warn_sibling_conditionals loc =
-                  let msg =
-                    "solid-ml-template-ppx: sibling conditional blocks (Tpl.show/show_when/if_/switch) can cause DOM nesting bugs.\n\
-                     Wrap them in a single Tpl.nodes with an if/else to render one branch."
-                  in
-                  let handled =
-                    match !warning_hook with
-                    | Some hook -> hook loc msg
-                    | None -> false
-                  in
-                  let warning = Compiler_warnings.Preprocessor msg in
-                  if Compiler_warnings.is_active warning then
-                    if Compiler_warnings.is_error warning then
-                      Location.raise_errorf ~loc
-                        "%s" msg
-                    else if not handled then
-                      Compiler_location.prerr_warning loc warning
-                in
-
-                let rec check_sibling_conditionals prev_was_conditional = function
-                  | [] -> ()
-                  | child :: rest ->
-                    let is_whitespace =
-                      match extract_static_text_literal ~allow_unqualified_text ~shadowed_text child with
-                      | Some lit when allow_whitespace_normalization && is_formatting_whitespace lit -> true
-                      | _ -> false
-                    in
-                    if is_conditional_child child then
-                      if prev_was_conditional then (
-                        warn_sibling_conditionals child.pexp_loc;
-                        check_sibling_conditionals true rest
-                      ) else
-                        check_sibling_conditionals true rest
-                    else if is_whitespace then
-                      check_sibling_conditionals prev_was_conditional rest
-                    else
-                      check_sibling_conditionals false rest
-                in
-
-                check_sibling_conditionals false children_list;
 
                 if List.for_all add_child children_list then (
                   let children = List.rev !parts_rev in

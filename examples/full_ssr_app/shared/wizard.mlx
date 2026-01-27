@@ -1,395 +1,219 @@
 (**
-    Multi-Step Wizard Form
+    Three-Step Wizard Demo
 
-    This component demonstrates:
-    - Multi-step form with progress tracking
-    - Conditional rendering based on state using Tpl.show_when
-    - Step navigation (next/back) with reactive signals
-    - Form state management with reactive signals
-    - Two-way input binding using Tpl.bind_input/bind_checkbox/bind_select
-    - Client-side hydration for full interactivity
-    - Validation on form fields
+    - Step 1: Intro card layout
+    - Step 2: Basic details form
+    - Step 3: Review + submit
 
-    FULLY FUNCTIONAL - Uses Tpl.bind_input runtime support (issue #15 resolved)
+    The JSON state is rendered below to show data as it is collected.
 *)
 
 module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Env
-  open Env.Html
   module Tpl = Env.Tpl
   module Routes = Routes
 
-  (** {1 Form Types} *)
+  type step =
+    | Intro
+    | Details
+    | Review
 
-  type wizard_step =
-    | Welcome
-    | PersonalInfo
-    | Preferences
-    | Confirm
-    | Complete
-
-  (** {1 Step Navigation Helpers} *)
-
-  let step_index = function
-    | Welcome -> 0
-    | PersonalInfo -> 1
-    | Preferences -> 2
-    | Confirm -> 3
-    | Complete -> 4
+  let step_label = function
+    | Intro -> "Intro"
+    | Details -> "Details"
+    | Review -> "Review"
 
   let next_step = function
-    | Welcome -> PersonalInfo
-    | PersonalInfo -> Preferences
-    | Preferences -> Confirm
-    | Confirm -> Complete
-    | Complete -> Complete
+    | Intro -> Details
+    | Details -> Review
+    | Review -> Review
 
   let prev_step = function
-    | Welcome -> Welcome
-    | PersonalInfo -> Welcome
-    | Preferences -> PersonalInfo
-    | Confirm -> Preferences
-    | Complete -> Complete
+    | Intro -> Intro
+    | Details -> Intro
+    | Review -> Details
 
-  (** {1 Validation} *)
-
-  let validate_personal ~name ~email ~age =
-    let errors = ref [] in
-    if String.length name = 0 then
-      errors := ("name", "Name is required") :: !errors;
-    if String.length email = 0 then
-      errors := ("email", "Email is required") :: !errors
-    else if not (try
-        (* Simple email validation: must contain @ with at least one char before and after *)
-        let at_index = String.index email '@' in
-        at_index > 0 && at_index < String.length email - 1
-      with Not_found -> false) then
-      errors := ("email", "Please enter a valid email") :: !errors;
-    if String.length age = 0 then
-      errors := ("age", "Age is required") :: !errors
-    else if not (try
-        let age_int = int_of_string age in
-        age_int >= 13 && age_int <= 120
-      with _ -> false) then
-      errors := ("age", "Please enter a valid age (13-120)") :: !errors;
-    List.rev !errors
-
-  (** {1 Main View} *)
+  let json_escape s =
+    let buf = Buffer.create (String.length s + 8) in
+    String.iter (function
+      | '"' -> Buffer.add_string buf "\\\""
+      | '\\' -> Buffer.add_string buf "\\\\"
+      | '\n' -> Buffer.add_string buf "\\n"
+      | '\r' -> Buffer.add_string buf "\\r"
+      | '\t' -> Buffer.add_string buf "\\t"
+      | c -> Buffer.add_char buf c
+    ) s;
+    Buffer.contents buf
 
   let view () : Html.node =
-    (* Create reactive signals for step navigation *)
-    let current_step, set_step = Signal.create Welcome in
-
-    (* Create reactive signals for form fields *)
+    let current_step, set_step = Signal.create Intro in
     let name, set_name = Signal.create "" in
     let email, set_email = Signal.create "" in
-    let age, set_age = Signal.create "" in
-    let theme, set_theme = Signal.create "light" in
-    let newsletter, set_newsletter = Signal.create false in
+    let plan, set_plan = Signal.create "starter" in
+    let updates, set_updates = Signal.create true in
 
-    (* Validation error signal *)
-    let validation_errors, set_validation_errors = Signal.create [] in
-
-    (* Progress bar component *)
-    let progress_bar ~step () =
-      let current_idx = step_index step in
-      let progress_bar_step ~idx ~label ~num () =
-        let current_class =
-          "progress-step" ^
-          (if idx = current_idx then " current" else "") ^
-          (if idx < current_idx then " completed" else "")
-        in
-        <div class_=(fun () -> current_class)>
-          <div class_="progress-circle">
-            (Tpl.nodes (fun () ->
-              if idx < current_idx then
-                <span>(text "✓")</span>
-              else
-                <span>(Tpl.text_once (fun () -> num))</span>
-            ))
-          </div>
-           <span class_="progress-label">(Tpl.text_once (fun () -> label))</span>
-        </div>
-      in
-      <div class_="progress-bar">
-        <div class_="progress-line">
-          <div class_=(fun () -> "progress-fill progress-step-" ^ string_of_int current_idx)>
-          </div>
-        </div>
-        (Tpl.nodes (fun () -> progress_bar_step ~idx:0 ~label:"Welcome" ~num:"1" ()))
-        (Tpl.nodes (fun () -> progress_bar_step ~idx:1 ~label:"Personal" ~num:"2" ()))
-        (Tpl.nodes (fun () -> progress_bar_step ~idx:2 ~label:"Preferences" ~num:"3" ()))
-        (Tpl.nodes (fun () -> progress_bar_step ~idx:3 ~label:"Confirm" ~num:"4" ()))
-        (Tpl.nodes (fun () -> progress_bar_step ~idx:4 ~label:"Done" ~num:"5" ()))
-      </div>
+    let state_json () =
+      let step = step_label (Signal.get current_step) in
+      let name = json_escape (Signal.get name) in
+      let email = json_escape (Signal.get email) in
+      let plan = json_escape (Signal.get plan) in
+      let updates = if Signal.get updates then "true" else "false" in
+      "{\n" ^
+      "  \"step\": \"" ^ step ^ "\",\n" ^
+      "  \"name\": \"" ^ name ^ "\",\n" ^
+      "  \"email\": \"" ^ email ^ "\",\n" ^
+      "  \"plan\": \"" ^ plan ^ "\",\n" ^
+      "  \"updates\": " ^ updates ^ "\n" ^
+      "}"
     in
 
-    (* Step components *)
-    let welcome_step () =
-      <div class_="wizard-step">
-        <h2>(text "Welcome to the Wizard")</h2>
-        <p class_="step-intro">
-          (text "This wizard will guide you through setting up your profile in a few simple steps.")
-        </p>
-        <div class_="step-content">
-          <div class_="info-card">
-            <h3>(text "What to expect:")</h3>
-            <ul>
-              <li>(text "Step 1: Enter your personal information")</li>
-              <li>(text "Step 2: Choose your preferences")</li>
-              <li>(text "Step 3: Review and confirm")</li>
-              <li>(text "Step 4: Complete setup")</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    in
-
-    let personal_info_step () =
-      <div class_="wizard-step">
-        <h2>(text "Personal Information")</h2>
-        <p class_="step-intro">
-          (text "Please tell us a bit about yourself.")
-        </p>
-        <div class_="step-content">
-          <div class_="form-group">
-            <label for_="wizard-name">(text "Name *")</label>
-            <input
-              id="wizard-name"
-              class_="form-control"
-              value=(Tpl.bind_input
-                ~signal:(fun () -> Signal.get name)
-                ~setter:set_name)
-              placeholder="Enter your name"
-            />
-          </div>
-          <div class_="form-group">
-            <label for_="wizard-email">(text "Email *")</label>
-            <input
-              id="wizard-email"
-              type_="email"
-              class_="form-control"
-              value=(Tpl.bind_input
-                ~signal:(fun () -> Signal.get email)
-                ~setter:set_email)
-              placeholder="your@email.com"
-            />
-          </div>
-          <div class_="form-group">
-            <label for_="wizard-age">(text "Age *")</label>
-            <input
-              id="wizard-age"
-              type_="number"
-              class_="form-control"
-              value=(Tpl.bind_input
-                ~signal:(fun () -> Signal.get age)
-                ~setter:set_age)
-              placeholder="13-120"
-            />
-          </div>
-          <p class_="form-hint">(text "* Required fields")</p>
-
-          (* Validation errors display *)
-          (Tpl.show_when
-             ~when_:(fun () -> not (List.is_empty (Signal.get validation_errors)))
-             (fun () ->
-               <div class_="validation-errors">
-                 <h3>(text "Please fix the following errors:")</h3>
-                 <ul>
-                   (Tpl.each_keyed
-                      ~items:(fun () -> Signal.get validation_errors)
-                      ~key:(fun (field, _) -> field)
-                      ~render:(fun (field, error_msg) ->
-                        <li>
-                           (Tpl.text_once (fun () -> field ^ ": " ^ error_msg))
-                        </li>
-                      )
-                   )
-                 </ul>
-               </div>
-             )
-          )
-        </div>
-      </div>
-    in
-
-    let preferences_step () =
-      <div class_="wizard-step">
-        <h2>(text "Preferences")</h2>
-        <p class_="step-intro">
-          (text "Customize your experience.")
-        </p>
-        <div class_="step-content">
-          <div class_="form-group">
-            <label>(text "Theme")</label>
-            <select id="wizard-theme" class_="form-control"
-              value=(Tpl.bind_select
-                ~signal:(fun () -> Signal.get theme)
-                ~setter:set_theme)
-            >
-              <option value="light">(text "Light")</option>
-              <option value="dark">(text "Dark")</option>
-              <option value="auto">(text "Auto")</option>
-            </select>
-          </div>
-          <div class_="form-group checkbox-group">
-            <label class_="checkbox-label">
-              <input
-                type_="checkbox"
-                id="wizard-newsletter"
-                checked=(Tpl.bind_checkbox
-                  ~signal:(fun () -> Signal.get newsletter)
-                  ~setter:set_newsletter)
-              />
-              <span>(text "Subscribe to newsletter")</span>
-            </label>
-          </div>
-        </div>
-      </div>
-    in
-
-    let confirm_step () =
-      <div class_="wizard-step">
-        <h2>(text "Confirm Your Information")</h2>
-        <p class_="step-intro">
-          (text "Please review your information before submitting.")
-        </p>
-        <div class_="step-content">
-          <div class_="confirm-section">
-            <h3>(text "Personal Information")</h3>
-            <div class_="confirm-item">
-              <span class_="label">(text "Name:")</span>
-              <span class_="value">(Tpl.text (fun () -> Signal.get name))</span>
-            </div>
-            <div class_="confirm-item">
-              <span class_="label">(text "Email:")</span>
-              <span class_="value">(Tpl.text (fun () -> Signal.get email))</span>
-            </div>
-            <div class_="confirm-item">
-              <span class_="label">(text "Age:")</span>
-              <span class_="value">(Tpl.text (fun () -> Signal.get age))</span>
-            </div>
-          </div>
-          <div class_="confirm-section">
-            <h3>(text "Preferences")</h3>
-            <div class_="confirm-item">
-              <span class_="label">(text "Theme:")</span>
-              <span class_="value">(Tpl.text (fun () -> Signal.get theme))</span>
-            </div>
-            <div class_="confirm-item">
-              <span class_="label">(text "Newsletter:")</span>
-              <span class_="value">
-                (Tpl.text (fun () -> if Signal.get newsletter then "Yes" else "No"))
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    in
-
-    let complete_step () =
-      <div class_="wizard-step">
-        <div class_="success-message">
-          <div class_="success-icon">(text "✓")</div>
-          <h2>(text "Setup Complete!")</h2>
-          <p class_="step-intro">
-            (text "Your profile has been successfully created.")
-          </p>
-          <div class_="step-content">
-            <p>(text "Thank you for completing the wizard. You can now proceed to the application.")</p>
-          </div>
-        </div>
-      </div>
-    in
-
-    <div class_="wizard-container">
-      <h1>(text "Multi-Step Wizard")</h1>
+    <Html.div class_="wizard-container">
+      <Html.h1>(Html.text "Simple Wizard")</Html.h1>
       <p class_="intro">
-        (text "Demonstrates multi-step forms, conditional rendering, and validation.")
+        (Html.text "Three steps with varied UI. Data is shown as JSON below.")
       </p>
 
-      (* Progress bar - reactive to current step *)
-      (Tpl.show_when
-         ~when_:(fun () -> true)
-         (fun () -> progress_bar ~step:(Signal.get current_step) ()))
-
-      (* Current step content - using Tpl.show_when for conditional rendering *)
       <div class_="wizard-content">
-        (Tpl.show_when
-           ~when_:(fun () -> Signal.get current_step = Welcome)
-           (fun () -> welcome_step ()))
-
-        (Tpl.show_when
-           ~when_:(fun () -> Signal.get current_step = PersonalInfo)
-           (fun () -> personal_info_step ()))
-
-        (Tpl.show_when
-           ~when_:(fun () -> Signal.get current_step = Preferences)
-           (fun () -> preferences_step ()))
-
-        (Tpl.show_when
-           ~when_:(fun () -> Signal.get current_step = Confirm)
-           (fun () -> confirm_step ()))
-
-        (Tpl.show_when
-           ~when_:(fun () -> Signal.get current_step = Complete)
-           (fun () -> complete_step ()))
+        (Tpl.nodes (fun () ->
+          match Signal.get current_step with
+          | Intro ->
+                <div class_="wizard-step">
+                <Html.h2>(Html.text "Welcome")</Html.h2>
+                <p class_="step-intro">
+                  (Html.text "Pick a plan and confirm your details in the next steps.")
+                </p>
+                <div class_="step-content">
+                  <div class_="info-card">
+                    <Html.h3>(Html.text "What you will do")</Html.h3>
+                    <Html.ul>
+                      <Html.li>(Html.text "Add your name and email")</Html.li>
+                      <Html.li>(Html.text "Choose a plan")</Html.li>
+                      <Html.li>(Html.text "Review and finish")</Html.li>
+                    </Html.ul>
+                  </div>
+                </div>
+              </div>
+          | Details ->
+              <div class_="wizard-step">
+                <Html.h2>(Html.text "Your Details")</Html.h2>
+                <p class_="step-intro">
+                  (Html.text "We only use this to personalize the demo.")
+                </p>
+                <div class_="step-content">
+                  <div class_="form-group">
+                    <Html.label for_="wizard-name">(Html.text "Name")</Html.label>
+                    <input
+                      id="wizard-name"
+                      class_="form-control"
+                      value=(Tpl.bind_input
+                        ~signal:(fun () -> Signal.get name)
+                        ~setter:set_name)
+                      placeholder="Ada Lovelace"
+                    />
+                  </div>
+                  <div class_="form-group">
+                    <Html.label for_="wizard-email">(Html.text "Email")</Html.label>
+                    <input
+                      id="wizard-email"
+                      type_="email"
+                      class_="form-control"
+                      value=(Tpl.bind_input
+                        ~signal:(fun () -> Signal.get email)
+                        ~setter:set_email)
+                      placeholder="ada@example.com"
+                    />
+                  </div>
+                  <div class_="form-group">
+                    <Html.label for_="wizard-plan">(Html.text "Plan")</Html.label>
+                    <select id="wizard-plan" class_="form-control"
+                      value=(Tpl.bind_select
+                        ~signal:(fun () -> Signal.get plan)
+                        ~setter:set_plan)
+                    >
+                      <Html.option value="starter">(Html.text "Starter")</Html.option>
+                      <Html.option value="team">(Html.text "Team")</Html.option>
+                      <Html.option value="enterprise">(Html.text "Enterprise")</Html.option>
+                    </select>
+                  </div>
+                  <div class_="form-group checkbox-group">
+                    <Html.label class_="checkbox-label">
+                      <input
+                        type_="checkbox"
+                        checked=(Tpl.bind_checkbox
+                          ~signal:(fun () -> Signal.get updates)
+                          ~setter:set_updates)
+                      />
+                      <Html.span>(Html.text "Send product updates")</Html.span>
+                    </Html.label>
+                  </div>
+                </div>
+              </div>
+          | Review ->
+              <div class_="wizard-step">
+                <Html.h2>(Html.text "Review")</Html.h2>
+                <p class_="step-intro">
+                  (Html.text "Confirm your choices before finishing.")
+                </p>
+                <div class_="step-content">
+                  <div class_="confirm-section">
+                    <Html.h3>(Html.text "Summary")</Html.h3>
+                    <div class_="confirm-item">
+                      <Html.span class_="label">(Html.text "Name:")</Html.span>
+                      <span class_="value">(Tpl.text (fun () -> Signal.get name))</span>
+                    </div>
+                    <div class_="confirm-item">
+                      <Html.span class_="label">(Html.text "Email:")</Html.span>
+                      <span class_="value">(Tpl.text (fun () -> Signal.get email))</span>
+                    </div>
+                    <div class_="confirm-item">
+                      <Html.span class_="label">(Html.text "Plan:")</Html.span>
+                      <span class_="value">(Tpl.text (fun () -> Signal.get plan))</span>
+                    </div>
+                    <div class_="confirm-item">
+                      <Html.span class_="label">(Html.text "Updates:")</Html.span>
+                      <span class_="value">(Tpl.text (fun () -> if Signal.get updates then "Yes" else "No"))</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+        ))
       </div>
 
-      (* Navigation buttons - fully functional *)
       <div class_="wizard-nav">
-        (Tpl.show_when
-           ~when_:(fun () -> Signal.get current_step <> Welcome)
-           (fun () ->
-             <button class_="btn btn-secondary" onclick=(fun _ ->
-               set_step (prev_step (Signal.get current_step))
-             )>
-               (text "Back")
-             </button>
-           ))
-        (Tpl.show_when
-           ~when_:(fun () -> Signal.get current_step <> Complete)
-           (fun () ->
-             let next_label =
-               match Signal.get current_step with
-               | Confirm -> "Submit"
-               | _ -> "Next"
-             in
-             <button class_="btn btn-primary" onclick=(fun _ ->
-               (* On PersonalInfo step, validate before proceeding *)
-               match Signal.get current_step with
-               | PersonalInfo ->
-                   let errors = validate_personal
-                     ~name:(Signal.get name)
-                     ~email:(Signal.get email)
-                     ~age:(Signal.get age) in
-                   if errors = [] then (
-                     set_validation_errors [];
-                     set_step (next_step (Signal.get current_step))
-                   ) else
-                     set_validation_errors errors
-               | _ ->
-                   set_step (next_step (Signal.get current_step))
-             )>
-            (Tpl.text_once (fun () -> next_label))
-             </button>
-           ))
-        <span class_="nav-spacer"></span>
+        (Tpl.nodes (fun () ->
+          let step = Signal.get current_step in
+          let back_button =
+            if step = Intro then []
+            else [
+              <button class_="btn btn-secondary" onclick=(fun _ ->
+                set_step (prev_step step)
+              )>
+                (Html.text "Back")
+              </button>
+            ]
+          in
+          let next_button =
+            if step = Review then [
+              <button class_="btn btn-primary" onclick=(fun _ ->
+                set_step Intro
+              )>
+                (Html.text "Restart")
+              </button>
+            ] else [
+              <button class_="btn btn-primary" onclick=(fun _ ->
+                set_step (next_step step)
+              )>
+                (Html.text "Next")
+              </button>
+            ]
+          in
+          Html.fragment (back_button @ next_button)
+        ))
       </div>
 
-      (* Instructions *)
-      <div class_="instructions">
-        <h3>(text "Current Status")</h3>
-        <ul>
-          <li>(text "[OK] Step navigation works (Next/Back buttons)")</li>
-          <li>(text "[OK] Progress bar tracks current step")</li>
-          <li>(text "[OK] Form inputs collect data via Tpl.bind_input")</li>
-          <li>(text "[OK] Validation checks form fields")</li>
-          <li>(text "[OK] Confirm step shows collected data")</li>
-        </ul>
-        <p class_="form-hint">
-          (text "This wizard demonstrates two-way input binding using Tpl.bind_input.")
-        </p>
+      <div class_="wizard-state">
+        <Html.h3>(Html.text "Wizard State (JSON)")</Html.h3>
+        <pre class_="state-json">(Tpl.text (fun () -> state_json ()))</pre>
       </div>
-    </div>
+    </Html.div>
 end

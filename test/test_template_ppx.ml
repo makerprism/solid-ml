@@ -13,25 +13,6 @@ let assert_none name = function
   | None -> ()
   | Some _ -> failwith (name ^ ": expected None")
 
-let string_contains_substring ~haystack ~needle =
-  let haystack_len = String.length haystack in
-  let needle_len = String.length needle in
-  if needle_len = 0 then true
-  else if needle_len > haystack_len then false
-  else
-    let rec check_pos pos =
-      if pos > haystack_len - needle_len then false
-      else
-        let rec check_offset offset =
-          if offset = needle_len then true
-          else if haystack.[pos + offset] = needle.[offset]
-          then check_offset (offset + 1)
-          else false
-        in
-        if check_offset 0 then true else check_pos (pos + 1)
-    in
-    check_pos 0
-
 let () =
   print_endline "=== Template PPX Diagnostics Tests ===";
 
@@ -63,33 +44,6 @@ let () =
   (* Bare identifiers are not considered a marker *use*. *)
   let s3 = parse_structure ~filename:"case3.ml" "let _ = Tpl.text" in
   assert_none "ignore bare Tpl.text ident" (Solid_ml_template_ppx.contains_tpl_markers s3);
-
-  let s4 =
-    parse_structure ~filename:"case4.ml"
-      "open Solid_ml_template_runtime\n\
-       let _ =\n\
-         Html.div ~children:[\n\
-           Tpl.show_when ~when_:(fun () -> true) (fun () -> Html.text \"a\");\n\
-           Tpl.show_when ~when_:(fun () -> false) (fun () -> Html.text \"b\");\n\
-         ] ()"
-  in
-  let warnings = ref [] in
-  let prev = !(Solid_ml_template_ppx.warning_hook) in
-  Solid_ml_template_ppx.warning_hook := Some (fun _loc msg ->
-    warnings := msg :: !warnings;
-    true);
-  (match Solid_ml_template_ppx.transform_structure s4 with _ -> ());
-  Solid_ml_template_ppx.warning_hook := prev;
-  let has_sibling_warning =
-    List.exists
-      (fun msg ->
-        string_contains_substring
-          ~haystack:(String.lowercase_ascii msg)
-          ~needle:"sibling conditional")
-      !warnings
-  in
-  if not has_sibling_warning then
-    failwith "expected sibling conditional warning";
 
   print_endline "All template ppx diagnostics tests passed!";
   ()

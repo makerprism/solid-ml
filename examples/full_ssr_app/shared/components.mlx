@@ -135,43 +135,42 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     let demo_routes = [ Routes.Undo_redo; Routes.Theme; Routes.Wizard ] in
     let internal_routes = [ Routes.Keyed; Routes.Template_keyed ] in
 
+    let rec intersperse sep = function
+      | [] -> []
+      | [x] -> [x]
+      | x :: xs -> x :: sep :: intersperse sep xs
+    in
+
     let render_nav_links routes =
-      let rec intersperse sep = function
-        | [] -> []
-        | [x] -> [x]
-        | x :: xs -> x :: sep :: intersperse sep xs
-      in
       let links = List.map (fun route ->
         let href = Routes.path route in
         let class_ =
           if Routes.is_active ~current_path route then "nav-link active" else "nav-link"
         in
-        <a href=(fun () -> href) class_=(fun () -> class_)>(Tpl.text_once (fun () -> Routes.label route))</a>
+        a ~href ~class_ ~children:[text (Routes.label route)] ()
       ) routes in
-      Html.fragment (intersperse <span>(text " · ")</span> links)
+      Html.fragment (intersperse (span ~children:[text " / "] ()) links)
     in
 
     let render_section title routes =
       match title with
       | None -> render_nav_links routes
       | Some t ->
-          <div class_="nav-section">
-            <span class_="nav-section-title">(Tpl.text_once (fun () -> t))</span>
-            (Tpl.nodes (fun () -> render_nav_links routes))
-          </div>
+          div ~class_:"nav-section" ~children:[
+            span ~class_:"nav-section-title" ~children:[text t] ();
+            Tpl.nodes (fun () -> render_nav_links routes);
+          ] ()
     in
 
-    <div class_="app-container">
-        <nav class_="nav">
-          (Tpl.nodes (fun () -> render_section (Some "Basics") basic_routes))
-          (Tpl.nodes (fun () -> render_section (Some "Advanced") advanced_routes))
-          (Tpl.nodes (fun () -> render_section (Some "Demos") demo_routes))
-          (Tpl.nodes (fun () -> render_section (Some "Internal") internal_routes))
-        </nav>
-        <div class_="content">
-          (Tpl.nodes (fun () -> children))
-        </div>
-    </div>
+    div ~class_:"app-container" ~children:[
+      nav ~class_:"nav" ~children:[
+        render_section (Some "Basics") basic_routes;
+        render_section (Some "Advanced") advanced_routes;
+        render_section (Some "Demos") demo_routes;
+        render_section (Some "Internal") internal_routes;
+      ] ();
+      div ~class_:"content" ~children:[children] ();
+    ] ()
 
   (** Home Page *)
   let home_page () =

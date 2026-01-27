@@ -243,12 +243,8 @@ let layout ~title:page_title ~children () =
           }
           .item-text {
             flex: 1;
-            cursor: pointer;
             padding: 8px;
             border-radius: 4px;
-          }
-          .item-text:hover {
-            background: #f5f5f5;
           }
           .btn-edit {
             margin-left: auto;

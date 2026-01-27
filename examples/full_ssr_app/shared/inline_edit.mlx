@@ -1,133 +1,121 @@
 (**
-    Inline Edit Demo - Using ADTs to Make Impossible States Unrepresentable
+    Inline Edit Demo - Simple single-item edit flow.
 
-    Instead of tracking editing state separately with signals that can get out of sync,
-    we use an ADT where each item is either Viewing or Editing - never both.
+    The example keeps one draft signal and allows editing one item at a time.
+    - View mode shows static text and an Edit button
+    - Edit mode shows an input with Save/Cancel
 *)
 
-type item_state =
-  | Viewing of string
-  | Editing of {
-      original : string;
-      current : string;
-    }
-
-type editable_item = {
+type item = {
   id : int;
-  state : item_state;
+  text : string;
+}
+
+type view_item = {
+  item : item;
+  is_editing : bool;
 }
 
 module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Env
+  module Html = Env.Html
   module Tpl = Env.Tpl
   module Routes = Routes
 
-  (** Main Inline Edit View *)
+  open Html
+
   let view () =
-    (* Initial data - all items start in Viewing state *)
     let initial_items = [
-      { id = 1; state = Viewing "Learn solid-ml" };
-      { id = 2; state = Viewing "Build reactive UIs" };
-      { id = 3; state = Viewing "Master OCaml" };
-      { id = 4; state = Viewing "Deploy to production" };
+      { id = 1; text = "Learn solid-ml" };
+      { id = 2; text = "Build reactive UIs" };
+      { id = 3; text = "Master OCaml" };
+      { id = 4; text = "Deploy to production" };
     ] in
 
-    (* Single signal: list of items, each with its own state *)
     let items, set_items = Signal.create initial_items in
+    let editing_id, set_editing_id = Signal.create None in
+    let draft, set_draft = Signal.create "" in
+
+    let start_edit item =
+      set_editing_id (Some item.id);
+      set_draft item.text
+    in
+
+    let cancel_edit () =
+      set_editing_id None;
+      set_draft ""
+    in
+
+    let save_edit () =
+      match Signal.get editing_id with
+      | None -> ()
+      | Some id ->
+        let next_text = Signal.get draft in
+        set_items
+          (List.map (fun item ->
+             if item.id = id then { item with text = next_text } else item
+           ) (Signal.get items));
+        set_editing_id None;
+        set_draft ""
+    in
+
+    let view_items () =
+      let current_editing = Signal.get editing_id in
+      Signal.get items
+      |> List.map (fun item ->
+        let is_editing =
+          match current_editing with
+          | Some id -> id = item.id
+          | None -> false
+        in
+        { item; is_editing })
+    in
 
     <div class_="inline-edit-container">
       <h1>(Html.text "Inline Edit Demo")</h1>
 
       <p class_="instructions">
-        (Html.text "Click 'Edit' to edit. Press Enter to save, Escape to cancel.")
+        (Html.text "Edit one item at a time. Save applies changes; Cancel resets the draft.")
       </p>
 
       <ul class_="editable-list">
         (Tpl.each_keyed
-           ~items:(fun () -> Signal.get items)
-           ~key:(fun item -> Int.to_string item.id)
-           ~render:(fun item ->
-              <li class_="editable-item">
-                (Tpl.nodes (fun () ->
-                  (* Always get the current state from the signal *)
-                  let current_items = Signal.get items in
-                  let current_item = match List.find_opt (fun i -> i.id = item.id) current_items with
-                    | Some i -> i
-                    | None -> item
-                  in
-
-                  match current_item.state with
-                  | Viewing text ->
-                      Html.fragment [
-                        <span class_="item-text">
-                          (Tpl.text (fun () -> text))
-                        </span>;
-                        <button
-                          class_="btn-edit"
-                          onclick=(fun _ ->
-                            set_items (List.map (fun i ->
-                              if i.id = current_item.id then
-                                { i with state = Editing { original = text; current = text } }
-                              else
-                                i
-                            ) current_items)
-                          )
-                        >
-                          (Html.text "Edit")
-                        </button>;
-                      ]
-
-                  | Editing { original; current } ->
-                      Html.fragment [
-                        <input
-                          type_="text"
-                          class_="edit-input"
-                          value=(Tpl.bind_input
-                            ~signal:(fun () -> current)
-                            ~setter:(fun new_text ->
-                              set_items (List.map (fun i ->
-                                if i.id = current_item.id then
-                                  { i with state = Editing { original; current = new_text } }
-                                else
-                                  i
-                              ) current_items)
-                            ))
-                        />;
-                        <button
-                          class_="btn-save"
-                          onclick=(fun _ ->
-                            set_items (List.map (fun i ->
-                              if i.id = current_item.id then
-                                { i with state = Viewing current }
-                              else
-                                i
-                            ) current_items)
-                          )
-                        >
-                          (Html.text "Save")
-                        </button>;
-                        <button
-                          class_="btn-cancel"
-                          onclick=(fun _ ->
-                            set_items (List.map (fun i ->
-                              if i.id = current_item.id then
-                                { i with state = Viewing original }
-                              else
-                                i
-                            ) current_items)
-                          )
-                        >
-                          (Html.text "Cancel")
-                        </button>;
-                      ]
-                ))
-              </li>
+           ~items:view_items
+           ~key:(fun view_item -> Int.to_string view_item.item.id)
+           ~render:(fun view_item ->
+             let item = view_item.item in
+             <li class_="editable-item">
+               (if view_item.is_editing then
+                   Html.fragment [
+                     <input
+                       type_="text"
+                       class_="edit-input"
+                       value=(Tpl.bind_input
+                         ~signal:(fun () -> Signal.get draft)
+                         ~setter:set_draft)
+                     />;
+                     <button class_="btn-save" onclick=(fun _ -> save_edit ())>
+                       (Html.text "Save")
+                     </button>;
+                     <button class_="btn-cancel" onclick=(fun _ -> cancel_edit ())>
+                       (Html.text "Cancel")
+                     </button>;
+                   ]
+                 else
+                   Html.fragment [
+                     <span class_="item-text">(Tpl.text_once (fun () -> item.text))</span>;
+                     <button class_="btn-edit" onclick=(fun _ -> start_edit item)>
+                       (Html.text "Edit")
+                     </button>;
+                   ]
+               )
+             </li>
            )
         )
       </ul>
 
       <div class_="status-bar">
-        (Html.text "Press Enter to save, Escape to cancel, or click Save/Cancel.")
+        (Html.text "Only one item can be edited at a time.")
       </div>
     </div>
 end

@@ -29,7 +29,7 @@ let label = function
   | Counter -> "Counter"
   | Todos -> "Todos"
   | Filters -> "Filters"
-  | Inline_edit -> "Inline-Edit"
+  | Inline_edit -> "Inline Edit"
   | Async -> "Async"
   | Undo_redo -> "Undo-Redo"
   | Theme -> "Theme"

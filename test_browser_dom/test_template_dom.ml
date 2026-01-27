@@ -234,6 +234,65 @@ let test_instantiate_nodes_slot () =
     assert_eq ~name:"csr nodes text" (get_text_content el) "OK"
   | _ -> fail "csr nodes: expected Template.root to be an Element"
 
+let test_hydrate_adjacent_nodes_slots () =
+  let template =
+    T.compile
+      ~segments:[| "<div><!--$-->"; "<!--$--><!--$-->"; "<!--$--></div>" |]
+      ~slot_kinds:[| `Nodes; `Nodes |]
+  in
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  set_inner_html root "<div><!--$-->A<!--$--><!--$-->B<!--$--></div>";
+
+  let slot_a = ref None in
+  let slot_b = ref None in
+
+  let dispose =
+    Render.hydrate root (fun () ->
+      let inst = T.instantiate template in
+      slot_a := Some (T.bind_nodes inst ~id:0 ~path:[| 1 |]);
+      slot_b := Some (T.bind_nodes inst ~id:1 ~path:[| 2 |]);
+      H.empty)
+  in
+
+  (match !slot_a with
+   | None -> fail "hydrate nodes slot A: did not bind"
+   | Some slot -> T.set_nodes slot (H.text "A"));
+  (match !slot_b with
+   | None -> fail "hydrate nodes slot B: did not bind"
+   | Some slot -> T.set_nodes slot (H.text "B"));
+
+  assert_eq ~name:"hydrate adjacent nodes" (get_text_content root) "AB";
+  dispose ()
+
+let test_hydrate_adjacent_show_when () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  set_inner_html root "<div><!--$-->A<!--$--><!--$-->B<!--$--></div>";
+
+  let first, _set_first = Solid_ml_browser.Env.Signal.create true in
+  let second, _set_second = Solid_ml_browser.Env.Signal.create true in
+
+  let dispose =
+    Render.hydrate root (fun () ->
+      Html.div
+        ~children:
+          [ Solid_ml_template_runtime.Tpl.show_when
+              ~when_:(fun () -> Signal.get first)
+              (fun () -> Html.text "A");
+            Solid_ml_template_runtime.Tpl.show_when
+              ~when_:(fun () -> Signal.get second)
+              (fun () -> Html.text "B") ]
+        ())
+  in
+
+  assert_eq ~name:"hydrate adjacent show_when" (get_text_content root) "AB";
+  dispose ()
+
 let test_hydrate_normalizes_nodes_regions () =
   (* SSR may render content inside a node slot region. For path-stable hydration we
      clear it so elements after the region are still addressable by CSR paths. *)
@@ -1235,6 +1294,8 @@ let () =
   try
     test_instantiate_text_slot ();
     test_instantiate_nodes_slot ();
+    test_hydrate_adjacent_nodes_slots ();
+    test_hydrate_adjacent_show_when ();
     test_hydrate_text_slot ();
     test_hydrate_reactive_text_marker_adoption ();
     test_hydrate_normalizes_nodes_regions ();

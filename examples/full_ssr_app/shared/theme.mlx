@@ -51,9 +51,9 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   let theme_icon ~theme () =
     let icon_text, icon_class =
       match theme with
-      | Light -> "☀️", "theme-icon-light"
-      | Dark -> "🌙", "theme-icon-dark"
-      | Auto -> "🔄", "theme-icon-auto"
+      | Light -> "Sun", "theme-icon-light"
+      | Dark -> "Moon", "theme-icon-dark"
+      | Auto -> "Auto", "theme-icon-auto"
     in
     <span class_=(fun () -> "theme-icon " ^ icon_class)>(Tpl.text_once (fun () -> icon_text))</span>
 
@@ -71,7 +71,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       (* Checkmark - shown based on initial state, will update after hydration *)
       (if is_selected then
          <div class_="theme-check">
-           <span>(text "✓")</span>
+           <span>(text "OK")</span>
          </div>
        else
          <div></div>

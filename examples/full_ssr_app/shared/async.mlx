@@ -277,7 +277,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
                <div class_="step-indicator">
                  (Tpl.nodes (fun () ->
                    if item.is_complete then
-                     <span class_="check">(text "✓")</span>
+                     <span class_="check">(text "OK")</span>
                    else
                      <span class_="step-number">(Tpl.text_once (fun () -> item.step_number))</span>
                  ))

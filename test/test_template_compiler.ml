@@ -121,6 +121,24 @@ module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
               |] ]
       ()
 
+  let render_div_adjacent_show ~first ~second () =
+    Html.div
+      ~children:
+        [ Solid_ml_template_runtime.Tpl.show
+            ~when_:(fun () -> Signal.get first)
+            (fun () -> Html.text "A");
+          Solid_ml_template_runtime.Tpl.show
+            ~when_:(fun () -> Signal.get second)
+            (fun () -> Html.text "B") ]
+      ()
+
+  let render_div_adjacent_nodes () =
+    Html.div
+      ~children:
+        [ Solid_ml_template_runtime.Tpl.nodes (fun () -> Html.text "A");
+          Solid_ml_template_runtime.Tpl.nodes (fun () -> Html.text "B") ]
+      ()
+
   let render_div_each ~items () =
     Html.div
       ~children:
@@ -391,6 +409,22 @@ let () =
       C.render_div_switch ~step ())
   in
   assert (html_switch = "<div><!--$-->Two<!--$--></div>");
+
+  let flag_a, _set_flag_a = Solid_ml_ssr.Env.Signal.create true in
+  let flag_b, _set_flag_b = Solid_ml_ssr.Env.Signal.create true in
+  let html_adjacent_show =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_div_adjacent_show ~first:flag_a ~second:flag_b ())
+  in
+  assert (html_adjacent_show = "<div><!--$-->A<!--$--><!--$-->B<!--$--></div>");
+
+  let html_adjacent_nodes =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_div_adjacent_nodes ())
+  in
+  assert (html_adjacent_nodes = "<div><!--$-->A<!--$--><!--$-->B<!--$--></div>");
 
   let items, _set_items = Solid_ml_ssr.Env.Signal.create [ "a"; "b" ] in
   let html_each =
