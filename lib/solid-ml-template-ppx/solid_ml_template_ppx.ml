@@ -39,6 +39,8 @@ let is_known_marker fn = List.exists (String.equal fn) known_tpl_markers
 module Compiler_warnings = Ocaml_common.Warnings
 module Compiler_location = Ocaml_common.Location
 
+let warning_hook : (Location.t -> string -> bool) option ref = ref None
+
 let longident_to_list (longident : Longident.t) : string list =
   let rec go acc = function
     | Longident.Lident s -> s :: acc
@@ -3148,17 +3150,21 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                 in
 
                 let warn_sibling_conditionals loc =
-                  let warning =
-                    Compiler_warnings.Preprocessor
-                      "solid-ml-template-ppx: sibling conditional blocks (Tpl.show/show_when/if_/switch) can cause DOM nesting bugs.\n\
-                       Wrap them in a single Tpl.nodes with an if/else to render one branch."
+                  let msg =
+                    "solid-ml-template-ppx: sibling conditional blocks (Tpl.show/show_when/if_/switch) can cause DOM nesting bugs.\n\
+                     Wrap them in a single Tpl.nodes with an if/else to render one branch."
                   in
+                  let handled =
+                    match !warning_hook with
+                    | Some hook -> hook loc msg
+                    | None -> false
+                  in
+                  let warning = Compiler_warnings.Preprocessor msg in
                   if Compiler_warnings.is_active warning then
                     if Compiler_warnings.is_error warning then
                       Location.raise_errorf ~loc
-                        "solid-ml-template-ppx: sibling conditional blocks (Tpl.show/show_when/if_/switch) can cause DOM nesting bugs.\n\
-                         Wrap them in a single Tpl.nodes with an if/else to render one branch."
-                    else
+                        "%s" msg
+                    else if not handled then
                       Compiler_location.prerr_warning loc warning
                 in
 
