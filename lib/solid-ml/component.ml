@@ -39,7 +39,7 @@ module type SIGNAL = sig
   type 'a t
   (** A reactive signal holding a value of type ['a] *)
 
-  val create : ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
+  val create : ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> 'a)
   (** Create a new signal with initial value. Returns (signal, setter).
       Optional [equals] for custom equality check. *)
 
@@ -49,7 +49,7 @@ module type SIGNAL = sig
   val peek : 'a t -> 'a
   (** Read the current value without tracking. *)
 
-  val update : 'a t -> ('a -> 'a) -> unit
+  val update : 'a t -> ('a -> 'a) -> 'a
   (** Update signal with a function. *)
 end
 
@@ -66,5 +66,4 @@ module type COMPONENT_ENV = sig
   type 'a signal = 'a Signal.t
   (** Alias for signal type. *)
 end
-
 

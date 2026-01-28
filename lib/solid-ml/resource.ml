@@ -61,7 +61,8 @@ let next_resource_id = ref 0
 (** Create a resource with a synchronous fetcher and custom error mapping. *)
 let create_with_error ~on_error (fetcher : unit -> 'a)
   : ('a, 'e) resource =
-  let state, set_state = Signal.create Loading in
+  let state, set_state_raw = Signal.create Loading in
+  let set_state s = ignore (set_state_raw s) in
   let id = !next_resource_id in
   incr next_resource_id;
 
@@ -110,7 +111,8 @@ let create (fetcher : unit -> 'a) : ('a, string) resource =
 
 (** Create a resource with an initial value (already ready). *)
 let of_value (value : 'a) : ('a, 'e) resource =
-  let state, set_state = Signal.create (Ready value) in
+  let state, set_state_raw = Signal.create (Ready value) in
+  let set_state s = ignore (set_state_raw s) in
   let id = !next_resource_id in
   incr next_resource_id;
   let actions = {
@@ -132,7 +134,8 @@ let of_value (value : 'a) : ('a, 'e) resource =
 
 (** Create a resource in loading state. *)
 let create_loading () : ('a, 'e) resource =
-  let state, set_state = Signal.create Loading in
+  let state, set_state_raw = Signal.create Loading in
+  let set_state s = ignore (set_state_raw s) in
   let id = !next_resource_id in
   incr next_resource_id;
   let actions = {
@@ -154,7 +157,8 @@ let create_loading () : ('a, 'e) resource =
 
 (** Create a resource in error state. *)
 let of_error (error : 'e) : ('a, 'e) resource =
-  let state, set_state = Signal.create (Error error) in
+  let state, set_state_raw = Signal.create (Error error) in
+  let set_state s = ignore (set_state_raw s) in
   let id = !next_resource_id in
   incr next_resource_id;
   let actions = {
@@ -274,7 +278,8 @@ let map_state f resource =
     Note: the returned resource is read-only; its actions are no-ops
     except for refetch, which forwards to the source. *)
 let map f resource =
-  let state, set_state = Signal.create Loading in
+  let state, set_state_raw = Signal.create Loading in
+  let set_state s = ignore (set_state_raw s) in
   let id = !next_resource_id in
   incr next_resource_id;
 
@@ -299,7 +304,8 @@ let map f resource =
     except for refetch, which forwards to the sources. *)
 let combine (r1 : ('a, 'e) resource) (r2 : ('b, 'e) resource)
   : (('a * 'b), 'e) resource =
-  let state, set_state = Signal.create Loading in
+  let state, set_state_raw = Signal.create Loading in
+  let set_state s = ignore (set_state_raw s) in
   let id = !next_resource_id in
   incr next_resource_id;
   
@@ -331,7 +337,8 @@ let combine (r1 : ('a, 'e) resource) (r2 : ('b, 'e) resource)
     Note: the returned resource is read-only; its actions are no-ops
     except for refetch, which forwards to the sources. *)
 let combine_all (resources : ('a, 'e) resource list) : ('a list, 'e) resource =
-  let state, set_state = Signal.create Loading in
+  let state, set_state_raw = Signal.create Loading in
+  let set_state s = ignore (set_state_raw s) in
   let id = !next_resource_id in
   incr next_resource_id;
   
@@ -370,7 +377,8 @@ let render ~loading ~error ~ready resource =
 
 module Unsafe = struct
   let create_with_error ~on_error (fetcher : unit -> 'a) : ('a, 'e) resource =
-    let state, set_state = Signal.Unsafe.create Loading in
+    let state, set_state_raw = Signal.Unsafe.create Loading in
+    let set_state s = ignore (set_state_raw s) in
     let id = !next_resource_id in
     incr next_resource_id;
 
@@ -403,7 +411,8 @@ module Unsafe = struct
     { state; actions; id }
 
   let of_value (value : 'a) : ('a, 'e) resource =
-    let state, set_state = Signal.Unsafe.create (Ready value) in
+    let state, set_state_raw = Signal.Unsafe.create (Ready value) in
+    let set_state s = ignore (set_state_raw s) in
     let id = !next_resource_id in
     incr next_resource_id;
     let actions = {
@@ -424,7 +433,8 @@ module Unsafe = struct
     { state; actions; id }
 
   let create_loading () : ('a, 'e) resource =
-    let state, set_state = Signal.Unsafe.create Loading in
+    let state, set_state_raw = Signal.Unsafe.create Loading in
+    let set_state s = ignore (set_state_raw s) in
     let id = !next_resource_id in
     incr next_resource_id;
     let actions = {
@@ -445,7 +455,8 @@ module Unsafe = struct
     { state; actions; id }
 
   let of_error (error : 'e) : ('a, 'e) resource =
-    let state, set_state = Signal.Unsafe.create (Error error) in
+    let state, set_state_raw = Signal.Unsafe.create (Error error) in
+    let set_state s = ignore (set_state_raw s) in
     let id = !next_resource_id in
     incr next_resource_id;
     let actions = {
@@ -466,7 +477,8 @@ module Unsafe = struct
     { state; actions; id }
 
   let combine (r1 : ('a, 'e) resource) (r2 : ('b, 'e) resource) : (('a * 'b), 'e) resource =
-    let state, set_state = Signal.Unsafe.create Loading in
+    let state, set_state_raw = Signal.Unsafe.create Loading in
+    let set_state s = ignore (set_state_raw s) in
     let id = !next_resource_id in
     incr next_resource_id;
 
@@ -495,7 +507,8 @@ module Unsafe = struct
     { state; actions; id }
 
   let combine_all (resources : ('a, 'e) resource list) : ('a list, 'e) resource =
-    let state, set_state = Signal.Unsafe.create Loading in
+    let state, set_state_raw = Signal.Unsafe.create Loading in
+    let set_state s = ignore (set_state_raw s) in
     let id = !next_resource_id in
     incr next_resource_id;
 

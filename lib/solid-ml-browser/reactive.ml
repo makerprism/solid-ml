@@ -16,11 +16,11 @@ module Signal = struct
   type 'a t = 'a Reactive_core.signal
   let get = Reactive_core.get_signal
   let set s v =
-    Reactive_core.set_signal s v;
+    ignore (Reactive_core.set_signal s v);
     v
   let create ?equals v = 
     let s = Reactive_core.create_signal ?equals v in
-    (s, fun v -> Reactive_core.set_signal s v; v)
+    (s, fun v -> ignore (Reactive_core.set_signal s v); v)
   let update s f = Reactive_core.update_signal s f
   let peek = Reactive_core.peek_signal
 end
@@ -172,8 +172,9 @@ let create_selector (type k) ?(equals : k -> k -> bool = (=)) (source : k Signal
        (* Create a trigger function that will re-run the current computation.
           We do this by creating a signal that we update when this key's state changes.
           Use a bool that toggles so each trigger actually changes the value. *)
-        let trigger_signal, set_trigger = Signal.create false in
-        let trigger () = ignore (set_trigger (not (Signal.peek trigger_signal))) in
+        let trigger_signal = Reactive_core.create_signal false in
+        let set_trigger v = ignore (Reactive_core.set_signal trigger_signal v) in
+        let trigger () = set_trigger (not (Reactive_core.peek_signal trigger_signal)) in
        
        (* Add trigger to listeners *)
        listeners := trigger :: !listeners;
@@ -186,7 +187,7 @@ let create_selector (type k) ?(equals : k -> k -> bool = (=)) (source : k Signal
        );
        
        (* Read the trigger signal to establish dependency *)
-       let _ = Signal.get trigger_signal in
+        let _ = Reactive_core.get_signal trigger_signal in
        ()
      | None -> ());
     

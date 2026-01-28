@@ -4,6 +4,8 @@
     to ensure our reactive system behaves similarly.
 *)
 
+[@@@ocaml.warning "-20-32"]
+
 open Solid_ml
 
 module Unsafe = struct
@@ -17,12 +19,38 @@ end
 
 open Unsafe
 
+module Raw_signal = Signal
+
+module Signal = struct
+  include Raw_signal
+
+  let create ?equals value =
+    let signal, set = Raw_signal.create ?equals value in
+    (signal, fun v -> ignore (set v))
+
+  let create_eq ~equals value =
+    let signal, set = Raw_signal.create_eq ~equals value in
+    (signal, fun v -> ignore (set v))
+
+  let create_physical value =
+    let signal, set = Raw_signal.create_physical value in
+    (signal, fun v -> ignore (set v))
+
+  let set signal value =
+    ignore (Raw_signal.set signal value)
+
+  let update signal f =
+    ignore (Raw_signal.update signal f)
+end
+
 (** Helper to run test within a reactive runtime *)
 let with_runtime fn =
   Runtime.run (fun () ->
     let dispose = Owner.create_root fn in
     dispose ()
   )
+
+let ignore_set set v = ignore (set v)
 
 (* ============ Create Signals ============ *)
 
@@ -91,6 +119,7 @@ let test_create_effect_with_explicit_deps_defer () =
   with_runtime (fun () ->
     let temp = ref "" in
     let sign, set_sign = Signal.create "thoughts" in
+    let set_sign = ignore_set set_sign in
     Effect.on ~defer:true (fun () -> Signal.get sign) (fun ~value ~prev:_ ->
       temp := "impure " ^ value
     );
@@ -105,6 +134,7 @@ let test_create_effect_with_explicit_deps_defer_initial () =
   with_runtime (fun () ->
     let temp = ref "" in
     let sign, set_sign = Signal.create "thoughts" in
+    let set_sign = ignore_set set_sign in
     Effect.on ~defer:true ~initial:"numbers" (fun () -> Signal.get sign)
       (fun ~value ~prev -> temp := "impure " ^ prev ^ " " ^ value);
     assert (!temp = "");
@@ -119,6 +149,7 @@ let test_create_and_update_signal () =
   print_endline "Test: Create and update a Signal";
   with_runtime (fun () ->
     let value, set_value = Signal.create 5 in
+    let set_value = ignore_set set_value in
     set_value 10;
     assert (Signal.get value = 10)
   );
@@ -128,7 +159,7 @@ let test_create_and_update_signal_with_fn () =
   print_endline "Test: Create and update a Signal with fn";
   with_runtime (fun () ->
     let value, _ = Signal.create 5 in
-    Signal.update value (fun p -> p + 5);
+    ignore (Signal.update value (fun p -> p + 5));
     assert (Signal.get value = 10)
   );
   print_endline "  PASSED"
@@ -137,6 +168,7 @@ let test_signal_set_different_value () =
   print_endline "Test: Create Signal and set different value";
   with_runtime (fun () ->
     let value, set_value = Signal.create 5 in
+    let set_value = ignore_set set_value in
     set_value 10;
     assert (Signal.get value = 10)
   );
@@ -147,6 +179,7 @@ let test_signal_set_equivalent_value () =
   with_runtime (fun () ->
     (* Custom comparator: a > b means "equal" - so setting smaller values won't update *)
     let value, set_value = Signal.create ~equals:(fun a b -> a > b) 5 in
+    let set_value = ignore_set set_value in
     set_value 3;  (* 5 > 3 is true, so considered "equal", no update *)
     assert (Signal.get value = 5)
   );
@@ -156,16 +189,19 @@ let test_signal_with_function_value () =
   print_endline "Test: Create and read a Signal with function value";
   with_runtime (fun () ->
     let value, set_value = Signal.create (fun () -> "Hi") in
-    assert ((Signal.get value) () = "Hi");
+    let set_value = ignore_set set_value in
+    let current : unit -> string = Signal.get value in
+    assert (current () = "Hi");
     set_value (fun () -> "Hello");
-    assert ((Signal.get value) () = "Hello")
+    let next : unit -> string = Signal.get value in
+    assert (next () = "Hello")
   );
   print_endline "  PASSED"
 
 let test_signal_set_returns_argument () =
   print_endline "Test: Set signal returns argument";
   with_runtime (fun () ->
-    let _, set_value = Signal.create (None : int option) in
+    let _, set_value = Raw_signal.create (None : int option) in
     let res1 = set_value None in
     assert (res1 = None);
     let res2 = set_value (Some 12) in
@@ -181,6 +217,7 @@ let test_create_and_trigger_memo () =
   print_endline "Test: Create and trigger a Memo";
   with_runtime (fun () ->
     let name, set_name = Signal.create "John" in
+    let set_name = ignore_set set_name in
     let memo = Memo.create (fun () -> "Hello " ^ Signal.get name) in
     assert (Memo.get memo = "Hello John");
     set_name "Jake";
@@ -193,6 +230,7 @@ let test_memo_not_triggered_on_equivalent_value () =
   with_runtime (fun () ->
     (* Custom comparator: if new value starts with "J", consider it equal *)
     let name, set_name = Signal.create ~equals:(fun _ b -> String.length b > 0 && b.[0] = 'J') "John" in
+    let set_name = ignore_set set_name in
     let memo = Memo.create (fun () -> "Hello " ^ Signal.get name) in
     assert (Signal.get name = "John");
     assert (Memo.get memo = "Hello John");
@@ -207,6 +245,7 @@ let test_create_and_trigger_memo_in_effect () =
   with_runtime (fun () ->
     let temp = ref "" in
     let name, set_name = Signal.create "John" in
+    let set_name = ignore_set set_name in
     let memo = Memo.create (fun () -> "Hello " ^ Signal.get name) in
     Effect.create (fun () -> temp := Memo.get memo ^ "!!!");
     assert (!temp = "Hello John!!!");
@@ -220,6 +259,7 @@ let test_create_and_trigger_effect () =
   with_runtime (fun () ->
     let temp = ref "" in
     let sign, set_sign = Signal.create "thoughts" in
+    let set_sign = ignore_set set_sign in
     Effect.create (fun () -> temp := "unpure " ^ Signal.get sign);
     assert (!temp = "unpure thoughts");
     set_sign "mind";
@@ -232,7 +272,11 @@ let test_create_and_trigger_effect_with_function_signal () =
   with_runtime (fun () ->
     let temp = ref "" in
     let sign, set_sign = Signal.create (fun () -> "thoughts") in
-    Effect.create (fun () -> temp := "unpure " ^ (Signal.get sign) ());
+    let set_sign = ignore_set set_sign in
+    Effect.create (fun () ->
+      let current : unit -> string = Signal.get sign in
+      temp := "unpure " ^ current ()
+    );
     assert (!temp = "unpure thoughts");
     set_sign (fun () -> "mind");
     assert (!temp = "unpure mind")
@@ -246,6 +290,7 @@ let test_mute_effect_with_untrack () =
   with_runtime (fun () ->
     let temp = ref "" in
     let sign, set_sign = Signal.create "thoughts" in
+    let set_sign = ignore_set set_sign in
     Effect.create (fun () -> 
       temp := "unpure " ^ Effect.untrack (fun () -> Signal.get sign)
     );
@@ -372,7 +417,7 @@ let test_catch_error_no_handler () =
      with_runtime (fun () ->
        raise (Failure "fail")
      )
-   with Failure "fail" -> raised := true);
+   with Failure msg -> if msg = "fail" then raised := true else raise (Failure msg));
   assert !raised;
   print_endline "  PASSED"
 
@@ -485,10 +530,9 @@ let test_catch_error_in_nested_update_effect_different_levels () =
     Effect.create (fun () ->
       let _ = Solid_ml.Owner.catch_error
         (fun () ->
-          Effect.create (fun () ->
-            let v = Signal.get s in
-            if v <> 0 then raise (Failure "fail")
-          ))
+          let v = Signal.get s in
+          if v <> 0 then raise (Failure "fail")
+        )
         (fun _ -> errored := true; ())
       in
       ()

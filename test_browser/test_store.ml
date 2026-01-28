@@ -100,7 +100,7 @@ let test_lens_compose () =
       
       assert_eq (Store.get store first_user_name) "Alice";
       
-      Store.set store first_user_name "Alicia";
+      ignore (Store.set store first_user_name "Alicia");
       assert_eq (Store.get store first_user_name) "Alicia"
     )
   )
@@ -160,7 +160,7 @@ let test_store_get_set () =
       
       assert_eq (Store.get store count_lens) 0;
       
-      Store.set store count_lens 5;
+      ignore (Store.set store count_lens 5);
       assert_eq (Store.get store count_lens) 5
     )
   )
@@ -184,9 +184,9 @@ let test_store_version () =
       let store = Store.create initial_state in
       
       let v0 = Store.version store in
-      Store.set store count_lens 1;
+      ignore (Store.set store count_lens 1);
       let v1 = Store.version store in
-      Store.set store count_lens 2;
+      ignore (Store.set store count_lens 2);
       let v2 = Store.version store in
       
       assert_true (v1 > v0);
@@ -207,7 +207,7 @@ let test_store_peek () =
       );
       
       assert_eq !runs 1;
-      Store.set store count_lens 10;
+      ignore (Store.set store count_lens 10);
       (* Effect should NOT re-run because we used peek *)
       assert_eq !runs 1
     )
@@ -226,7 +226,7 @@ let test_store_reactive () =
       );
       
       assert_eq !observed 0;
-      Store.set store count_lens 42;
+      ignore (Store.set store count_lens 42);
       assert_eq !observed 42
     )
   )
@@ -244,7 +244,7 @@ let test_store_nested_reactive () =
       );
       
       assert_eq !observed_name "Alice";
-      Store.set store first_user_name "Carol";
+      ignore (Store.set store first_user_name "Carol");
       assert_eq !observed_name "Carol"
     )
   )
@@ -265,8 +265,8 @@ let test_store_batch () =
       assert_eq !runs 1;
       
       Store.batch (fun () ->
-        Store.set store count_lens 10;
-        Store.set store active_lens false
+        ignore (Store.set store count_lens 10);
+        ignore (Store.set store active_lens false)
       );
       
       (* Should only trigger one additional effect run *)
@@ -284,7 +284,7 @@ let test_store_derive () =
       
       assert_eq (get_memo derived) 0;
       
-      Store.set store count_lens 100;
+      ignore (Store.set store count_lens 100);
       assert_eq (get_memo derived) 100
     )
   )
@@ -401,10 +401,10 @@ let test_store_subscribe () =
       (* Initial call *)
       assert_eq !log [0];
       
-      Store.set store count_lens 1;
+      ignore (Store.set store count_lens 1);
       assert_eq !log [1; 0];
       
-      Store.set store count_lens 2;
+      ignore (Store.set store count_lens 2);
       assert_eq !log [2; 1; 0]
     )
   )
@@ -421,13 +421,13 @@ let test_store_subscribe_unsubscribe () =
       
       assert_eq !log [0];
       
-      Store.set store count_lens 1;
+      ignore (Store.set store count_lens 1);
       assert_eq !log [1; 0];
       
       (* Unsubscribe *)
       unsubscribe ();
       
-      Store.set store count_lens 2;
+      ignore (Store.set store count_lens 2);
       (* Should not receive the update *)
       assert_eq !log [1; 0]
     )
@@ -510,7 +510,7 @@ let test_store_on_change () =
       
       assert_eq !changes [0];  (* initial *)
       
-      Store.set store count_lens 5;
+      ignore (Store.set store count_lens 5);
       assert_eq !changes [5; 0]
     )
   )

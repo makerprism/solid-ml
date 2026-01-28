@@ -51,7 +51,7 @@ let make ~fallback children =
   (* Reset function clears error and increments attempt *)
   let reset () =
     incr attempt;
-    set_state No_error
+    ignore (set_state No_error)
   in
   
   (* Create memo that handles rendering *)
@@ -65,13 +65,13 @@ let make ~fallback children =
       let _ = !attempt in (* Force dependency on attempt for re-render *)
       let handle_error exn =
         let msg = Printexc.to_string exn in
-        set_state (Has_error msg)
+        ignore (set_state (Has_error msg))
       in
       try
         Reactive.with_error_handler handle_error children
       with exn ->
         let msg = Printexc.to_string exn in
-        set_state (Has_error msg);
+        ignore (set_state (Has_error msg));
         fallback ~error:msg ~reset
   ) in
   Memo.get content
@@ -95,7 +95,7 @@ module Unsafe = struct
 
     let reset () =
       incr attempt;
-      set_state No_error
+      ignore (set_state No_error)
     in
 
     let content = Memo.Unsafe.create (fun () ->
@@ -106,13 +106,13 @@ module Unsafe = struct
       let _ = !attempt in
       let handle_error exn =
         let msg = Printexc.to_string exn in
-        set_state (Has_error msg)
+        ignore (set_state (Has_error msg))
       in
       try
         Reactive.with_error_handler handle_error children
       with exn ->
         let msg = Printexc.to_string exn in
-        set_state (Has_error msg);
+        ignore (set_state (Has_error msg));
         fallback ~error:msg ~reset
     ) in
     Memo.Unsafe.get content

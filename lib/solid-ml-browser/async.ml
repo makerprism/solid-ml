@@ -76,7 +76,7 @@ let create (fetcher : unit -> 'a Dom.promise) : 'a t =
       let this_fetch = !fetch_counter in
       
       (* Set to pending *)
-      Reactive_core.set_signal state Pending;
+      ignore (Reactive_core.set_signal state Pending);
       
       (* Call the fetcher - this tracks dependencies *)
       let promise = fetcher () in
@@ -86,11 +86,11 @@ let create (fetcher : unit -> 'a Dom.promise) : 'a t =
         ~on_success:(fun data ->
           (* Only update if this is still the latest fetch and not disposed *)
           if this_fetch = !fetch_counter && not !permanently_disposed then
-            Reactive_core.set_signal state (Ready data)
+            ignore (Reactive_core.set_signal state (Ready data))
         )
         ~on_error:(fun exn ->
           if this_fetch = !fetch_counter && not !permanently_disposed then
-            Reactive_core.set_signal state (Error exn)
+            ignore (Reactive_core.set_signal state (Error exn))
         )
     end
   in
@@ -130,15 +130,15 @@ let create_once (fetcher : unit -> 'a Dom.promise) : 'a t =
   
   let do_fetch () =
     if !disposed then () else begin
-      Reactive_core.set_signal state Pending;
+      ignore (Reactive_core.set_signal state Pending);
       let promise = fetcher () in
       Dom.promise_on_complete promise
         ~on_success:(fun data -> 
           if not !disposed then 
-            Reactive_core.set_signal state (Ready data))
+            ignore (Reactive_core.set_signal state (Ready data)))
         ~on_error:(fun exn -> 
           if not !disposed then
-            Reactive_core.set_signal state (Error exn))
+            ignore (Reactive_core.set_signal state (Error exn)))
     end
   in
   

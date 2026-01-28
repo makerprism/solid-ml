@@ -112,7 +112,7 @@ let hydrate_state ~key ~decode ~decode_error : ('a, 'e) state option =
     @param fetcher Function that takes a (result -> unit) callback *)
 let create_async_with_state ~on_error initial fetcher =
   let state = Reactive_core.create_signal initial in
-  let set_state s = Reactive_core.set_signal state s in
+  let set_state s = ignore (Reactive_core.set_signal state s) in
   let id = !next_resource_id in
   incr next_resource_id;
 
@@ -209,7 +209,7 @@ end
     @param fetcher Function that returns data or raises *)
 let create_with_state ~on_error initial fetcher =
   let state = Reactive_core.create_signal initial in
-  let set_state s = Reactive_core.set_signal state s in
+  let set_state s = ignore (Reactive_core.set_signal state s) in
   let id = !next_resource_id in
   incr next_resource_id;
 
@@ -284,7 +284,7 @@ let of_value value =
   let state = Reactive_core.create_signal (Ready value) in
   let id = !next_resource_id in
   incr next_resource_id;
-  let set_state = Reactive_core.set_signal state in
+  let set_state s = ignore (Reactive_core.set_signal state s) in
   let actions = {
     mutate = (fun fn ->
       let current_value =
@@ -307,7 +307,7 @@ let create_loading () =
   let state = Reactive_core.create_signal Loading in
   let id = !next_resource_id in
   incr next_resource_id;
-  let set_state = Reactive_core.set_signal state in
+  let set_state s = ignore (Reactive_core.set_signal state s) in
   let actions = {
     mutate = (fun fn ->
       let current_value =
@@ -330,7 +330,7 @@ let of_error error =
   let state = Reactive_core.create_signal (Error error) in
   let id = !next_resource_id in
   incr next_resource_id;
-  let set_state = Reactive_core.set_signal state in
+  let set_state s = ignore (Reactive_core.set_signal state s) in
   let actions = {
     mutate = (fun fn ->
       let current_value =
@@ -435,7 +435,7 @@ let map_state f resource =
 (** Create a derived resource from a computation. *)
 let create_derived ~refetch compute =
   let state = Reactive_core.create_signal (compute ()) in
-  let set_state = Reactive_core.set_signal state in
+  let set_state s = ignore (Reactive_core.set_signal state s) in
   let id = !next_resource_id in
   incr next_resource_id;
 

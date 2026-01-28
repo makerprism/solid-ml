@@ -41,7 +41,7 @@ let make ~fallback children =
   (* Reset function clears error and increments attempt *)
   let reset () =
     incr attempt;
-    set_state No_error
+    ignore (set_state No_error)
   in
   
   (* Create memo that handles rendering *)
@@ -55,13 +55,13 @@ let make ~fallback children =
       let _ = !attempt in (* Force dependency on attempt for re-render *)
       let handle_error exn =
         let msg = Dom.exn_to_string exn in
-        set_state (Has_error msg)
+        ignore (set_state (Has_error msg))
       in
       try
         Reactive_core.with_error_handler handle_error children
       with exn ->
         let msg = Dom.exn_to_string exn in
-        set_state (Has_error msg);
+        ignore (set_state (Has_error msg));
         fallback ~error:msg ~reset
   ) in
   Reactive_core.get_memo content

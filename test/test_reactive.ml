@@ -1,5 +1,7 @@
 (** Tests for solid-ml reactive primitives *)
 
+[@@@ocaml.warning "-32"]
+
 open Solid_ml
 
 module Unsafe = struct
@@ -13,6 +15,30 @@ end
 
 open Unsafe
 
+module Raw_signal = Signal
+
+module Signal = struct
+  include Raw_signal
+
+  let create ?equals value =
+    let signal, set = Raw_signal.create ?equals value in
+    (signal, fun v -> ignore (set v))
+
+  let create_eq ~equals value =
+    let signal, set = Raw_signal.create_eq ~equals value in
+    (signal, fun v -> ignore (set v))
+
+  let create_physical value =
+    let signal, set = Raw_signal.create_physical value in
+    (signal, fun v -> ignore (set v))
+
+  let set signal value =
+    ignore (Raw_signal.set signal value)
+
+  let update signal f =
+    ignore (Raw_signal.update signal f)
+end
+
 (** Helper to run test within a reactive runtime *)
 let with_runtime fn =
   Runtime.run (fun () ->
@@ -20,16 +46,19 @@ let with_runtime fn =
     dispose ()
   )
 
+let ignore_set set v = ignore (set v)
+
 (* ============ Signal Tests ============ *)
 
 let test_signal_basic () =
   print_endline "Test: Signal basic operations";
   with_runtime (fun () ->
     let count, set_count = Signal.create 0 in
+    let set_count = ignore_set set_count in
     assert (Signal.get count = 0);
     set_count 5;
     assert (Signal.get count = 5);
-    Signal.update count (fun n -> n + 1);
+    ignore (Signal.update count (fun n -> n + 1));
     assert (Signal.get count = 6)
   );
   print_endline "  PASSED"
@@ -38,6 +67,7 @@ let test_signal_peek () =
   print_endline "Test: Signal.peek doesn't track";
   with_runtime (fun () ->
     let count, set_count = Signal.create 0 in
+    let set_count = ignore_set set_count in
     let effect_runs = ref 0 in
     Effect.create (fun () ->
       (* Use peek - should not track *)
@@ -54,6 +84,7 @@ let test_signal_subscribe () =
   print_endline "Test: Signal.subscribe and unsubscribe";
   with_runtime (fun () ->
     let count, set_count = Signal.create 0 in
+    let set_count = ignore_set set_count in
     let notifications = ref 0 in
     let unsub = Signal.subscribe count (fun () -> incr notifications) in
     set_count 1;
@@ -70,6 +101,7 @@ let test_signal_equality () =
   print_endline "Test: Signal skips update on equal value (structural)";
   with_runtime (fun () ->
     let count, set_count = Signal.create 0 in
+    let set_count = ignore_set set_count in
     let effect_runs = ref 0 in
     Effect.create (fun () ->
       let _ = Signal.get count in
@@ -90,6 +122,7 @@ let test_signal_physical_equality () =
     let b1 = Bytes.of_string "hello" in
     let b2 = Bytes.of_string "hello" in
     let s, set_s = Signal.create_physical b1 in
+    let set_s = ignore_set set_s in
     let effect_runs = ref 0 in
     Effect.create (fun () ->
       let _ = Signal.get s in
@@ -108,6 +141,7 @@ let test_signal_physical_equality_strings () =
   print_endline "Test: Signal uses physical equality for strings by default";
   with_runtime (fun () ->
     let s, set_s = Signal.create "hello" in
+    let set_s = ignore_set set_s in
     let effect_runs = ref 0 in
     Effect.create (fun () ->
       let _ = Signal.get s in
@@ -131,6 +165,7 @@ let test_effect_tracking () =
   print_endline "Test: Effect auto-tracks dependencies";
   with_runtime (fun () ->
     let count, set_count = Signal.create 0 in
+    let set_count = ignore_set set_count in
     let effect_runs = ref 0 in
     let last_seen = ref 0 in
     Effect.create (fun () ->
@@ -153,6 +188,8 @@ let test_effect_multiple_signals () =
   with_runtime (fun () ->
     let a, set_a = Signal.create 1 in
     let b, set_b = Signal.create 2 in
+    let set_a = ignore_set set_a in
+    let set_b = ignore_set set_b in
     let sum = ref 0 in
     let effect_runs = ref 0 in
     Effect.create (fun () ->
@@ -175,6 +212,8 @@ let test_effect_untrack () =
   with_runtime (fun () ->
     let a, set_a = Signal.create 1 in
     let b, set_b = Signal.create 2 in
+    let set_a = ignore_set set_a in
+    let set_b = ignore_set set_b in
     let effect_runs = ref 0 in
     Effect.create (fun () ->
       let _ = Signal.get a in  (* tracked *)
@@ -193,6 +232,7 @@ let test_effect_cleanup () =
   print_endline "Test: Effect cleanup runs before re-execution";
   with_runtime (fun () ->
     let count, set_count = Signal.create 0 in
+    let set_count = ignore_set set_count in
     let cleanups = ref 0 in
     Effect.create_with_cleanup (fun () ->
       let _ = Signal.get count in
@@ -212,6 +252,9 @@ let test_effect_conditional_deps () =
     let flag, set_flag = Signal.create true in
     let a, set_a = Signal.create 1 in
     let b, set_b = Signal.create 2 in
+    let set_flag = ignore_set set_flag in
+    let set_a = ignore_set set_a in
+    let set_b = ignore_set set_b in
     let result = ref 0 in
     let runs = ref 0 in
     Effect.create (fun () ->
@@ -244,6 +287,7 @@ let test_memo_basic () =
   print_endline "Test: Memo caches derived values";
   with_runtime (fun () ->
     let count, set_count = Signal.create 2 in
+    let set_count = ignore_set set_count in
     let compute_runs = ref 0 in
     let doubled = Memo.create (fun () ->
       incr compute_runs;
@@ -269,6 +313,7 @@ let test_memo_chains () =
   print_endline "Test: Memos can depend on other memos";
   with_runtime (fun () ->
     let count, set_count = Signal.create 2 in
+    let set_count = ignore_set set_count in
     let doubled = Memo.create (fun () -> Signal.get count * 2) in
     let quadrupled = Memo.create (fun () -> Memo.get doubled * 2) in
     assert (Memo.get quadrupled = 8);
@@ -282,6 +327,7 @@ let test_memo_equality () =
   print_endline "Test: Memo with custom equality";
   with_runtime (fun () ->
     let list_signal, set_list = Signal.create ~equals:(=) [1; 2; 3] in
+    let set_list = ignore_set set_list in
     let downstream_runs = ref 0 in
     (* This memo only changes when list length changes *)
     let length = Memo.create_with_equals
@@ -307,6 +353,8 @@ let test_batch_basic () =
   with_runtime (fun () ->
     let a, set_a = Signal.create 1 in
     let b, set_b = Signal.create 2 in
+    let set_a = ignore_set set_a in
+    let set_b = ignore_set set_b in
     let effect_runs = ref 0 in
     Effect.create (fun () ->
       let _ = Signal.get a + Signal.get b in
@@ -335,6 +383,7 @@ let test_batch_nested () =
   print_endline "Test: Nested batches";
   with_runtime (fun () ->
     let count, set_count = Signal.create 0 in
+    let set_count = ignore_set set_count in
     let effect_runs = ref 0 in
     Effect.create (fun () ->
       let _ = Signal.get count in
@@ -358,6 +407,7 @@ let test_owner_basic () =
   print_endline "Test: Owner.create_root and disposal";
   with_runtime (fun () ->
     let count, set_count = Signal.create 0 in
+    let set_count = ignore_set set_count in
     let effect_runs = ref 0 in
     let dispose = Owner.create_root (fun () ->
       Effect.create (fun () ->
@@ -514,6 +564,7 @@ let test_diamond_dependency () =
             sum
     *)
     let count, set_count = Signal.create 1 in
+    let set_count = ignore_set set_count in
     let double = Memo.create (fun () -> Signal.get count * 2) in
     let triple = Memo.create (fun () -> Signal.get count * 3) in
     let sum_runs = ref 0 in
@@ -534,6 +585,7 @@ let test_effect_with_memo () =
   print_endline "Test: Effect depending on memo";
   with_runtime (fun () ->
     let count, set_count = Signal.create 0 in
+    let set_count = ignore_set set_count in
     let doubled = Memo.create (fun () -> Signal.get count * 2) in
     let observed = ref 0 in
     Effect.create (fun () ->
@@ -554,6 +606,7 @@ let test_runtime_isolation () =
   Runtime.run (fun () ->
     let dispose = Owner.create_root (fun () ->
       let count, set_count = Signal.create 100 in
+      let set_count = ignore_set set_count in
       Effect.create (fun () ->
         results := ("r1", Signal.get count) :: !results
       );
@@ -566,6 +619,7 @@ let test_runtime_isolation () =
   Runtime.run (fun () ->
     let dispose = Owner.create_root (fun () ->
       let count, set_count = Signal.create 200 in
+      let set_count = ignore_set set_count in
       Effect.create (fun () ->
         results := ("r2", Signal.get count) :: !results
       );
@@ -598,7 +652,7 @@ let test_domain_parallelism () =
           );
           (* Each domain increments differently *)
           for _ = 1 to (i + 1) * 10 do
-            Signal.update count (fun n -> n + 1)
+            ignore (Signal.update count (fun n -> n + 1))
           done;
           results.(i) <- !sum
         ) in

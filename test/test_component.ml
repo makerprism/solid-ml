@@ -63,7 +63,7 @@ let test_component_with_event_handlers () =
     let render () =
       let count, _set_count = Signal.create 0 in
       Html.div ~children:[
-        Html.button ~onclick:(fun _ -> Signal.update count succ)
+        Html.button ~onclick:(fun _ -> ignore (Signal.update count succ))
           ~children:[Html.text "+"] ();
         Html.reactive_text count
       ] ()

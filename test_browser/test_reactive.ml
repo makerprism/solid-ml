@@ -18,6 +18,12 @@ open Reactive_core
 (* Test helpers *)
 external console_log : string -> unit = "log" [@@mel.scope "console"]
 
+let set_signal_raw = set_signal
+let set_signal s v = ignore (set_signal_raw s v)
+
+let update_signal_raw = update_signal
+let update_signal s f = ignore (update_signal_raw s f)
+
 let make_fake_element () : Dom.element =
   [%mel.raw
     {|

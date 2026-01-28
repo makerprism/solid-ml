@@ -214,26 +214,26 @@ let version (store : 'a t) : int =
 (** Set the entire state *)
 let set_all (store : 'a t) (value : 'a) : unit =
   incr store.version;
-  Reactive_core.set_signal store.state value
+  ignore (Reactive_core.set_signal store.state value)
 
 (** Set a focused value through a lens *)
 let set (store : 'a t) (lens : ('a, 'b) lens) (value : 'b) : unit =
   incr store.version;
   let current = Reactive_core.peek_signal store.state in
   let updated = lens.set current value in
-  Reactive_core.set_signal store.state updated
+  ignore (Reactive_core.set_signal store.state updated)
 
 (** Update a focused value with a function *)
 let update (store : 'a t) (lens : ('a, 'b) lens) (f : 'b -> 'b) : unit =
   incr store.version;
   let current = Reactive_core.peek_signal store.state in
   let updated = Lens.update lens current f in
-  Reactive_core.set_signal store.state updated
+  ignore (Reactive_core.set_signal store.state updated)
 
 (** Update the entire state with a function *)
 let update_all (store : 'a t) (f : 'a -> 'a) : unit =
   incr store.version;
-  Reactive_core.update_signal store.state f
+  ignore (Reactive_core.update_signal store.state f)
 
 (** {1 Batch Updates} *)
 

@@ -11,6 +11,11 @@ open Reactive_core
 (* Test helpers *)
 external console_log : string -> unit = "log" [@@mel.scope "console"]
 
+let wrap_submit submit v = ignore (submit v)
+
+let set_signal_raw = set_signal
+let set_signal s v = ignore (set_signal_raw s v)
+
 let passed = ref 0
 let failed = ref 0
 
@@ -128,7 +133,7 @@ let test_action_use_sets_pending () =
     let dispose_ref = ref (fun () -> ()) in
     let (_, dispose) = create_root (fun () ->
       let action = Action.create (fun x -> delay_resolve 100 (x * 2)) in
-      let submit = Action.use action in
+      let submit = wrap_submit (Action.use action) in
       
       submit 5;
       
@@ -148,7 +153,7 @@ let test_action_use_resolves () =
     let dispose_ref = ref (fun () -> ()) in
     let (_, dispose) = create_root (fun () ->
       let action = Action.create (fun x -> delay_resolve 50 (x * 2)) in
-      let submit = Action.use action in
+      let submit = wrap_submit (Action.use action) in
       
       submit 5;
       
@@ -175,7 +180,7 @@ let test_action_use_rejects () =
       let action = Action.create (fun _ -> 
         delay_reject 50 (Failure "test error")
       ) in
-      let submit = Action.use action in
+      let submit = wrap_submit (Action.use action) in
       
       submit ();
       
@@ -201,7 +206,7 @@ let test_action_use_submission () =
     let dispose_ref = ref (fun () -> ()) in
     let (_, dispose) = create_root (fun () ->
       let action = Action.create (fun x -> delay_resolve 50 ("got: " ^ x)) in
-      let submit = Action.use action in
+      let submit = wrap_submit (Action.use action) in
       let submission = Action.use_submission action in
       
       submit "hello";
@@ -227,7 +232,7 @@ let test_action_submission_clear () =
     let dispose_ref = ref (fun () -> ()) in
     let (_, dispose) = create_root (fun () ->
       let action = Action.create (fun x -> delay_resolve 30 x) in
-      let submit = Action.use action in
+      let submit = wrap_submit (Action.use action) in
       let submission = Action.use_submission action in
       
       submit 42;
@@ -314,7 +319,7 @@ let test_action_chain () =
       let action2 = Action.create (fun x -> delay_resolve 30 (x * 2)) in
       
       let chained = Action.chain action1 action2 in
-      let submit = Action.use chained in
+      let submit = wrap_submit (Action.use chained) in
       
       submit 5;
       
@@ -340,7 +345,7 @@ let test_action_clear () =
     let dispose_ref = ref (fun () -> ()) in
     let (_, dispose) = create_root (fun () ->
       let action = Action.create (fun x -> delay_resolve 30 x) in
-      let submit = Action.use action in
+      let submit = wrap_submit (Action.use action) in
       
       submit "test";
       
@@ -383,7 +388,7 @@ let test_registry_revalidation () =
       let action = Action.create_with_revalidation
         ~keys:[key]
         (fun () -> delay_resolve 30 "done") in
-      let submit = Action.use action in
+      let submit = wrap_submit (Action.use action) in
       
       (* Wait for initial fetch, then submit action *)
       let _ = Dom.set_timeout (fun () ->
@@ -494,12 +499,12 @@ let test_action_with_optimistic_success () =
       
       let action = Action.create (fun x -> delay_resolve 50 x) in
       
-      let submit = Action.with_optimistic action ~optimistic:(fun new_val ->
+      let submit = wrap_submit (Action.with_optimistic action ~optimistic:(fun new_val ->
         let old_val = peek_signal state in
         set_signal state new_val;
         (* Return rollback function *)
         fun () -> set_signal state old_val
-      ) in
+      )) in
       
       submit 42;
       
@@ -531,12 +536,12 @@ let test_action_with_optimistic_rollback () =
         delay_reject 50 (Failure "error")
       ) in
       
-      let submit = Action.with_optimistic action ~optimistic:(fun new_val ->
+      let submit = wrap_submit (Action.with_optimistic action ~optimistic:(fun new_val ->
         let old_val = peek_signal state in
         set_signal state new_val;
         (* Return rollback function *)
         fun () -> set_signal state old_val
-      ) in
+      )) in
       
       submit 999;
       
@@ -569,7 +574,7 @@ let test_action_create_simple () =
         incr counter;
         delay_resolve 50 !counter
       ) in
-      let submit = Action.use action in
+      let submit = wrap_submit (Action.use action) in
       
       submit ();
       

@@ -770,7 +770,7 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
 
   let empty_indexed_state () =
     let tick_signal = Reactive_core.create_signal 0 in
-    let tick_setter v = Reactive_core.set_signal tick_signal v in
+    let tick_setter v = ignore (Reactive_core.set_signal tick_signal v) in
     { tick_signal; tick_setter; tick_value = 0; started = false }
 
   let set_nodes_indexed_accessors (type a)

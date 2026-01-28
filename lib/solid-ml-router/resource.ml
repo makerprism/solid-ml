@@ -93,7 +93,8 @@ type ('a, 'e) t = ('a, 'e) resource
     @param on_error Function that maps exceptions into error values
     @param fetcher Function that returns the data or raises an exception *)
 let create_with_error ~on_error fetcher =
-  let state, set_state = Signal.create Loading in
+  let state, set_state_raw = Signal.create Loading in
+  let set_state value = ignore (set_state_raw value) in
   let id = !next_resource_id in
   incr next_resource_id;
   
@@ -146,7 +147,8 @@ let create fetcher =
     @param fetcher Function that triggers async loading
       (signature: ok:('a -> unit) -> error:('e -> unit) -> unit) *)
 let create_async_with_error ~on_error fetcher =
-  let state, set_state = Signal.create Loading in
+  let state, set_state_raw = Signal.create Loading in
+  let set_state value = ignore (set_state_raw value) in
   let id = !next_resource_id in
   incr next_resource_id;
 
@@ -212,7 +214,8 @@ end
     
     @param value The initial data *)
 let of_value value =
-  let state, set_state = Signal.create (Ready value) in
+  let state, set_state_raw = Signal.create (Ready value) in
+  let set_state value = ignore (set_state_raw value) in
   let id = !next_resource_id in
   incr next_resource_id;
   let actions = {
@@ -236,7 +239,8 @@ let of_value value =
     
     Use [set] to transition to Ready or Error. *)
 let create_loading () =
-  let state, set_state = Signal.create Loading in
+  let state, set_state_raw = Signal.create Loading in
+  let set_state value = ignore (set_state_raw value) in
   let id = !next_resource_id in
   incr next_resource_id;
   let actions = {
@@ -260,7 +264,8 @@ let create_loading () =
     
     @param error Error value *)
 let of_error error =
-  let state, set_state = Signal.create (Error error) in
+  let state, set_state_raw = Signal.create (Error error) in
+  let set_state value = ignore (set_state_raw value) in
   let id = !next_resource_id in
   incr next_resource_id;
   let actions = {

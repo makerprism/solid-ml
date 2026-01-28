@@ -35,7 +35,8 @@ let provide ~initial_path ?(routes=[]) f =
     hash;
   } in
   
-  let current, set_current = Signal.create initial_state in
+  let current, set_current_raw = Signal.create initial_state in
+  let set_current value = ignore (set_current_raw value) in
   
   let navigate new_path =
     let new_path_parsed, new_query, new_hash = Router.parse_url new_path in
@@ -44,12 +45,12 @@ let provide ~initial_path ?(routes=[]) f =
       | Some (_, result) -> result.params
       | None -> Route.Params.empty
     in
-    set_current {
+    ignore (set_current {
       path = new_path_parsed;
       params = new_params;
       query = new_query;
       hash = new_hash;
-    }
+    })
   in
   
   let router_ctx : Router.router_context = {

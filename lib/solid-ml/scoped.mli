@@ -8,12 +8,12 @@ module type S = sig
   module Signal : sig
     type 'a t
 
-    val create : ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
-    val create_eq : equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
-    val create_physical : 'a -> 'a t * ('a -> unit)
+    val create : ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> 'a)
+    val create_eq : equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> 'a)
+    val create_physical : 'a -> 'a t * ('a -> 'a)
     val get : 'a t -> 'a
-    val set : 'a t -> 'a -> unit
-    val update : 'a t -> ('a -> 'a) -> unit
+    val set : 'a t -> 'a -> 'a
+    val update : 'a t -> ('a -> 'a) -> 'a
     val peek : 'a t -> 'a
     val subscribe : 'a t -> (unit -> unit) -> (unit -> unit)
   end
@@ -32,7 +32,8 @@ module type S = sig
     val create_with_cleanup : (unit -> (unit -> unit)) -> unit
     val create_deferred : track:(unit -> 'a) -> run:('a -> unit) -> unit
     val untrack : (unit -> 'a) -> 'a
-    val on : ?defer:bool -> (unit -> 'a) -> (value:'a -> prev:'a -> unit) -> unit
+    val on :
+      ?defer:bool -> ?initial:'a -> (unit -> 'a) -> (value:'a -> prev:'a -> unit) -> unit
   end
 
   module Batch : sig

@@ -474,7 +474,7 @@ let provide ~initial_path ~routes f =
   
   let initial_state = { path; params; query; hash } in
   let current = Reactive_core.create_signal initial_state in
-  let set_current state = Reactive_core.set_signal current state in
+  let set_current state = ignore (Reactive_core.set_signal current state) in
   
   let router_ctx = { current; set_current; routes } in
   Reactive_core.provide_context context router_ctx f

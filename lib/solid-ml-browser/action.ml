@@ -125,9 +125,9 @@ let create_with_revalidation ~keys (handler : 'input -> 'output Dom.promise) : (
 let use (action : ('input, 'output) t) : ('input -> unit) =
   fun input ->
     (* Set pending state *)
-    Reactive_core.set_signal action.pending true;
-    Reactive_core.set_signal action.input (Some input);
-    Reactive_core.set_signal action.error None;
+    ignore (Reactive_core.set_signal action.pending true);
+    ignore (Reactive_core.set_signal action.input (Some input));
+    ignore (Reactive_core.set_signal action.error None);
     
     (* Execute the handler *)
     let promise = action.handler input in
@@ -135,15 +135,15 @@ let use (action : ('input, 'output) t) : ('input -> unit) =
     (* Handle completion *)
     Dom.promise_on_complete promise
       ~on_success:(fun output ->
-        Reactive_core.set_signal action.result (Some output);
-        Reactive_core.set_signal action.pending false;
+        ignore (Reactive_core.set_signal action.result (Some output));
+        ignore (Reactive_core.set_signal action.pending false);
         
         (* Trigger revalidation for registered keys *)
         List.iter Registry.revalidate_key !(action.revalidation_keys)
       )
       ~on_error:(fun exn ->
-        Reactive_core.set_signal action.error (Some exn);
-        Reactive_core.set_signal action.pending false
+        ignore (Reactive_core.set_signal action.error (Some exn));
+        ignore (Reactive_core.set_signal action.pending false)
       )
 
 (** Get a callable function that returns the Promise.
@@ -155,9 +155,9 @@ let use (action : ('input, 'output) t) : ('input -> unit) =
 let use_async (action : ('input, 'output) t) : ('input -> 'output Dom.promise) =
   fun input ->
     (* Set pending state *)
-    Reactive_core.set_signal action.pending true;
-    Reactive_core.set_signal action.input (Some input);
-    Reactive_core.set_signal action.error None;
+    ignore (Reactive_core.set_signal action.pending true);
+    ignore (Reactive_core.set_signal action.input (Some input));
+    ignore (Reactive_core.set_signal action.error None);
     
     (* Execute and wrap to track completion *)
     let promise = action.handler input in
@@ -166,14 +166,14 @@ let use_async (action : ('input, 'output) t) : ('input -> 'output Dom.promise) =
     Dom.promise_make (fun resolve reject ->
       Dom.promise_on_complete promise
         ~on_success:(fun output ->
-          Reactive_core.set_signal action.result (Some output);
-          Reactive_core.set_signal action.pending false;
+          ignore (Reactive_core.set_signal action.result (Some output));
+          ignore (Reactive_core.set_signal action.pending false);
           List.iter Registry.revalidate_key !(action.revalidation_keys);
           resolve output
         )
         ~on_error:(fun exn ->
-          Reactive_core.set_signal action.error (Some exn);
-          Reactive_core.set_signal action.pending false;
+          ignore (Reactive_core.set_signal action.error (Some exn));
+          ignore (Reactive_core.set_signal action.pending false);
           reject exn
         )
     )
@@ -191,9 +191,9 @@ let use_async (action : ('input, 'output) t) : ('input -> 'output Dom.promise) =
     @return Submission state with all tracking signals *)
 let use_submission (action : ('input, 'output) t) : ('input, 'output) submission =
   let clear () =
-    Reactive_core.set_signal action.result None;
-    Reactive_core.set_signal action.error None;
-    Reactive_core.set_signal action.input None
+    ignore (Reactive_core.set_signal action.result None);
+    ignore (Reactive_core.set_signal action.error None);
+    ignore (Reactive_core.set_signal action.input None)
   in
   {
     pending = action.pending;
@@ -254,9 +254,9 @@ let last_input (action : ('input, 'output) t) : 'input option =
 
 (** Clear the action state (result, error, input) *)
 let clear (action : ('input, 'output) t) : unit =
-  Reactive_core.set_signal action.result None;
-  Reactive_core.set_signal action.error None;
-  Reactive_core.set_signal action.input None
+  ignore (Reactive_core.set_signal action.result None);
+  ignore (Reactive_core.set_signal action.error None);
+  ignore (Reactive_core.set_signal action.input None)
 
 (** {1 Convenience Functions} *)
 
@@ -322,21 +322,21 @@ let with_optimistic
     let promise = action.handler input in
     
     (* Update state *)
-    Reactive_core.set_signal action.pending true;
-    Reactive_core.set_signal action.input (Some input);
-    Reactive_core.set_signal action.error None;
+    ignore (Reactive_core.set_signal action.pending true);
+    ignore (Reactive_core.set_signal action.input (Some input));
+    ignore (Reactive_core.set_signal action.error None);
     
     Dom.promise_on_complete promise
       ~on_success:(fun output ->
-        Reactive_core.set_signal action.result (Some output);
-        Reactive_core.set_signal action.pending false;
+        ignore (Reactive_core.set_signal action.result (Some output));
+        ignore (Reactive_core.set_signal action.pending false);
         List.iter Registry.revalidate_key !(action.revalidation_keys)
       )
       ~on_error:(fun exn ->
         (* Rollback on error *)
         rollback ();
-        Reactive_core.set_signal action.error (Some exn);
-        Reactive_core.set_signal action.pending false
+        ignore (Reactive_core.set_signal action.error (Some exn));
+        ignore (Reactive_core.set_signal action.pending false)
       )
 
 (** {1 Form Integration} *)

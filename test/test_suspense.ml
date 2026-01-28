@@ -202,7 +202,7 @@ let () = test "Suspense fallback reacts to signals while loading" (fun () ->
 
   assert_equal "loading: first" (List.hd !results) "Fallback uses signal";
 
-  set_message "second";
+  ignore (set_message "second");
 
   assert_equal "loading: second" (List.hd !results) "Fallback updates reactively"
 )
@@ -350,7 +350,7 @@ let () = test "ErrorBoundary stays in fallback until reset" (fun () ->
 
   assert_equal "error" (List.hd !results) "Shows fallback on error";
 
-  set_should_throw false;
+  ignore (set_should_throw false);
 
   assert_equal "error" (List.hd !results) "Still in fallback without reset";
 
