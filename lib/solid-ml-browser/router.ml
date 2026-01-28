@@ -385,6 +385,39 @@ let init ?(config=default_config) f =
   
   (result, dispose)
 
+(** Initialize router and render/hydrate the app.
+
+    If the root element already has children, hydrate; otherwise render.
+    Ensures router context is available during render. *)
+let init_with_root ?(config=default_config) root f =
+  current_config := config;
+
+  let handler = handle_popstate in
+  Dom.on_popstate handler;
+  popstate_handler := Some handler;
+
+  let initial_path = get_app_path () in
+
+  let (result, root_dispose) = Reactive_core.create_root (fun () ->
+    provide ~initial_path ~routes:config.routes (fun () ->
+      let children = Dom.get_child_nodes root in
+      if Array.length children = 0 then
+        Render.render root f
+      else
+        Render.hydrate root f
+    )
+  ) in
+
+  let dispose () =
+    root_dispose ();
+    (match !popstate_handler with
+     | Some h ->
+       Dom.off_popstate h;
+       popstate_handler := None
+     | None -> ())
+  in
+  (result, dispose)
+
 (** {1 Link Components} *)
 
 let link ?(class_="") ~href ~children () =
