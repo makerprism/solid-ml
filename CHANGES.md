@@ -20,6 +20,9 @@
 
 ### Changed
 - Removed token-based strict APIs; reactive primitives now follow SolidJS-style implicit runtime semantics. Create a per-request runtime with `Runtime.run` on servers to avoid cross-request state.
+
+### Breaking (pre-release)
+- No releases yet; treat all changes as breaking until 1.0.
 - Resource states now use `Loading/Ready/Error`; `Pending` is deprecated and treated as loading.
 - Router components are now a functor only; SSR defaults moved to `Solid_ml_ssr.Router_components`.
 - `Solid_ml_router.Resource.render_simple` moved to `Solid_ml_ssr.Router_resource`.
