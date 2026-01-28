@@ -18,6 +18,8 @@ let with_root f =
   append_child body (node_of_element root);
   f root
 
+let ignore_set set v = ignore (set v)
+
 let render_index ~root ~items ~fallback_text () =
   let (_res, dispose) =
     Reactive_core.create_root (fun () ->
@@ -34,7 +36,7 @@ let render_index ~root ~items ~fallback_text () =
                 let value, set_value = Signal.create (item_signal ()) in
                 Effect.create (fun () ->
                   let _ = Signal.get items in
-                  set_value (item_signal ()));
+                  ignore (set_value (item_signal ())));
                 H.span ~children:[H.reactive_text_string value] ());
           }
       in
@@ -53,6 +55,7 @@ let test_index_renders_initial_items () =
 let test_index_updates_item_by_position () =
   with_root (fun root ->
     let items, set_items = Signal.create [ "A"; "B" ] in
+    let set_items = ignore_set set_items in
     let dispose = render_index ~root ~items ~fallback_text:None () in
     assert_eq ~name:"index initial update" (get_text_content root) "AB";
     set_items [ "A"; "Z" ];
@@ -63,6 +66,7 @@ let test_index_updates_item_by_position () =
 let test_index_preserves_nodes_on_append () =
   with_root (fun root ->
     let items, set_items = Signal.create [ "A"; "B" ] in
+    let set_items = ignore_set set_items in
     let dispose = render_index ~root ~items ~fallback_text:None () in
     let before = get_child_nodes root in
     let first_el = element_of_node before.(0) in
@@ -79,6 +83,7 @@ let test_index_preserves_nodes_on_append () =
 let test_index_removes_tail_items () =
   with_root (fun root ->
     let items, set_items = Signal.create [ "A"; "B"; "C" ] in
+    let set_items = ignore_set set_items in
     let dispose = render_index ~root ~items ~fallback_text:None () in
     assert_eq ~name:"index initial shrink" (get_text_content root) "ABC";
     set_items [ "A" ];
@@ -89,6 +94,7 @@ let test_index_removes_tail_items () =
 let test_index_fallback_toggle () =
   with_root (fun root ->
     let items, set_items = Signal.create [] in
+    let set_items = ignore_set set_items in
     let dispose = render_index ~root ~items ~fallback_text:(Some "Empty") () in
     assert_eq ~name:"index fallback initial" (get_text_content root) "Empty";
     set_items [ "A" ];

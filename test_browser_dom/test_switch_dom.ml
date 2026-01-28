@@ -17,9 +17,12 @@ let with_root f =
   append_child body (node_of_element root);
   f root
 
+let ignore_set set v = ignore (set v)
+
 let test_switch_first_match_wins () =
   with_root (fun root ->
     let mode, set_mode = Signal.create 1 in
+    let set_mode = ignore_set set_mode in
 
     let dispose =
       Render.render root (fun () ->
@@ -44,6 +47,7 @@ let test_switch_first_match_wins () =
 let test_switch_updates_on_signal_change () =
   with_root (fun root ->
     let mode, set_mode = Signal.create 1 in
+    let set_mode = ignore_set set_mode in
 
     let dispose =
       Render.render root (fun () ->
@@ -71,7 +75,9 @@ let test_switch_updates_on_signal_change () =
 let test_switch_reactive_branch_updates () =
   with_root (fun root ->
     let mode, set_mode = Signal.create 1 in
+    let set_mode = ignore_set set_mode in
     let label, set_label = Signal.create "A" in
+    let set_label = ignore_set set_label in
 
     let dispose =
       Render.render root (fun () ->
@@ -98,6 +104,7 @@ let test_switch_reactive_branch_updates () =
 let test_switch_disposes_previous_branch () =
   with_root (fun root ->
     let mode, set_mode = Signal.create 1 in
+    let set_mode = ignore_set set_mode in
     let disposed = ref 0 in
 
     let dispose =
@@ -129,6 +136,7 @@ let test_switch_disposes_previous_branch () =
 let test_switch_preserves_dom_for_same_case () =
   with_root (fun root ->
     let mode, set_mode = Signal.create 1 in
+    let set_mode = ignore_set set_mode in
 
     let dispose =
       Render.render root (fun () ->
@@ -183,6 +191,7 @@ let test_on_mount_runs_after_render () =
 let test_on_mount_runs_on_remount () =
   with_root (fun root ->
     let mode, set_mode = Signal.create 1 in
+    let set_mode = ignore_set set_mode in
     let mounts_a = ref 0 in
     let mounts_b = ref 0 in
 

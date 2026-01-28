@@ -17,6 +17,8 @@ let with_root f =
   append_child body (node_of_element root);
   f root
 
+let ignore_set set v = ignore (set v)
+
 let render_for ~root ~items ~fallback_text () =
   let (_res, dispose) =
     Reactive_core.create_root (fun () ->
@@ -48,6 +50,7 @@ let test_for_renders_initial_items () =
 let test_for_updates_on_append () =
   with_root (fun root ->
     let items, set_items = Signal.create [ "A"; "B" ] in
+    let set_items = ignore_set set_items in
     let dispose = render_for ~root ~items ~fallback_text:None () in
     set_items [ "A"; "B"; "C" ];
     assert_eq ~name:"for append text" (get_text_content root) "ABC";
@@ -57,6 +60,7 @@ let test_for_updates_on_append () =
 let test_for_removes_items () =
   with_root (fun root ->
     let items, set_items = Signal.create [ "A"; "B"; "C" ] in
+    let set_items = ignore_set set_items in
     let dispose = render_for ~root ~items ~fallback_text:None () in
     set_items [ "A" ];
     assert_eq ~name:"for remove text" (get_text_content root) "A";
@@ -66,6 +70,7 @@ let test_for_removes_items () =
 let test_for_reorders_preserve_nodes () =
   with_root (fun root ->
     let items, set_items = Signal.create [ "A"; "B"; "C" ] in
+    let set_items = ignore_set set_items in
     let dispose = render_for ~root ~items ~fallback_text:None () in
     let find id =
       match query_selector_within root ("#item-" ^ id) with
@@ -101,6 +106,7 @@ let test_for_reorders_preserve_nodes () =
 let test_for_fallback_toggle () =
   with_root (fun root ->
     let items, set_items = Signal.create [] in
+    let set_items = ignore_set set_items in
     let dispose = render_for ~root ~items ~fallback_text:(Some "Empty") () in
     assert_eq ~name:"for fallback initial" (get_text_content root) "Empty";
     set_items [ "A" ];

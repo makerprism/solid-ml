@@ -1,5 +1,24 @@
 open Solid_ml_browser
-module Signal = Reactive.Signal
+module Base_browser = Solid_ml_browser
+module Raw_signal = Base_browser.Env.Signal
+
+module Signal = struct
+  include Raw_signal
+
+  let create ?equals v =
+    let s, set = Raw_signal.create ?equals v in
+    (s, fun v -> ignore (set v))
+end
+
+module Solid_ml_browser = struct
+  include Base_browser
+
+  module Env = struct
+    include Base_browser.Env
+    module Signal = Signal
+  end
+end
+
 module Effect = Solid_ml_browser.Env.Effect
 module Owner = Solid_ml_browser.Env.Owner
 open Dom
@@ -18,6 +37,8 @@ let fail msg =
 
 let assert_eq ~name a b =
   if a <> b then fail (name ^ ": expected " ^ b ^ ", got " ^ a)
+
+let ignore_set set v = ignore (set v)
 
 let string_contains_substring ~haystack ~needle =
   let haystack_len = String.length haystack in
@@ -227,7 +248,7 @@ let test_hydrate_reactive_text_marker_adoption () =
         ())
   in
 
-  set_text "Updated";
+  ignore_set set_text "Updated";
   assert_eq ~name:"hydrate reactive text updated" (get_text_content root) "Updated";
   dispose ()
 
@@ -395,6 +416,7 @@ let test_template_dynamic_component_switch () =
   append_child body (node_of_element root);
 
   let name, set_name = Signal.create "Smith" in
+  let set_name = ignore_set set_name in
 
   let comp_a label =
     Html.div ~children:[Html.text ("Hi " ^ label)] ()
@@ -475,6 +497,7 @@ let test_template_dynamic_intrinsic_switch () =
   append_child body (node_of_element root);
 
   let name, set_name = Signal.create "Smith" in
+  let set_name = ignore_set set_name in
   let comp_a () = Html.div ~children:[Html.text ("Hi " ^ Signal.get name)] () in
   let comp_b () = Html.span ~children:[Html.text ("Yo " ^ Signal.get name)] () in
   let comp_h1 () = Html.h1 ~id:(Signal.get name) ~children:[] () in
@@ -524,6 +547,7 @@ let test_template_dynamic_spread_props () =
       (Solid_ml_template_runtime.Spread.class_list [ ("active", false) ])
   in
   let spread, set_spread = Signal.create spread_initial in
+  let set_spread = ignore_set set_spread in
 
   let comp () =
     Html.div
@@ -631,7 +655,9 @@ let test_template_portal_head () =
   append_child body (node_of_element root);
 
   let title, set_title = Signal.create "A Meaningful Page Title" in
+  let set_title = ignore_set set_title in
   let visible, set_visible = Signal.create true in
+  let set_visible = ignore_set set_visible in
 
   let dispose =
     Render.render root (fun () ->
@@ -692,6 +718,7 @@ let test_template_portal_event () =
   append_child body (node_of_element mount);
 
   let clicked, set_clicked = Signal.create false in
+  let set_clicked = ignore_set set_clicked in
 
   let dispose =
     Render.render root (fun () ->
@@ -716,6 +743,7 @@ let test_template_portal_reactive_children () =
   append_child body (node_of_element mount);
 
   let count, set_count = Signal.create 0 in
+  let set_count = ignore_set set_count in
 
   let dispose =
     Render.render root (fun () ->
@@ -961,7 +989,9 @@ let test_compiled_attr_opt () =
   append_child body (node_of_element root);
 
   let href, set_href = Solid_ml_browser.Env.Signal.create (Some "/a") in
+  let set_href = ignore_set set_href in
   let label, set_label = Solid_ml_browser.Env.Signal.create "Link" in
+  let set_label = ignore_set set_label in
 
   let module C = Link (Solid_ml_browser.Env) in
 
@@ -995,7 +1025,9 @@ let test_compiled_attr () =
   append_child body (node_of_element root);
 
   let href, set_href = Solid_ml_browser.Env.Signal.create "/a?x=<y>" in
+  let set_href = ignore_set set_href in
   let label, set_label = Solid_ml_browser.Env.Signal.create "Link" in
+  let set_label = ignore_set set_label in
 
   let module C = Link (Solid_ml_browser.Env) in
 
@@ -1028,7 +1060,9 @@ let test_compiled_attr_nested () =
   append_child body (node_of_element root);
 
   let href, set_href = Solid_ml_browser.Env.Signal.create "/a" in
+  let set_href = ignore_set set_href in
   let label, set_label = Solid_ml_browser.Env.Signal.create "Link" in
+  let set_label = ignore_set set_label in
 
   let module C = Link (Solid_ml_browser.Env) in
 
@@ -1071,7 +1105,9 @@ let test_compiled_nested_intrinsic_formatting () =
   append_child body (node_of_element root);
 
   let href, set_href = Solid_ml_browser.Env.Signal.create "/a" in
+  let set_href = ignore_set set_href in
   let label, set_label = Solid_ml_browser.Env.Signal.create "Link" in
+  let set_label = ignore_set set_label in
 
   let module C = Link (Solid_ml_browser.Env) in
 
@@ -1107,6 +1143,7 @@ let test_text_slot_static_suffix_preserved () =
   append_child body (node_of_element root);
 
   let label, set_label = Solid_ml_browser.Env.Signal.create "World" in
+  let set_label = ignore_set set_label in
   let module C = Link (Solid_ml_browser.Env) in
 
   let (_res, dispose) =
@@ -1242,6 +1279,7 @@ let test_indexed_accessors_update () =
   let body : element = [%mel.raw "document.body"] in
   append_child body (node_of_element root);
   let items, set_items = Signal.create [ "A"; "B" ] in
+  let set_items = ignore_set set_items in
   let dispose =
     Render.render root (fun () ->
       Html.div
@@ -1329,6 +1367,7 @@ let test_template_spread_updates () =
       (Solid_ml_template_runtime.Spread.style [ ("color", Some "red") ])
   in
   let spread, set_spread = Signal.create spread_initial in
+  let set_spread = ignore_set set_spread in
 
   let dispose =
     Render.render root (fun () ->
@@ -1474,6 +1513,7 @@ let test_cleanup_removes_listeners () =
   set_inner_html root "<div>Initial</div>";
 
   let label, set_label = Solid_ml_browser.Env.Signal.create "World" in
+  let set_label = ignore_set set_label in
   let slot_ref = ref None in
 
   let dispose =
@@ -1516,6 +1556,7 @@ let test_state_hydration () =
       ~default:0
   in
   let count, set_count = Solid_ml_browser.Env.Signal.create initial in
+  let set_count = ignore_set set_count in
 
   let dispose =
     Render.hydrate root (fun () ->
@@ -1632,6 +1673,7 @@ let test_template_reactive_text () =
   let body : element = [%mel.raw "document.body"] in
   append_child body (node_of_element root);
   let message, set_message = Solid_ml_browser.Env.Signal.create "Hello" in
+  let set_message = ignore_set set_message in
 
   let (_res, dispose) =
     Reactive_core.create_root (fun () ->
@@ -1654,6 +1696,7 @@ let test_template_show_when () =
   let body : element = [%mel.raw "document.body"] in
   append_child body (node_of_element root);
   let visible, set_visible = Solid_ml_browser.Env.Signal.create false in
+  let set_visible = ignore_set set_visible in
 
   let (_res, dispose) =
     Reactive_core.create_root (fun () ->
@@ -1678,6 +1721,7 @@ let test_template_show_only_child_toggle () =
   let body : element = [%mel.raw "document.body"] in
   append_child body (node_of_element root);
   let count, set_count = Solid_ml_browser.Env.Signal.create 0 in
+  let set_count = ignore_set set_count in
 
   let (_res, dispose) =
     Reactive_core.create_root (fun () ->
@@ -1705,6 +1749,7 @@ let test_template_show_dom_children_toggle () =
   let body : element = [%mel.raw "document.body"] in
   append_child body (node_of_element root);
   let count, set_count = Solid_ml_browser.Env.Signal.create 0 in
+  let set_count = ignore_set set_count in
 
   let (_res, dispose) =
     Reactive_core.create_root (fun () ->
@@ -1746,6 +1791,7 @@ let test_template_show_fallback_toggle () =
   let body : element = [%mel.raw "document.body"] in
   append_child body (node_of_element root);
   let count, set_count = Solid_ml_browser.Env.Signal.create 0 in
+  let set_count = ignore_set set_count in
 
   let (_res, dispose) =
     Reactive_core.create_root (fun () ->
@@ -1775,6 +1821,7 @@ let test_template_show_function_children_nonkeyed () =
   let body : element = [%mel.raw "document.body"] in
   append_child body (node_of_element root);
   let name, set_name = Solid_ml_browser.Env.Signal.create "Alpha" in
+  let set_name = ignore_set set_name in
   let children_executed = ref 0 in
 
   let (_res, dispose) =
@@ -1808,6 +1855,7 @@ let test_template_show_function_children_keyed () =
   let body : element = [%mel.raw "document.body"] in
   append_child body (node_of_element root);
   let name, set_name = Solid_ml_browser.Env.Signal.create "Alpha" in
+  let set_name = ignore_set set_name in
   let children_executed = ref 0 in
 
   let (_res, dispose) =
@@ -1843,6 +1891,7 @@ let test_template_show_nonkeyed_counts () =
   let body : element = [%mel.raw "document.body"] in
   append_child body (node_of_element root);
   let count, set_count = Solid_ml_browser.Env.Signal.create 0 in
+  let set_count = ignore_set set_count in
   let when_executed = ref 0 in
   let children_executed = ref 0 in
 
@@ -1897,6 +1946,7 @@ let test_template_show_keyed_counts () =
   let body : element = [%mel.raw "document.body"] in
   append_child body (node_of_element root);
   let count, set_count = Solid_ml_browser.Env.Signal.create 0 in
+  let set_count = ignore_set set_count in
   let when_executed = ref 0 in
   let children_executed = ref 0 in
 
@@ -1952,6 +2002,7 @@ let test_template_bind_input () =
   let body : element = [%mel.raw "document.body"] in
   append_child body (node_of_element root);
   let value, set_value = Solid_ml_browser.Env.Signal.create "start" in
+  let set_value = ignore_set set_value in
 
   let (_res, dispose) =
     Reactive_core.create_root (fun () ->
@@ -1978,6 +2029,7 @@ let test_template_bind_input_updates_text () =
   let body : element = [%mel.raw "document.body"] in
   append_child body (node_of_element root);
   let value, set_value = Solid_ml_browser.Env.Signal.create "" in
+  let set_value = ignore_set set_value in
   let show, _set_show = Solid_ml_browser.Env.Signal.create true in
 
   let (_res, dispose) =
@@ -2014,6 +2066,7 @@ let test_template_auto_bool_attr () =
   let body : element = [%mel.raw "document.body"] in
   append_child body (node_of_element root);
   let enabled, set_enabled = Solid_ml_browser.Env.Signal.create false in
+  let set_enabled = ignore_set set_enabled in
 
   let (_res, dispose) =
     Reactive_core.create_root (fun () ->
