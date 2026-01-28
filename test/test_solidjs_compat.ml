@@ -50,6 +50,69 @@ let test_create_and_read_memo () =
   );
   print_endline "  PASSED"
 
+let test_create_and_read_memo_with_initial () =
+  print_endline "Test: Create and read a Memo with initial value";
+  with_runtime (fun () ->
+    let memo = Memo.create_with_initial ~initial:"Hello" (fun prev -> prev ^ " John") in
+    assert (Memo.get memo = "Hello John")
+  );
+  print_endline "  PASSED"
+
+let test_create_effect_with_explicit_deps () =
+  print_endline "Test: Create a Effect with explicit deps";
+  with_runtime (fun () ->
+    let temp = ref "" in
+    let sign, _ = Signal.create "thoughts" in
+    Effect.on (fun () -> Signal.get sign) (fun ~value ~prev:_ ->
+      temp := "impure " ^ value
+    );
+    assert (!temp = "impure thoughts")
+  );
+  print_endline "  PASSED"
+
+let test_create_effect_with_multiple_explicit_deps () =
+  print_endline "Test: Create a Effect with multiple explicit deps";
+  with_runtime (fun () ->
+    let temp = ref "" in
+    let sign, _ = Signal.create "thoughts" in
+    let num, _ = Signal.create 3 in
+    Effect.on
+      (fun () -> (Signal.get sign, Signal.get num))
+      (fun ~value ~prev:_ ->
+        let (_, n) = value in
+        temp := "impure " ^ string_of_int n
+      );
+    assert (!temp = "impure 3")
+  );
+  print_endline "  PASSED"
+
+let test_create_effect_with_explicit_deps_defer () =
+  print_endline "Test: Create a Effect with explicit deps and lazy evaluation";
+  with_runtime (fun () ->
+    let temp = ref "" in
+    let sign, set_sign = Signal.create "thoughts" in
+    Effect.on ~defer:true (fun () -> Signal.get sign) (fun ~value ~prev:_ ->
+      temp := "impure " ^ value
+    );
+    assert (!temp = "");
+    set_sign "minds";
+    assert (!temp = "impure minds")
+  );
+  print_endline "  PASSED"
+
+let test_create_effect_with_explicit_deps_defer_initial () =
+  print_endline "Test: Create a Effect with explicit deps, lazy evaluation, and initial value";
+  with_runtime (fun () ->
+    let temp = ref "" in
+    let sign, set_sign = Signal.create "thoughts" in
+    Effect.on ~defer:true ~initial:"numbers" (fun () -> Signal.get sign)
+      (fun ~value ~prev -> temp := "impure " ^ prev ^ " " ^ value);
+    assert (!temp = "");
+    set_sign "minds";
+    assert (!temp = "impure numbers minds")
+  );
+  print_endline "  PASSED"
+
 (* ============ Update Signals ============ *)
 
 let test_create_and_update_signal () =
@@ -86,6 +149,31 @@ let test_signal_set_equivalent_value () =
     let value, set_value = Signal.create ~equals:(fun a b -> a > b) 5 in
     set_value 3;  (* 5 > 3 is true, so considered "equal", no update *)
     assert (Signal.get value = 5)
+  );
+  print_endline "  PASSED"
+
+let test_signal_with_function_value () =
+  print_endline "Test: Create and read a Signal with function value";
+  with_runtime (fun () ->
+    let value, set_value = Signal.create (fun () -> "Hi") in
+    assert ((Signal.get value) () = "Hi");
+    set_value (fun () -> "Hello");
+    assert ((Signal.get value) () = "Hello")
+  );
+  print_endline "  PASSED"
+
+let test_signal_set_returns_argument () =
+  print_endline "Test: Set signal returns argument";
+  with_runtime (fun () ->
+    let _, set_value = Signal.create (None : int option) in
+    let res1 = set_value None in
+    assert (res1 = None);
+    let res2 = set_value (Some 12) in
+    assert (res2 = Some 12);
+    let res3 = set_value (Some 12) in
+    assert (res3 = Some 12);
+    let res4 = set_value None in
+    assert (res4 = None)
   );
   print_endline "  PASSED"
 
@@ -135,6 +223,18 @@ let test_create_and_trigger_effect () =
     Effect.create (fun () -> temp := "unpure " ^ Signal.get sign);
     assert (!temp = "unpure thoughts");
     set_sign "mind";
+    assert (!temp = "unpure mind")
+  );
+  print_endline "  PASSED"
+
+let test_create_and_trigger_effect_with_function_signal () =
+  print_endline "Test: Create and trigger an Effect with function signals";
+  with_runtime (fun () ->
+    let temp = ref "" in
+    let sign, set_sign = Signal.create (fun () -> "thoughts") in
+    Effect.create (fun () -> temp := "unpure " ^ (Signal.get sign) ());
+    assert (!temp = "unpure thoughts");
+    set_sign (fun () -> "mind");
     assert (!temp = "unpure mind")
   );
   print_endline "  PASSED"
@@ -211,6 +311,30 @@ let test_multiple_sets () =
   );
   print_endline "  PASSED"
 
+let test_handles_errors_gracefully () =
+  print_endline "Test: Handles errors gracefully";
+  with_runtime (fun () ->
+    let error = ref None in
+    let a, set_a = Signal.create 0 in
+    let b, _set_b = Signal.create 0 in
+    Effect.create (fun () ->
+      try
+        set_a 1;
+        failwith "test"
+      with exn -> error := Some exn
+    );
+    let _ = Memo.create (fun () -> Signal.get a + Signal.get b) in
+    assert (Signal.get a = 1);
+    assert (Signal.get b = 0);
+    set_a 2;
+    assert (Signal.get a = 2);
+    match !error with
+    | Some (Failure msg) -> assert (msg = "test")
+    | Some _ -> assert false
+    | None -> assert false
+  );
+  print_endline "  PASSED"
+
 (* ============ onCleanup ============ *)
 
 let test_clean_effect () =
@@ -239,6 +363,172 @@ let test_explicit_root_disposal () =
   assert (!temp = "disposed");
   print_endline "  PASSED"
 
+(* ============ catchError ============ *)
+
+let test_catch_error_no_handler () =
+  print_endline "Test: catchError no handler";
+  let raised = ref false in
+  (try
+     with_runtime (fun () ->
+       raise (Failure "fail")
+     )
+   with Failure "fail" -> raised := true);
+  assert !raised;
+  print_endline "  PASSED"
+
+let test_catch_error_top_level () =
+  print_endline "Test: catchError top level";
+  let errored = ref false in
+  with_runtime (fun () ->
+    let _ = Solid_ml.Owner.catch_error
+      (fun () -> raise (Failure "fail"))
+      (fun _ -> errored := true; ())
+    in
+    ()
+  );
+  assert !errored;
+  print_endline "  PASSED"
+
+let test_catch_error_nested () =
+  print_endline "Test: catchError nested in catchError";
+  let errored = ref false in
+  with_runtime (fun () ->
+    let _ = Solid_ml.Owner.catch_error
+      (fun () ->
+        let _ = Solid_ml.Owner.catch_error
+          (fun () -> raise (Failure "fail"))
+          (fun exn -> raise exn)
+        in
+        ())
+      (fun _ -> errored := true; ())
+    in
+    ()
+  );
+  assert !errored;
+  print_endline "  PASSED"
+
+let test_catch_error_in_initial_effect () =
+  print_endline "Test: catchError in initial effect";
+  let errored = ref false in
+  with_runtime (fun () ->
+    Effect.create (fun () ->
+      let _ = Solid_ml.Owner.catch_error
+        (fun () -> raise (Failure "fail"))
+        (fun _ -> errored := true; ())
+      in
+      ()
+    )
+  );
+  assert !errored;
+  print_endline "  PASSED"
+
+let test_catch_error_in_update_effect () =
+  print_endline "Test: catchError in update effect";
+  let errored = ref false in
+  with_runtime (fun () ->
+    let s, set_s = Signal.create 0 in
+    Effect.create (fun () ->
+      let v = Signal.get s in
+      let _ = Solid_ml.Owner.catch_error
+        (fun () -> if v <> 0 then raise (Failure "fail"))
+        (fun _ -> errored := true; ())
+      in
+      ()
+    );
+    set_s 1
+  );
+  assert !errored;
+  print_endline "  PASSED"
+
+let test_catch_error_in_initial_nested_effect () =
+  print_endline "Test: catchError in initial nested effect";
+  let errored = ref false in
+  with_runtime (fun () ->
+    Effect.create (fun () ->
+      Effect.create (fun () ->
+        let _ = Solid_ml.Owner.catch_error
+          (fun () -> raise (Failure "fail"))
+          (fun _ -> errored := true; ())
+        in
+        ()
+      )
+    )
+  );
+  assert !errored;
+  print_endline "  PASSED"
+
+let test_catch_error_in_nested_update_effect () =
+  print_endline "Test: catchError in nested update effect";
+  let errored = ref false in
+  with_runtime (fun () ->
+    let s, set_s = Signal.create 0 in
+    Effect.create (fun () ->
+      Effect.create (fun () ->
+        let v = Signal.get s in
+        let _ = Solid_ml.Owner.catch_error
+          (fun () -> if v <> 0 then raise (Failure "fail"))
+          (fun _ -> errored := true; ())
+        in
+        ()
+      )
+    );
+    set_s 1
+  );
+  assert !errored;
+  print_endline "  PASSED"
+
+let test_catch_error_in_nested_update_effect_different_levels () =
+  print_endline "Test: catchError in nested update effect different levels";
+  let errored = ref false in
+  with_runtime (fun () ->
+    let s, set_s = Signal.create 0 in
+    Effect.create (fun () ->
+      let _ = Solid_ml.Owner.catch_error
+        (fun () ->
+          Effect.create (fun () ->
+            let v = Signal.get s in
+            if v <> 0 then raise (Failure "fail")
+          ))
+        (fun _ -> errored := true; ())
+      in
+      ()
+    );
+    set_s 1
+  );
+  assert !errored;
+  print_endline "  PASSED"
+
+let test_catch_error_in_nested_memo () =
+  print_endline "Test: catchError in nested memo";
+  let errored = ref false in
+  with_runtime (fun () ->
+    let _ = Memo.create (fun () ->
+      let _ = Solid_ml.Owner.catch_error
+        (fun () ->
+          Effect.create (fun () -> ());
+          failwith "fail")
+        (fun _ -> errored := true; ())
+      in
+      ()
+    ) in
+    ()
+  );
+  assert !errored;
+  print_endline "  PASSED"
+
+(* ============ createDeferred ============ *)
+
+let test_create_deferred_simple () =
+  print_endline "Test: createDeferred simple";
+  with_runtime (fun () ->
+    let s, set_s = Signal.create "init" in
+    let d = Deferred.create s in
+    assert (Signal.get d = "init");
+    set_s "Hi";
+    assert (Signal.get d = "Hi")
+  );
+  print_endline "  PASSED"
+
 (* ============ Context ============ *)
 
 let test_create_context_defaults_to_default () =
@@ -247,6 +537,15 @@ let test_create_context_defaults_to_default () =
     let context = Context.create 42 in
     let res = Context.use context in
     assert (res = 42)
+  );
+  print_endline "  PASSED"
+
+let test_create_context_defaults_to_none () =
+  print_endline "Test: createContext defaults to None";
+  with_runtime (fun () ->
+    let context = Context.create (None : int option) in
+    let res = Context.use context in
+    assert (res = None)
   );
   print_endline "  PASSED"
 
@@ -769,16 +1068,24 @@ let () =
   test_create_and_read_signal ();
   test_create_signal_with_comparator ();
   test_create_and_read_memo ();
+  test_create_and_read_memo_with_initial ();
+  test_create_effect_with_explicit_deps ();
+  test_create_effect_with_multiple_explicit_deps ();
+  test_create_effect_with_explicit_deps_defer ();
+  test_create_effect_with_explicit_deps_defer_initial ();
   
   print_endline "\n-- Update Signals --";
   test_create_and_update_signal ();
   test_create_and_update_signal_with_fn ();
   test_signal_set_different_value ();
   test_signal_set_equivalent_value ();
+  test_signal_with_function_value ();
+  test_signal_set_returns_argument ();
   test_create_and_trigger_memo ();
   test_memo_not_triggered_on_equivalent_value ();
   test_create_and_trigger_memo_in_effect ();
   test_create_and_trigger_effect ();
+  test_create_and_trigger_effect_with_function_signal ();
   
   print_endline "\n-- Untrack Signals --";
   test_mute_effect_with_untrack ();
@@ -787,10 +1094,22 @@ let () =
   test_groups_updates ();
   test_groups_updates_with_repeated_sets ();
   test_multiple_sets ();
+  test_handles_errors_gracefully ();
   
   print_endline "\n-- onCleanup --";
   test_clean_effect ();
   test_explicit_root_disposal ();
+
+  print_endline "\n-- catchError --";
+  test_catch_error_no_handler ();
+  test_catch_error_top_level ();
+  test_catch_error_nested ();
+  test_catch_error_in_initial_effect ();
+  test_catch_error_in_update_effect ();
+  test_catch_error_in_initial_nested_effect ();
+  test_catch_error_in_nested_update_effect ();
+  test_catch_error_in_nested_update_effect_different_levels ();
+  test_catch_error_in_nested_memo ();
   
   print_endline "\n-- Context --";
   test_create_context_defaults_to_default ();
@@ -800,6 +1119,7 @@ let () =
   test_context_isolated_between_roots ();
   test_context_value_signal_reactivity ();
   test_context_inherits_in_child_owner ();
+  test_create_context_defaults_to_none ();
   
   print_endline "\n-- createRoot --";
   test_nested_roots ();
@@ -844,5 +1164,8 @@ let () =
   
   print_endline "\n-- Effect Lifecycle --";
   test_effect_in_effect_cleanup ();
+
+  print_endline "\n-- createDeferred --";
+  test_create_deferred_simple ();
   
   print_endline "\n=== All SolidJS compatibility tests passed! ===\n"

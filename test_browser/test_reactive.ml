@@ -280,6 +280,102 @@ let test_memo_chain () =
     )
   )
 
+(* ============ Selector Tests ============ *)
+
+let test_selector_simple () =
+  test "create_selector simple selection" (fun () ->
+    with_runtime (fun () ->
+      let selected = create_signal (-1) in
+      let is_selected = Reactive.create_selector selected in
+      let count = ref 0 in
+      let list = Array.init 100 (fun i ->
+        create_memo (fun () ->
+          incr count;
+          if is_selected i then "selected" else "no"
+        )
+      ) in
+      assert_eq !count 100;
+      assert_eq (get_memo list.(3)) "no";
+      count := 0;
+      set_signal selected 3;
+      assert_eq !count 1;
+      assert_eq (get_memo list.(3)) "selected";
+      count := 0;
+      set_signal selected 6;
+      assert_eq !count 2;
+      assert_eq (get_memo list.(3)) "no";
+      assert_eq (get_memo list.(6)) "selected";
+      count := 0;
+      set_signal selected (-1);
+      assert_eq !count 1;
+      assert_eq (get_memo list.(6)) "no";
+      count := 0;
+      set_signal selected 5;
+      assert_eq !count 1;
+      assert_eq (get_memo list.(5)) "selected"
+    )
+  )
+
+let test_selector_double () =
+  test "create_selector double selection" (fun () ->
+    with_runtime (fun () ->
+      let selected = create_signal (-1) in
+      let is_selected = Reactive.create_selector selected in
+      let count = ref 0 in
+      let list = Array.init 100 (fun i ->
+        ( create_memo (fun () ->
+            incr count;
+            if is_selected i then "selected" else "no"
+          ),
+          create_memo (fun () ->
+            incr count;
+            if is_selected i then "oui" else "non"
+          )
+        )
+      ) in
+      assert_eq !count 200;
+      assert_eq (get_memo (fst list.(3))) "no";
+      assert_eq (get_memo (snd list.(3))) "non";
+      count := 0;
+      set_signal selected 3;
+      assert_eq !count 2;
+      assert_eq (get_memo (fst list.(3))) "selected";
+      assert_eq (get_memo (snd list.(3))) "oui";
+      count := 0;
+      set_signal selected 6;
+      assert_eq !count 4;
+      assert_eq (get_memo (fst list.(3))) "no";
+      assert_eq (get_memo (snd list.(3))) "non";
+      assert_eq (get_memo (fst list.(6))) "selected";
+      assert_eq (get_memo (snd list.(6))) "oui"
+    )
+  )
+
+let test_selector_zero_index () =
+  test "create_selector zero index" (fun () ->
+    with_runtime (fun () ->
+      let selected = create_signal (-1) in
+      let is_selected = Reactive.create_selector selected in
+      let count = ref 0 in
+      let list = [|
+        create_memo (fun () ->
+          incr count;
+          if is_selected 0 then "selected" else "no"
+        )
+      |] in
+      assert_eq !count 1;
+      assert_eq (get_memo list.(0)) "no";
+      count := 0;
+      set_signal selected 0;
+      assert_eq !count 1;
+      assert_eq (get_memo list.(0)) "selected";
+      count := 0;
+      set_signal selected (-1);
+      assert_eq !count 1;
+      assert_eq (get_memo list.(0)) "no"
+    )
+  )
+
 (* ============ Owner Tests ============ *)
 
 let test_owner_cleanup () =
@@ -513,6 +609,11 @@ let () =
   console_log "\n-- Memo Tests --";
   test_memo_basic ();
   test_memo_chain ();
+
+  console_log "\n-- Selector Tests --";
+  test_selector_simple ();
+  test_selector_double ();
+  test_selector_zero_index ();
   
   console_log "\n-- Owner Tests --";
   test_owner_cleanup ();

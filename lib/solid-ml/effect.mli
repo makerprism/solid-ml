@@ -101,14 +101,17 @@ val create_deferred : track:(unit -> 'a) -> run:('a -> unit) -> unit
     ]}
     
     @param defer If true, skip the first execution (default: false)
+    @param initial Optional initial value for ~prev when defer is true
     @param deps Function that reads signals to track
     @param fn Callback receiving ~value (current) and ~prev (previous dep value) *)
-val on : ?defer:bool -> (unit -> 'a) -> (value:'a -> prev:'a -> unit) -> unit
+val on :
+  ?defer:bool -> ?initial:'a -> (unit -> 'a) -> (value:'a -> prev:'a -> unit) -> unit
 
 module Unsafe : sig
   val create : (unit -> unit) -> unit
   val create_with_cleanup : (unit -> (unit -> unit)) -> unit
   val untrack : (unit -> 'a) -> 'a
   val create_deferred : track:(unit -> 'a) -> run:('a -> unit) -> unit
-  val on : ?defer:bool -> (unit -> 'a) -> (value:'a -> prev:'a -> unit) -> unit
+  val on :
+    ?defer:bool -> ?initial:'a -> (unit -> 'a) -> (value:'a -> prev:'a -> unit) -> unit
 end

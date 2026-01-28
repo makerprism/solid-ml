@@ -15,11 +15,28 @@ let get = Reactive.read_memo
 let create ?equals fn =
   Reactive.create_memo ?equals fn
 
+(** Create a memoized value that receives the previous value.
+    The [initial] value is used for the first computation. *)
+let create_with_initial ?equals ~initial fn =
+  let prev = ref initial in
+  create ?equals (fun () ->
+    let next = fn !prev in
+    prev := next;
+    next
+  )
+
 (** Create a memo with a custom equality function *)
 let create_with_equals ~eq fn = create ~equals:eq fn
 
 module Unsafe = struct
   let create ?equals fn = Reactive.create_memo ?equals fn
+  let create_with_initial ?equals ~initial fn =
+    let prev = ref initial in
+    create ?equals (fun () ->
+      let next = fn !prev in
+      prev := next;
+      next
+    )
   let create_with_equals ~eq fn = create ~equals:eq fn
   let get = Reactive.read_memo
   let peek = Reactive.peek_memo

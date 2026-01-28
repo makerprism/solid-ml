@@ -15,7 +15,10 @@ type 'a t = 'a Reactive.signal
     has changed. Updates are skipped if the new value is the same object. *)
 let create ?equals initial =
   let signal = Reactive.create_signal ?equals initial in
-  let setter new_value = Reactive.write_signal signal new_value in
+  let setter new_value =
+    Reactive.write_signal signal new_value;
+    new_value
+  in
   (signal, setter)
 
 (** Create a signal with a custom equality function *)
@@ -31,7 +34,9 @@ let peek signal = Reactive.peek_signal signal
 let get signal = Reactive.read_signal signal
 
 (** Set the signal value. *)
-let set signal new_value = Reactive.write_signal signal new_value
+let set signal new_value =
+  Reactive.write_signal signal new_value;
+  new_value
 
 (** Update the signal value using a function. *)
 let update signal f = set signal (f (peek signal))
@@ -114,7 +119,10 @@ module Unsafe = struct
 
   let create ?equals initial =
     let signal = Reactive.create_signal ?equals initial in
-    let setter new_value = Reactive.write_signal signal new_value in
+    let setter new_value =
+      Reactive.write_signal signal new_value;
+      new_value
+    in
     (signal, setter)
 
   let create_eq ~equals initial = create ~equals initial
@@ -123,7 +131,9 @@ module Unsafe = struct
 
   let get signal = Reactive.read_signal signal
   let peek signal = Reactive.peek_signal signal
-  let set signal value = Reactive.write_signal signal value
+  let set signal value =
+    Reactive.write_signal signal value;
+    value
   let update signal f = set signal (f (peek signal))
 
   let subscribe (signal : 'a t) callback =

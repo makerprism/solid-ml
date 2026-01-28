@@ -52,23 +52,33 @@ let create_deferred = R.create_effect_deferred
     
     @param deps Function that reads signals to track (auto-tracked)
     @param fn Function called with ~value (current) and ~prev (previous)
-    @param defer If true, skip running on first execution (default: false) *)
-let on (type a) ?(defer = false) (deps : unit -> a) (fn : value:a -> prev:a -> unit) : unit =
+    @param defer If true, skip running on first execution (default: false)
+    @param initial Optional initial value for ~prev when defer is true *)
+let on (type a) ?(defer = false) ?initial (deps : unit -> a) (fn : value:a -> prev:a -> unit) : unit =
   let prev = ref None in
   let first_run = ref true in
   R.create_effect (fun () ->
     let value = deps () in
     R.untrack (fun () ->
-      let should_run = not (defer && !first_run) in
-      first_run := false;
-      if should_run then begin
+      if !first_run then begin
+        first_run := false;
+        let initial_prev = match initial with
+          | Some v -> v
+          | None -> value
+        in
+        prev := Some initial_prev;
+        if not defer then begin
+          fn ~value ~prev:initial_prev;
+          prev := Some value
+        end
+      end else begin
         let prev_val = match !prev with
           | Some p -> p
           | None -> value
         in
-        fn ~value ~prev:prev_val
-      end;
-      prev := Some value
+        fn ~value ~prev:prev_val;
+        prev := Some value
+      end
     )
   )
 
@@ -78,22 +88,31 @@ module Unsafe = struct
   let untrack = R.untrack
   let create_deferred = R.create_effect_deferred
 
-  let on (type a) ?(defer = false) (deps : unit -> a) (fn : value:a -> prev:a -> unit) : unit =
+  let on (type a) ?(defer = false) ?initial (deps : unit -> a) (fn : value:a -> prev:a -> unit) : unit =
     let prev = ref None in
     let first_run = ref true in
     R.create_effect (fun () ->
       let value = deps () in
       R.untrack (fun () ->
-        let should_run = not (defer && !first_run) in
-        first_run := false;
-        if should_run then begin
+        if !first_run then begin
+          first_run := false;
+          let initial_prev = match initial with
+            | Some v -> v
+            | None -> value
+          in
+          prev := Some initial_prev;
+          if not defer then begin
+            fn ~value ~prev:initial_prev;
+            prev := Some value
+          end
+        end else begin
           let prev_val = match !prev with
             | Some p -> p
             | None -> value
           in
-          fn ~value ~prev:prev_val
-        end;
-        prev := Some value
+          fn ~value ~prev:prev_val;
+          prev := Some value
+        end
       )
     )
 end

@@ -15,10 +15,12 @@ let reset_hydration_keys = Hydration.reset_hydration_keys
 module Signal = struct
   type 'a t = 'a Reactive_core.signal
   let get = Reactive_core.get_signal
-  let set = Reactive_core.set_signal
+  let set s v =
+    Reactive_core.set_signal s v;
+    v
   let create ?equals v = 
     let s = Reactive_core.create_signal ?equals v in
-    (s, fun v -> Reactive_core.set_signal s v)
+    (s, fun v -> Reactive_core.set_signal s v; v)
   let update s f = Reactive_core.update_signal s f
   let peek = Reactive_core.peek_signal
 end
@@ -30,22 +32,31 @@ module Effect = struct
   let untrack = Reactive_core.untrack
   
   (** Create an effect with explicit dependencies (like SolidJS's `on`). *)
-  let on (type a) ?(defer = false) (deps : unit -> a) (fn : value:a -> prev:a -> unit) : unit =
+  let on (type a) ?(defer = false) ?initial (deps : unit -> a) (fn : value:a -> prev:a -> unit) : unit =
     let prev = ref None in
     let first_run = ref true in
     Reactive_core.create_effect (fun () ->
       let value = deps () in
       Reactive_core.untrack (fun () ->
-        let should_run = not (defer && !first_run) in
-        first_run := false;
-        if should_run then begin
+        if !first_run then begin
+          first_run := false;
+          let initial_prev = match initial with
+            | Some v -> v
+            | None -> value
+          in
+          prev := Some initial_prev;
+          if not defer then begin
+            fn ~value ~prev:initial_prev;
+            prev := Some value
+          end
+        end else begin
           let prev_val = match !prev with
             | Some p -> p
             | None -> value
           in
-          fn ~value ~prev:prev_val
-        end;
-        prev := Some value
+          fn ~value ~prev:prev_val;
+          prev := Some value
+        end
       )
     )
 end
@@ -161,8 +172,8 @@ let create_selector (type k) ?(equals : k -> k -> bool = (=)) (source : k Signal
        (* Create a trigger function that will re-run the current computation.
           We do this by creating a signal that we update when this key's state changes.
           Use a bool that toggles so each trigger actually changes the value. *)
-       let trigger_signal, set_trigger = Signal.create false in
-       let trigger () = set_trigger (not (Signal.peek trigger_signal)) in
+        let trigger_signal, set_trigger = Signal.create false in
+        let trigger () = ignore (set_trigger (not (Signal.peek trigger_signal))) in
        
        (* Add trigger to listeners *)
        listeners := trigger :: !listeners;

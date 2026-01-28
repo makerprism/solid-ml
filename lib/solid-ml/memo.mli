@@ -33,6 +33,11 @@ type 'a t = 'a Reactive.memo
 *)
 val create : ?equals:('a -> 'a -> bool) -> (unit -> 'a) -> 'a t
 
+(** Create a memoized computation that receives the previous value.
+    The [initial] value is used for the first computation. *)
+val create_with_initial :
+  ?equals:('a -> 'a -> bool) -> initial:'a -> ('a -> 'a) -> 'a t
+
 (** Create a memo with a custom equality function.
     The memo only updates its value (and notifies dependents) when
     the new value is not equal to the old value according to [eq].
@@ -55,6 +60,8 @@ val peek : 'a t -> 'a
 
 module Unsafe : sig
   val create : ?equals:('a -> 'a -> bool) -> (unit -> 'a) -> 'a t
+  val create_with_initial :
+    ?equals:('a -> 'a -> bool) -> initial:'a -> ('a -> 'a) -> 'a t
   val create_with_equals : eq:('a -> 'a -> bool) -> (unit -> 'a) -> 'a t
   val get : 'a t -> 'a
   val peek : 'a t -> 'a

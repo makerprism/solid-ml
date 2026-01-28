@@ -68,8 +68,9 @@ type 'a context = 'a R.context
 let create_signal = R.create_typed_signal
 let get_signal (type a) (signal : a signal) : a =
   R.read_typed_signal signal
-let set_signal (type a) (signal : a signal) (value : a) : unit =
-  R.write_typed_signal signal value
+let set_signal (type a) (signal : a signal) (value : a) : a =
+  R.write_typed_signal signal value;
+  value
 let peek_signal = R.peek_typed_signal
 let update_signal s f = set_signal s (f (peek_signal s))
 

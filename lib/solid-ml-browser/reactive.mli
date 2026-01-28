@@ -11,10 +11,10 @@
 
 module Signal : sig
   type 'a t = 'a Reactive_core.signal
-  val create : ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
+  val create : ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> 'a)
   val get : 'a t -> 'a
-  val set : 'a t -> 'a -> unit
-  val update : 'a t -> ('a -> 'a) -> unit
+  val set : 'a t -> 'a -> 'a
+  val update : 'a t -> ('a -> 'a) -> 'a
   val peek : 'a t -> 'a
 end
 
@@ -42,7 +42,8 @@ module Effect : sig
   
   (** Create an effect with explicit dependencies (like SolidJS's `on`).
       Only [deps] is tracked; the body of [fn] runs untracked. *)
-  val on : ?defer:bool -> (unit -> 'a) -> (value:'a -> prev:'a -> unit) -> unit
+  val on :
+    ?defer:bool -> ?initial:'a -> (unit -> 'a) -> (value:'a -> prev:'a -> unit) -> unit
 end
 
 module Owner : sig
