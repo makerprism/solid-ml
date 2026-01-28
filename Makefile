@@ -41,7 +41,7 @@ example-parallel:
 
 example-ssr-api-app:
 	@echo "=== Running SSR API App Demo ==="
-	@$(DUNE) exec examples/ssr_api_app/server.exe
+	@PORT=$${PORT:-8080} $(DUNE) exec examples/ssr_api_app/server.exe
 
 # ==============================================================================
 # Browser Examples (require Node.js for esbuild)
@@ -51,10 +51,11 @@ example-ssr-api-app:
 serve:
 	@echo ""
 	@echo "=== Serving Browser Examples ==="
-	@echo "Open http://localhost:8000 in your browser"
-	@echo "Press Ctrl+C to stop"
-	@echo ""
-	@python3 -m http.server 8000 -d examples || stty sane
+	@port=$${PORT:-8000}; \
+	 echo "Open http://localhost:$$port in your browser"; \
+	 echo "Press Ctrl+C to stop"; \
+	 echo ""; \
+	 python3 -m http.server $$port -d examples || stty sane
 
 # Build all browser examples
 browser-examples: example-browser example-browser-router example-browser-cleanup example-full-ssr-client
@@ -96,10 +97,10 @@ example-browser-router-server:
 run-browser-router-server: example-browser-router example-browser-router-server
 	@echo ""
 	@echo "=== Starting Browser Router SSR Server ==="
-	@echo "Visit http://localhost:8080/browser_router"
+	@echo "Visit http://localhost:$${PORT:-8080}/browser_router"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	@$(DUNE) exec examples/browser_router/server.exe
+	@PORT=$${PORT:-8080} $(DUNE) exec examples/browser_router/server.exe
 
 # Build cleanup example
 example-browser-cleanup:
@@ -148,10 +149,10 @@ PORT ?= 8080
 run-full-ssr-server: example-full-ssr
 	@echo ""
 	@echo "=== Starting Full SSR Server ==="
-	@echo "Visit http://localhost:8080"
+	@echo "Visit http://localhost:$${PORT:-8080}"
 	@echo "Press Ctrl+C to stop"
 	@echo ""
-	@PORT=$(PORT) $(DUNE) exec examples/full_ssr_app/server/server.exe
+	@PORT=$${PORT:-8080} $(DUNE) exec examples/full_ssr_app/server/server.exe
 
 # ==============================================================================
 # Browser Tests

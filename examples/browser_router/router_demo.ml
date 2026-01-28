@@ -26,16 +26,24 @@ let () =
       base = "/browser_router";
       scroll_restoration = true 
     } in
-    let (_result, _dispose) = Router.init ~config (fun () ->
-      let child_nodes = Dom.get_child_nodes root in
-      let _render_dispose =
-        if Array.length child_nodes = 0 then
-          Render.render root (fun () -> Shared.app ())
-        else
-          Render.hydrate root (fun () -> Shared.app ())
-      in
-      ()
-    ) in
+    Router.current_config := config;
+    let handler = Router.handle_popstate in
+    Dom.on_popstate handler;
+    Router.popstate_handler := Some handler;
+    let initial_path = Router.get_app_path () in
+    let child_nodes = Dom.get_child_nodes root in
+    let _render_dispose =
+      if Array.length child_nodes = 0 then
+        Render.render root (fun () ->
+          Router.provide ~initial_path ~routes:config.routes (fun () ->
+            Shared.app ()
+          ))
+      else
+        Render.hydrate root (fun () ->
+          Router.provide ~initial_path ~routes:config.routes (fun () ->
+            Shared.app ()
+          ))
+    in
     Dom.log "solid-ml router demo initialized!"
   | None ->
     Dom.error "Could not find #app element"

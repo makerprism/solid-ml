@@ -2,6 +2,8 @@ module Make (Json : Json_intf.S) = struct
   module E = Error
   open Components
 
+  let ( let* ) = Result.bind
+
   let list_map_result f items =
     let rec loop acc = function
       | [] -> Ok (List.rev acc)

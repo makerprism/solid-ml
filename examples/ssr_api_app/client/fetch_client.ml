@@ -1,8 +1,8 @@
-module Async = Ssr_api_shared.Async
 module Error = Ssr_api_shared.Error
+module Async = Ssr_api_shared.Async
 
-external fetch_raw : string -> (string -> unit) -> (int -> string -> unit) -> unit
-  = [%mel.raw {|
+let fetch_raw : string -> (string -> unit) -> (int -> string -> unit) -> unit =
+  [%mel.raw {|
     function(url, onOk, onErr) {
       fetch(url)
         .then(function(resp) {

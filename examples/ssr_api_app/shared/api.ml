@@ -19,8 +19,7 @@ module Make (Fetch : Fetch) (Json : Json_intf.S) = struct
 
   let fetch path decode =
     let open Async in
-    Fetch.get (build_url path)
-    |> bind (fun body ->
+    bind (Fetch.get (build_url path)) (fun body ->
       match Json.parse body with
       | Ok json -> decode_with decode json
       | Error err -> fail err)
