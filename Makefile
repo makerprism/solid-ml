@@ -62,6 +62,10 @@ browser-examples: example-browser example-browser-router example-browser-cleanup
 	@echo ""
 	@echo "All browser examples built! Run 'make serve' to view them."
 
+# Run browser examples (build + serve)
+run-browser-examples: browser-examples
+	@$(MAKE) serve
+
 # Build browser counter example
 example-browser:
 	@echo "Building browser counter example..."
@@ -74,6 +78,9 @@ example-browser:
 	@echo ""
 	@echo "Build complete! Run 'make serve' then open http://localhost:8000/browser_counter/"
 
+run-browser-counter: example-browser
+	@$(MAKE) serve
+
 # Build browser router example
 example-browser-router:
 	@echo "Building browser router example..."
@@ -85,6 +92,9 @@ example-browser-router:
 		npx esbuild router_demo.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/browser_router/dist/router_demo.js --format=esm
 	@echo ""
 	@echo "Build complete! Run 'make serve' then open http://localhost:8000/browser_router/"
+
+run-browser-router: example-browser-router
+	@$(MAKE) serve
 
 # Build browser router SSR server
 example-browser-router-server:
@@ -113,6 +123,9 @@ example-browser-cleanup:
 		npx esbuild cleanup.js --bundle --minify --target=es2020 --outfile=$(PWD)/examples/cleanup_example/dist/cleanup.js --format=esm
 	@echo ""
 	@echo "Build complete! Run 'make serve' then open http://localhost:8000/cleanup_example/"
+
+run-browser-cleanup: example-browser-cleanup
+	@$(MAKE) serve
 
 # Build full SSR client example
 example-full-ssr-client:
@@ -153,6 +166,7 @@ run-full-ssr-server: example-full-ssr
 	@echo "Press Ctrl+C to stop"
 	@echo ""
 	@PORT=$${PORT:-8080} $(DUNE) exec examples/full_ssr_app/server/server.exe
+
 
 # ==============================================================================
 # Browser Tests
