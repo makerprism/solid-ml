@@ -37,6 +37,7 @@ type page =
   | Not_found of string
 
 module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
+  open Env
   module Html = Env.Html
   module Routes = Routes
   open Html
@@ -45,7 +46,7 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     <div class_="loading">(Html.text "Loading...")</div>
 
   let error_block msg =
-    <div class_="error">(Html.text msg)</div>
+    <div class_="error">(Tpl.text_value msg)</div>
 
   let render_state state ~ready =
     match state with
@@ -56,39 +57,43 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   let post_card ?(show_user=true) ?(user_name="") (post : post) =
     let user_label = if user_name = "" then "User #" ^ string_of_int post.user_id else user_name in
     <div class_="card post-card">
-      <a href=("/posts/" ^ string_of_int post.id) class_="card-link">
+      <a href=(Tpl.attr ~name:"href" (fun () -> "/posts/" ^ string_of_int post.id))
+         class_="card-link">
         <h3>
-          (Html.text post.title)
+          (Tpl.text_value post.title)
         </h3>
-        <p>(Html.text post.body)</p>
+        <p>(Tpl.text_value post.body)</p>
       </a>
-      (if show_user then
-         <div class_="meta">
-           <a href=("/users/" ^ string_of_int post.user_id) class_="meta-link">
-             (Html.text user_label)
-           </a>
-         </div>
-       else
-           Html.empty)
+      (Tpl.nodes (fun () ->
+         if show_user then
+           <div class_="meta">
+             <a href=(Tpl.attr ~name:"href" (fun () -> "/users/" ^ string_of_int post.user_id))
+                class_="meta-link">
+               (Tpl.text_value user_label)
+             </a>
+           </div>
+         else
+           Html.empty))
     </div>
 
   let user_card (u : user_info) =
-    <a href=("/users/" ^ string_of_int u.id) class_="card-link">
+    <a href=(Tpl.attr ~name:"href" (fun () -> "/users/" ^ string_of_int u.id))
+       class_="card-link">
       <div class_="card user-card">
         <h3>
-          (Html.text u.name)
+          (Tpl.text_value u.name)
         </h3>
-        <p>(Html.text ("@" ^ u.username))</p>
-        <p>(Html.text u.email)</p>
-        <p>(Html.text (u.company ^ " | " ^ u.city))</p>
+        <p>(Tpl.text_value ("@" ^ u.username))</p>
+        <p>(Tpl.text_value u.email)</p>
+        <p>(Tpl.text_value (u.company ^ " | " ^ u.city))</p>
       </div>
     </a>
 
   let comment_card (c : comment) =
     <div class_="comment">
-      <div class_="author">(Html.text c.name)</div>
-      <div class_="email">(Html.text c.email)</div>
-      <div class_="body">(Html.text c.body)</div>
+      <div class_="author">(Tpl.text_value c.name)</div>
+      <div class_="email">(Tpl.text_value c.email)</div>
+      <div class_="body">(Tpl.text_value c.body)</div>
     </div>
 
   let posts_page state users_opt =
@@ -96,28 +101,30 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       <div class_="section-title">
         <h2>(Html.text "Recent Posts")</h2>
         <span class_="count">
-          (match state with
-           | Ready posts -> Html.text
-               (string_of_int (List.length posts) ^ " posts")
-           | Loading -> Html.text "Loading..."
-           | Error _ -> Html.text "")
+          (Tpl.nodes (fun () ->
+             match state with
+             | Ready posts -> Html.text
+                 (string_of_int (List.length posts) ^ " posts")
+             | Loading -> Html.text "Loading..."
+             | Error _ -> Html.text ""))
         </span>
       </div>
       <p>(Html.text "Click on a post to view details and comments, or click on a user to see their profile.")</p>
       <div id="posts-list">
-        (render_state state ~ready:(fun posts ->
-           let user_name_for users user_id =
-             match List.find_opt (fun (u : user_info) -> u.id = user_id) users with
-             | Some u -> u.name
-             | None -> ""
-           in
-           let show_user, name_for_post =
-             match users_opt with
-             | Some users -> true, (fun post -> user_name_for users post.user_id)
-             | None -> false, (fun _ -> "")
-           in
-           Html.fragment (List.map (fun post ->
-             post_card ~show_user ~user_name:(name_for_post post) post) posts)))
+        (Tpl.nodes (fun () ->
+           render_state state ~ready:(fun posts ->
+             let user_name_for users user_id =
+               match List.find_opt (fun (u : user_info) -> u.id = user_id) users with
+               | Some u -> u.name
+               | None -> ""
+             in
+             let show_user, name_for_post =
+               match users_opt with
+               | Some users -> true, (fun post -> user_name_for users post.user_id)
+               | None -> false, (fun _ -> "")
+             in
+             Html.fragment (List.map (fun post ->
+               post_card ~show_user ~user_name:(name_for_post post) post) posts))))
       </div>
     </div>
 
@@ -126,17 +133,19 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       <div class_="section-title">
         <h2>(Html.text "All Users")</h2>
         <span class_="count">
-          (match state with
-           | Ready users -> Html.text
-               (string_of_int (List.length users) ^ " users")
-           | Loading -> Html.text "Loading..."
-           | Error _ -> Html.text "")
+          (Tpl.nodes (fun () ->
+             match state with
+             | Ready users -> Html.text
+                 (string_of_int (List.length users) ^ " users")
+             | Loading -> Html.text "Loading..."
+             | Error _ -> Html.text ""))
         </span>
       </div>
       <p>(Html.text "Click on a user to view their profile and posts.")</p>
       <div id="users-list">
-        (render_state state ~ready:(fun users ->
-           Html.fragment (List.map user_card users)))
+        (Tpl.nodes (fun () ->
+           render_state state ~ready:(fun users ->
+             Html.fragment (List.map user_card users))))
       </div>
     </div>
 
@@ -152,35 +161,38 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       <div class_="section-title">
         <h2>(Html.text "User Profile")</h2>
       </div>
-      (render_state user_state ~ready:(fun (u : user_info) ->
-         let initial = String.sub u.name 0 1 in
-         <div class_="user-profile">
-           <div class_="avatar">(Html.text initial)</div>
-           <div class_="info">
-             <h2>(Html.text u.name)</h2>
-             <p class_="username">(Html.text ("@" ^ u.username))</p>
-             <div class_="details">
-               <span>(Html.text ("Email: " ^ u.email))</span>
-               <span>(Html.text ("Phone: " ^ u.phone))</span>
-               <span>(Html.text ("Website: " ^ u.website))</span>
-               <span>(Html.text ("Company: " ^ u.company))</span>
-               <span>(Html.text ("City: " ^ u.city))</span>
+      (Tpl.nodes (fun () ->
+         render_state user_state ~ready:(fun (u : user_info) ->
+           let initial = String.sub u.name 0 1 in
+           <div class_="user-profile">
+             <div class_="avatar">(Tpl.text_value initial)</div>
+             <div class_="info">
+               <h2>(Tpl.text_value u.name)</h2>
+               <p class_="username">(Tpl.text_value ("@" ^ u.username))</p>
+               <div class_="details">
+                 <span>(Tpl.text_value ("Email: " ^ u.email))</span>
+                 <span>(Tpl.text_value ("Phone: " ^ u.phone))</span>
+                 <span>(Tpl.text_value ("Website: " ^ u.website))</span>
+                 <span>(Tpl.text_value ("Company: " ^ u.company))</span>
+                 <span>(Tpl.text_value ("City: " ^ u.city))</span>
+               </div>
              </div>
-           </div>
-         </div>))
+           </div>)))
       <div class_="detail-section" id="user-posts">
         <div class_="section-title">
           <h3>(Html.text "Posts")</h3>
           <span class_="count">
-            (match posts_state with
-             | Ready posts -> Html.text (string_of_int (List.length posts) ^ " posts")
-             | Loading -> Html.text "Loading..."
-             | Error _ -> Html.text "")
+            (Tpl.nodes (fun () ->
+               match posts_state with
+               | Ready posts -> Html.text (string_of_int (List.length posts) ^ " posts")
+               | Loading -> Html.text "Loading..."
+               | Error _ -> Html.text ""))
           </span>
         </div>
         <div id="posts-list">
-          (render_state posts_state ~ready:(fun posts ->
-             Html.fragment (List.map (post_card ~show_user:false) posts)))
+          (Tpl.nodes (fun () ->
+             render_state posts_state ~ready:(fun posts ->
+               Html.fragment (List.map (post_card ~show_user:false) posts))))
         </div>
       </div>
     </div>
@@ -193,37 +205,40 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         <span class_="current">(Html.text "Post")</span>
       </div>
       <div class_="detail-section" id="post-detail">
-        (render_state post_state ~ready:(fun post ->
-           <div>
-             <h2>(Html.text post.title)</h2>
-             <div class_="meta">
-               (Html.text "By ")
-               <a href=("/users/" ^ string_of_int post.user_id)>
-                 (Html.text ("User #" ^ string_of_int post.user_id))
-               </a>
-             </div>
-             <div class_="body">(Html.text post.body)</div>
-           </div>))
+        (Tpl.nodes (fun () ->
+           render_state post_state ~ready:(fun post ->
+             <div>
+               <h2>(Tpl.text_value post.title)</h2>
+               <div class_="meta">
+                 (Html.text "By ")
+                <a href=(Tpl.attr ~name:"href" (fun () -> "/users/" ^ string_of_int post.user_id))>
+                  (Tpl.text_value ("User #" ^ string_of_int post.user_id))
+                </a>
+               </div>
+               <div class_="body">(Tpl.text_value post.body)</div>
+             </div>)))
       </div>
       <div class_="comments-section" id="comments-section">
         <div class_="section-title">
           <h3>(Html.text "Comments")</h3>
           <span class_="count">
-            (match comments_state with
-             | Ready comments -> Html.text (string_of_int (List.length comments) ^ " comments")
-             | Loading -> Html.text "Loading..."
-             | Error _ -> Html.text "")
+            (Tpl.nodes (fun () ->
+               match comments_state with
+               | Ready comments -> Html.text (string_of_int (List.length comments) ^ " comments")
+               | Loading -> Html.text "Loading..."
+               | Error _ -> Html.text ""))
           </span>
         </div>
         <div id="comments-list">
-          (render_state comments_state ~ready:(fun comments ->
-             Html.fragment (List.map comment_card comments)))
+          (Tpl.nodes (fun () ->
+             render_state comments_state ~ready:(fun comments ->
+               Html.fragment (List.map comment_card comments))))
         </div>
       </div>
     </div>
 
   let not_found msg =
-    <div class_="error">(Html.text msg)</div>
+    <div class_="error">(Tpl.text_value msg)</div>
 
   let app ~current_path ~page () : Html.node =
     let nav_children =
@@ -233,7 +248,13 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         let class_ =
           if Routes.is_nav_active ~current_path route then "nav-link active" else "nav-link"
         in
-        let link = <a href=href class_=class_>(Html.text (Routes.label route))</a> in
+        let link =
+          Html.a
+            ~href
+            ~class_
+            ~children:[ Html.text (Routes.label route) ]
+            ()
+        in
         if index = 0 then [ link ] else [ <span class_="nav-divider">(Html.text " ")</span>; link ])
       |> List.concat
     in

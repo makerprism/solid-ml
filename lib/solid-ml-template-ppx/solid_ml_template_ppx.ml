@@ -1033,7 +1033,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
               [ value_binding ~loc ~pat:(pvar ~loc spread_var) ~expr:thunk_call ]
               apply_call
           in
-          let effect =
+          let effect_expr =
             pexp_apply ~loc (pexp_ident ~loc (lid "Effect.create"))
               [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) body) ]
           in
@@ -1044,7 +1044,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
                   ~expr:(pexp_apply ~loc
                            (pexp_ident ~loc (lid "Solid_ml_template_runtime.Spread.create_state"))
                            [ (Nolabel, eunit ~loc) ]) ]
-              effect
+              effect_expr
           in
           Some expr)
       element_bindings
