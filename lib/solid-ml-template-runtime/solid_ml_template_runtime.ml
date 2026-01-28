@@ -126,6 +126,7 @@ module Tpl : sig
 
   val show : when_:(unit -> bool) -> (unit -> 'a) -> 'a t
   val show_when : when_:(unit -> bool) -> (unit -> 'a) -> 'a t
+  val show_value : when_:(unit -> 'a) -> truthy:('a -> bool) -> (unit -> 'b) -> 'b t
   val if_ : when_:(unit -> bool) -> then_:(unit -> 'a) -> else_:(unit -> 'a) -> 'a t
   val switch : match_:(unit -> 'a) -> cases:(('a -> bool) * (unit -> 'b)) array -> 'b t
   val each_keyed : items:(unit -> 'a list) -> key:('a -> string) -> render:('a -> 'b) -> 'b t
@@ -222,6 +223,9 @@ end = struct
 
   let show_when ~when_:_ (_render : unit -> 'a) : 'a t =
     Uncompiled "show_when"
+
+  let show_value ~when_:_ ~truthy:_ (_render : unit -> 'a) : 'a t =
+    Uncompiled "show_value"
 
   let if_ ~when_:_ ~then_:_ ~else_:_ : 'a t =
     Uncompiled "if_"

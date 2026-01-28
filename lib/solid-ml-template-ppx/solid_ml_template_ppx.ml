@@ -18,6 +18,7 @@ let known_tpl_markers =
     "bind_select_multiple";
     "show";
     "show_when";
+    "show_value";
     "if_";
     "switch";
     "each_keyed";
@@ -1732,6 +1733,42 @@ let extract_tpl_show ~(aliases : string list) (expr : Parsetree.expression)
         | _ -> None))
    | _ -> None
 
+let extract_tpl_show_value ~(aliases : string list) (expr : Parsetree.expression)
+    : (Parsetree.expression * Parsetree.expression * Parsetree.expression) option =
+  match expr.pexp_desc with
+  | Pexp_apply (_fn, args) ->
+    (match head_ident expr with
+     | None -> None
+     | Some longident ->
+       (match tpl_marker_name ~aliases longident with
+        | Some "show_value" ->
+          let when_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "when_", e) -> Some e
+                | _ -> None)
+              args
+          in
+          let truthy_opt =
+            List.find_map
+              (function
+                | (Asttypes.Labelled "truthy", e) -> Some e
+                | _ -> None)
+              args
+          in
+          let render_opt =
+            List.find_map
+              (function
+                | (Asttypes.Nolabel, e) -> Some e
+                | _ -> None)
+              args
+          in
+          (match (when_opt, truthy_opt, render_opt) with
+           | (Some when_, Some truthy, Some render) -> Some (when_, truthy, render)
+           | _ -> None)
+        | _ -> None))
+  | _ -> None
+
 let extract_tpl_text_once_thunk ~(aliases : string list) (expr : Parsetree.expression)
     : Parsetree.expression option =
   match expr.pexp_desc with
@@ -2950,11 +2987,48 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                                       (Ast_builder.Default.punit ~loc:child_loc)
                                       boundary_body
                                   in
-                                  parts_rev := Nodes_slot thunk :: !parts_rev;
-                                  true
-                                | None ->
-                                match extract_tpl_if_ ~aliases child with
-                          | Some (when_, then_, else_) ->
+                          parts_rev := Nodes_slot thunk :: !parts_rev;
+                          true
+                        | None ->
+                        match extract_tpl_show_value ~aliases child with
+                        | Some (when_, truthy, render) ->
+                          has_dynamic := true;
+                          let child_loc = child.pexp_loc in
+                          let when_call =
+                            Ast_builder.Default.pexp_apply ~loc:child_loc when_
+                              [ (Nolabel, Ast_builder.Default.eunit ~loc:child_loc) ]
+                          in
+                          let truthy_call =
+                            Ast_builder.Default.pexp_apply ~loc:child_loc truthy
+                              [ (Nolabel, when_call) ]
+                          in
+                          let render_call =
+                            Ast_builder.Default.pexp_apply ~loc:child_loc render
+                              [ (Nolabel, Ast_builder.Default.eunit ~loc:child_loc) ]
+                          in
+                          let render_call = compile_expr_force render_call in
+                          let empty_fragment =
+                            Ast_builder.Default.pexp_apply ~loc:child_loc
+                              (Ast_builder.Default.pexp_ident ~loc:child_loc
+                                 { loc = child_loc; txt = Longident.parse "Html.fragment" })
+                              [ ( Nolabel,
+                                  Ast_builder.Default.pexp_construct ~loc:child_loc
+                                    { loc = child_loc; txt = Longident.Lident "[]" }
+                                    None
+                                ) ]
+                          in
+                          let thunk =
+                            Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
+                              (Ast_builder.Default.punit ~loc:child_loc)
+                              (Ast_builder.Default.pexp_ifthenelse ~loc:child_loc truthy_call
+                                 render_call
+                                 (Some empty_fragment))
+                          in
+                          parts_rev := Nodes_slot thunk :: !parts_rev;
+                          true
+                        | None ->
+                        match extract_tpl_if_ ~aliases child with
+                        | Some (when_, then_, else_) ->
                             has_dynamic := true;
                             let child_loc = child.pexp_loc in
                             let when_call =

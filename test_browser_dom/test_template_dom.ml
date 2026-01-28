@@ -430,6 +430,174 @@ let test_template_dynamic_component_switch () =
   assert_eq ~name:"dynamic tag" (get_tag_name child) "SPAN";
   dispose ()
 
+let test_template_dynamic_initial_empty () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  let comp_empty () = Html.empty in
+  let comp_a () = Html.div ~children:[Html.text "Hi"] () in
+
+  let component, set_component =
+    Signal.create (comp_empty : unit -> Html.node)
+  in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      Html.append_to_element root
+        (Html.div
+           ~children:[
+             Solid_ml_template_runtime.Tpl.nodes (fun () ->
+               let comp = (Signal.get component : unit -> Html.node) in
+               comp ())
+           ]
+           ())
+    )
+  in
+
+  assert_eq ~name:"dynamic initial empty" (get_text_content root) "";
+  set_component comp_a;
+  assert_eq ~name:"dynamic initial empty update" (get_text_content root) "Hi";
+  dispose ()
+
+let test_template_dynamic_intrinsic_switch () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  let name, set_name = Signal.create "Smith" in
+  let comp_a () = Html.div ~children:[Html.text ("Hi " ^ Signal.get name)] () in
+  let comp_b () = Html.span ~children:[Html.text ("Yo " ^ Signal.get name)] () in
+  let comp_h1 () = Html.h1 ~id:(Signal.get name) ~children:[] () in
+
+  let component, set_component =
+    Signal.create (comp_a : unit -> Html.node)
+  in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      Html.append_to_element root
+        (Html.div
+           ~children:[
+             Solid_ml_template_runtime.Tpl.nodes (fun () ->
+               let comp = (Signal.get component : unit -> Html.node) in
+               comp ())
+           ]
+           ())
+    )
+  in
+
+  assert_eq ~name:"dynamic intrinsic initial" (get_text_content root) "Hi Smith";
+  set_name "Smithers";
+  assert_eq ~name:"dynamic intrinsic update" (get_text_content root) "Hi Smithers";
+  set_component comp_b;
+  assert_eq ~name:"dynamic intrinsic switch" (get_text_content root) "Yo Smithers";
+  set_component comp_h1;
+  (match query_selector_within root "h1" with
+   | None -> fail "dynamic intrinsic: missing h1"
+   | Some h1 ->
+     assert_eq ~name:"dynamic intrinsic id" (get_attribute h1 "id" |> Option.value ~default:"") "Smithers");
+  set_name "Sunny";
+  (match query_selector_within root "h1" with
+   | None -> fail "dynamic intrinsic: missing h1 after update"
+   | Some h1 ->
+     assert_eq ~name:"dynamic intrinsic id update" (get_attribute h1 "id" |> Option.value ~default:"") "Sunny");
+  dispose ()
+
+let test_template_dynamic_spread_props () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  let spread_initial =
+    Solid_ml_template_runtime.Spread.merge
+      (Solid_ml_template_runtime.Spread.attrs [ ("data-x", Some "a") ])
+      (Solid_ml_template_runtime.Spread.class_list [ ("active", false) ])
+  in
+  let spread, set_spread = Signal.create spread_initial in
+
+  let comp () =
+    Html.div
+      ~attrs:(Solid_ml_template_runtime.Tpl.spread (fun () -> Signal.get spread))
+      ~children:[ Html.text "Spread" ]
+      ()
+  in
+
+  let component, _set_component =
+    Signal.create (comp : unit -> Html.node)
+  in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      Html.append_to_element root
+        (Html.div
+           ~children:[
+             Solid_ml_template_runtime.Tpl.nodes (fun () ->
+               let comp = (Signal.get component : unit -> Html.node) in
+               comp ())
+           ]
+           ())
+    )
+  in
+
+  let child =
+    match query_selector_within root "div div" with
+    | None -> fail "dynamic spread: missing child"
+    | Some el -> el
+  in
+  assert_eq ~name:"dynamic spread attr" (Option.value (get_attribute child "data-x") ~default:"") "a";
+  (match get_attribute child "class" with
+   | None -> ()
+   | Some _ -> fail "dynamic spread class: expected none");
+
+  let spread_next =
+    Solid_ml_template_runtime.Spread.merge
+      (Solid_ml_template_runtime.Spread.attrs [ ("data-x", Some "b") ])
+      (Solid_ml_template_runtime.Spread.class_list [ ("active", true) ])
+  in
+  set_spread spread_next;
+  assert_eq ~name:"dynamic spread attr update" (Option.value (get_attribute child "data-x") ~default:"") "b";
+  assert_eq ~name:"dynamic spread class update" (Option.value (get_attribute child "class") ~default:"") "active";
+  dispose ()
+
+let test_template_dynamic_svg_switch () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  let comp_svg () =
+    Html.Svg.svg ~children:[] ()
+  in
+  let comp_path () =
+    Html.Svg.path ~children:[] ()
+  in
+
+  let component, set_component =
+    Signal.create (comp_svg : unit -> Html.node)
+  in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      Html.append_to_element root
+        (Html.div
+           ~children:[
+             Solid_ml_template_runtime.Tpl.nodes (fun () ->
+               let comp = (Signal.get component : unit -> Html.node) in
+               comp ())
+           ]
+           ())
+    )
+  in
+
+  (match query_selector_within root "svg" with
+   | None -> fail "dynamic svg: missing svg"
+   | Some _ -> ());
+  set_component comp_path;
+  (match query_selector_within root "path" with
+   | None -> fail "dynamic svg: missing path"
+   | Some _ -> ());
+  dispose ()
+
 let test_template_portal_basic () =
   let root = create_element (document ()) "div" in
   let mount = create_element (document ()) "div" in
@@ -529,6 +697,27 @@ let test_template_portal_event () =
   let portal_child = element_of_node wrapper_children.(0) in
   dispatch_click portal_child;
   assert_eq ~name:"portal click" (if Signal.get clicked then "yes" else "no") "yes";
+  dispose ()
+
+let test_template_portal_reactive_children () =
+  let root = create_element (document ()) "div" in
+  let mount = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+  append_child body (node_of_element mount);
+
+  let count, set_count = Signal.create 0 in
+
+  let dispose =
+    Render.render root (fun () ->
+      Html.portal ~target:mount
+        ~children:(Html.div ~children:[Html.reactive_text count] ())
+        ())
+  in
+
+  assert_eq ~name:"portal reactive initial" (get_text_content mount) "0";
+  set_count 1;
+  assert_eq ~name:"portal reactive update" (get_text_content mount) "1";
   dispose ()
 
 let test_hydrate_normalizes_nodes_regions () =
@@ -1475,6 +1664,207 @@ let test_template_show_when () =
   assert_eq ~name:"tpl.show_when update" (get_text_content root) "Shown";
   dispose ()
 
+let test_template_show_only_child_toggle () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+  let count, set_count = Solid_ml_browser.Env.Signal.create 0 in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      Html.append_to_element root
+        (Html.div
+           ~children:
+             [ Solid_ml_template_runtime.Tpl.show_when
+                 ~when_:(fun () -> Signal.get count >= 5)
+                 (fun () -> Html.reactive_text count) ]
+           ())
+    )
+  in
+
+  assert_eq ~name:"tpl.show only child initial" (get_text_content root) "";
+  set_count 7;
+  assert_eq ~name:"tpl.show only child on" (get_text_content root) "7";
+  set_count 5;
+  assert_eq ~name:"tpl.show only child update" (get_text_content root) "5";
+  set_count 2;
+  assert_eq ~name:"tpl.show only child off" (get_text_content root) "";
+  dispose ()
+
+let test_template_show_dom_children_toggle () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+  let count, set_count = Solid_ml_browser.Env.Signal.create 0 in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      Html.append_to_element root
+        (Html.div
+           ~children:
+             [ Solid_ml_template_runtime.Tpl.show_when
+                 ~when_:(fun () -> Signal.get count >= 5)
+                 (fun () ->
+                   Html.fragment
+                     [ Html.span ~children:[Html.reactive_text count] ();
+                       Html.span ~children:[Html.text "counted"] () ])
+             ]
+           ())
+    )
+  in
+
+  assert_eq ~name:"tpl.show dom children initial" (get_text_content root) "";
+  set_count 7;
+  let span =
+    match query_selector_within root "span" with
+    | None -> fail "tpl.show dom children: missing span"
+    | Some el -> el
+  in
+  assert_eq ~name:"tpl.show dom children on" (get_text_content span) "7";
+  set_count 5;
+  assert_eq ~name:"tpl.show dom children update" (get_text_content span) "5";
+  set_count 2;
+  assert_eq ~name:"tpl.show dom children off" (get_text_content root) "";
+  dispose ()
+
+let test_template_show_fallback_toggle () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+  let count, set_count = Solid_ml_browser.Env.Signal.create 0 in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      Html.append_to_element root
+        (Html.div
+           ~children:
+             [ Solid_ml_template_runtime.Tpl.show_when
+                 ~when_:(fun () -> Signal.get count < 5)
+                 (fun () -> Html.span ~children:[Html.text "Too Low"] ());
+               Solid_ml_template_runtime.Tpl.show_when
+                 ~when_:(fun () -> Signal.get count >= 5)
+                 (fun () ->
+                   Html.span ~children:[Html.reactive_text count] ()) ]
+           ())
+    )
+  in
+
+  assert_eq ~name:"tpl.show fallback initial" (get_text_content root) "Too Low";
+  set_count 7;
+  assert_eq ~name:"tpl.show fallback on" (get_text_content root) "7";
+  set_count 2;
+  assert_eq ~name:"tpl.show fallback off" (get_text_content root) "Too Low";
+  dispose ()
+
+let test_template_show_nonkeyed_counts () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+  let count, set_count = Solid_ml_browser.Env.Signal.create 0 in
+  let when_executed = ref 0 in
+  let children_executed = ref 0 in
+
+  let when_ () =
+    incr when_executed;
+    Signal.get count
+  in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      Html.append_to_element root
+        (Html.div
+           ~children:
+             [ Solid_ml_template_runtime.Tpl.show_when
+                 ~when_:(fun () -> when_ () > 0)
+                 (fun () ->
+                   let value = Signal.get count in
+                   incr children_executed;
+                   Html.fragment
+                     [ Html.span ~children:[Html.text (string_of_int value)] ();
+                       Html.span ~children:[Html.text (string_of_int !children_executed)] () ])
+             ]
+           ())
+    )
+  in
+
+  assert_eq ~name:"tpl.show nonkeyed initial" (get_text_content root) "";
+  assert_eq ~name:"tpl.show nonkeyed when calls" (string_of_int !when_executed) "1";
+  assert_eq ~name:"tpl.show nonkeyed children" (string_of_int !children_executed) "0";
+  set_count 7;
+  assert_eq ~name:"tpl.show nonkeyed on" (get_text_content root) "71";
+  assert_eq ~name:"tpl.show nonkeyed when calls 2" (string_of_int !when_executed) "2";
+  assert_eq ~name:"tpl.show nonkeyed children 1" (string_of_int !children_executed) "1";
+  set_count 5;
+  assert_eq ~name:"tpl.show nonkeyed update" (get_text_content root) "51";
+  assert_eq ~name:"tpl.show nonkeyed when calls 3" (string_of_int !when_executed) "3";
+  assert_eq ~name:"tpl.show nonkeyed children still 1" (string_of_int !children_executed) "1";
+  set_count 5;
+  assert_eq ~name:"tpl.show nonkeyed when calls 3 repeat" (string_of_int !when_executed) "3";
+  set_count 0;
+  assert_eq ~name:"tpl.show nonkeyed off" (get_text_content root) "";
+  assert_eq ~name:"tpl.show nonkeyed when calls 4" (string_of_int !when_executed) "4";
+  assert_eq ~name:"tpl.show nonkeyed children still 1" (string_of_int !children_executed) "1";
+  set_count 5;
+  assert_eq ~name:"tpl.show nonkeyed on again" (get_text_content root) "52";
+  assert_eq ~name:"tpl.show nonkeyed when calls 5" (string_of_int !when_executed) "5";
+  assert_eq ~name:"tpl.show nonkeyed children 2" (string_of_int !children_executed) "2";
+  dispose ()
+
+let test_template_show_keyed_counts () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+  let count, set_count = Solid_ml_browser.Env.Signal.create 0 in
+  let when_executed = ref 0 in
+  let children_executed = ref 0 in
+
+  let when_ () =
+    incr when_executed;
+    Signal.get count
+  in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      Html.append_to_element root
+        (Html.div
+           ~children:
+             [ Solid_ml_template_runtime.Tpl.show_value
+                 ~when_:when_
+                 ~truthy:(fun v -> v > 0)
+                 (fun () ->
+                   let value = Signal.get count in
+                   incr children_executed;
+                   Html.fragment
+                     [ Html.span ~children:[Html.text (string_of_int value)] ();
+                       Html.span ~children:[Html.text (string_of_int !children_executed)] () ])
+             ]
+           ())
+    )
+  in
+
+  assert_eq ~name:"tpl.show keyed initial" (get_text_content root) "";
+  assert_eq ~name:"tpl.show keyed when calls" (string_of_int !when_executed) "1";
+  assert_eq ~name:"tpl.show keyed children" (string_of_int !children_executed) "0";
+  set_count 7;
+  assert_eq ~name:"tpl.show keyed on" (get_text_content root) "71";
+  assert_eq ~name:"tpl.show keyed when calls 2" (string_of_int !when_executed) "2";
+  assert_eq ~name:"tpl.show keyed children 1" (string_of_int !children_executed) "1";
+  set_count 5;
+  assert_eq ~name:"tpl.show keyed update" (get_text_content root) "52";
+  assert_eq ~name:"tpl.show keyed when calls 3" (string_of_int !when_executed) "3";
+  assert_eq ~name:"tpl.show keyed children 2" (string_of_int !children_executed) "2";
+  set_count 5;
+  assert_eq ~name:"tpl.show keyed when calls 3 repeat" (string_of_int !when_executed) "3";
+  set_count 0;
+  assert_eq ~name:"tpl.show keyed off" (get_text_content root) "";
+  assert_eq ~name:"tpl.show keyed when calls 4" (string_of_int !when_executed) "4";
+  assert_eq ~name:"tpl.show keyed children 2" (string_of_int !children_executed) "2";
+  set_count 5;
+  assert_eq ~name:"tpl.show keyed on again" (get_text_content root) "53";
+  assert_eq ~name:"tpl.show keyed when calls 5" (string_of_int !when_executed) "5";
+  assert_eq ~name:"tpl.show keyed children 3" (string_of_int !children_executed) "3";
+  dispose ()
+
 let test_template_bind_input () =
   let root = create_element (document ()) "div" in
   let body : element = [%mel.raw "document.body"] in
@@ -1573,10 +1963,15 @@ let () =
     test_hydrate_nodes_fragment_order ();
     test_hydrate_nodes_fragment_between_regions ();
     test_template_dynamic_component_switch ();
+    test_template_dynamic_initial_empty ();
+    test_template_dynamic_intrinsic_switch ();
+    test_template_dynamic_spread_props ();
+    test_template_dynamic_svg_switch ();
     test_template_portal_basic ();
     test_template_portal_head ();
     test_template_portal_svg ();
     test_template_portal_event ();
+    test_template_portal_reactive_children ();
     test_hydrate_text_slot ();
     test_hydrate_reactive_text_marker_adoption ();
     test_hydrate_normalizes_nodes_regions ();
@@ -1603,6 +1998,11 @@ let () =
     test_hydration_error_context_clears ();
     test_template_reactive_text ();
     test_template_show_when ();
+    test_template_show_only_child_toggle ();
+    test_template_show_dom_children_toggle ();
+    test_template_show_fallback_toggle ();
+    test_template_show_nonkeyed_counts ();
+    test_template_show_keyed_counts ();
     test_template_bind_input ();
     test_template_bind_input_updates_text ();
     test_template_auto_bool_attr ();
