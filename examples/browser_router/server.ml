@@ -3,6 +3,7 @@ open Solid_ml_ssr
 module Router_components = Solid_ml_router.Components.Make(Solid_ml_ssr.Env.Html)
 module Router_ssr = struct
   type node = Solid_ml_ssr.Env.Html.node
+  type filters = Solid_ml_internal.Filter.filters
   module Route = Solid_ml_router.Route
   include Router_components
   let use_param = Solid_ml_router.Router.use_param

@@ -2,8 +2,8 @@
 
 (melange.emit
  (target output)
- (libraries solid-ml-browser)
- (modules router_demo shared_components)
+ (libraries solid-ml-browser shared_components)
+ (modules router_demo)
  (preprocess (pps melange.ppx))
  (module_systems es6))
 

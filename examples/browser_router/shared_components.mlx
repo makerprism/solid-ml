@@ -7,9 +7,11 @@ end
 module type ROUTER = sig
   type node
 
+  type filters = Solid_ml_internal.Filter.filters
+
   module Route : sig
     type 'a t
-    val create : path:string -> data:'a -> unit -> 'a t
+    val create : path:string -> data:'a -> ?filters:filters -> unit -> 'a t
   end
 
   val link : ?class_:string -> href:string -> children:node list -> unit -> node
@@ -68,7 +70,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV)
       <ul class_="user-list">
         (fragment (List.map (fun user ->
           <li>
-            (Router.link ~href:(href ("/users/" ^ user)) ~children:[text user] ())
+            (Tpl.nodes (fun () -> Router.link ~href:(href ("/users/" ^ user)) ~children:[text user] ()))
           </li>
         ) users))
       </ul>
@@ -81,7 +83,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV)
       <p>(text ("Welcome to " ^ username ^ "'s profile page!"))</p>
       <p>(text "This page was rendered using the :username route parameter.")</p>
       <p>
-        (Router.link ~href:(href "/users") ~children:[text "Back to users list"] ())
+        (Tpl.nodes (fun () -> Router.link ~href:(href "/users") ~children:[text "Back to users list"] ()))
       </p>
     </div>
 
@@ -121,11 +123,11 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV)
 
       <h3>(text "Available Docs")</h3>
       <ul>
-        <li>(Router.link ~href:(href "/docs/getting-started") ~children:[text "Getting Started"] ())</li>
-        <li>(Router.link ~href:(href "/docs/signals") ~children:[text "Signals"] ())</li>
-        <li>(Router.link ~href:(href "/docs/effects") ~children:[text "Effects"] ())</li>
-        <li>(Router.link ~href:(href "/docs/router/basics") ~children:[text "Router Basics"] ())</li>
-        <li>(Router.link ~href:(href "/docs/router/params") ~children:[text "Router Params"] ())</li>
+        <li>(Tpl.nodes (fun () -> Router.link ~href:(href "/docs/getting-started") ~children:[text "Getting Started"] ()))</li>
+        <li>(Tpl.nodes (fun () -> Router.link ~href:(href "/docs/signals") ~children:[text "Signals"] ()))</li>
+        <li>(Tpl.nodes (fun () -> Router.link ~href:(href "/docs/effects") ~children:[text "Effects"] ()))</li>
+        <li>(Tpl.nodes (fun () -> Router.link ~href:(href "/docs/router/basics") ~children:[text "Router Basics"] ()))</li>
+        <li>(Tpl.nodes (fun () -> Router.link ~href:(href "/docs/router/params") ~children:[text "Router Params"] ()))</li>
       </ul>
     </div>
 
@@ -133,7 +135,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV)
     <div class_="page error-page">
       <h2>(text "404 - Not Found")</h2>
       <p>(text "The page you're looking for doesn't exist.")</p>
-      <p>(Router.link ~href:(href "/") ~children:[text "Go home"] ())</p>
+      <p>(Tpl.nodes (fun () -> Router.link ~href:(href "/") ~children:[text "Go home"] ()))</p>
     </div>
 
   let route_specs : (string * (unit -> Html.node)) list = [

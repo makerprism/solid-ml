@@ -15,6 +15,7 @@ open Solid_ml_browser
 let () =
   let module Router_browser = struct
     type node = Solid_ml_browser.Html.node
+    type filters = Solid_ml_internal.Filter.filters
     include Router
   end in
   let module Shared = Shared_components.Make(Solid_ml_browser.Env)(Router_browser)(struct let base = "" end) in
