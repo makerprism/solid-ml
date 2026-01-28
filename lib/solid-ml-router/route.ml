@@ -114,10 +114,10 @@ let parse_pattern path =
 
 (** {2 URL Encoding/Decoding} *)
 
-(** Decode a percent-encoded string.
+(** Decode a percent-encoded path segment.
     Converts %XX sequences to their character equivalents.
-    Also converts + to space (for query strings). *)
-let url_decode s =
+    Does not treat + as space. *)
+let path_decode s =
   let len = String.length s in
   let buf = Buffer.create len in
   let i = ref 0 in
@@ -132,9 +132,6 @@ let url_decode s =
       | None ->
         Buffer.add_char buf c;
         incr i
-    end else if c = '+' then begin
-      Buffer.add_char buf ' ';
-      incr i
     end else begin
       Buffer.add_char buf c;
       incr i
@@ -142,9 +139,9 @@ let url_decode s =
   done;
   Buffer.contents buf
 
-(** Encode a string for use in URLs.
+(** Encode a string for use in path segments.
     Converts special characters to %XX sequences. *)
-let url_encode s =
+let path_encode s =
   let len = String.length s in
   let buf = Buffer.create (len * 3) in
   for i = 0 to len - 1 do
@@ -152,8 +149,6 @@ let url_encode s =
     match c with
     | 'a'..'z' | 'A'..'Z' | '0'..'9' | '-' | '_' | '.' | '~' ->
       Buffer.add_char buf c
-    | ' ' ->
-      Buffer.add_char buf '+'
     | _ ->
       Buffer.add_string buf (Printf.sprintf "%%%02X" (Char.code c))
   done;
@@ -178,7 +173,7 @@ let match_pattern pattern path =
     | [], _ -> None
     (* Wildcard matches everything remaining *)
     | [Wildcard], rest ->
-      let wildcard_value = String.concat "/" rest |> url_decode in
+      let wildcard_value = String.concat "/" rest |> path_decode in
       Some (Params.add "*" wildcard_value params)
     (* Wildcard not at end - invalid pattern *)
     | Wildcard :: _, _ -> None
@@ -190,7 +185,7 @@ let match_pattern pattern path =
     | Static _ :: _, _ -> None
     (* Param captures the segment value - must be non-empty *)
     | Param name :: pattern_rest, seg :: path_rest when seg <> "" ->
-      let decoded = url_decode seg in
+      let decoded = path_decode seg in
       match_segments pattern_rest path_rest (Params.add name decoded params)
     | Param _ :: _, _ -> None
   in
@@ -246,7 +241,7 @@ let match_route route path =
   | None -> None
 
 (** Match a path against a list of routes.
-    Returns the first matching route and its match result. *)
+    Routes are ranked by specificity; ties preserve list order. *)
 let match_routes routes path =
   let score_pattern pattern =
     let static_count = ref 0 in
@@ -305,7 +300,7 @@ let generate_path template params =
     if String.length seg > 0 && seg.[0] = ':' then
       let name = String.sub seg 1 (String.length seg - 1) in
       match List.assoc_opt name params with
-      | Some value -> url_encode value
+      | Some value -> path_encode value
       | None -> seg  (* Keep original if param not found *)
     else
       seg

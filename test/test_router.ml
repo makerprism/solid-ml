@@ -272,7 +272,7 @@ let test_path_generation () =
 
   test "generate path URL-encodes params" (fun () ->
     let path = Route.generate_path "/users/:id" [("id", "john doe")] in
-    assert_equal path "/users/john+doe"
+    assert_equal path "/users/john%20doe"
   );
 
   test "generate path encodes slashes" (fun () ->

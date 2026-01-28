@@ -104,8 +104,8 @@ let test_signal_physical_equality () =
   );
   print_endline "  PASSED"
 
-let test_signal_structural_equality_strings () =
-  print_endline "Test: Signal uses structural equality for strings by default";
+let test_signal_physical_equality_strings () =
+  print_endline "Test: Signal uses physical equality for strings by default";
   with_runtime (fun () ->
     let s, set_s = Signal.create "hello" in
     let effect_runs = ref 0 in
@@ -114,10 +114,14 @@ let test_signal_structural_equality_strings () =
       incr effect_runs
     );
     assert (!effect_runs = 1);
-    set_s "hello";  (* Same content, different object *)
-    assert (!effect_runs = 1);  (* Should NOT re-run with structural equality *)
+    let copied = Bytes.to_string (Bytes.of_string "hello") in
+    set_s copied;  (* Same content, different object *)
+    assert (!effect_runs = 2);  (* Should re-run with physical equality *)
+    let same_ref = Signal.peek s in
+    set_s same_ref;
+    assert (!effect_runs = 2);
     set_s "world";  (* Different content *)
-    assert (!effect_runs = 2)
+    assert (!effect_runs = 3)
   );
   print_endline "  PASSED"
 
@@ -628,7 +632,7 @@ let () =
   test_signal_subscribe ();
   test_signal_equality ();
   test_signal_physical_equality ();
-  test_signal_structural_equality_strings ();
+  test_signal_physical_equality_strings ();
   
   print_endline "\n-- Effect Tests --";
   test_effect_tracking ();
