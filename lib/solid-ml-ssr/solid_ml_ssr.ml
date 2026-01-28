@@ -22,6 +22,8 @@ module Html = Html
 module Render = Render
 module State = State
 module Resource_state = Resource_state
+module Router_components = Router_components
+module Router_resource = Router_resource
 
 module Env = struct
   module Signal = struct

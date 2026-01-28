@@ -8,5 +8,5 @@
 (library
  (name solid_ml_router)
  (public_name solid-ml-router)
- (libraries solid-ml solid-ml-ssr solid-ml-internal)
+ (libraries solid-ml solid-ml-internal)
  (modes byte native melange))

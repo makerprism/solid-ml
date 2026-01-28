@@ -37,28 +37,38 @@
 (** {1 Types} *)
 
 (** The state of a resource *)
-type 'a state =
+type ('a, 'e) state =
   | Loading
-  | Error of string
   | Ready of 'a
+  | Error of 'e
+  | Pending [@deprecated "Use Loading"]
+
+type ('a, 'e) actions = {
+  mutate : ('a option -> 'a) -> unit;
+  refetch : unit -> unit;
+  set_ready : 'a -> unit;
+  set_error : 'e -> unit;
+  set_loading : unit -> unit;
+}
 
 (** Generate unique IDs for resources (for Suspense tracking) *)
 let next_resource_id = ref 0
 
 (** A resource that tracks async data loading *)
-type 'a t = {
-  state : 'a state Reactive_core.signal;
-  set_state : 'a state -> unit;
-  refetch : unit -> unit;
+type ('a, 'e) resource = {
+  state : ('a, 'e) state Reactive_core.signal;
+  actions : ('a, 'e) actions;
   id : int;  (** Unique ID for Suspense registration tracking *)
 }
+
+type ('a, 'e) t = ('a, 'e) resource
 
 let decode_field obj name decode =
   match Js.Dict.get obj name with
   | None -> None
   | Some value -> decode value
 
-let decode_resource_state ~decode (json : Js.Json.t) : 'a state option =
+let decode_resource_state ~decode ?(decode_error=Js.Json.decodeString) (json : Js.Json.t) : ('a, 'e) state option =
   match Js.Json.decodeObject json with
   | None -> None
   | Some obj ->
@@ -68,16 +78,17 @@ let decode_resource_state ~decode (json : Js.Json.t) : 'a state option =
         | None -> None
         | Some data -> (match decode data with Some v -> Some (Ready v) | None -> None))
      | Some "error" ->
-       (match decode_field obj "error" Js.Json.decodeString with
-        | Some msg -> Some (Error msg)
+       (match Js.Dict.get obj "error" with
+        | Some err_json -> (match decode_error err_json with Some err -> Some (Error err) | None -> None)
         | None -> None)
      | Some "loading" -> Some Loading
+     | Some "pending" -> Some Loading
      | _ -> None)
 
-let hydrate_state ~key ~decode : 'a state option =
+let hydrate_state ~key ~decode ~decode_error : ('a, 'e) state option =
   match State.get ~key with
   | None -> None
-  | Some json -> decode_resource_state ~decode json
+  | Some json -> decode_resource_state ~decode ~decode_error json
 
 (** {1 Creation} *)
 
@@ -103,9 +114,27 @@ let create_async_with_state ~on_error initial fetcher =
       set_state (Error (on_error exn))
   in
 
-  (match initial with Loading -> do_fetch () | Ready _ | Error _ -> ());
+  let actions = {
+    mutate = (fun fn ->
+      let current_value =
+        match Reactive_core.peek_signal state with
+        | Ready v -> Some v
+        | _ -> None
+      in
+      let new_value = fn current_value in
+      set_state (Ready new_value)
+    );
+    refetch = (fun () -> do_fetch ());
+    set_ready = (fun v -> set_state (Ready v));
+    set_error = (fun err -> set_state (Error err));
+    set_loading = (fun () -> set_state Loading);
+  } in
 
-  { state; set_state; refetch = do_fetch; id }
+  (match initial with
+   | Ready _ | Error _ -> ()
+   | _ -> do_fetch ());
+
+  { state; actions; id }
 
 (** Create a resource with async fetch and typed errors.
 
@@ -128,12 +157,17 @@ let create_async fetcher =
     @param revalidate Whether to refetch on hydration
     @param key Hydration key from server state
     @param decode Decoder for JSON data
+    @param decode_error Decoder for JSON error values
     @param fetcher Function that takes a (result -> unit) callback *)
-let create_async_with_hydration ?(revalidate = false) ~key ~decode fetcher =
-  match hydrate_state ~key ~decode with
+let create_async_with_hydration ?(revalidate = false) ?decode_error ~key ~decode fetcher =
+  let decode_error = match decode_error with
+    | Some fn -> fn
+    | None -> Js.Json.decodeString
+  in
+  match hydrate_state ~key ~decode ~decode_error with
   | Some state ->
     let resource = create_async_with_state ~on_error:Dom.exn_to_string state fetcher in
-    if revalidate then resource.refetch ();
+    if revalidate then resource.actions.refetch ();
     resource
   | None -> create_async fetcher
 
@@ -157,9 +191,27 @@ let create_with_state ~on_error initial fetcher =
       set_state (Error (on_error exn))
   in
 
-   (match initial with Loading -> do_fetch () | Ready _ | Error _ -> ());
+  let actions = {
+    mutate = (fun fn ->
+      let current_value =
+        match Reactive_core.peek_signal state with
+        | Ready v -> Some v
+        | _ -> None
+      in
+      let new_value = fn current_value in
+      set_state (Ready new_value)
+    );
+    refetch = (fun () -> do_fetch ());
+    set_ready = (fun v -> set_state (Ready v));
+    set_error = (fun err -> set_state (Error err));
+    set_loading = (fun () -> set_state Loading);
+  } in
 
-  { state; set_state; refetch = do_fetch; id }
+   (match initial with
+    | Ready _ | Error _ -> ()
+    | _ -> do_fetch ());
+
+  { state; actions; id }
 
 (** Create a resource with sync fetch and typed errors.
 
@@ -182,12 +234,17 @@ let create fetcher =
     @param revalidate Whether to refetch on hydration
     @param key Hydration key from server state
     @param decode Decoder for JSON data
+    @param decode_error Decoder for JSON error values
     @param fetcher Function that returns data or raises *)
-let create_with_hydration ?(revalidate = false) ~key ~decode fetcher =
-  match hydrate_state ~key ~decode with
+let create_with_hydration ?(revalidate = false) ?decode_error ~key ~decode fetcher =
+  let decode_error = match decode_error with
+    | Some fn -> fn
+    | None -> Js.Json.decodeString
+  in
+  match hydrate_state ~key ~decode ~decode_error with
   | Some state ->
     let resource = create_with_state ~on_error:Dom.exn_to_string state fetcher in
-    if revalidate then resource.refetch ();
+    if revalidate then resource.actions.refetch ();
     resource
   | None -> create fetcher
 
@@ -196,21 +253,69 @@ let of_value value =
   let state = Reactive_core.create_signal (Ready value) in
   let id = !next_resource_id in
   incr next_resource_id;
-  { state; set_state = Reactive_core.set_signal state; refetch = (fun () -> ()); id }
+  let set_state = Reactive_core.set_signal state in
+  let actions = {
+    mutate = (fun fn ->
+      let current_value =
+        match Reactive_core.peek_signal state with
+        | Ready v -> Some v
+        | _ -> None
+      in
+      let new_value = fn current_value in
+      set_state (Ready new_value)
+    );
+    refetch = (fun () -> ());
+    set_ready = (fun v -> set_state (Ready v));
+    set_error = (fun err -> set_state (Error err));
+    set_loading = (fun () -> set_state Loading);
+  } in
+  { state; actions; id }
 
 (** Create a resource in loading state. *)
 let create_loading () =
   let state = Reactive_core.create_signal Loading in
   let id = !next_resource_id in
   incr next_resource_id;
-  { state; set_state = Reactive_core.set_signal state; refetch = (fun () -> ()); id }
+  let set_state = Reactive_core.set_signal state in
+  let actions = {
+    mutate = (fun fn ->
+      let current_value =
+        match Reactive_core.peek_signal state with
+        | Ready v -> Some v
+        | _ -> None
+      in
+      let new_value = fn current_value in
+      set_state (Ready new_value)
+    );
+    refetch = (fun () -> set_state Loading);
+    set_ready = (fun v -> set_state (Ready v));
+    set_error = (fun err -> set_state (Error err));
+    set_loading = (fun () -> set_state Loading);
+  } in
+  { state; actions; id }
 
 (** Create a resource in error state. *)
 let of_error error =
   let state = Reactive_core.create_signal (Error error) in
   let id = !next_resource_id in
   incr next_resource_id;
-  { state; set_state = Reactive_core.set_signal state; refetch = (fun () -> ()); id }
+  let set_state = Reactive_core.set_signal state in
+  let actions = {
+    mutate = (fun fn ->
+      let current_value =
+        match Reactive_core.peek_signal state with
+        | Ready v -> Some v
+        | _ -> None
+      in
+      let new_value = fn current_value in
+      set_state (Ready new_value)
+    );
+    refetch = (fun () -> set_state Loading);
+    set_ready = (fun v -> set_state (Ready v));
+    set_error = (fun err -> set_state (Error err));
+    set_loading = (fun () -> set_state Loading);
+  } in
+  { state; actions; id }
 
 (** {1 Reading} *)
 
@@ -224,15 +329,26 @@ let peek resource =
 
 (** Check if loading *)
 let is_loading resource =
-  match peek resource with Loading -> true | _ -> false
+  match peek resource with
+  | Ready _ | Error _ -> false
+  | _ -> true
+
+(** Alias for is_loading *)
+let loading = is_loading
 
 (** Check if error *)
 let is_error resource =
   match peek resource with Error _ -> true | _ -> false
 
+(** Alias for is_error *)
+let errored = is_error
+
 (** Check if ready *)
 let is_ready resource =
   match peek resource with Ready _ -> true | _ -> false
+
+(** Alias for is_ready *)
+let ready = is_ready
 
 (** Get data if ready *)
 let get_data resource =
@@ -245,52 +361,98 @@ let get_error resource =
 (** {1 Updating} *)
 
 (** Set to ready with data *)
+let set_ready resource data =
+  resource.actions.set_ready data
+
+(** Set to ready with data (alias) *)
 let set resource data =
-  resource.set_state (Ready data)
+  set_ready resource data
 
 (** Set to error *)
 let set_error resource error =
-  resource.set_state (Error error)
+  resource.actions.set_error error
 
 (** Set to loading *)
 let set_loading resource =
-  resource.set_state Loading
+  resource.actions.set_loading ()
 
 (** Refetch the resource *)
 let refetch resource =
-  resource.refetch ()
+  resource.actions.refetch ()
+
+(** Mutate the resource value (optimistic update) *)
+let mutate resource fn =
+  resource.actions.mutate fn
 
 (** {1 Transforming} *)
 
 (** Map over the ready value *)
-let map f resource =
+let map_state f resource =
   match read resource with
   | Ready data -> Ready (f data)
-  | Loading -> Loading
   | Error e -> Error e
+  | _ -> Loading
 
 (** {1 Combinators} *)
 
-(** Combine two resources *)
-let combine r1 r2 =
-  match read r1, read r2 with
-  | Ready a, Ready b -> Ready (a, b)
-  | Error e, _ -> Error e
-  | _, Error e -> Error e
-  | Loading, _ -> Loading
-  | _, Loading -> Loading
+(** Create a derived resource from a computation. *)
+let create_derived ~refetch compute =
+  let state = Reactive_core.create_signal (compute ()) in
+  let set_state = Reactive_core.set_signal state in
+  let id = !next_resource_id in
+  incr next_resource_id;
 
-(** Combine a list of resources *)
-let combine_all resources =
-  let rec check acc = function
-    | [] -> Ready (List.rev acc)
-    | r :: rest ->
-      match read r with
-      | Ready data -> check (data :: acc) rest
-      | Error e -> Error e
-      | Loading -> Loading
+  Reactive_core.create_effect (fun () -> set_state (compute ()));
+
+  let actions = {
+    mutate = (fun _ -> ());
+    refetch;
+    set_ready = (fun _ -> ());
+    set_error = (fun _ -> ());
+    set_loading = (fun () -> ());
+  } in
+
+  { state; actions; id }
+
+(** Map over the ready value, returning a derived resource.
+    Note: the returned resource is read-only; its actions are no-ops
+    except for refetch, which forwards to the source. *)
+let map f resource =
+  create_derived ~refetch:(fun () -> refetch resource) (fun () -> map_state f resource)
+
+(** Combine two resources, returning a derived resource.
+    Note: the returned resource is read-only; its actions are no-ops
+    except for refetch, which forwards to the sources. *)
+let combine r1 r2 =
+  let compute () =
+    match read r1, read r2 with
+    | Ready a, Ready b -> Ready (a, b)
+    | Error e, _ -> Error e
+    | _, Error e -> Error e
+  | _ -> Loading
   in
-  check [] resources
+  create_derived
+    ~refetch:(fun () -> refetch r1; refetch r2)
+    compute
+
+(** Combine a list of resources, returning a derived resource.
+    Note: the returned resource is read-only; its actions are no-ops
+    except for refetch, which forwards to the sources. *)
+let combine_all resources =
+  let compute () =
+    let rec check acc = function
+      | [] -> Ready (List.rev acc)
+      | r :: rest ->
+        match read r with
+        | Ready data -> check (data :: acc) rest
+        | Error e -> Error e
+        | _ -> Loading
+    in
+    check [] resources
+  in
+  create_derived
+    ~refetch:(fun () -> List.iter refetch resources)
+    compute
 
 (** {1 Suspense Integration} *)
 
@@ -311,7 +473,7 @@ let read_suspense ?(error_to_string=(fun _ -> "Resource error")) ~default resour
   match current_state with
   | Ready data -> data
   | Error err -> failwith (error_to_string err)
-  | Loading ->
+  | _ ->
     (* Try to register with Suspense context *)
     (match Suspense.get_state () with
      | None -> 
@@ -328,9 +490,9 @@ let read_suspense ?(error_to_string=(fun _ -> "Resource error")) ~default resour
 (** Render based on resource state *)
 let render ~loading ~error ~ready resource =
   match read resource with
-  | Loading -> loading ()
-  | Error err -> error err
   | Ready data -> ready data
+  | Error err -> error err
+  | _ -> loading ()
 
 (** Render with default loading and error *)
 let render_simple ?(error_to_string=(fun _ -> "Resource error")) ~ready resource =

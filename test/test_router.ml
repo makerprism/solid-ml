@@ -3,6 +3,8 @@
 open Solid_ml_router
 open Solid_ml
 
+module Router_components = Solid_ml_ssr.Router_components
+
 
 let passed = ref 0
 let failed = ref 0
@@ -496,7 +498,7 @@ let test_router_provider () =
       Route.create ~path:"/users/:id" ~data:() ();
     ] in
     Runtime.Unsafe.run (fun () ->
-      Components.Link.provide ~initial_path:"/users/123" ~routes (fun () ->
+      Router_components.provide ~initial_path:"/users/123" ~routes (fun () ->
         let path = Router.use_path () in
         assert_equal path "/users/123"
       )
@@ -508,7 +510,7 @@ let test_router_provider () =
       Route.create ~path:"/users/:id" ~data:() ();
     ] in
     Runtime.Unsafe.run (fun () ->
-      Components.Link.provide ~initial_path:"/users/456" ~routes (fun () ->
+      Router_components.provide ~initial_path:"/users/456" ~routes (fun () ->
         let id = Router.use_param "id" in
         assert_equal id (Some "456")
       )
@@ -518,10 +520,35 @@ let test_router_provider () =
   test "provide parses query string" (fun () ->
     let routes = [Route.create ~path:"/search" ~data:() ()] in
     Runtime.Unsafe.run (fun () ->
-      Components.Link.provide ~initial_path:"/search?q=test&page=2" ~routes (fun () ->
+      Router_components.provide ~initial_path:"/search?q=test&page=2" ~routes (fun () ->
         (* Query parsing is tested via URL parsing tests *)
         let path = Router.use_path () in
         assert_equal path "/search"
+      )
+    )
+  );
+
+  test "use_search_params parses query" (fun () ->
+    let routes = [Route.create ~path:"/search" ~data:() ()] in
+    Runtime.Unsafe.run (fun () ->
+      Router_components.provide ~initial_path:"/search?q=test&page=2" ~routes (fun () ->
+        let params, _set_params = Router.use_search_params () in
+        assert_equal (List.assoc_opt "q" params) (Some "test");
+        assert_equal (List.assoc_opt "page" params) (Some "2")
+      )
+    )
+  );
+
+  test "use_search_params setter updates query" (fun () ->
+    let routes = [Route.create ~path:"/search" ~data:() ()] in
+    Runtime.Unsafe.run (fun () ->
+      Router_components.provide ~initial_path:"/search?q=old#top" ~routes (fun () ->
+        let _params, set_params = Router.use_search_params () in
+        set_params [("q", "new"); ("page", "1")];
+        let state = Signal.get (Router.use_location ()) in
+        assert_equal state.Router.path "/search";
+        assert_equal state.Router.hash (Some "top");
+        assert_equal state.Router.query (Some "q=new&page=1")
       )
     )
   );
@@ -532,7 +559,7 @@ let test_router_provider () =
       Route.create ~path:"/about" ~data:() ();
     ] in
     Runtime.Unsafe.run (fun () ->
-      Components.Link.provide ~initial_path:"/" ~routes (fun () ->
+      Router_components.provide ~initial_path:"/" ~routes (fun () ->
         assert_equal (Router.use_path ()) "/";
         Router.navigate "/about";
         assert_equal (Router.use_path ()) "/about"
@@ -556,8 +583,8 @@ let test_link_component () =
   
   test "link renders anchor tag" (fun () ->
     Runtime.Unsafe.run (fun () ->
-      Components.Link.provide ~initial_path:"/" (fun () ->
-        let node = Components.Link.link ~href:"/about" ~children:[Solid_ml_ssr.Html.text "About"] () in
+      Router_components.provide ~initial_path:"/" (fun () ->
+        let node = Router_components.link ~href:"/about" ~children:[Solid_ml_ssr.Html.text "About"] () in
         let html = Solid_ml_ssr.Html.to_string node in
         assert (String.length html > 0);
         assert (String.sub html 0 9 = "<a href=\"")
@@ -567,8 +594,8 @@ let test_link_component () =
   
   test "link with class" (fun () ->
     Runtime.Unsafe.run (fun () ->
-      Components.Link.provide ~initial_path:"/" (fun () ->
-        let node = Components.Link.link ~class_:"nav-link" ~href:"/about" ~children:[Solid_ml_ssr.Html.text "About"] () in
+      Router_components.provide ~initial_path:"/" (fun () ->
+        let node = Router_components.link ~class_:"nav-link" ~href:"/about" ~children:[Solid_ml_ssr.Html.text "About"] () in
         let html = Solid_ml_ssr.Html.to_string node in
         assert (String.length html > 0)
       )
@@ -577,8 +604,8 @@ let test_link_component () =
   
   test "nav_link adds active class when exact match" (fun () ->
     Runtime.Unsafe.run (fun () ->
-      Components.Link.provide ~initial_path:"/about" (fun () ->
-        let node = Components.Link.nav_link ~exact:true ~href:"/about" ~children:[Solid_ml_ssr.Html.text "About"] () in
+      Router_components.provide ~initial_path:"/about" (fun () ->
+        let node = Router_components.nav_link ~exact:true ~href:"/about" ~children:[Solid_ml_ssr.Html.text "About"] () in
         let html = Solid_ml_ssr.Html.to_string node in
         (* Should contain class="active" - class comes before href *)
         assert (String.length html > 0);
@@ -595,9 +622,9 @@ let test_link_component () =
   
   test "nav_link partial match (default)" (fun () ->
     Runtime.Unsafe.run (fun () ->
-      Components.Link.provide ~initial_path:"/users/123" (fun () ->
+      Router_components.provide ~initial_path:"/users/123" (fun () ->
         (* /users should be active when viewing /users/123 *)
-        let node = Components.Link.nav_link ~href:"/users" ~children:[Solid_ml_ssr.Html.text "Users"] () in
+        let node = Router_components.nav_link ~href:"/users" ~children:[Solid_ml_ssr.Html.text "Users"] () in
         let html = Solid_ml_ssr.Html.to_string node in
         (* Check that "active" appears in the output *)
         let has_active = ref false in
@@ -611,9 +638,9 @@ let test_link_component () =
   
   test "nav_link exact match does not match partial" (fun () ->
     Runtime.Unsafe.run (fun () ->
-      Components.Link.provide ~initial_path:"/users/123" (fun () ->
+      Router_components.provide ~initial_path:"/users/123" (fun () ->
         (* With exact=true, /users should NOT be active when viewing /users/123 *)
-        let node = Components.Link.nav_link ~exact:true ~href:"/users" ~children:[Solid_ml_ssr.Html.text "Users"] () in
+        let node = Router_components.nav_link ~exact:true ~href:"/users" ~children:[Solid_ml_ssr.Html.text "Users"] () in
         let html = Solid_ml_ssr.Html.to_string node in
         (* Should NOT have active class *)
         assert (String.sub html 0 9 = "<a href=\"")
@@ -635,8 +662,8 @@ let test_outlet_component () =
       Route.create ~path:"/about" ~data:about_component ();
     ] in
     Runtime.Unsafe.run (fun () ->
-      Components.Link.provide ~initial_path:"/" (fun () ->
-        let node = Components.Link.outlet ~routes () in
+      Router_components.provide ~initial_path:"/" (fun () ->
+        let node = Router_components.outlet ~routes () in
         let html = Solid_ml_ssr.Html.to_string node in
         assert_equal html "Home Page"
       )
@@ -648,9 +675,9 @@ let test_outlet_component () =
       Route.create ~path:"/" ~data:(fun () -> Solid_ml_ssr.Html.text "Home") ();
     ] in
     Runtime.Unsafe.run (fun () ->
-      Components.Link.provide ~initial_path:"/unknown" (fun () ->
+      Router_components.provide ~initial_path:"/unknown" (fun () ->
         let not_found () = Solid_ml_ssr.Html.text "404 Not Found" in
-        let node = Components.Link.outlet ~routes ~not_found () in
+        let node = Router_components.outlet ~routes ~not_found () in
         let html = Solid_ml_ssr.Html.to_string node in
         assert_equal html "404 Not Found"
       )
@@ -924,12 +951,12 @@ let test_resource () =
     )
   );
   
-  test "resource create_loading is pending" (fun () ->
+  test "resource create_loading is loading" (fun () ->
     Runtime.Unsafe.run (fun () ->
       let r = Resource.Unsafe.create_loading () in
       match Resource.read r with
-      | Resource.Pending -> ()
-      | _ -> failwith "expected Pending"
+      | Resource.Loading -> ()
+      | _ -> failwith "expected Loading"
     )
   );
   
@@ -1001,18 +1028,20 @@ let test_resource () =
   test "resource map on ready" (fun () ->
     Runtime.Unsafe.run (fun () ->
       let r = Resource.Unsafe.of_value 10 in
-      match Resource.map (fun x -> x * 2) r with
+      let mapped = Resource.map (fun x -> x * 2) r in
+      match Resource.read mapped with
       | Resource.Ready v -> assert_equal v 20
       | _ -> failwith "expected Ready"
     )
   );
-  
+
   test "resource map on loading" (fun () ->
     Runtime.Unsafe.run (fun () ->
       let r = Resource.Unsafe.create_loading () in
-      match Resource.map (fun x -> x * 2) r with
-      | Resource.Pending -> ()
-      | _ -> failwith "expected Pending"
+      let mapped = Resource.map (fun x -> x * 2) r in
+      match Resource.read mapped with
+      | Resource.Loading -> ()
+      | _ -> failwith "expected Loading"
     )
   );
 
@@ -1035,8 +1064,8 @@ let test_resource () =
       let r2 = Resource.Unsafe.create_loading () in
       let combined = Resource.Unsafe.combine r1 r2 in
       match Resource.read combined with
-      | Resource.Pending -> ()
-      | _ -> failwith "expected Pending"
+      | Resource.Loading -> ()
+      | _ -> failwith "expected Loading"
     )
   );
   

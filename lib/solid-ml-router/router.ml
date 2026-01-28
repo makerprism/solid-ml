@@ -8,8 +8,9 @@
     The router uses context to share state across the component tree,
     allowing nested components to access route information and navigate.
     
-    IMPORTANT: Router functions like [use_path], [use_params], and [navigate]
-    must be called within a [Components.provide] context. Calling them outside
+    IMPORTANT: Router functions like [use_path], [use_params],
+    [use_search_params], and [navigate]
+    must be called within a [Components.Make(Html).provide] context. Calling them outside
     will raise [No_router_context].
 *)
 
@@ -41,7 +42,7 @@ exception No_router_context
 (** The router context. 
     
     Unlike most contexts, this one does NOT have a usable default value.
-    Accessing it outside of [Components.provide] will raise [No_router_context].
+    Accessing it outside of [Components.Make(Html).provide] will raise [No_router_context].
     
     We use a sentinel that raises on any access. *)
 let raise_no_context () = raise No_router_context
@@ -57,7 +58,7 @@ let no_context_sentinel : router_context = {
 }
 
 (** The router context, shared across the component tree.
-    Must be initialized via [Components.provide] before use. *)
+    Must be initialized via [Components.Make(Html).provide] before use. *)
 let context : router_context Context.t = 
   Context.create no_context_sentinel
 
@@ -222,3 +223,25 @@ let build_query_string pairs =
   pairs
   |> List.map (fun (k, v) -> url_encode k ^ "=" ^ url_encode v)
   |> String.concat "&"
+
+(** Get search params (query string) and a setter.
+    The setter updates the current URL's query while preserving path/hash.
+    @raise No_router_context if called outside router context *)
+let use_search_params () =
+  let loc = use_location () in
+  let params =
+    match (Signal.get loc).query with
+    | None -> []
+    | Some q -> parse_query_string q
+  in
+  let set_params ?(replace=false) pairs =
+    let _ = replace in
+    let state = Signal.peek loc in
+    let query = match pairs with
+      | [] -> None
+      | _ -> Some (build_query_string pairs)
+    in
+    let url = build_url ~path:state.path ?query ?hash:state.hash () in
+    navigate url
+  in
+  (params, set_params)

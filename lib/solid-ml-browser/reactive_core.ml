@@ -44,6 +44,9 @@ module Backend_Browser : Internal.Backend.S = struct
 
   let schedule_transition fn =
     ignore (Dom.set_timeout fn 0)
+
+  let schedule_microtask fn =
+    ignore (Dom.promise_then (Dom.promise_resolve ()) (fun () -> fn (); ()))
 end
 
 (** {1 Instantiate with Browser Backend} *)
@@ -69,6 +72,10 @@ let set_signal (type a) (signal : a signal) (value : a) : unit =
   R.write_typed_signal signal value
 let peek_signal = R.peek_typed_signal
 let update_signal s f = set_signal s (f (peek_signal s))
+
+(** {1 Scheduling Options} *)
+
+let set_microtask_deferral = R.set_microtask_deferral
 
 (** {1 Effect API} *)
 

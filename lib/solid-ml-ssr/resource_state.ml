@@ -1,10 +1,5 @@
 let set ~key ~encode (resource : ('a, string) Solid_ml.Resource.resource) : unit =
   match Solid_ml.Resource.peek resource with
-  | Solid_ml.Resource.Pending ->
-    State.set_encoded
-      ~key
-      ~encode:(fun () -> State.encode_resource_loading ())
-      ()
   | Solid_ml.Resource.Ready value ->
     State.set_encoded
       ~key
@@ -15,3 +10,8 @@ let set ~key ~encode (resource : ('a, string) Solid_ml.Resource.resource) : unit
       ~key
       ~encode:(fun msg -> State.encode_resource_error msg)
       message
+  | _ ->
+    State.set_encoded
+      ~key
+      ~encode:(fun () -> State.encode_resource_loading ())
+      ()

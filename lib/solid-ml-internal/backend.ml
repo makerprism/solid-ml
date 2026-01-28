@@ -31,6 +31,10 @@ module type S = sig
   (** Schedule a transition flush. Browser should defer (setTimeout),
       server can run immediately. *)
   val schedule_transition : (unit -> unit) -> unit
+
+  (** Schedule a microtask flush for deferred updates.
+      Browser should use Promise/queueMicrotask, server can run immediately. *)
+  val schedule_microtask : (unit -> unit) -> unit
 end
 
 (** Global ref backend - works on both server and browser.
@@ -54,4 +58,6 @@ module Global : S = struct
     | None -> raise exn
 
   let schedule_transition fn = fn ()
+
+  let schedule_microtask fn = fn ()
 end

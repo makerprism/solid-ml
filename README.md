@@ -2,13 +2,13 @@
 
 An OCaml framework for building reactive web applications with server-side rendering (SSR), inspired by [SolidJS](https://www.solidjs.com/).
 
-> **Status:** All phases complete! ✅ Reactive core, SSR, client runtime, router, Suspense/ErrorBoundary, event replay, and resource hydration are ready. 210 tests passing.
+> **Status:** All phases complete! ✅ Reactive core, SSR, client runtime, router, Suspense/ErrorBoundary, event replay, and resource hydration are ready. 267 tests passing.
 
 ## ⚠️ Development Status
 
 **Maturity:** Experimental - Not battle-tested in production yet.
 
-solid-ml is a mostly faithful port of SolidJS to OCaml, enabling full-stack OCaml web applications where validation logic, types, and business logic can be seamlessly shared between server and client. While all core features are implemented with comprehensive test coverage (210 tests), solid-ml has **not been used in production** and may have undiscovered edge cases.
+solid-ml is a mostly faithful port of SolidJS to OCaml, enabling full-stack OCaml web applications where validation logic, types, and business logic can be seamlessly shared between server and client. While all core features are implemented with comprehensive test coverage (267 tests), solid-ml has **not been used in production** and may have undiscovered edge cases.
 
 Expect rapid iteration, breaking changes, and active development. **Use at your own risk.** If you're adventurous and want to help stabilize it, contributions and feedback are welcome!
 
@@ -344,12 +344,12 @@ solid-ml has comprehensive test coverage:
 - **31 tests** - Reactive core (signals, effects, memos, batching)
 - **23 tests** - HTML rendering and SSR
 - **36 tests** - SolidJS compatibility
-- **91 tests** - Router (matching, navigation, data loading)
-- **14 tests** - Browser reactive core
+- **125 tests** - Router (matching, navigation, data loading)
+- **21 tests** - Browser reactive core
 - **13 tests** - Suspense and ErrorBoundary
 - **18 tests** - Browser DOM + template rendering
 
-**Total: 210 tests** across all packages.
+**Total: 267 tests** across all packages.
 
 Run tests with:
 ```bash

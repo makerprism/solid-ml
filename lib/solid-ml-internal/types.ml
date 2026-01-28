@@ -93,6 +93,8 @@ type runtime = {
   mutable transition_processing: bool;
   mutable transition_scheduled: bool;
   transition_pending: signal_state;
+  mutable defer_updates: bool;
+  mutable updates_scheduled: bool;
   mutable exec_count: int;
   mutable in_update: bool;
 }
@@ -147,6 +149,8 @@ let create_runtime () = {
     observers_len = 0;
     comparator = None;
   };
+  defer_updates = false;
+  updates_scheduled = false;
   exec_count = 0;
   in_update = false;
 }

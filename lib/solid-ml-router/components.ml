@@ -1,8 +1,7 @@
-(** Router components for server-side rendering.
+(** Router components, parameterized over HTML implementation.
     
-    These components render to HTML on the server. The browser-side
-    implementation will enhance them with client-side navigation.
-*)
+    These components render to HTML using the provided Html module.
+    For SSR defaults, use [Solid_ml_ssr.Router_components]. *)
 
 open Solid_ml
 
@@ -105,15 +104,4 @@ let outlet ~(routes : (unit -> Html.node) Route.t list) ?not_found () =
     | None -> Html.fragment []
 end
 
-module Link = struct
-  (* Deprecated direct access or provide a default impl? 
-     For backward compatibility, we can instantiate with Solid_ml_ssr.Html 
-     but that creates a dependency on ssr package.
-     The current file imports Solid_ml_ssr. 
-  *)
-  include Make(Solid_ml_ssr.Html)
-  let make = link (* Alias for API consistency *)
-end
-
-(* Expose default implementation directly for convenience *)
-include Link
+(* This module provides a functor. Instantiate it with your Html implementation. *)

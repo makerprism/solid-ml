@@ -31,6 +31,8 @@ module Backend_DLS : Internal.Backend.S = struct
     | None -> raise exn
 
   let schedule_transition fn = fn ()
+
+  let schedule_microtask fn = fn ()
 end
 
 (** {1 Instantiate with DLS Backend} *)

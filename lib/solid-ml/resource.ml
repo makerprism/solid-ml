@@ -1,7 +1,7 @@
 (** Resource with loading/error/ready states.
     
     Matches SolidJS createResource API pattern:
-    - States: pending, ready, errored
+    - States: loading, ready, error
     - mutate for optimistic updates
     - refetch for manual re-fetching
     
@@ -29,9 +29,12 @@
 (** {1 Types} *)
 
 type ('a, 'e) resource_state =
-  | Pending
+  | Loading
   | Ready of 'a
   | Error of 'e
+  | Pending [@deprecated "Use Loading"]
+
+type ('a, 'e) state = ('a, 'e) resource_state
 
 type ('a, 'e) resource = {
   mutable state : ('a, 'e) resource_state Signal.t;
@@ -43,7 +46,11 @@ and ('a, 'e) resource_actions = {
   refetch : unit -> unit;
   set_ready : 'a -> unit;
   set_error : 'e -> unit;
+  set_loading : unit -> unit;
 }
+
+type ('a, 'e) t = ('a, 'e) resource
+type ('a, 'e) actions = ('a, 'e) resource_actions
 
 (** {1 Internal State} *)
 
@@ -54,27 +61,33 @@ let next_resource_id = ref 0
 (** Create a resource with a synchronous fetcher and custom error mapping. *)
 let create_with_error ~on_error (fetcher : unit -> 'a)
   : ('a, 'e) resource =
-  let state, set_state = Signal.create Pending in
+  let state, set_state = Signal.create Loading in
   let id = !next_resource_id in
   incr next_resource_id;
-  
+
   let do_fetch () =
-    set_state Pending;
+    set_state Loading;
     try
       let data = fetcher () in
       set_state (Ready data)
     with exn ->
       set_state (Error (on_error exn))
   in
-  
+
   let actions = {
     mutate = (fun fn ->
-      let new_value = fn None in
+      let current_value =
+        match Signal.peek state with
+        | Ready v -> Some v
+        | _ -> None
+      in
+      let new_value = fn current_value in
       set_state (Ready new_value)
     );
     refetch = (fun () -> do_fetch ());
     set_ready = (fun v -> set_state (Ready v));
     set_error = (fun err -> set_state (Error err));
+    set_loading = (fun () -> set_state Loading);
   } in
   
   do_fetch ();
@@ -91,6 +104,10 @@ let create_resource_with_error ~on_error (fetcher : unit -> 'a)
   let resource = create_with_error ~on_error fetcher in
   (resource, resource.actions)
 
+(** Create a resource with a synchronous fetcher (string errors). *)
+let create (fetcher : unit -> 'a) : ('a, string) resource =
+  create_with_error ~on_error:Printexc.to_string fetcher
+
 (** Create a resource with an initial value (already ready). *)
 let of_value (value : 'a) : ('a, 'e) resource =
   let state, set_state = Signal.create (Ready value) in
@@ -98,28 +115,40 @@ let of_value (value : 'a) : ('a, 'e) resource =
   incr next_resource_id;
   let actions = {
     mutate = (fun fn ->
-      let new_value = fn (Some value) in
+      let current_value =
+        match Signal.peek state with
+        | Ready v -> Some v
+        | _ -> None
+      in
+      let new_value = fn current_value in
       set_state (Ready new_value)
     );
     refetch = (fun () -> ());
     set_ready = (fun v -> set_state (Ready v));
     set_error = (fun err -> set_state (Error err));
+    set_loading = (fun () -> set_state Loading);
   } in
   { state; actions; id }
 
 (** Create a resource in loading state. *)
 let create_loading () : ('a, 'e) resource =
-  let state, set_state = Signal.create Pending in
+  let state, set_state = Signal.create Loading in
   let id = !next_resource_id in
   incr next_resource_id;
   let actions = {
     mutate = (fun fn ->
-      let new_value = fn None in
+      let current_value =
+        match Signal.peek state with
+        | Ready v -> Some v
+        | _ -> None
+      in
+      let new_value = fn current_value in
       set_state (Ready new_value)
     );
-    refetch = (fun () -> set_state Pending);
+    refetch = (fun () -> set_state Loading);
     set_ready = (fun v -> set_state (Ready v));
     set_error = (fun err -> set_state (Error err));
+    set_loading = (fun () -> set_state Loading);
   } in
   { state; actions; id }
 
@@ -130,12 +159,18 @@ let of_error (error : 'e) : ('a, 'e) resource =
   incr next_resource_id;
   let actions = {
     mutate = (fun fn ->
-      let new_value = fn None in
+      let current_value =
+        match Signal.peek state with
+        | Ready v -> Some v
+        | _ -> None
+      in
+      let new_value = fn current_value in
       set_state (Ready new_value)
     );
-    refetch = (fun () -> set_state Pending);
+    refetch = (fun () -> set_state Loading);
     set_ready = (fun v -> set_state (Ready v));
     set_error = (fun err -> set_state (Error err));
+    set_loading = (fun () -> set_state Loading);
   } in
   { state; actions; id }
 
@@ -149,9 +184,11 @@ let read resource =
 let peek resource =
   Signal.peek resource.state
 
-(** Check if loading (pending) *)
+(** Check if loading *)
 let loading resource =
-  match peek resource with Pending -> true | _ -> false
+  match peek resource with
+  | Ready _ | Error _ -> false
+  | _ -> true
 
 (** Alias for loading *)
 let is_loading = loading
@@ -190,8 +227,8 @@ let get_data = data
 let get ?(error_to_string=(fun _ -> "Resource error")) resource =
   match peek resource with
   | Ready v -> v
-  | Pending -> raise (Invalid_argument "Resource.get: not ready")
   | Error err -> raise (Invalid_argument ("Resource.get: " ^ error_to_string err))
+  | _ -> raise (Invalid_argument "Resource.get: not ready")
 
 (** {1 Actions} *)
 
@@ -215,19 +252,48 @@ let set resource data =
 let set_error resource err =
   resource.actions.set_error err
 
+(** Set to loading *)
+let set_loading resource =
+  resource.actions.set_loading ()
+
 (** {1 Transforming} *)
 
-(** Map over the ready value *)
-let map f resource =
+let map_state f resource =
   match read resource with
   | Ready v -> Ready (f v)
-  | Pending -> Pending
   | Error err -> Error err
+  | _ -> Loading
 
-(** Combine two resources *)
+(** Map over the ready value, returning a derived resource.
+    Note: the returned resource is read-only; its actions are no-ops
+    except for refetch, which forwards to the source. *)
+let map f resource =
+  let state, set_state = Signal.create Loading in
+  let id = !next_resource_id in
+  incr next_resource_id;
+
+  let update () =
+    set_state (map_state f resource)
+  in
+
+  let actions = {
+    mutate = (fun _ -> ());
+    refetch = (fun () -> refetch resource);
+    set_ready = (fun _ -> ());
+    set_error = (fun _ -> ());
+    set_loading = (fun () -> ());
+  } in
+
+  Effect.create (fun () -> update ());
+
+  { state; actions; id }
+
+(** Combine two resources.
+    Note: the returned resource is read-only; its actions are no-ops
+    except for refetch, which forwards to the sources. *)
 let combine (r1 : ('a, 'e) resource) (r2 : ('b, 'e) resource)
   : (('a * 'b), 'e) resource =
-  let state, set_state = Signal.create Pending in
+  let state, set_state = Signal.create Loading in
   let id = !next_resource_id in
   incr next_resource_id;
   
@@ -236,20 +302,18 @@ let combine (r1 : ('a, 'e) resource) (r2 : ('b, 'e) resource)
     | Ready a, Ready b -> set_state (Ready (a, b))
     | Error a, _ -> set_state (Error a)
     | _, Error b -> set_state (Error b)
-    | Pending, _ | _, Pending -> set_state Pending
+    | _ -> set_state Loading
   in
-  
+
   let actions = {
-    mutate = (fun fn ->
-      let new_value = fn None in
-      set_state (Ready new_value)
-    );
+    mutate = (fun _ -> ());
     refetch = (fun () ->
       refetch r1;
       refetch r2
     );
     set_ready = (fun _ -> ());
-    set_error = (fun err -> set_state (Error err));
+    set_error = (fun _ -> ());
+    set_loading = (fun () -> ());
   } in
   
   Effect.create (fun () -> update ());
@@ -257,9 +321,11 @@ let combine (r1 : ('a, 'e) resource) (r2 : ('b, 'e) resource)
   
   { state; actions; id }
 
-(** Combine a list of resources *)
+(** Combine a list of resources.
+    Note: the returned resource is read-only; its actions are no-ops
+    except for refetch, which forwards to the sources. *)
 let combine_all (resources : ('a, 'e) resource list) : ('a list, 'e) resource =
-  let state, set_state = Signal.create Pending in
+  let state, set_state = Signal.create Loading in
   let id = !next_resource_id in
   incr next_resource_id;
   
@@ -270,19 +336,17 @@ let combine_all (resources : ('a, 'e) resource list) : ('a list, 'e) resource =
         match read r with
         | Ready v -> check (v :: acc) rest
         | Error err -> set_state (Error err)
-        | Pending -> set_state Pending
+        | _ -> set_state Loading
     in
     check [] resources
   in
   
   let actions = {
-    mutate = (fun fn ->
-      let new_value = fn None in
-      set_state (Ready new_value)
-    );
+    mutate = (fun _ -> ());
     refetch = (fun () -> List.iter refetch resources);
     set_ready = (fun _ -> ());
-    set_error = (fun err -> set_state (Error err));
+    set_error = (fun _ -> ());
+    set_loading = (fun () -> ());
   } in
   
   List.iter (fun _ -> Effect.create (fun () -> update ())) resources;
@@ -294,18 +358,18 @@ let combine_all (resources : ('a, 'e) resource list) : ('a list, 'e) resource =
 (** Render based on resource state *)
 let render ~loading ~error ~ready resource =
   match read resource with
-  | Pending -> loading ()
   | Error err -> error err
   | Ready v -> ready v
+  | _ -> loading ()
 
 module Unsafe = struct
   let create_with_error ~on_error (fetcher : unit -> 'a) : ('a, 'e) resource =
-    let state, set_state = Signal.Unsafe.create Pending in
+    let state, set_state = Signal.Unsafe.create Loading in
     let id = !next_resource_id in
     incr next_resource_id;
 
     let do_fetch () =
-      set_state Pending;
+      set_state Loading;
       try
         let data = fetcher () in
         set_state (Ready data)
@@ -315,12 +379,18 @@ module Unsafe = struct
 
     let actions = {
       mutate = (fun fn ->
-        let new_value = fn None in
+        let current_value =
+          match Signal.Unsafe.peek state with
+          | Ready v -> Some v
+          | _ -> None
+        in
+        let new_value = fn current_value in
         set_state (Ready new_value)
       );
       refetch = (fun () -> do_fetch ());
       set_ready = (fun v -> set_state (Ready v));
       set_error = (fun err -> set_state (Error err));
+      set_loading = (fun () -> set_state Loading);
     } in
 
     do_fetch ();
@@ -332,27 +402,39 @@ module Unsafe = struct
     incr next_resource_id;
     let actions = {
       mutate = (fun fn ->
-        let new_value = fn (Some value) in
+        let current_value =
+          match Signal.Unsafe.peek state with
+          | Ready v -> Some v
+          | _ -> None
+        in
+        let new_value = fn current_value in
         set_state (Ready new_value)
       );
       refetch = (fun () -> ());
       set_ready = (fun v -> set_state (Ready v));
       set_error = (fun err -> set_state (Error err));
+      set_loading = (fun () -> set_state Loading);
     } in
     { state; actions; id }
 
   let create_loading () : ('a, 'e) resource =
-    let state, set_state = Signal.Unsafe.create Pending in
+    let state, set_state = Signal.Unsafe.create Loading in
     let id = !next_resource_id in
     incr next_resource_id;
     let actions = {
       mutate = (fun fn ->
-        let new_value = fn None in
+        let current_value =
+          match Signal.Unsafe.peek state with
+          | Ready v -> Some v
+          | _ -> None
+        in
+        let new_value = fn current_value in
         set_state (Ready new_value)
       );
-      refetch = (fun () -> set_state Pending);
+      refetch = (fun () -> set_state Loading);
       set_ready = (fun v -> set_state (Ready v));
       set_error = (fun err -> set_state (Error err));
+      set_loading = (fun () -> set_state Loading);
     } in
     { state; actions; id }
 
@@ -362,17 +444,23 @@ module Unsafe = struct
     incr next_resource_id;
     let actions = {
       mutate = (fun fn ->
-        let new_value = fn None in
+        let current_value =
+          match Signal.Unsafe.peek state with
+          | Ready v -> Some v
+          | _ -> None
+        in
+        let new_value = fn current_value in
         set_state (Ready new_value)
       );
-      refetch = (fun () -> set_state Pending);
+      refetch = (fun () -> set_state Loading);
       set_ready = (fun v -> set_state (Ready v));
       set_error = (fun err -> set_state (Error err));
+      set_loading = (fun () -> set_state Loading);
     } in
     { state; actions; id }
 
   let combine (r1 : ('a, 'e) resource) (r2 : ('b, 'e) resource) : (('a * 'b), 'e) resource =
-    let state, set_state = Signal.Unsafe.create Pending in
+    let state, set_state = Signal.Unsafe.create Loading in
     let id = !next_resource_id in
     incr next_resource_id;
 
@@ -381,20 +469,18 @@ module Unsafe = struct
       | Ready a, Ready b -> set_state (Ready (a, b))
       | Error a, _ -> set_state (Error a)
       | _, Error b -> set_state (Error b)
-      | Pending, _ | _, Pending -> set_state Pending
+      | _ -> set_state Loading
     in
 
     let actions = {
-      mutate = (fun fn ->
-        let new_value = fn None in
-        set_state (Ready new_value)
-      );
+      mutate = (fun _ -> ());
       refetch = (fun () ->
         refetch r1;
         refetch r2
       );
       set_ready = (fun _ -> ());
-      set_error = (fun err -> set_state (Error err));
+      set_error = (fun _ -> ());
+      set_loading = (fun () -> ());
     } in
 
     Effect.Unsafe.create (fun () -> update ());
@@ -403,7 +489,7 @@ module Unsafe = struct
     { state; actions; id }
 
   let combine_all (resources : ('a, 'e) resource list) : ('a list, 'e) resource =
-    let state, set_state = Signal.Unsafe.create Pending in
+    let state, set_state = Signal.Unsafe.create Loading in
     let id = !next_resource_id in
     incr next_resource_id;
 
@@ -414,19 +500,17 @@ module Unsafe = struct
           match read r with
           | Ready v -> check (v :: acc) rest
           | Error err -> set_state (Error err)
-          | Pending -> set_state Pending
+          | _ -> set_state Loading
       in
       check [] resources
     in
 
     let actions = {
-      mutate = (fun fn ->
-        let new_value = fn None in
-        set_state (Ready new_value)
-      );
+      mutate = (fun _ -> ());
       refetch = (fun () -> List.iter refetch resources);
       set_ready = (fun _ -> ());
-      set_error = (fun err -> set_state (Error err));
+      set_error = (fun _ -> ());
+      set_loading = (fun () -> ());
     } in
 
     List.iter (fun _ -> Effect.Unsafe.create (fun () -> update ())) resources;
@@ -451,6 +535,8 @@ module Unsafe = struct
   let set_ready = set_ready
   let set = set
   let set_error = set_error
+  let set_loading = set_loading
+  let map_state = map_state
   let map = map
   let render = render
 end

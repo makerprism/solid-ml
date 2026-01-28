@@ -401,6 +401,24 @@ let navigate ?(replace=false) url =
     end
   with _ -> ())
 
+let use_search_params () =
+  let loc = use_location () in
+  let params =
+    match (Reactive_core.get_signal loc).query with
+    | None -> []
+    | Some q -> parse_query_string q
+  in
+  let set_params ?(replace=false) pairs =
+    let state = Reactive_core.peek_signal loc in
+    let query = match pairs with
+      | [] -> None
+      | _ -> Some (build_query_string pairs)
+    in
+    let url = build_url ~path:state.path ?query ?hash:state.hash () in
+    navigate ~replace url
+  in
+  (params, set_params)
+
 let go_back () = Dom.history_back ()
 let go_forward () = Dom.history_forward ()
 let go delta = Dom.history_go delta

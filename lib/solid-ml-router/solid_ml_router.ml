@@ -1,8 +1,8 @@
-(** solid-ml-router: SSR-aware routing for solid-ml.
+(** solid-ml-router: routing for solid-ml.
     
     This library provides routing with support for:
     - Pattern matching with parameters and wildcards
-    - Server-side route matching for SSR
+    - Server-side route matching
     - Reactive router state
     - URL parsing and building
     
@@ -49,7 +49,7 @@ module Route = Route
 (** Router state and navigation *)
 module Router = Router
 
-(** Router components (Link, Outlet, provide) *)
+(** Router components functor (Link, Outlet, provide) *)
 module Components = Components
 
 (** Async resource with loading/error/ready states *)

@@ -538,12 +538,61 @@ module Make (B : Backend.S) = struct
 
   (** {1 Run Updates} *)
   
+  let rec schedule_deferred_updates rt =
+    if not rt.updates_scheduled then begin
+      rt.updates_scheduled <- true;
+      B.schedule_microtask (fun () ->
+          match get_runtime_opt () with
+          | None ->
+            rt.updates_scheduled <- false
+          | Some runtime ->
+            if runtime.in_update then begin
+              runtime.updates_scheduled <- false;
+              schedule_deferred_updates runtime
+            end else begin
+              runtime.updates_scheduled <- false;
+              runtime.in_update <- true;
+              runtime.exec_count <- runtime.exec_count + 1;
+              (try
+                 complete_updates ()
+               with exn ->
+                 runtime.in_update <- false;
+                 raise exn);
+              runtime.in_update <- false;
+              if runtime.transition_scheduled then
+                !process_transition_queue_ref runtime
+            end)
+    end
+
   let run_updates : 'a. (unit -> 'a) -> bool -> 'a = fun fn init ->
     let rt = get_runtime () in
     
     if rt.in_update then
       fn ()
-    else begin
+    else if rt.defer_updates && not init then begin
+      let had_scheduled = rt.updates_scheduled in
+      rt.in_update <- true;
+
+      if not had_scheduled then begin
+        rt.updates_len <- 0;
+        rt.effects_len <- 0
+      end;
+
+      let result =
+        try fn ()
+        with exn ->
+          rt.in_update <- false;
+          if not had_scheduled then begin
+            rt.updates_len <- 0;
+            rt.effects_len <- 0
+          end;
+          raise exn
+      in
+
+      rt.in_update <- false;
+      schedule_deferred_updates rt;
+      result
+    end else begin
       rt.in_update <- true;
       rt.exec_count <- rt.exec_count + 1;
       
@@ -676,6 +725,11 @@ module Make (B : Backend.S) = struct
     in
     set_runtime prev;
     result
+
+  (** Enable or disable microtask-deferring updates. *)
+  let set_microtask_deferral enabled =
+    let rt = get_runtime () in
+    rt.defer_updates <- enabled
 
   (** Dispose an owner and all its children *)
   let rec dispose_owner (owner : owner) =
