@@ -12,11 +12,31 @@ type keyed_test_item = {
   label : string;
 }
 
+
 let fail msg =
   raise (Failure msg)
 
 let assert_eq ~name a b =
   if a <> b then fail (name ^ ": expected " ^ b ^ ", got " ^ a)
+
+let string_contains_substring ~haystack ~needle =
+  let haystack_len = String.length haystack in
+  let needle_len = String.length needle in
+  if needle_len = 0 then true
+  else if needle_len > haystack_len then false
+  else
+    let rec check_pos pos =
+      if pos > haystack_len - needle_len then false
+      else
+        let rec check_offset offset =
+          if offset = needle_len then true
+          else if haystack.[pos + offset] = needle.[offset]
+          then check_offset (offset + 1)
+          else false
+        in
+        if check_offset 0 then true else check_pos (pos + 1)
+    in
+    check_pos 0
 
 let decode_int (json : Js.Json.t) : int option =
   match Js.Json.decodeNumber json with
@@ -367,6 +387,148 @@ let test_hydrate_nodes_fragment_between_regions () =
 
   assert_eq ~name:"hydrate nodes fragment between regions"
     (get_text_content root) "Home / CounterFilters / Inline Edit";
+  dispose ()
+
+let test_template_dynamic_component_switch () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  let name, set_name = Signal.create "Smith" in
+
+  let comp_a label =
+    Html.div ~children:[Html.text ("Hi " ^ label)] ()
+  in
+  let comp_b label =
+    Html.span ~children:[Html.text ("Yo " ^ label)] ()
+  in
+
+  let component, set_component =
+    Signal.create (comp_a : string -> Html.node)
+  in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+          Html.append_to_element root
+        (Html.div
+           ~children:[
+             Solid_ml_template_runtime.Tpl.nodes (fun () ->
+               let comp = (Signal.get component : string -> Html.node) in
+               comp (Signal.get name))
+           ]
+           ())
+    )
+  in
+
+  assert_eq ~name:"dynamic initial" (get_text_content root) "Hi Smith";
+  set_name "Smithers";
+  assert_eq ~name:"dynamic props update" (get_text_content root) "Hi Smithers";
+  set_component comp_b;
+  assert_eq ~name:"dynamic switch" (get_text_content root) "Yo Smithers";
+  let children = get_child_nodes root in
+  let child = element_of_node children.(0) in
+  assert_eq ~name:"dynamic tag" (get_tag_name child) "SPAN";
+  dispose ()
+
+let test_template_portal_basic () =
+  let root = create_element (document ()) "div" in
+  let mount = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+  append_child body (node_of_element mount);
+
+  let dispose =
+    Render.render root (fun () ->
+      Html.portal ~target:mount ~children:(Html.div ~children:[Html.text "Hi"] ()) ())
+  in
+
+  assert_eq ~name:"portal root empty" (get_text_content root) "";
+  assert_eq ~name:"portal mount text" (get_text_content mount) "Hi";
+  dispose ();
+  assert_eq ~name:"portal dispose" (get_text_content mount) ""
+
+let test_template_portal_head () =
+  let root = create_element (document ()) "div" in
+  let head : element = [%mel.raw "document.head"] in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+
+  let title, set_title = Signal.create "A Meaningful Page Title" in
+  let visible, set_visible = Signal.create true in
+
+  let dispose =
+    Render.render root (fun () ->
+      Html.div ~children:[
+        Solid_ml_template_runtime.Tpl.show_when
+          ~when_:(fun () -> Signal.get visible)
+          (fun () ->
+            Html.portal ~target:head
+              ~children:(Html.title ~children:[Html.text (Signal.get title)] ())
+              ()
+          )
+      ] ())
+  in
+
+  let head_html = get_inner_html head in
+  if not (string_contains_substring ~haystack:head_html ~needle:"<title>A Meaningful Page Title</title>") then
+    fail "portal head initial: title not found";
+  set_title "A New Better Page Title";
+  let head_html = get_inner_html head in
+  if not (string_contains_substring ~haystack:head_html ~needle:"<title>A New Better Page Title</title>") then
+    fail "portal head update: title not found";
+  set_visible false;
+  let head_html = get_inner_html head in
+  if string_contains_substring ~haystack:head_html ~needle:"<title>A New Better Page Title</title>" then
+    fail "portal head hide: title still present";
+  set_visible true;
+  let head_html = get_inner_html head in
+  if not (string_contains_substring ~haystack:head_html ~needle:"<title>A New Better Page Title</title>") then
+    fail "portal head show: title missing";
+  dispose ();
+  let head_html = get_inner_html head in
+  if string_contains_substring ~haystack:head_html ~needle:"<title>A New Better Page Title</title>" then
+    fail "portal head dispose: title still present"
+
+let test_template_portal_svg () =
+  let root = create_element (document ()) "div" in
+  let svg = create_element_ns (document ()) "http://www.w3.org/2000/svg" "svg" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+  append_child body (node_of_element svg);
+
+  let dispose =
+    Render.render root (fun () ->
+      Html.portal ~target:svg ~is_svg:true
+        ~children:(Html.Svg.g ~children:[Html.text "Hi"] ())
+        ())
+  in
+
+  assert_eq ~name:"portal svg mount" (get_text_content svg) "Hi";
+  dispose ();
+  assert_eq ~name:"portal svg dispose" (get_text_content svg) ""
+
+let test_template_portal_event () =
+  let root = create_element (document ()) "div" in
+  let mount = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+  append_child body (node_of_element mount);
+
+  let clicked, set_clicked = Signal.create false in
+
+  let dispose =
+    Render.render root (fun () ->
+      Html.portal ~target:mount
+        ~children:(Html.div ~onclick:(fun _ -> set_clicked true) ~children:[] ())
+        ())
+  in
+
+  let children = get_child_nodes mount in
+  let wrapper = element_of_node children.(0) in
+  let wrapper_children = get_child_nodes wrapper in
+  let portal_child = element_of_node wrapper_children.(0) in
+  dispatch_click portal_child;
+  assert_eq ~name:"portal click" (if Signal.get clicked then "yes" else "no") "yes";
   dispose ()
 
 let test_hydrate_normalizes_nodes_regions () =
@@ -1410,6 +1572,11 @@ let () =
     test_hydrate_adjacent_show_when ();
     test_hydrate_nodes_fragment_order ();
     test_hydrate_nodes_fragment_between_regions ();
+    test_template_dynamic_component_switch ();
+    test_template_portal_basic ();
+    test_template_portal_head ();
+    test_template_portal_svg ();
+    test_template_portal_event ();
     test_hydrate_text_slot ();
     test_hydrate_reactive_text_marker_adoption ();
     test_hydrate_normalizes_nodes_regions ();
