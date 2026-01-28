@@ -172,18 +172,33 @@
     </div>
     
     <div class="example">
-      <h2>Router Demo</h2>
-      <p>Client-side routing with navigation, dynamic route parameters, wildcards, and NavLink with active styling. No page reloads!</p>
+      <h2>Router Demo (SSR + Client)</h2>
+      <p>Server-rendered routes with client-side navigation and hydration. Includes dynamic params, wildcards, and NavLink active styles.</p>
       <div class="tags">
+        <span class="tag native">Native</span>
         <span class="tag browser">Browser</span>
         <span class="tag">Router</span>
-        <span class="tag">Params</span>
-        <span class="tag">NavLink</span>
-        <span class="tag">History API</span>
+        <span class="tag">SSR</span>
+        <span class="tag">Hydration</span>
       </div>
       <div class="actions">
-        <a href="./browser_router/" class="btn">Open Demo</a>
+        <span class="btn secondary">Run: make run-browser-router-server</span>
         <a href="https://github.com/makerprism/solid-ml/blob/main/examples/browser_router/router_demo.ml" class="btn secondary" target="_blank">View Source</a>
+      </div>
+    </div>
+
+    <div class="example">
+      <h2>Full SSR + Hydration</h2>
+      <p>Server-rendered pages with client hydration on load. Use this to test SSR hydration and server-side routing (page loads, not SPA navigation).</p>
+      <div class="tags">
+        <span class="tag native">Native</span>
+        <span class="tag browser">Browser</span>
+        <span class="tag">SSR</span>
+        <span class="tag">Hydration</span>
+      </div>
+      <div class="actions">
+        <span class="btn secondary">Run: make run-full-ssr-server</span>
+        <a href="https://github.com/makerprism/solid-ml/blob/main/examples/full_ssr_app/README.md" class="btn secondary" target="_blank">View README</a>
       </div>
     </div>
 

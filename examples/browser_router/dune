@@ -3,4 +3,11 @@
 (melange.emit
  (target output)
  (libraries solid-ml-browser)
+ (modules router_demo shared_components)
+ (preprocess (pps melange.ppx))
  (module_systems es6))
+
+(executable
+ (name server)
+ (modules server shared_components)
+ (libraries dream solid-ml-ssr solid-ml-router))

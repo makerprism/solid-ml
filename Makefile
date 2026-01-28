@@ -85,6 +85,22 @@ example-browser-router:
 	@echo ""
 	@echo "Build complete! Run 'make serve' then open http://localhost:8000/browser_router/"
 
+# Build browser router SSR server
+example-browser-router-server:
+	@echo "Building browser router SSR server..."
+	@$(DUNE) build examples/browser_router/server.exe
+	@echo ""
+	@echo "Server built: examples/browser_router/server.exe"
+
+# Run browser router SSR server
+run-browser-router-server: example-browser-router example-browser-router-server
+	@echo ""
+	@echo "=== Starting Browser Router SSR Server ==="
+	@echo "Visit http://localhost:8080/browser_router"
+	@echo "Press Ctrl+C to stop"
+	@echo ""
+	@$(DUNE) exec examples/browser_router/server.exe
+
 # Build cleanup example
 example-browser-cleanup:
 	@echo "Building cleanup example..."
