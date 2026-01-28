@@ -17,9 +17,18 @@
 - Template runtime/PPX integration for MLX syntax.
 - Router `use_search_params` hook with query setter (server and browser).
 - Browser reactive core microtask deferral toggle (`Reactive_core.set_microtask_deferral`).
+- `Resource.Async` for consistent async result-callback creation (router/browser).
+- `Resource.get_or` helper and `Router_context` helpers (server/browser).
+- Migration guide at `docs/MIGRATIONS.md`.
 
 ### Changed
 - Removed token-based strict APIs; reactive primitives now follow SolidJS-style implicit runtime semantics. Create a per-request runtime with `Runtime.run` on servers to avoid cross-request state.
+- Router matching now ranks by specificity (stable tie-break by order).
+- Route param encoding/decoding now uses path-safe semantics (no `+` for spaces).
+- ErrorBoundary now captures effect/memo errors in addition to render exceptions.
+- Suspense now de-dups resource tracking by resource id.
+- Browser attribute name sanitization matches SSR (unsafe chars replaced with `_`).
+- Reactive text API renamed to `reactive_text*` (legacy aliases removed).
 
 ### Breaking (pre-release)
 - No releases yet; treat all changes as breaking until 1.0.
