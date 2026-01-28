@@ -7,7 +7,14 @@
  (preprocess (pps melange.ppx))
  (module_systems es6))
 
+(library
+ (name shared_components)
+ (modules shared_components)
+ (libraries solid-ml-template-runtime solid-ml)
+ (modes byte native melange)
+ (preprocess (pps solid-ml-template-ppx)))
+
 (executable
  (name server)
- (modules server shared_components)
- (libraries dream solid-ml-ssr solid-ml-router))
+ (modules server)
+ (libraries dream solid-ml-ssr solid-ml-router shared_components))

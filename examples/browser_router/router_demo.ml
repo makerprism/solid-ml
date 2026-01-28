@@ -13,7 +13,11 @@
 open Solid_ml_browser
 
 let () =
-  let module Shared = Shared_components.Make(Html)(Router)(struct let base = "" end) in
+  let module Router_browser = struct
+    type node = Solid_ml_browser.Html.node
+    include Router
+  end in
+  let module Shared = Shared_components.Make(Solid_ml_browser.Env)(Router_browser)(struct let base = "" end) in
   match Dom.get_element_by_id (Dom.document ()) "app" with
   | Some root ->
     let config = Router.{ 

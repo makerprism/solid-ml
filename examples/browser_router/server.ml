@@ -1,7 +1,14 @@
 open Solid_ml_ssr
 
-module Router_components = Solid_ml_router.Components.Make(Solid_ml_ssr.Html)
-module Shared = Shared_components.Make(Solid_ml_ssr.Html)(Router_components)(struct
+module Router_components = Solid_ml_router.Components.Make(Solid_ml_ssr.Env.Html)
+module Router_ssr = struct
+  type node = Solid_ml_ssr.Env.Html.node
+  module Route = Solid_ml_router.Route
+  include Router_components
+  let use_param = Solid_ml_router.Router.use_param
+end
+
+module Shared = Shared_components.Make(Solid_ml_ssr.Env)(Router_ssr)(struct
   let base = "/browser_router"
 end)
 

@@ -1,0 +1,179 @@
+(** Shared router demo views (SSR + client). *)
+
+module type BASE = sig
+  val base : string
+end
+
+module type ROUTER = sig
+  type node
+
+  module Route : sig
+    type 'a t
+    val create : path:string -> data:'a -> unit -> 'a t
+  end
+
+  val link : ?class_:string -> href:string -> children:node list -> unit -> node
+  val nav_link : ?class_:string -> ?active_class:string -> ?exact:bool -> href:string -> children:node list -> unit -> node
+  val outlet : routes:(unit -> node) Route.t list -> ?not_found:(unit -> node) -> unit -> node
+  val use_param : string -> string option
+end
+
+module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV)
+  (Router : ROUTER with type node = Env.Html.node)
+  (Base : BASE) = struct
+  open Env
+  open Env.Html
+  module Tpl = Env.Tpl
+  module Signal = Env.Signal
+
+  let href path = Base.base ^ path
+
+  let home_page () =
+    <div class_="page">
+      <h2>(text "Home")</h2>
+      <p>(text "Welcome to the solid-ml router demo!")</p>
+      <p>(text "Click the navigation links above to see routing in action.")</p>
+      <p>(text "This example supports SSR + client-side navigation.")</p>
+    </div>
+
+  let counter_page () =
+    let count, set_count = Signal.create 0 in
+    <div class_="page">
+      <h2>(text "Counter")</h2>
+      <p>(text "This counter demonstrates reactive state within a routed page.")</p>
+
+      <div class_="counter-display">
+        <p>(text "Count: ") (Tpl.text (fun () -> string_of_int (Signal.get count)))</p>
+        <p>(text "Doubled: ") (Tpl.text (fun () -> string_of_int (Signal.get count * 2)))</p>
+      </div>
+
+      <div class_="buttons">
+        <button class_="btn" onclick=(fun _ -> Signal.update count (fun n -> n - 1))>
+          (text "-")
+        </button>
+        <button class_="btn" onclick=(fun _ -> Signal.update count (fun n -> n + 1))>
+          (text "+")
+        </button>
+        <button class_="btn btn-secondary" onclick=(fun _ -> set_count 0)>
+          (text "Reset")
+        </button>
+      </div>
+    </div>
+
+  let users_page () =
+    let users = ["alice"; "bob"; "charlie"; "diana"] in
+    <div class_="page">
+      <h2>(text "Users")</h2>
+      <p>(text "Click a user to see their profile (dynamic route param).")</p>
+      <ul class_="user-list">
+        (fragment (List.map (fun user ->
+          <li>
+            (Router.link ~href:(href ("/users/" ^ user)) ~children:[text user] ())
+          </li>
+        ) users))
+      </ul>
+    </div>
+
+  let user_profile_page () =
+    let username = Router.use_param "username" |> Option.value ~default:"unknown" in
+    <div class_="page">
+      <h2>(text ("User: " ^ username))</h2>
+      <p>(text ("Welcome to " ^ username ^ "'s profile page!"))</p>
+      <p>(text "This page was rendered using the :username route parameter.")</p>
+      <p>
+        (Router.link ~href:(href "/users") ~children:[text "Back to users list"] ())
+      </p>
+    </div>
+
+  let about_page () =
+    <div class_="page">
+      <h2>(text "About")</h2>
+      <p>(text "solid-ml is an OCaml framework for reactive web applications.")</p>
+
+      <h3>(text "Key Features")</h3>
+      <ul>
+        <li>(text "Fine-grained reactivity (no virtual DOM)")</li>
+        <li>(text "Server-side rendering with hydration")</li>
+        <li>(text "Type-safe routing with params and wildcards")</li>
+        <li>(text "Shared reactive core between server and browser")</li>
+      </ul>
+
+      <h3>(text "Router Features")</h3>
+      <ul>
+        <li>(text "Client-side navigation (no page reloads)")</li>
+        <li>(text "History API integration (back/forward work)")</li>
+        <li>(text "Dynamic route parameters (:param)")</li>
+        <li>(text "Wildcard routes (*)")</li>
+        <li>(text "NavLink with active class styling")</li>
+      </ul>
+    </div>
+
+  let docs_page () =
+    let doc_path =
+      match Router.use_param "*" with
+      | Some p when p <> "" -> p
+      | _ -> "index"
+    in
+    <div class_="page">
+      <h2>(text "Documentation")</h2>
+      <p>(text "Current doc: ") <strong>(text doc_path)</strong></p>
+      <p>(text "This page uses a wildcard route to capture any path after /docs/.")</p>
+
+      <h3>(text "Available Docs")</h3>
+      <ul>
+        <li>(Router.link ~href:(href "/docs/getting-started") ~children:[text "Getting Started"] ())</li>
+        <li>(Router.link ~href:(href "/docs/signals") ~children:[text "Signals"] ())</li>
+        <li>(Router.link ~href:(href "/docs/effects") ~children:[text "Effects"] ())</li>
+        <li>(Router.link ~href:(href "/docs/router/basics") ~children:[text "Router Basics"] ())</li>
+        <li>(Router.link ~href:(href "/docs/router/params") ~children:[text "Router Params"] ())</li>
+      </ul>
+    </div>
+
+  let not_found_page () =
+    <div class_="page error-page">
+      <h2>(text "404 - Not Found")</h2>
+      <p>(text "The page you're looking for doesn't exist.")</p>
+      <p>(Router.link ~href:(href "/") ~children:[text "Go home"] ())</p>
+    </div>
+
+  let route_specs : (string * (unit -> Html.node)) list = [
+    ("/", home_page);
+    ("/counter", counter_page);
+    ("/users", users_page);
+    ("/users/:username", user_profile_page);
+    ("/about", about_page);
+    ("/docs/*", docs_page);
+  ]
+
+  let routes : (unit -> Html.node) Router.Route.t list =
+    List.map (fun (path, data) -> Router.Route.create ~path ~data ()) route_specs
+
+  let config_routes : unit Router.Route.t list =
+    List.map (fun (path, _data) -> Router.Route.create ~path ~data:() ()) route_specs
+
+  let nav_bar () =
+    <nav class_="nav">
+      (Router.nav_link ~href:(href "/") ~exact:true ~children:[text "Home"] ())
+      (Router.nav_link ~href:(href "/counter") ~children:[text "Counter"] ())
+      (Router.nav_link ~href:(href "/users") ~children:[text "Users"] ())
+      (Router.nav_link ~href:(href "/docs") ~children:[text "Docs"] ())
+      (Router.nav_link ~href:(href "/about") ~children:[text "About"] ())
+    </nav>
+
+  let app () =
+    <div class_="app">
+      <header>
+        <h1>(text "solid-ml Router Demo")</h1>
+        (nav_bar ())
+      </header>
+      <main>
+        (Router.outlet ~routes ~not_found:not_found_page ())
+      </main>
+      <footer>
+        <p>
+          (text "Built with ")
+          (a ~href:"https://github.com/makerprism/solid-ml" ~target:"_blank" ~children:[text "solid-ml"] ())
+        </p>
+      </footer>
+    </div>
+end
