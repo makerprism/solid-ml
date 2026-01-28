@@ -54,6 +54,9 @@ val raw : string -> node
     On SSR, they render the current signal value wrapped in markers
     that enable client-side hydration. *)
 
+(** Migration: [signal_text] and [signal_text_of] were removed.
+    Use [reactive_text] and [reactive_text_of]. *)
+
 (** Create a reactive text node from an int signal. *)
 val reactive_text : int signal -> node
 
@@ -62,14 +65,6 @@ val reactive_text_of : ('a -> string) -> 'a signal -> node
 
 (** Reactive text from a string signal. *)
 val reactive_text_string : string signal -> node
-
-(** {1 Deprecated Aliases} *)
-
-(** @deprecated Use [reactive_text] instead. *)
-val signal_text : int signal -> node
-
-(** @deprecated Use [reactive_text_of] instead. *)
-val signal_text_of : ('a -> string) -> 'a signal -> node
 
 (** {1 HTML Elements} *)
 

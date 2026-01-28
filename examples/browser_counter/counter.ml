@@ -25,7 +25,7 @@ let counter () =
       div ~class_:"display" ~children:[
         p ~children:[
           text "Count: ";
-          Reactive.text count;
+          Reactive.reactive_text count;
         ] ();
         p ~children:[
           text "Doubled: ";

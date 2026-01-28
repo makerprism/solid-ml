@@ -31,7 +31,7 @@ let render_component ~id ~delay_ms () =
       p ~children:[text (Printf.sprintf "Component %d" id)] ();
       p ~children:[
         text "Value: ";
-        signal_text counter;
+        reactive_text counter;
       ] ();
       p ~children:[
         text "Squared: ";

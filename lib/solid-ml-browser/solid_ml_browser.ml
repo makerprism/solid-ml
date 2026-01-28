@@ -17,7 +17,7 @@
         let count, set_count = Signal.create 0 in
         Html.(
           div ~children:[
-            p ~children:[Reactive.text count] ();
+            p ~children:[Reactive.reactive_text count] ();
             button 
               ~onclick:(fun _ -> Signal.update count succ)
               ~children:[text "+"] 

@@ -579,10 +579,6 @@ let reactive_text_string signal =
   let value = Solid_ml.Signal.peek signal in
   ReactiveText { key; value }
 
-(** Deprecated aliases for backwards compatibility *)
-let signal_text = reactive_text
-let signal_text_of = reactive_text_of
-
 (** Common attributes type *)
 type common_attrs = {
   id : string option;

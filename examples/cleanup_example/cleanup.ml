@@ -44,7 +44,7 @@ let timer_component () =
   Html.(
     div ~class_:"timer" ~children:[
       text "Timer: ";
-      Reactive.text count;
+      Reactive.reactive_text count;
       text " seconds";
     ] ()
   )
@@ -81,7 +81,7 @@ let resource_component () =
         ~children:[text "Add Resource"]
         ();
       div ~class_:"messages" ~children:[
-        Reactive.text_of (fun msgs ->
+        Reactive.reactive_text_of (fun msgs ->
           if msgs = [] then "No resources added"
           else String.concat "\n" (List.rev msgs)
         ) messages

@@ -132,15 +132,19 @@ val reset_hydration_keys : unit -> unit
 
 (** {1 Reactive Text} *)
 
-val text : int Signal.t -> Html.node
-(** [text signal] creates a text node that updates when the signal changes.
+(** Migration: [Reactive.text], [Reactive.text_of], and [Reactive.text_string]
+    were removed. Use [Reactive.reactive_text], [Reactive.reactive_text_of],
+    and [Reactive.reactive_text_string]. *)
+
+val reactive_text : int Signal.t -> Html.node
+(** [reactive_text signal] creates a text node that updates when the signal changes.
     The signal value is converted to string via [string_of_int]. *)
 
-val text_of : ('a -> string) -> 'a Signal.t -> Html.node
-(** [text_of fmt signal] creates a text node with custom formatting. *)
+val reactive_text_of : ('a -> string) -> 'a Signal.t -> Html.node
+(** [reactive_text_of fmt signal] creates a text node with custom formatting. *)
 
-val text_string : string Signal.t -> Html.node
-(** [text_string signal] creates a text node from a string signal. *)
+val reactive_text_string : string Signal.t -> Html.node
+(** [reactive_text_string signal] creates a text node from a string signal. *)
 
 val memo_text : int Memo.t -> Html.node
 (** [memo_text memo] creates a text node from an int memo. *)

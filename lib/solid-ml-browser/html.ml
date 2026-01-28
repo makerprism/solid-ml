@@ -15,6 +15,18 @@ type element = Dom.element
 
 let svg_namespace = "http://www.w3.org/2000/svg"
 
+(** Escape/sanitize attribute names for browser DOM.
+    Only allows safe characters: a-z, A-Z, 0-9, hyphen, underscore, period, colon (for namespaced attrs).
+    Other characters are replaced with underscore. *)
+let escape_attr_name s =
+  let buf = Buffer.create (String.length s) in
+  String.iter (fun c ->
+    match c with
+    | 'a'..'z' | 'A'..'Z' | '0'..'9' | '-' | '_' | '.' | ':' -> Buffer.add_char buf c
+    | _ -> Buffer.add_char buf '_'
+  ) s;
+  Buffer.contents buf
+
 (** {1 Node Types} *)
 
 (** A node that can be rendered to the DOM *)
@@ -429,9 +441,10 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
     element_of_node n
 
   let set_attr (el : element) ~name (value : string option) =
+    let safe_name = escape_attr_name name in
     match value with
-    | Some v -> set_attribute el name v
-    | None -> remove_attribute el name
+    | Some v -> set_attribute el safe_name v
+    | None -> remove_attribute el safe_name
 
   let run_updates fn =
     Reactive_core.run_updates_nested fn
@@ -881,18 +894,6 @@ let set_int_attr el name = function
   | Some n -> set_attribute el name (string_of_int n)
   | None -> ()
 
-(** Escape/sanitize attribute names for browser DOM.
-    Only allows safe characters: a-z, A-Z, 0-9, hyphen, underscore, period, colon (for namespaced attrs).
-    Other characters are replaced with underscore. *)
-let escape_attr_name s =
-  let buf = Buffer.create (String.length s) in
-  String.iter (fun c ->
-    match c with
-    | 'a'..'z' | 'A'..'Z' | '0'..'9' | '-' | '_' | '.' | ':' -> Buffer.add_char buf c
-    | _ -> ()  (* Drop unsafe characters *)
-  ) s;
-  Buffer.contents buf
-
 (** Helper to set custom attributes *)
 let set_attrs el attrs =
   List.iter (fun (k, v) -> 
@@ -939,8 +940,6 @@ let reactive_text_string signal =
   );
   Text txt
   
-let signal_text = reactive_text
-
 (** {1 Fragment} *)
 
 (** Create a fragment from a list of nodes.

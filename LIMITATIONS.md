@@ -48,7 +48,7 @@ open Reactive
 let counter () =
   let count, set_count = Signal.create 0 in
   Html.div [] [
-    Html.p [] [Reactive.text count];
+    Html.p [] [Reactive.reactive_text count];
     Html.button 
       [Html.on_click (fun _ -> Signal.update count succ)] 
       [Html.text "+"]

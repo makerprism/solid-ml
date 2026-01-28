@@ -200,9 +200,9 @@ let get_or_create_text_node key initial_value =
   | Some txt -> txt  (* Adopt existing node *)
   | None -> Dom.create_text_node (Dom.document ()) initial_value
 
-let text = Html.reactive_text
-let text_of = Html.reactive_text_of
-let text_string = Html.reactive_text_string
+let reactive_text = Html.reactive_text
+let reactive_text_of = Html.reactive_text_of
+let reactive_text_string = Html.reactive_text_string
 
 (** Create a reactive text node from an int memo.
     During hydration, adopts existing text node. *)

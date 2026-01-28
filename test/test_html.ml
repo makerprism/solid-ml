@@ -312,16 +312,6 @@ let test_reactive_text_marker_sequence () =
   assert (open_idx < value_idx && value_idx < close_idx);
   print_endline "  PASSED"
 
-let test_signal_text_alias () =
-  print_endline "Test: signal_text is alias for reactive_text";
-  let count, _set_count = Signal.create 99 in
-  let html = Render.to_string (fun () ->
-    Html.(div ~children:[signal_text count] ())
-  ) in
-  assert (contains html "99");
-  assert (contains html "<!--hk:");
-  print_endline "  PASSED"
-
 (* ============ Event Handler Tests ============ *)
 
 let test_onclick_ignored () =
@@ -758,7 +748,6 @@ let () =
   test_reactive_text_of ();
   test_reactive_text_string ();
   test_reactive_text_marker_sequence ();
-  test_signal_text_alias ();
 
   print_endline "\n-- Event Handler Tests --";
   test_onclick_ignored ();
