@@ -214,6 +214,19 @@ let no_context_sentinel : router_context = {
 let context : router_context Reactive_core.context = 
   Reactive_core.create_context no_context_sentinel
 
+(** {1 Context Helpers} *)
+
+module Router_context = struct
+  let get () =
+    let ctx = Reactive_core.use_context context in
+    if ctx.set_current == uninitialized_setter then raise No_router_context;
+    ctx
+
+  let get_opt () =
+    let ctx = Reactive_core.use_context context in
+    if ctx.set_current == uninitialized_setter then None else Some ctx
+end
+
 (** {1 URL Helpers} *)
 
 let parse_url url =
@@ -346,8 +359,7 @@ let get_app_path () =
 (** {1 Accessing Router State} *)
 
 let use_location () =
-  let ctx = Reactive_core.use_context context in
-  if ctx.set_current == uninitialized_setter then raise No_router_context;
+  let ctx = Router_context.get () in
   ctx.current
 
 let use_path () =

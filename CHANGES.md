@@ -23,6 +23,7 @@
 
 ### Breaking (pre-release)
 - No releases yet; treat all changes as breaking until 1.0.
+- See `docs/MIGRATIONS.md` for common migrations.
 - Resource states now use `Loading/Ready/Error`; `Pending` is deprecated and treated as loading.
 - Router components are now a functor only; SSR defaults moved to `Solid_ml_ssr.Router_components`.
 - `Solid_ml_router.Resource.render_simple` moved to `Solid_ml_ssr.Router_resource`.

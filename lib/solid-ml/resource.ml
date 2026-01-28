@@ -221,6 +221,12 @@ let data resource =
 (** Alias for data *)
 let get_data = data
 
+(** Get data if ready, otherwise return [default]. *)
+let get_or ~default resource =
+  match peek resource with
+  | Ready v -> v
+  | _ -> default
+
 (** Get value (raises if not ready).
     
     @param error_to_string Convert error values into messages for exceptions. *)

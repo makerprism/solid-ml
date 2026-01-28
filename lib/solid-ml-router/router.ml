@@ -62,6 +62,19 @@ let no_context_sentinel : router_context = {
 let context : router_context Context.t = 
   Context.create no_context_sentinel
 
+(** {1 Context Helpers} *)
+
+module Router_context = struct
+  let get () =
+    let ctx = Context.use context in
+    if ctx.navigate == uninitialized_navigate then raise No_router_context;
+    ctx
+
+  let get_opt () =
+    let ctx = Context.use context in
+    if ctx.navigate == uninitialized_navigate then None else Some ctx
+end
+
 (** {1 Accessing Router State} *)
 
 (** Get the current navigation state signal.
@@ -69,8 +82,7 @@ let context : router_context Context.t =
     
     @raise No_router_context if called outside router context *)
 let use_location () =
-  let ctx = Context.use context in
-  if ctx.navigate == uninitialized_navigate then raise No_router_context;
+  let ctx = Router_context.get () in
   ctx.current
 
 (** Get the current path.
