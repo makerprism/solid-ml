@@ -13,7 +13,20 @@
         | User_not_found username -> "User not found: " ^ username
         | Fetch_failed msg -> "Fetch failed: " ^ msg
 
-      (* Create a resource with async fetch and typed errors *)
+      (* Create a resource with async fetch and typed errors.
+         Prefer Resource.Async for a consistent result-callback API. *)
+      let user_resource = Resource.Async.create_with_error
+        ~on_error:(fun exn -> Fetch_failed (Dom.exn_to_string exn))
+        (fun set_result ->
+          Fetch.get "/api/user/123" (fun response ->
+            match response with
+            | Ok data -> set_result (Ok data)
+            | Error _ -> set_result (Error (User_not_found "123"))
+          )
+        )
+      in
+
+      (* Legacy form (still supported) *)
       let user_resource = Resource.create_async_with_error
         ~on_error:(fun exn -> Fetch_failed (Dom.exn_to_string exn))
         (fun set_result ->
@@ -170,6 +183,24 @@ let create_async_with_hydration ?(revalidate = false) ?decode_error ~key ~decode
     if revalidate then resource.actions.refetch ();
     resource
   | None -> create_async fetcher
+
+(** {1 Async Helpers} *)
+
+module Async = struct
+  type ('a, 'e) fetch = (('a, 'e) result -> unit) -> unit
+
+  let create_with_state ~on_error initial (fetcher : ('a, 'e) fetch) =
+    create_async_with_state ~on_error initial fetcher
+
+  let create_with_error ~on_error (fetcher : ('a, 'e) fetch) =
+    create_async_with_error ~on_error fetcher
+
+  let create (fetcher : ('a, string) fetch) =
+    create_async fetcher
+
+  let create_with_hydration ?revalidate ?decode_error ~key ~decode (fetcher : ('a, 'e) fetch) =
+    create_async_with_hydration ?revalidate ?decode_error ~key ~decode fetcher
+end
 
 (** Create a resource with sync fetch and optional initial state.
 
@@ -353,6 +384,12 @@ let ready = is_ready
 (** Get data if ready *)
 let get_data resource =
   match peek resource with Ready data -> Some data | _ -> None
+
+(** Get data if ready, otherwise return [default]. *)
+let get_or ~default resource =
+  match peek resource with
+  | Ready data -> data
+  | _ -> default
 
 (** Get error if error *)
 let get_error resource =

@@ -16,7 +16,18 @@
         | User_not_found username -> "User not found: " ^ username
         | Fetch_failed msg -> "Fetch failed: " ^ msg
 
-      (* Create a resource with typed errors *)
+      (* Create a resource with typed errors.
+         Prefer Resource.Async for a consistent result-callback API. *)
+      let user_resource = Resource.Async.create_with_error
+        ~on_error:(fun exn -> Fetch_failed (Printexc.to_string exn))
+        (fun set_result ->
+          match Api.fetch_user user_id with
+          | Ok user -> set_result (Ok user)
+          | Error _ -> set_result (Error (User_not_found user_id))
+        )
+      in
+
+      (* Legacy form (still supported) *)
       let user_resource = Resource.create_async_with_error
         ~on_error:(fun exn -> Fetch_failed (Printexc.to_string exn))
         (fun ~ok ~error ->
@@ -179,6 +190,24 @@ let create_async_with_error ~on_error fetcher =
 let create_async fetcher =
   create_async_with_error ~on_error:Printexc.to_string fetcher
 
+(** {1 Async Helpers} *)
+
+module Async = struct
+  type ('a, 'e) fetch = (('a, 'e) result -> unit) -> unit
+
+  let create_with_error ~on_error (fetcher : ('a, 'e) fetch) =
+    create_async_with_error ~on_error (fun ~ok ~error ->
+      fetcher (function
+        | Ok data -> ok data
+        | Error err -> error err))
+
+  let create (fetcher : ('a, string) fetch) =
+    create_async (fun ~ok ~error ->
+      fetcher (function
+        | Ok data -> ok data
+        | Error err -> error err))
+end
+
 (** Create a resource with an initial value (already ready).
     
     @param value The initial data *)
@@ -289,6 +318,12 @@ let get_data resource =
   match peek resource with
   | Ready data -> Some data
   | _ -> None
+
+(** Get data if ready, otherwise return [default]. *)
+let get_or ~default resource =
+  match peek resource with
+  | Ready data -> data
+  | _ -> default
 
 (** Get the error value if error, None otherwise *)
 let get_error resource =

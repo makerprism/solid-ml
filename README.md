@@ -27,7 +27,8 @@ Expect rapid iteration, breaking changes, and active development. **Use at your 
 
 ## Changelog
 
-See `CHANGES.md` for unreleased and release notes.
+See `CHANGES.md` for unreleased and release notes, and `docs/MIGRATIONS.md`
+for pre-release breaking change guidance.
 
 ## Quick Start
 
@@ -278,6 +279,19 @@ let user_resource =
         | Error _ -> set_result (Error (User_not_found "123"))
       )
     )
+```
+
+For a consistent result-callback API across router/browser, use `Resource.Async`:
+
+```ocaml
+let user_resource =
+  Solid_ml_browser.Resource.Async.create (fun set_result ->
+    Fetch.get "/api/user/123" (fun response ->
+      match response with
+      | Ok data -> set_result (Ok data)
+      | Error _ -> set_result (Error (User_not_found "123"))
+    )
+  )
 ```
 
 If you want a reusable error shape, define a small domain error type and a
