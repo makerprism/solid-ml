@@ -27,8 +27,13 @@ end
 
 module Effect = struct
   let create = Reactive_core.create_effect
+  let create_render_effect = Reactive_core.create_render_effect
+  let create_computed = Reactive_core.create_computed
   let create_with_cleanup = Reactive_core.create_effect_with_cleanup
+  let create_render_effect_with_cleanup = Reactive_core.create_render_effect_with_cleanup
+  let create_computed_with_cleanup = Reactive_core.create_computed_with_cleanup
   let create_deferred = Reactive_core.create_effect_deferred
+  let create_reaction = Reactive_core.create_reaction
   let untrack = Reactive_core.untrack
   
   (** Create an effect with explicit dependencies (like SolidJS's `on`). *)
@@ -63,6 +68,7 @@ end
 
 module Owner = struct
   let on_cleanup = Reactive_core.on_cleanup
+  let on_mount = Reactive_core.on_mount
   let get_owner = Reactive_core.get_owner
   let create_root f = 
     let (_, dispose) = Reactive_core.create_root f in

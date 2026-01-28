@@ -1338,7 +1338,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
           let thunk_call = pexp_apply ~loc thunk [ (Nolabel, eunit ~loc) ] in
           let pair =
             pexp_apply ~loc
-              (pexp_ident ~loc (lid "Owner.run_with_owner"))
+              (pexp_ident ~loc (lid "Owner.run_with_root"))
               [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) thunk_call) ]
           in
           let set_nodes_call =
@@ -1363,7 +1363,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
           let thunk_call = pexp_apply ~loc thunk [ (Nolabel, eunit ~loc) ] in
           let pair =
             pexp_apply ~loc
-              (pexp_ident ~loc (lid "Owner.run_with_owner"))
+              (pexp_ident ~loc (lid "Owner.run_with_root"))
               [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) thunk_call) ]
           in
           let set_nodes_call =
@@ -1404,7 +1404,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
                    (Labelled "render",
                     pexp_fun ~loc Nolabel None (pvar ~loc "item")
                       (pexp_apply ~loc
-                         (pexp_ident ~loc (lid "Owner.run_with_owner"))
+                         (pexp_ident ~loc (lid "Owner.run_with_root"))
                          [ (Nolabel,
                             pexp_fun ~loc Nolabel None (punit ~loc)
                               (pexp_apply ~loc (evar ~loc render_var)
@@ -1423,7 +1423,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
           in
           let render_body =
             pexp_apply ~loc
-              (pexp_ident ~loc (lid "Owner.run_with_owner"))
+              (pexp_ident ~loc (lid "Owner.run_with_root"))
               [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) render_call) ]
           in
           let bind =
@@ -1452,7 +1452,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
           in
           let render_body =
             pexp_apply ~loc
-              (pexp_ident ~loc (lid "Owner.run_with_owner"))
+              (pexp_ident ~loc (lid "Owner.run_with_root"))
               [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) render_call) ]
           in
           let bind =
@@ -1487,7 +1487,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
                   pexp_fun ~loc (Labelled "index") None (pvar ~loc "index")
                     (pexp_fun ~loc (Labelled "item") None (pvar ~loc "item")
                        (pexp_apply ~loc
-                          (pexp_ident ~loc (lid "Owner.run_with_owner"))
+                          (pexp_ident ~loc (lid "Owner.run_with_root"))
                           [ (Nolabel,
                              pexp_fun ~loc Nolabel None (punit ~loc)
                                (pexp_apply ~loc (evar ~loc render_var)
@@ -2989,7 +2989,7 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                                 let boundary_owner =
                                   Ast_builder.Default.pexp_apply ~loc:child_loc
                                     (Ast_builder.Default.pexp_ident ~loc:child_loc
-                                       { loc = child_loc; txt = Longident.parse "Owner.run_with_owner" })
+                                       { loc = child_loc; txt = Longident.parse "Owner.run_with_root" })
                                     [ (Nolabel,
                                        Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
                                          (Ast_builder.Default.punit ~loc:child_loc)
@@ -3041,7 +3041,7 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                                   let boundary_owner =
                                     Ast_builder.Default.pexp_apply ~loc:child_loc
                                       (Ast_builder.Default.pexp_ident ~loc:child_loc
-                                         { loc = child_loc; txt = Longident.parse "Owner.run_with_owner" })
+                                         { loc = child_loc; txt = Longident.parse "Owner.run_with_root" })
                                       [ (Nolabel,
                                          Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
                                            (Ast_builder.Default.punit ~loc:child_loc)

@@ -23,6 +23,20 @@ module Make (B : Backend.S) = struct
   let get_runtime_opt () = B.get_runtime ()
   
   let set_runtime rt = B.set_runtime rt
+
+  let with_owner (owner_opt : owner option) (fn : unit -> 'a) : 'a =
+    match get_runtime_opt () with
+    | None -> fn ()
+    | Some rt ->
+      let prev_owner = rt.owner in
+      rt.owner <- owner_opt;
+      match fn () with
+      | value ->
+        rt.owner <- prev_owner;
+        value
+      | exception exn ->
+        rt.owner <- prev_owner;
+        raise exn
   
   (** {1 Array Helpers} *)
   
@@ -993,6 +1007,45 @@ module Make (B : Backend.S) = struct
       push_effect rt comp
     else
       run_updates (fun () -> run_top comp) true
+
+  (** Create a render effect (like SolidJS's createRenderEffect/createComputed).
+      Render effects run before user effects during update flush. *)
+  let create_render_effect (fn : unit -> unit) : unit =
+    let comp = create_computation
+      ~fn:(fun _ -> fn (); Obj.repr ())
+      ~init:(Obj.repr ())
+      ~pure:false
+      ~initial_state:Stale
+    in
+    let rt = get_runtime () in
+    if rt.in_update then
+      push_effect rt comp
+    else
+      run_updates (fun () -> run_top comp) true
+
+  (** Create a render effect with a cleanup function. *)
+  let create_render_effect_with_cleanup (fn : unit -> (unit -> unit)) : unit =
+    let cleanup_ref = ref (fun () -> ()) in
+    let comp = create_computation
+      ~fn:(fun _ ->
+        !cleanup_ref ();
+        let new_cleanup = fn () in
+        cleanup_ref := new_cleanup;
+        Obj.repr ()
+      )
+      ~init:(Obj.repr ())
+      ~pure:false
+      ~initial_state:Stale
+    in
+    on_cleanup (fun () -> !cleanup_ref ());
+    let rt = get_runtime () in
+    if rt.in_update then
+      push_effect rt comp
+    else
+      run_updates (fun () -> run_top comp) true
+
+  let create_computed = create_render_effect
+  let create_computed_with_cleanup = create_render_effect_with_cleanup
   
   (** Create an effect with a cleanup function.
       The effect function should return a cleanup function that will
@@ -1060,6 +1113,47 @@ module Make (B : Backend.S) = struct
       push_effect rt comp
     else
       run_updates (fun () -> run_top comp) true
+
+  (** Create a reaction that tracks dependencies explicitly.
+      Returns a function that establishes dependencies when called. *)
+  let create_reaction (type a) (fn : value:a -> prev:a -> unit) : (unit -> a) -> unit =
+    let tracking = ref None in
+    let prev = ref None in
+    let first_run = ref true in
+    let comp = create_computation
+      ~fn:(fun _ ->
+        match !tracking with
+        | None -> Obj.repr ()
+        | Some track_fn ->
+          let value = track_fn () in
+          if !first_run then begin
+            first_run := false;
+            prev := Some value;
+            Obj.repr ()
+          end else begin
+            let prev_val = match !prev with
+              | Some p -> p
+              | None -> value
+            in
+            untrack (fun () -> fn ~value ~prev:prev_val);
+            prev := Some value;
+            Obj.repr ()
+          end
+      )
+      ~init:(Obj.repr ())
+      ~pure:false
+      ~initial_state:Clean
+    in
+    fun track_fn ->
+      tracking := Some track_fn;
+      first_run := true;
+      prev := None;
+      comp.state <- Stale;
+      let rt = get_runtime () in
+      if rt.in_update then
+        push_effect rt comp
+      else
+        run_updates (fun () -> run_top comp) true
 
   (** {1 Context API} *)
   

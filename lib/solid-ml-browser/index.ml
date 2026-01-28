@@ -80,6 +80,7 @@ let create (type a) (props : a index_props) : Html.node =
   items_ref := initial_states;
   
   let update_items new_items =
+    Reactive_core.with_mount_scope (fun () ->
     let old_items = !current_items_ref in
     if old_items == new_items then
       ()
@@ -94,11 +95,11 @@ let create (type a) (props : a index_props) : Html.node =
 
         (match !fallback_node_ref with
          | Some fb_node ->
-           if new_items = [] then
-             insert_before parent fb_node (Some placeholder_node)
-           else
-             Dom.remove_node fb_node
-         | None -> ());
+            if new_items = [] then
+              insert_before parent fb_node (Some placeholder_node)
+            else
+              Dom.remove_node fb_node
+          | None -> ());
 
         let old_len = List.length !items_ref in
         let new_len = List.length new_items in
@@ -126,9 +127,10 @@ let create (type a) (props : a index_props) : Html.node =
           begin
             let to_remove = List.filter (fun s -> !(s.index_ref) >= new_len) !items_ref in
             items_ref := List.filter (fun s -> !(s.index_ref) < new_len) !items_ref;
-            List.iter (fun s -> Dom.remove_node s.node) to_remove
+             List.iter (fun s -> Dom.remove_node s.node) to_remove
           end
       end
+    )
   in
 
   Effect.create_deferred

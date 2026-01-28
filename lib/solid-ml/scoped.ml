@@ -37,8 +37,10 @@ module type S = sig
 
   module Owner : sig
     val create_root : (unit -> unit) -> (unit -> unit)
-    val run_with_owner : (unit -> 'a) -> 'a * (unit -> unit)
+    val run_with_owner : Runtime.owner option -> (unit -> 'a) -> 'a
+    val run_with_root : (unit -> 'a) -> 'a * (unit -> unit)
     val on_cleanup : (unit -> unit) -> unit
+    val on_mount : (unit -> unit) -> unit
     val get_owner : unit -> Runtime.owner option
     val catch_error : (unit -> 'a) -> (exn -> 'a) -> 'a
   end
@@ -84,7 +86,9 @@ let with_scoped f =
     module Owner = struct
       let create_root = Owner.create_root
       let run_with_owner = Owner.run_with_owner
+      let run_with_root = Owner.run_with_root
       let on_cleanup = Owner.on_cleanup
+      let on_mount = Owner.on_mount
       let get_owner = Owner.get_owner
       let catch_error = Owner.catch_error
     end

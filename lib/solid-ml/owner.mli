@@ -46,11 +46,14 @@ type t = Reactive.owner
 *)
 val create_root : (unit -> unit) -> (unit -> unit)
 
+(** Run a function within the specified ownership scope (or None).
+    Restores the previous owner afterward. *)
+val run_with_owner : t option -> (unit -> 'a) -> 'a
+
 (** Run a function within a new ownership scope.
     The scope is a child of the current owner (if any).
-    Returns the result and a dispose function.
-*)
-val run_with_owner : (unit -> 'a) -> 'a * (unit -> unit)
+    Returns the result and a dispose function. *)
+val run_with_root : (unit -> 'a) -> 'a * (unit -> unit)
 
 (** Get the current owner (if any).
     Returns None if not inside any ownership scope.
@@ -68,6 +71,10 @@ val get_owner : unit -> t option
     ]}
 *)
 val on_cleanup : (unit -> unit) -> unit
+
+(** Register a mount callback.
+    On server, this is a no-op. *)
+val on_mount : (unit -> unit) -> unit
 
 (** Create an error boundary (like SolidJS's catchError).
     
@@ -91,7 +98,9 @@ val catch_error : (unit -> 'a) -> (exn -> 'a) -> 'a
 
 module Unsafe : sig
   val create_root : (unit -> unit) -> (unit -> unit)
-  val run_with_owner : (unit -> 'a) -> 'a * (unit -> unit)
+  val run_with_owner : t option -> (unit -> 'a) -> 'a
+  val run_with_root : (unit -> 'a) -> 'a * (unit -> unit)
   val on_cleanup : (unit -> unit) -> unit
+  val on_mount : (unit -> unit) -> unit
   val get_owner : unit -> t option
 end

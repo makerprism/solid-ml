@@ -261,8 +261,9 @@ module type TEMPLATE_ENV = sig
 
   module Owner : sig
     val on_cleanup : (unit -> unit) -> unit
+    val on_mount : (unit -> unit) -> unit
 
-    val run_with_owner : (unit -> 'a) -> 'a * (unit -> unit)
+    val run_with_root : (unit -> 'a) -> 'a * (unit -> unit)
     (** Run a function under a fresh owner.
 
         Returns the function result and a disposer that cleans up any effects,

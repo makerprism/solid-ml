@@ -1537,8 +1537,10 @@ let portal ?target ?(is_svg=false) ~(children : node) () : node =
       node_of_element wrapper
     in
     
-    append_child target content;
-    mounted_node := Some content;
+    Reactive_core.with_mount_scope (fun () ->
+      append_child target content;
+      mounted_node := Some content
+    );
     
     Reactive_core.on_cleanup cleanup
   );

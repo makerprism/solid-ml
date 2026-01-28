@@ -13,11 +13,24 @@ module R = Reactive.R
     whenever any signal read during execution changes. *)
 let create = R.create_effect
 
+(** Create a render effect that runs before user effects.
+    Mirrors SolidJS's createRenderEffect/createComputed. *)
+let create_render_effect = R.create_render_effect
+
+(** Alias for [create_render_effect]. *)
+let create_computed = R.create_computed
+
 (** Create an effect with a cleanup function.
     
     The effect function should return a cleanup function that will
     be called before the next execution and when the effect is disposed. *)
 let create_with_cleanup = R.create_effect_with_cleanup
+
+(** Create a render effect with a cleanup function. *)
+let create_render_effect_with_cleanup = R.create_render_effect_with_cleanup
+
+(** Alias for [create_render_effect_with_cleanup]. *)
+let create_computed_with_cleanup = R.create_computed_with_cleanup
 
 (** Execute a function without tracking dependencies. *)
 let untrack = R.untrack
@@ -29,6 +42,10 @@ let untrack = R.untrack
     establish dependencies. The ~run function is called only after the first
     execution to perform the side effect. *)
 let create_deferred = R.create_effect_deferred
+
+(** Create a reaction that tracks dependencies explicitly.
+    Returns a function that establishes dependencies when called. *)
+let create_reaction = R.create_reaction
 
 (** Create an effect with explicit dependencies (like SolidJS's `on`).
     
@@ -84,9 +101,14 @@ let on (type a) ?(defer = false) ?initial (deps : unit -> a) (fn : value:a -> pr
 
 module Unsafe = struct
   let create = R.create_effect
+  let create_render_effect = R.create_render_effect
+  let create_computed = R.create_computed
   let create_with_cleanup = R.create_effect_with_cleanup
+  let create_render_effect_with_cleanup = R.create_render_effect_with_cleanup
+  let create_computed_with_cleanup = R.create_computed_with_cleanup
   let untrack = R.untrack
   let create_deferred = R.create_effect_deferred
+  let create_reaction = R.create_reaction
 
   let on (type a) ?(defer = false) ?initial (deps : unit -> a) (fn : value:a -> prev:a -> unit) : unit =
     let prev = ref None in

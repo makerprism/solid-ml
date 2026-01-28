@@ -50,7 +50,8 @@ module Env = struct
 
   module Owner = struct
     let on_cleanup = Solid_ml.Owner.on_cleanup
-    let run_with_owner = Solid_ml.Owner.Unsafe.run_with_owner
+    let on_mount = Solid_ml.Owner.on_mount
+    let run_with_root = Solid_ml.Owner.Unsafe.run_with_root
   end
 
   module Suspense = Solid_ml.Suspense

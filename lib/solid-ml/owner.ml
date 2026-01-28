@@ -19,6 +19,10 @@ let get_owner () =
 (** Register a cleanup function with the current owner. *)
 let on_cleanup = Reactive.on_cleanup
 
+(** Register a mount callback (no-op on server). *)
+let on_mount (_fn : unit -> unit) : unit =
+  ()
+
 (** Create a root owner and run a function within it.
 
     Returns a dispose callback that can be used to clean up the root
@@ -26,10 +30,14 @@ let on_cleanup = Reactive.on_cleanup
 let create_root fn =
   Reactive.create_root (fun dispose -> fn (); dispose)
 
+(** Run a function with the specified owner scope (or None).
+    Restores the previous owner afterward. *)
+let run_with_owner (owner_opt : t option) fn =
+  Reactive.with_owner owner_opt fn
+
 (** Run a function with a new owner scope.
-    
     Returns a tuple of (result, dispose_fn). *)
-let run_with_owner fn =
+let run_with_root fn =
   Reactive.create_root (fun dispose ->
     let result = fn () in
     (result, dispose)
@@ -68,12 +76,17 @@ module Unsafe = struct
         Reactive.create_root (fun dispose -> fn (); dispose)
       )
 
-  let run_with_owner fn =
+  let run_with_owner owner_opt fn =
+    Reactive.with_owner owner_opt fn
+
+  let run_with_root fn =
     Reactive.create_root (fun dispose ->
       let result = fn () in
       (result, dispose)
     )
 
   let on_cleanup = Reactive.on_cleanup
+  let on_mount (_fn : unit -> unit) : unit =
+    ()
   let get_owner = Reactive.get_owner
 end

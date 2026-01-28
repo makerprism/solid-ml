@@ -162,9 +162,63 @@ let test_switch_preserves_dom_for_same_case () =
     dispose ()
   )
 
+let test_on_mount_runs_after_render () =
+  with_root (fun root ->
+    let mounted = ref false in
+
+    let dispose =
+      Render.render root (fun () ->
+        Owner.on_mount (fun () ->
+          mounted := (get_text_content root = "Mounted")
+        );
+        Html.div ~children:[Html.text "Mounted"] ()
+      )
+    in
+
+    if not !mounted then
+      fail "on_mount did not run after render";
+    dispose ()
+  )
+
+let test_on_mount_runs_on_remount () =
+  with_root (fun root ->
+    let mode, set_mode = Signal.create 1 in
+    let mounts_a = ref 0 in
+    let mounts_b = ref 0 in
+
+    let dispose =
+      Render.render root (fun () ->
+        Html.div
+          ~children:
+            [ Solid_ml_template_runtime.Tpl.switch
+                ~match_:(fun () -> Signal.get mode)
+                ~cases:
+                  [|
+                    ((fun v -> v = 1),
+                     (fun () ->
+                       Owner.on_mount (fun () -> mounts_a := !mounts_a + 1);
+                       Html.text "A"));
+                    ((fun _ -> true),
+                     (fun () ->
+                       Owner.on_mount (fun () -> mounts_b := !mounts_b + 1);
+                       Html.text "B"))
+                  |] ]
+          ())
+    in
+
+    assert_eq ~name:"on_mount initial" (string_of_int !mounts_a) "1";
+    assert_eq ~name:"on_mount initial other" (string_of_int !mounts_b) "0";
+    set_mode 2;
+    assert_eq ~name:"on_mount remount" (string_of_int !mounts_b) "1";
+    assert_eq ~name:"on_mount no re-run" (string_of_int !mounts_a) "1";
+    dispose ()
+  )
+
 let run () =
   test_switch_first_match_wins ();
   test_switch_updates_on_signal_change ();
   test_switch_reactive_branch_updates ();
   test_switch_disposes_previous_branch ();
-  test_switch_preserves_dom_for_same_case ()
+  test_switch_preserves_dom_for_same_case ();
+  test_on_mount_runs_after_render ();
+  test_on_mount_runs_on_remount ()

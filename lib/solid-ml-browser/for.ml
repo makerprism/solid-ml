@@ -98,6 +98,7 @@ let create (type a) (props : a for_props) : Html.node =
   current_items_ref := initial_items;
 
   let update_items new_items =
+    Reactive_core.with_mount_scope (fun () ->
     let old_items = !current_items_ref in
     if old_items == new_items then
       ()
@@ -151,6 +152,7 @@ let create (type a) (props : a for_props) : Html.node =
         List.iter (fun node -> remove_node node) item_nodes;
         List.iter (fun node -> insert_before parent node (Some placeholder_node)) item_nodes
       end
+    )
   in
 
   Effect.create_deferred
@@ -186,7 +188,9 @@ let create (type a) (props : a for_props) : Html.node =
           | None -> raise (Failure "solid-ml: For fallback not mounted")
         in
         if items = [] then
-          insert_before parent fallback_node (Some placeholder_node)
+          Reactive_core.with_mount_scope (fun () ->
+            insert_before parent fallback_node (Some placeholder_node)
+          )
         else
           Dom.remove_node fallback_node);
     

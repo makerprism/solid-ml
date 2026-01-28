@@ -30,6 +30,12 @@
 *)
 val create : (unit -> unit) -> unit
 
+(** Create a render effect that runs before user effects. *)
+val create_render_effect : (unit -> unit) -> unit
+
+(** Alias for [create_render_effect]. *)
+val create_computed : (unit -> unit) -> unit
+
 (** Create an effect that returns a cleanup function.
     The cleanup runs before each re-execution and on disposal.
     
@@ -42,6 +48,12 @@ val create : (unit -> unit) -> unit
     ]}
 *)
 val create_with_cleanup : (unit -> (unit -> unit)) -> unit
+
+(** Create a render effect with a cleanup function. *)
+val create_render_effect_with_cleanup : (unit -> (unit -> unit)) -> unit
+
+(** Alias for [create_render_effect_with_cleanup]. *)
+val create_computed_with_cleanup : (unit -> (unit -> unit)) -> unit
 
 (** Run a function without tracking any signal reads.
     Useful when you want to read a signal without subscribing.
@@ -81,6 +93,10 @@ val untrack : (unit -> 'a) -> 'a
     @param run Side effect function, receives the tracked value *)
 val create_deferred : track:(unit -> 'a) -> run:('a -> unit) -> unit
 
+(** Create a reaction that tracks dependencies explicitly.
+    Returns a function that establishes dependencies when called. *)
+val create_reaction : (value:'a -> prev:'a -> unit) -> (unit -> 'a) -> unit
+
 (** Create an effect with explicit dependencies (like SolidJS's `on`).
     
     Unlike [create], which automatically tracks all signals read,
@@ -109,9 +125,14 @@ val on :
 
 module Unsafe : sig
   val create : (unit -> unit) -> unit
+  val create_render_effect : (unit -> unit) -> unit
+  val create_computed : (unit -> unit) -> unit
   val create_with_cleanup : (unit -> (unit -> unit)) -> unit
+  val create_render_effect_with_cleanup : (unit -> (unit -> unit)) -> unit
+  val create_computed_with_cleanup : (unit -> (unit -> unit)) -> unit
   val untrack : (unit -> 'a) -> 'a
   val create_deferred : track:(unit -> 'a) -> run:('a -> unit) -> unit
+  val create_reaction : (value:'a -> prev:'a -> unit) -> (unit -> 'a) -> unit
   val on :
     ?defer:bool -> ?initial:'a -> (unit -> 'a) -> (value:'a -> prev:'a -> unit) -> unit
 end

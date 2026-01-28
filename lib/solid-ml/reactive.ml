@@ -73,6 +73,7 @@ let run = R.run
 let create_root = R.create_root
 let on_cleanup = R.on_cleanup
 let get_owner = R.get_owner
+let with_owner = R.with_owner
 
 let with_error_handler handler fn =
   match R.get_runtime_opt () with

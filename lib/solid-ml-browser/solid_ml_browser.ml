@@ -143,7 +143,8 @@ module Env = struct
 
   module Owner = struct
     let on_cleanup = Reactive.Owner.on_cleanup
-    let run_with_owner = Reactive_core.run_with_owner
+    let on_mount = Reactive.Owner.on_mount
+    let run_with_root = Reactive_core.run_with_root
   end
 
   module Suspense = Suspense

@@ -251,6 +251,39 @@ let test_effect_untrack () =
     )
   )
 
+let test_reaction_basic () =
+  test "create_reaction runs after tracked changes" (fun () ->
+    with_runtime (fun () ->
+      let count = create_signal 0 in
+      let calls = ref [] in
+      let track = create_reaction (fun ~value ~prev ->
+        calls := (prev, value) :: !calls
+      ) in
+      track (fun () -> get_signal count);
+      assert_eq (List.length !calls) 0;
+      set_signal count 1;
+      assert_eq (List.rev !calls) [ (0, 1) ]
+    )
+  )
+
+let test_reaction_untracked_body () =
+  test "create_reaction does not track inside callback" (fun () ->
+    with_runtime (fun () ->
+      let a = create_signal 0 in
+      let b = create_signal 0 in
+      let calls = ref 0 in
+      let track = create_reaction (fun ~value:_ ~prev:_ ->
+        let _ = get_signal b in
+        incr calls
+      ) in
+      track (fun () -> get_signal a);
+      set_signal b 1;
+      assert_eq !calls 0;
+      set_signal a 1;
+      assert_eq !calls 1
+    )
+  )
+
 (* ============ Memo Tests ============ *)
 
 let test_memo_basic () =
@@ -611,6 +644,8 @@ let () =
   test_effect_tracking ();
   test_effect_cleanup ();
   test_effect_untrack ();
+  test_reaction_basic ();
+  test_reaction_untracked_body ();
   
   console_log "\n-- Memo Tests --";
   test_memo_basic ();

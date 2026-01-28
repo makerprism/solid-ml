@@ -22,8 +22,10 @@ let render root component =
     Dom.set_inner_html root "";
     
     (* Render component and append to root *)
-    let node = component () in
-    Html.append_to_element root node
+    Reactive_core.with_mount_scope (fun () ->
+      let node = component () in
+      Html.append_to_element root node
+    )
   ) in
   dispose
 
@@ -35,8 +37,10 @@ let render_append root component =
   Reactive.reset_hydration_keys ();
   
   let (_, dispose) = Reactive_core.create_root (fun () ->
-    let node = component () in
-    Html.append_to_element root node
+    Reactive_core.with_mount_scope (fun () ->
+      let node = component () in
+      Html.append_to_element root node
+    )
   ) in
   dispose
 
@@ -81,8 +85,10 @@ let hydrate root component =
       Hydration.parse_hydration_markers root;
       let (_, dispose) =
         Reactive_core.create_root (fun () ->
-          let _node = component () in
-          ())
+          Reactive_core.with_mount_scope (fun () ->
+            let _node = component () in
+            ())
+        )
       in
 
       (* Clean up hydration markers from the DOM while still in hydration mode. *)

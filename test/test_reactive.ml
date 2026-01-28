@@ -281,6 +281,84 @@ let test_effect_conditional_deps () =
   );
   print_endline "  PASSED"
 
+let test_render_effect_ordering () =
+  print_endline "Test: Render effects run before user effects";
+  with_runtime (fun () ->
+    let order = ref [] in
+    let count, set_count = Signal.create 0 in
+    let set_count = ignore_set set_count in
+    Effect.create_render_effect (fun () ->
+      let v = Signal.get count in
+      order := ("render", v) :: !order
+    );
+    Effect.create (fun () ->
+      let v = Signal.get count in
+      order := ("user", v) :: !order
+    );
+    assert (List.rev !order = [ ("render", 0); ("user", 0) ]);
+    order := [];
+    set_count 1;
+    assert (List.rev !order = [ ("render", 1); ("user", 1) ])
+  );
+  print_endline "  PASSED"
+
+let test_reaction_basic () =
+  print_endline "Test: create_reaction runs after tracked changes";
+  with_runtime (fun () ->
+    let count, set_count = Signal.create 0 in
+    let set_count = ignore_set set_count in
+    let calls = ref [] in
+    let track = Effect.create_reaction (fun ~value ~prev ->
+      calls := (prev, value) :: !calls
+    ) in
+    assert (!calls = []);
+    track (fun () -> Signal.get count);
+    assert (!calls = []);
+    set_count 1;
+    assert (List.rev !calls = [ (0, 1) ])
+  );
+  print_endline "  PASSED"
+
+let test_reaction_retarget () =
+  print_endline "Test: create_reaction retargets dependencies";
+  with_runtime (fun () ->
+    let a, set_a = Signal.create 0 in
+    let b, set_b = Signal.create 0 in
+    let set_a = ignore_set set_a in
+    let set_b = ignore_set set_b in
+    let calls = ref 0 in
+    let track = Effect.create_reaction (fun ~value:_ ~prev:_ -> incr calls) in
+    track (fun () -> Signal.get a);
+    set_a 1;
+    assert (!calls = 1);
+    track (fun () -> Signal.get b);
+    set_a 2;
+    assert (!calls = 1);
+    set_b 3;
+    assert (!calls = 2)
+  );
+  print_endline "  PASSED"
+
+let test_reaction_untracked_body () =
+  print_endline "Test: create_reaction does not track inside callback";
+  with_runtime (fun () ->
+    let a, set_a = Signal.create 0 in
+    let b, set_b = Signal.create 0 in
+    let set_a = ignore_set set_a in
+    let set_b = ignore_set set_b in
+    let calls = ref 0 in
+    let track = Effect.create_reaction (fun ~value:_ ~prev:_ ->
+      let _ = Signal.get b in
+      incr calls
+    ) in
+    track (fun () -> Signal.get a);
+    set_b 1;
+    assert (!calls = 0);
+    set_a 1;
+    assert (!calls = 1)
+  );
+  print_endline "  PASSED"
+
 (* ============ Memo Tests ============ *)
 
 let test_memo_basic () =
@@ -430,7 +508,7 @@ let test_owner_nested () =
     let cleanups = ref [] in
     let dispose = Owner.create_root (fun () ->
       Owner.on_cleanup (fun () -> cleanups := "root" :: !cleanups);
-      let _, _ = Owner.run_with_owner (fun () ->
+      let _, _ = Owner.run_with_root (fun () ->
         Owner.on_cleanup (fun () -> cleanups := "child" :: !cleanups)
       ) in
       ()
@@ -465,6 +543,33 @@ let test_owner_cleanup_on_dispose () =
     assert (not !cleanup_ran);
     dispose_child ();
     assert !cleanup_ran
+  );
+  print_endline "  PASSED"
+
+let test_run_with_owner_scope () =
+  print_endline "Test: Owner.run_with_owner restores scope";
+  with_runtime (fun () ->
+    let original = Owner.get_owner () in
+    let inside = ref None in
+    let result = Owner.run_with_owner None (fun () ->
+      inside := Owner.get_owner ();
+      123
+    ) in
+    assert (!inside = None);
+    assert (Owner.get_owner () = original);
+    assert (result = 123)
+  );
+  print_endline "  PASSED"
+
+let test_run_with_owner_reuse () =
+  print_endline "Test: Owner.run_with_owner uses provided owner";
+  with_runtime (fun () ->
+    let original = Owner.get_owner () in
+    let inside = ref None in
+    Owner.run_with_owner original (fun () ->
+      inside := Owner.get_owner ()
+    );
+    assert (!inside = original)
   );
   print_endline "  PASSED"
 
@@ -694,6 +799,10 @@ let () =
   test_effect_untrack ();
   test_effect_cleanup ();
   test_effect_conditional_deps ();
+  test_render_effect_ordering ();
+  test_reaction_basic ();
+  test_reaction_retarget ();
+  test_reaction_untracked_body ();
   
   print_endline "\n-- Memo Tests --";
   test_memo_basic ();
@@ -709,6 +818,8 @@ let () =
   test_owner_nested ();
   test_owner_on_cleanup ();
   test_owner_cleanup_on_dispose ();
+  test_run_with_owner_scope ();
+  test_run_with_owner_reuse ();
   
   print_endline "\n-- Context Tests --";
   test_context_basic ();

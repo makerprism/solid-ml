@@ -20,7 +20,11 @@ end
 
 module Effect : sig
   val create : (unit -> unit) -> unit
+  val create_render_effect : (unit -> unit) -> unit
+  val create_computed : (unit -> unit) -> unit
   val create_with_cleanup : (unit -> (unit -> unit)) -> unit
+  val create_render_effect_with_cleanup : (unit -> (unit -> unit)) -> unit
+  val create_computed_with_cleanup : (unit -> (unit -> unit)) -> unit
   val untrack : (unit -> 'a) -> 'a
   
   (** Create an effect that skips the side effect on first execution.
@@ -39,6 +43,7 @@ module Effect : sig
           ~run:(fun label -> Dom.set_text_content el label)
       ]} *)
   val create_deferred : track:(unit -> 'a) -> run:('a -> unit) -> unit
+  val create_reaction : (value:'a -> prev:'a -> unit) -> (unit -> 'a) -> unit
   
   (** Create an effect with explicit dependencies (like SolidJS's `on`).
       Only [deps] is tracked; the body of [fn] runs untracked. *)
@@ -48,6 +53,7 @@ end
 
 module Owner : sig
   val on_cleanup : (unit -> unit) -> unit
+  val on_mount : (unit -> unit) -> unit
   val get_owner : unit -> Reactive_core.owner option
   val create_root : (unit -> 'a) -> (unit -> unit)
   

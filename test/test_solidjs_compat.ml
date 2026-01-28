@@ -674,7 +674,7 @@ let test_context_inherits_in_child_owner () =
     let context = Context.create "default" in
     let observed = ref "" in
     Context.provide context "parent" (fun () ->
-      let _, dispose = Owner.run_with_owner (fun () ->
+      let _, dispose = Owner.run_with_root (fun () ->
         observed := Context.use context
       ) in
       dispose ()
@@ -689,7 +689,7 @@ let test_nested_roots () =
   print_endline "Test: Nested roots with ownership";
   with_runtime (fun () ->
     let owner1 = Owner.get_owner () in
-    let _, dispose2 = Owner.run_with_owner (fun () ->
+    let _, dispose2 = Owner.run_with_root (fun () ->
       let owner2 = Owner.get_owner () in
       (* owner2 should exist and be different from owner1 *)
       assert (owner2 <> None);

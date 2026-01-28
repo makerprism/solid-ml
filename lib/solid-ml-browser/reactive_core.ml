@@ -81,8 +81,13 @@ let set_microtask_deferral = R.set_microtask_deferral
 (** {1 Effect API} *)
 
 let create_effect = R.create_effect
+let create_render_effect = R.create_render_effect
+let create_computed = R.create_computed
 let create_effect_with_cleanup = R.create_effect_with_cleanup
+let create_render_effect_with_cleanup = R.create_render_effect_with_cleanup
+let create_computed_with_cleanup = R.create_computed_with_cleanup
 let create_effect_deferred = R.create_effect_deferred
+let create_reaction = R.create_reaction
 let untrack = R.untrack
 
 (** {1 Memo API} *)
@@ -124,6 +129,30 @@ let with_owner (owner : owner option) (fn : unit -> 'a) : 'a =
       rt.owner <- prev_owner;
       raise exn
 
+let mount_queue_stack : (unit -> unit) list ref list ref = ref []
+
+let with_mount_scope (fn : unit -> 'a) : 'a =
+  let queue = ref [] in
+  mount_queue_stack := queue :: !mount_queue_stack;
+  match fn () with
+  | value ->
+    (match !mount_queue_stack with
+     | _ :: rest -> mount_queue_stack := rest
+     | [] -> mount_queue_stack := []);
+    let callbacks = List.rev !queue in
+    List.iter (fun f -> f ()) callbacks;
+    value
+  | exception exn ->
+    (match !mount_queue_stack with
+     | _ :: rest -> mount_queue_stack := rest
+     | [] -> mount_queue_stack := []);
+    raise exn
+
+let on_mount (fn : unit -> unit) : unit =
+  match !mount_queue_stack with
+  | queue :: _ -> queue := fn :: !queue
+  | [] -> fn ()
+
 let create_root f =
   (* Ensure we have a runtime.
      
@@ -139,7 +168,8 @@ let create_root f =
     Backend_Browser.set_runtime (Some rt);
     R.create_root (fun dispose -> (f (), dispose))
 
-let run_with_owner = create_root
+let run_with_owner = with_owner
+let run_with_root = create_root
 
 (** {1 Batch API} *)
 

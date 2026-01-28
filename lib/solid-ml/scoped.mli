@@ -43,8 +43,10 @@ module type S = sig
 
   module Owner : sig
     val create_root : (unit -> unit) -> (unit -> unit)
-    val run_with_owner : (unit -> 'a) -> 'a * (unit -> unit)
+    val run_with_owner : Runtime.owner option -> (unit -> 'a) -> 'a
+    val run_with_root : (unit -> 'a) -> 'a * (unit -> unit)
     val on_cleanup : (unit -> unit) -> unit
+    val on_mount : (unit -> unit) -> unit
     val get_owner : unit -> Runtime.owner option
     val catch_error : (unit -> 'a) -> (exn -> 'a) -> 'a
   end
