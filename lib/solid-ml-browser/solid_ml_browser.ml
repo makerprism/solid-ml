@@ -43,6 +43,24 @@ module Html = Html
 (** Reactive DOM primitives and re-exported core types (Signal, Effect, Memo, etc.) *)
 module Reactive = Reactive
 
+(** Reactive signals with automatic dependency tracking *)
+module Signal = Reactive.Signal
+
+(** Side-effecting computations *)
+module Effect = Reactive.Effect
+
+(** Cached derived values *)
+module Memo = Reactive.Memo
+
+(** Batched signal updates *)
+module Batch = Reactive.Batch
+
+(** Ownership and disposal tracking *)
+module Owner = Reactive.Owner
+
+(** Component context for passing values down the tree *)
+module Context = Reactive.Context
+
 (** Event handling utilities *)
 module Event = Event
 module Event_replay = Event_replay

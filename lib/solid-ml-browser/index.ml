@@ -46,7 +46,7 @@ type 'a index_props = {
 type 'a index_state = {
   node : Dom.node;
   item_signal : (unit -> 'a);
-  mutable index : int;
+  index_ref : int ref;
 }
 
 (** {1 Index Component} *)
@@ -56,52 +56,84 @@ let create (type a) (props : a index_props) : Html.node =
   let open Dom in
   
   let items_ref : a index_state list ref = ref [] in
-  let placeholder = create_comment (document ()) "index" in
-  let placeholder_node = node_of_comment placeholder in
+  let placeholder = create_text_node (document ()) "" in
+  let placeholder_node = node_of_text placeholder in
   let current_items_ref : a list ref = ref [] in
+  let fallback_node_ref : Dom.node option ref = ref None in
+
+  let initial_items = Signal.peek props.each in
+  current_items_ref := initial_items;
+  let initial_states, initial_nodes =
+    List.mapi
+      (fun i _item ->
+        let index_ref = ref i in
+        let item_signal () =
+          let items = Signal.get props.each in
+          List.nth items !index_ref
+        in
+        let html_node = props.children item_signal i in
+        let node = Html.to_dom_node html_node in
+        ({ node; item_signal; index_ref }, html_node))
+      initial_items
+    |> List.split
+  in
+  items_ref := initial_states;
   
-  Effect.create (fun () ->
-    let new_items = Signal.get props.each in
+  let update_items new_items =
     let old_items = !current_items_ref in
-    
     if old_items == new_items then
       ()
     else
       begin
         current_items_ref := new_items;
-        
+
         let parent = match node_parent_node placeholder_node with
           | Some parent -> element_of_node parent
-          | None -> assert false
+          | None -> raise (Failure "solid-ml: Index placeholder not mounted")
         in
-        
+
+        (match !fallback_node_ref with
+         | Some fb_node ->
+           if new_items = [] then
+             insert_before parent fb_node (Some placeholder_node)
+           else
+             Dom.remove_node fb_node
+         | None -> ());
+
         let old_len = List.length !items_ref in
         let new_len = List.length new_items in
-        
+
         List.iteri (fun i item ->
           if i < old_len then
             begin
               let state = List.nth !items_ref i in
-              state.index <- i
+              state.index_ref := i
             end
           else
             begin
-              let item_signal () = List.nth new_items i in
+              let item_signal () =
+                let items = Signal.get props.each in
+                List.nth items i
+              in
               let node = Html.to_dom_node (props.children item_signal i) in
               insert_before parent node (Some placeholder_node);
-              let new_state = { node; item_signal; index = i } in
+              let new_state = { node; item_signal; index_ref = ref i } in
               items_ref := List.append !items_ref [new_state]
             end
         ) new_items;
-        
+
         if new_len < old_len then
           begin
-            let to_remove = List.filter (fun s -> s.index >= new_len) !items_ref in
-            items_ref := List.filter (fun s -> s.index < new_len) !items_ref;
+            let to_remove = List.filter (fun s -> !(s.index_ref) >= new_len) !items_ref in
+            items_ref := List.filter (fun s -> !(s.index_ref) < new_len) !items_ref;
             List.iter (fun s -> Dom.remove_node s.node) to_remove
           end
       end
-  );
+  in
+
+  Effect.create_deferred
+    ~track:(fun () -> Signal.get props.each)
+    ~run:update_items;
   
   Owner.on_cleanup (fun () ->
     List.iter (fun state -> Dom.remove_node state.node) !items_ref
@@ -110,21 +142,26 @@ let create (type a) (props : a index_props) : Html.node =
   match props.fallback with
   | Some fb ->
     let fallback_node = Html.to_dom_node fb in
-    
-    Effect.create (fun () ->
-      let items = Signal.get props.each in
-      let parent = element_of_node (Option.get (node_parent_node placeholder_node)) in
-      if items = [] then
-        insert_before parent fallback_node (Some placeholder_node)
+    fallback_node_ref := Some fallback_node;
+    let fallback_html =
+      if is_element fallback_node then
+        Html.Element (element_of_node fallback_node)
+      else if is_text fallback_node then
+        Html.Text (text_of_node fallback_node)
+      else if is_document_fragment fallback_node then
+        Html.Fragment (fragment_of_node fallback_node)
       else
-        Dom.remove_node fallback_node
-    );
-    
+        Html.Empty
+    in
+    let initial_render_nodes =
+      if initial_items = [] then fallback_html :: initial_nodes else initial_nodes
+    in
+
     Owner.on_cleanup (fun () -> Dom.remove_node fallback_node);
-    
-    Text (create_text_node (document ()) "")
+
+    Html.fragment (initial_render_nodes @ [Text placeholder])
   | None ->
-    Text (create_text_node (document ()) "")
+    Html.fragment (initial_nodes @ [Text placeholder])
 
 (** {1 Shorthand} *)
 

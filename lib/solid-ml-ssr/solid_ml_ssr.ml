@@ -1,10 +1,10 @@
-(** solid-ml-html: Server-side rendering for solid-ml.
+(** solid-ml-ssr: Server-side rendering for solid-ml.
 
     This package provides HTML element functions and rendering utilities
     for server-side rendering (SSR) of solid-ml components.
 
     {[
-      open Solid_ml_html
+      open Solid_ml_ssr
 
       let my_page () =
         Html.(

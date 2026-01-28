@@ -21,21 +21,107 @@ external console_log : string -> unit = "log" [@@mel.scope "console"]
 let make_fake_element () : Dom.element =
   [%mel.raw
     {|
-      ({
-        value: "",
-        checked: false,
-        _handlers: {},
-        addEventListener: function(name, handler){ this._handlers[name] = handler; },
-        removeEventListener: function(name){ delete this._handlers[name]; },
-        fire: function(name){
-          if (this._handlers[name]) {
-            this._handlers[name]({ target: this });
+      (function() {
+        var attrs = Object.create(null);
+        var style = {
+          _props: Object.create(null),
+          setProperty: function(name, value) { this._props[name] = String(value); },
+          removeProperty: function(name) { delete this._props[name]; }
+        };
+        var classList = {
+          _set: Object.create(null),
+          add: function(name) { this._set[name] = true; },
+          remove: function(name) { delete this._set[name]; },
+          contains: function(name) { return !!this._set[name]; }
+        };
+        var el = {
+          value: "",
+          checked: false,
+          className: "",
+          style: style,
+          classList: classList,
+          _handlers: {},
+          _attrs: attrs,
+          options: [],
+          addEventListener: function(name, handler){ this._handlers[name] = handler; },
+          removeEventListener: function(name){ delete this._handlers[name]; },
+          setAttribute: function(name, value){ this._attrs[name] = String(value); },
+          getAttribute: function(name){ return this._attrs[name] || null; },
+          removeAttribute: function(name){ delete this._attrs[name]; },
+          hasAttribute: function(name){ return this._attrs[name] !== undefined; },
+          _style_prop: function(name){ return this.style._props[name] || null; },
+          fire: function(name){
+            if (this._handlers[name]) {
+              this._handlers[name]({ target: this });
+            }
           }
+        };
+        Object.defineProperty(el, "selectedOptions", {
+          get: function() {
+            return (this.options || []).filter(function(opt){ return !!opt.selected; });
+          }
+        });
+        return el;
+      })()
+    |}]
+
+let make_fake_select : string array -> Dom.element =
+  [%mel.raw
+    {|
+      function(values){
+        var el = (function() {
+          var attrs = Object.create(null);
+          var style = {
+            _props: Object.create(null),
+            setProperty: function(name, value) { this._props[name] = String(value); },
+            removeProperty: function(name) { delete this._props[name]; }
+          };
+          var classList = {
+            _set: Object.create(null),
+            add: function(name) { this._set[name] = true; },
+            remove: function(name) { delete this._set[name]; },
+            contains: function(name) { return !!this._set[name]; }
+          };
+          var el = {
+            value: "",
+            checked: false,
+            className: "",
+            style: style,
+            classList: classList,
+            _handlers: {},
+            _attrs: attrs,
+            options: [],
+            addEventListener: function(name, handler){ this._handlers[name] = handler; },
+            removeEventListener: function(name){ delete this._handlers[name]; },
+            setAttribute: function(name, value){ this._attrs[name] = String(value); },
+            getAttribute: function(name){ return this._attrs[name] || null; },
+            removeAttribute: function(name){ delete this._attrs[name]; },
+            hasAttribute: function(name){ return this._attrs[name] !== undefined; },
+            _style_prop: function(name){ return this.style._props[name] || null; },
+            fire: function(name){
+              if (this._handlers[name]) {
+                this._handlers[name]({ target: this });
+              }
+            }
+          };
+          Object.defineProperty(el, "selectedOptions", {
+            get: function() {
+              return (this.options || []).filter(function(opt){ return !!opt.selected; });
+            }
+          });
+          return el;
+        })();
+        for (var i = 0; i < values.length; i++) {
+          el.options.push({ value: String(values[i]), selected: false });
         }
-      })
+        return el;
+      }
     |}]
 
 external fire_event : Dom.element -> string -> unit = "fire" [@@mel.send]
+
+external element_style_prop : Dom.element -> string -> string option = "_style_prop"
+  [@@mel.send]
 
 let passed = ref 0
 let failed = ref 0
@@ -288,6 +374,81 @@ let test_bind_checkbox () =
     )
   )
 
+let test_bind_attr () =
+  test "Reactive.bind_attr updates attributes" (fun () ->
+    with_runtime (fun () ->
+      let el = make_fake_element () in
+      let signal = create_signal "start" in
+      Reactive.bind_attr el "data-kind" signal;
+      (match Dom.get_attribute el "data-kind" with
+       | Some v -> assert_eq v "start"
+       | None -> failwith "expected attribute to be set");
+      set_signal signal "next";
+      (match Dom.get_attribute el "data-kind" with
+       | Some v -> assert_eq v "next"
+       | None -> failwith "expected attribute to be updated")
+    )
+  )
+
+let test_bind_attr_opt () =
+  test "Reactive.bind_attr_opt adds/removes attributes" (fun () ->
+    with_runtime (fun () ->
+      let el = make_fake_element () in
+      let signal = create_signal (Some "on") in
+      Reactive.bind_attr_opt el "data-flag" signal;
+      (match Dom.get_attribute el "data-flag" with
+       | Some v -> assert_eq v "on"
+       | None -> failwith "expected attribute to be set");
+      set_signal signal None;
+      assert_true (Dom.get_attribute el "data-flag" = None)
+    )
+  )
+
+let test_bind_class_toggle () =
+  test "Reactive.bind_class_toggle toggles class" (fun () ->
+    with_runtime (fun () ->
+      let el = make_fake_element () in
+      let signal = create_signal false in
+      Reactive.bind_class_toggle el "active" signal;
+      assert_true (not (Dom.has_class el "active"));
+      set_signal signal true;
+      assert_true (Dom.has_class el "active");
+      set_signal signal false;
+      assert_true (not (Dom.has_class el "active"))
+    )
+  )
+
+let test_bind_style () =
+  test "Reactive.bind_style updates style" (fun () ->
+    with_runtime (fun () ->
+      let el = make_fake_element () in
+      let signal = create_signal "red" in
+      Reactive.bind_style el "color" signal;
+      (match element_style_prop el "color" with
+       | Some v -> assert_eq v "red"
+       | None -> failwith "expected style to be set");
+      set_signal signal "blue";
+      (match element_style_prop el "color" with
+       | Some v -> assert_eq v "blue"
+       | None -> failwith "expected style to be updated")
+    )
+  )
+
+let test_bind_select_multiple () =
+  test "Reactive.bind_select_multiple syncs selection" (fun () ->
+    with_runtime (fun () ->
+      let el = make_fake_select [| "a"; "b"; "c" |] in
+      let signal = create_signal ["a"; "c"] in
+      Reactive.bind_select_multiple el signal (fun v -> set_signal signal v);
+      assert_eq (Array.to_list (Dom.element_selected_values el)) ["a"; "c"];
+      Dom.element_set_selected_values el [| "b" |];
+      fire_event el "change";
+      assert_eq (get_signal signal) ["b"];
+      set_signal signal ["a"];
+      assert_eq (Array.to_list (Dom.element_selected_values el)) ["a"]
+    )
+  )
+
 
 (* ============ Batch Tests ============ *)
 
@@ -367,6 +528,11 @@ let () =
   console_log "\n-- DOM Binding Tests --";
   test_bind_input ();
   test_bind_checkbox ();
+  test_bind_attr ();
+  test_bind_attr_opt ();
+  test_bind_class_toggle ();
+  test_bind_style ();
+  test_bind_select_multiple ();
 
   console_log "\n-- Integration Tests --";
   test_diamond ();

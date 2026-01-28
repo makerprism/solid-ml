@@ -25,6 +25,8 @@ external node_of_fragment : document_fragment -> node = "%identity"
 external element_of_node : node -> element = "%identity"
 external text_of_node : node -> text_node = "%identity"
 external comment_of_node : node -> comment_node = "%identity"
+external fragment_of_node : node -> document_fragment = "%identity"
+  [@@warning "-32"]
 external element_of_event_target : event_target -> element = "%identity"
 
 (** {1 Global Objects} *)

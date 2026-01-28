@@ -319,7 +319,7 @@ let read_suspense ?(error_to_string=(fun _ -> "Resource error")) ~default resour
        default
      | Some suspense_state ->
        (* Increment counter for this loading resource *)
-       Suspense.increment suspense_state;
+       Suspense.increment suspense_state resource.id;
        default
     )
 

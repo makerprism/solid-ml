@@ -487,6 +487,18 @@ module Make (B : Backend.S) = struct
   let complete_updates () =
     let rt = get_runtime () in
 
+    let run_with_error_handler node context =
+      let prev_handler = rt.current_error_handler in
+      rt.current_error_handler <- node.error_handler;
+      match (try run_top node with exn -> B.handle_error exn context) with
+      | value ->
+        rt.current_error_handler <- prev_handler;
+        value
+      | exception exn ->
+        rt.current_error_handler <- prev_handler;
+        raise exn
+    in
+
     let rec loop () =
       if rt.updates_len > 0 || rt.effects_len > 0 then begin
         (* Process updates (memos) - already in correct order *)
@@ -496,8 +508,7 @@ module Make (B : Backend.S) = struct
           rt.updates_len <- 0;
           for i = 0 to len - 1 do
             let node = Array.unsafe_get updates i in
-            (try run_top node
-             with exn -> B.handle_error exn "memo")
+            run_with_error_handler node "memo"
           done
         done;
         
@@ -510,16 +521,14 @@ module Make (B : Backend.S) = struct
         for i = 0 to effects_len - 1 do
           let node = Array.unsafe_get effects i in
           if not node.user then
-            (try run_top node
-             with exn -> B.handle_error exn "effect")
+            run_with_error_handler node "effect"
         done;
-        
+
         (* Second pass: user effects *)
         for i = 0 to effects_len - 1 do
           let node = Array.unsafe_get effects i in
           if node.user then
-            (try run_top node
-             with exn -> B.handle_error exn "effect")
+            run_with_error_handler node "effect"
         done;
         
         loop ()
@@ -632,6 +641,7 @@ module Make (B : Backend.S) = struct
       updated_at = 0;
       pure;
       user = false;
+      error_handler = rt.current_error_handler;
       owned = [];
       cleanups = [];
       owner = rt.owner;

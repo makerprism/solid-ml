@@ -27,13 +27,13 @@ type 'a t = 'a Reactive.signal
 
 (** Create a new signal with an initial value.
     Returns a tuple of (signal, setter function).
-    
-    By default, uses structural equality [(=)] to skip updates when
-    the new value equals the current value.
+
+    By default, uses physical inequality [(==)] to skip updates when
+    the new value is the same object as the current value.
     
     {[
       let count, set_count = Signal.create 0
-      set_count 0  (* No update - same value *)
+      set_count 0  (* No update - same value (physical) *)
       set_count 1  (* Updates and notifies *)
     ]}
 *)

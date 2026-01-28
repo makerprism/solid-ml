@@ -45,7 +45,13 @@ module Global : S = struct
   
   (* Default error handling - re-raise. 
      Browser package can shadow this with console.error *)
-  let handle_error exn _context = raise exn
+  let handle_error exn _context =
+    match get_runtime () with
+    | Some rt ->
+      (match rt.current_error_handler with
+       | Some handler -> handler exn
+       | None -> raise exn)
+    | None -> raise exn
 
   let schedule_transition fn = fn ()
 end

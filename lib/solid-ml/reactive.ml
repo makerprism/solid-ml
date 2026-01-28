@@ -22,7 +22,13 @@ module Backend_DLS : Internal.Backend.S = struct
   let set_runtime rt = Domain.DLS.set runtime_key rt
   
   (* Server should not swallow errors *)
-  let handle_error exn _context = raise exn
+  let handle_error exn _context =
+    match get_runtime () with
+    | Some rt ->
+      (match rt.current_error_handler with
+       | Some handler -> handler exn
+       | None -> raise exn)
+    | None -> raise exn
 
   let schedule_transition fn = fn ()
 end
@@ -65,6 +71,20 @@ let run = R.run
 let create_root = R.create_root
 let on_cleanup = R.on_cleanup
 let get_owner = R.get_owner
+
+let with_error_handler handler fn =
+  match R.get_runtime_opt () with
+  | None -> fn ()
+  | Some rt ->
+    let prev_handler = rt.Internal.Types.current_error_handler in
+    rt.current_error_handler <- Some handler;
+    match fn () with
+    | value ->
+      rt.current_error_handler <- prev_handler;
+      value
+    | exception exn ->
+      rt.current_error_handler <- prev_handler;
+      raise exn
 
 (** {1 Tracking API} *)
 

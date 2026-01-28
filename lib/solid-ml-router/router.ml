@@ -146,47 +146,11 @@ let build_url ~path ?query ?hash () =
 (** Decode a percent-encoded string.
     Converts %XX sequences to their character equivalents.
     Also converts + to space (for query strings). *)
-let url_decode s =
-  let len = String.length s in
-  let buf = Buffer.create len in
-  let i = ref 0 in
-  while !i < len do
-    let c = s.[!i] in
-    if c = '%' && !i + 2 < len then begin
-      let hex = String.sub s (!i + 1) 2 in
-      match int_of_string_opt ("0x" ^ hex) with
-      | Some code -> 
-        Buffer.add_char buf (Char.chr code);
-        i := !i + 3
-      | None ->
-        Buffer.add_char buf c;
-        incr i
-    end else if c = '+' then begin
-      Buffer.add_char buf ' ';
-      incr i
-    end else begin
-      Buffer.add_char buf c;
-      incr i
-    end
-  done;
-  Buffer.contents buf
+let url_decode = Route.url_decode
 
 (** Encode a string for use in URLs.
     Converts special characters to %XX sequences. *)
-let url_encode s =
-  let len = String.length s in
-  let buf = Buffer.create (len * 3) in
-  for i = 0 to len - 1 do
-    let c = s.[i] in
-    match c with
-    | 'a'..'z' | 'A'..'Z' | '0'..'9' | '-' | '_' | '.' | '~' ->
-      Buffer.add_char buf c
-    | ' ' ->
-      Buffer.add_char buf '+'
-    | _ ->
-      Buffer.add_string buf (Printf.sprintf "%%%02X" (Char.code c))
-  done;
-  Buffer.contents buf
+let url_encode = Route.url_encode
 
 (** {1 Query String Parsing} *)
 

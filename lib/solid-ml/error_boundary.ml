@@ -63,8 +63,12 @@ let make ~fallback children =
     | No_error ->
       (* Try to render children *)
       let _ = !attempt in (* Force dependency on attempt for re-render *)
+      let handle_error exn =
+        let msg = Printexc.to_string exn in
+        set_state (Has_error msg)
+      in
       try
-        children ()
+        Reactive.with_error_handler handle_error children
       with exn ->
         let msg = Printexc.to_string exn in
         set_state (Has_error msg);
@@ -96,16 +100,20 @@ module Unsafe = struct
 
     let content = Memo.Unsafe.create (fun () ->
       match Signal.Unsafe.get state with
-      | Has_error msg ->
+    | Has_error msg ->
+      fallback ~error:msg ~reset
+    | No_error ->
+      let _ = !attempt in
+      let handle_error exn =
+        let msg = Printexc.to_string exn in
+        set_state (Has_error msg)
+      in
+      try
+        Reactive.with_error_handler handle_error children
+      with exn ->
+        let msg = Printexc.to_string exn in
+        set_state (Has_error msg);
         fallback ~error:msg ~reset
-      | No_error ->
-        let _ = !attempt in
-        try
-          children ()
-        with exn ->
-          let msg = Printexc.to_string exn in
-          set_state (Has_error msg);
-          fallback ~error:msg ~reset
     ) in
     Memo.Unsafe.get content
 

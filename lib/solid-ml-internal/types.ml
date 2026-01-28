@@ -57,6 +57,7 @@ and computation = {
   mutable updated_at: int;
   pure: bool;
   mutable user: bool;
+  mutable error_handler: (exn -> unit) option;
   mutable owned: computation list;
   mutable cleanups: (unit -> unit) list;
   mutable owner: owner option;
@@ -78,6 +79,7 @@ let initial_queue_capacity = 128
 type runtime = {
   mutable listener: computation option;
   mutable owner: owner option;
+  mutable current_error_handler: (exn -> unit) option;
   (* Mutable array queues instead of lists - avoids allocation on every push *)
   mutable updates: computation array;
   mutable updates_len: int;
@@ -110,6 +112,7 @@ let dummy_computation : computation = {
   updated_at = 0;
   pure = false;
   user = false;
+  error_handler = None;
   owned = [];
   cleanups = [];
   owner = None;
@@ -125,6 +128,7 @@ let dummy_computation : computation = {
 let create_runtime () = {
   listener = None;
   owner = None;
+  current_error_handler = None;
   updates = Array.make initial_queue_capacity dummy_computation;
   updates_len = 0;
   effects = Array.make initial_queue_capacity dummy_computation;
@@ -159,6 +163,7 @@ let empty_computation () = {
   updated_at = 0;
   pure = false;
   user = false;
+  error_handler = None;
   owned = [];
   cleanups = [];
   owner = None;

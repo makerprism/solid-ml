@@ -44,6 +44,7 @@ val node_of_fragment : document_fragment -> node
 val element_of_node : node -> element
 val text_of_node : node -> text_node
 val comment_of_node : node -> comment_node
+val fragment_of_node : node -> document_fragment
 val element_of_event_target : event_target -> element
 
 (** {1 Global Objects} *)

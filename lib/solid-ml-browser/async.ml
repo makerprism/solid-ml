@@ -167,9 +167,9 @@ let get (async : 'a t) ~(default : 'a) : 'a =
   | Error exn -> raise exn
   | Pending ->
     (* Register with Suspense if available *)
-    (match Suspense.get_state () with
-     | Some suspense_state -> Suspense.increment suspense_state
-     | None -> ()
+     (match Suspense.get_state () with
+      | Some suspense_state -> Suspense.increment suspense_state async.id
+      | None -> ()
     );
     (* Return default - Suspense will show fallback based on counter *)
     default

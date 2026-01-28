@@ -51,6 +51,14 @@ module Route = struct
     
     let add key value (params : t) : t =
       (key, value) :: params
+
+    let of_list pairs : t = pairs
+
+    let to_list (params : t) = params
+
+    let is_empty (params : t) = params = []
+
+    let iter f (params : t) = List.iter (fun (k, v) -> f k v) params
   end
 
   type segment =
@@ -224,6 +232,90 @@ let parse_url url =
     | None -> url, None
   in
   (path, query, hash)
+
+(** Build a URL from components *)
+let build_url ~path ?query ?hash () =
+  let url = path in
+  let url = match query with
+    | Some q -> url ^ "?" ^ q
+    | None -> url
+  in
+  let url = match hash with
+    | Some h -> url ^ "#" ^ h
+    | None -> url
+  in
+  url
+
+(** Decode a percent-encoded string (query helpers) *)
+let url_decode s =
+  let len = String.length s in
+  let buf = Buffer.create len in
+  let i = ref 0 in
+  while !i < len do
+    let c = s.[!i] in
+    if c = '%' && !i + 2 < len then begin
+      let hex = String.sub s (!i + 1) 2 in
+      match int_of_string_opt ("0x" ^ hex) with
+      | Some code ->
+        Buffer.add_char buf (Char.chr code);
+        i := !i + 3
+      | None ->
+        Buffer.add_char buf c;
+        incr i
+    end else if c = '+' then begin
+      Buffer.add_char buf ' ';
+      incr i
+    end else begin
+      Buffer.add_char buf c;
+      incr i
+    end
+  done;
+  Buffer.contents buf
+
+(** Encode a string for use in query strings *)
+let url_encode s =
+  let len = String.length s in
+  let buf = Buffer.create (len * 3) in
+  for i = 0 to len - 1 do
+    let c = s.[i] in
+    match c with
+    | 'a'..'z' | 'A'..'Z' | '0'..'9' | '-' | '_' | '.' | '~' ->
+      Buffer.add_char buf c
+    | ' ' ->
+      Buffer.add_char buf '+'
+    | _ ->
+      Buffer.add_string buf (Printf.sprintf "%%%02X" (Char.code c))
+  done;
+  Buffer.contents buf
+
+(** Parse a query string into key-value pairs (URL-decoded). *)
+let parse_query_string query =
+  if query = "" then []
+  else
+    String.split_on_char '&' query
+    |> List.filter_map (fun pair ->
+      match String.index_opt pair '=' with
+      | Some i ->
+        let key = url_decode (String.sub pair 0 i) in
+        let value = url_decode (String.sub pair (i + 1) (String.length pair - i - 1)) in
+        Some (key, value)
+      | None ->
+        Some (url_decode pair, "")
+    )
+
+(** Get a query parameter value (URL-decoded). *)
+let get_query_param key query =
+  match query with
+  | None -> None
+  | Some q ->
+    let pairs = parse_query_string q in
+    List.assoc_opt key pairs
+
+(** Build a query string from key-value pairs (URL-encoded). *)
+let build_query_string pairs =
+  pairs
+  |> List.map (fun (k, v) -> url_encode k ^ "=" ^ url_encode v)
+  |> String.concat "&"
 
 let get_current_url () =
   let path = Dom.get_pathname () in

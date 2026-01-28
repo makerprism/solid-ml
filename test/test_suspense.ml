@@ -181,6 +181,60 @@ let () = test "Nested Suspense boundaries work independently" (fun () ->
     "Both ready"
 )
 
+
+let () = test "Suspense fallback reacts to signals while loading" (fun () ->
+  let resource = Resource.create_loading () in
+  let message, set_message = Signal.create "first" in
+  let results = ref [] in
+
+  let _dispose = Owner.Unsafe.create_root (fun () ->
+    Effect.Unsafe.create (fun () ->
+      let result = Suspense.boundary
+        ~fallback:(fun () -> "loading: " ^ Signal.get message)
+        (fun () ->
+          let _data = Resource.read_suspense ~default:"" resource in
+          "content"
+        )
+      in
+      results := result :: !results
+    )
+  ) in
+
+  assert_equal "loading: first" (List.hd !results) "Fallback uses signal";
+
+  set_message "second";
+
+  assert_equal "loading: second" (List.hd !results) "Fallback updates reactively"
+)
+
+let () = test "Suspense returns to fallback when resource reloads" (fun () ->
+  let resource = Resource.create_loading () in
+  let results = ref [] in
+
+  let _dispose = Owner.Unsafe.create_root (fun () ->
+    Effect.Unsafe.create (fun () ->
+      let result = Suspense.boundary
+        ~fallback:(fun () -> "loading...")
+        (fun () ->
+          let data = Resource.read_suspense ~default:"" resource in
+          "content: " ^ data
+        )
+      in
+      results := result :: !results
+    )
+  ) in
+
+  assert_equal "loading..." (List.hd !results) "Initially loading";
+
+  Resource.set resource "ready";
+
+  assert_equal "content: ready" (List.hd !results) "Shows content when ready";
+
+  Resource.set_loading resource;
+
+  assert_equal "loading..." (List.hd !results) "Returns to fallback on reload"
+)
+
 (* ============================================
    ErrorBoundary Tests
    ============================================ *)
@@ -270,6 +324,79 @@ let () = test "ErrorBoundary reset re-renders children" (fun () ->
   !reset_fn ();
   
   assert_true (!attempts = 2) "Should have retried after reset"
+)
+
+
+let () = test "ErrorBoundary stays in fallback until reset" (fun () ->
+  let should_throw, set_should_throw = Signal.create true in
+  let reset_fn = ref (fun () -> ()) in
+  let results = ref [] in
+
+  let _dispose = Owner.Unsafe.create_root (fun () ->
+    Effect.Unsafe.create (fun () ->
+      let result = ErrorBoundary.Unsafe.make
+        ~fallback:(fun ~error:_ ~reset ->
+          reset_fn := reset;
+          "error"
+        )
+        (fun () ->
+          if Signal.get should_throw then failwith "boom";
+          "ok"
+        )
+      in
+      results := result :: !results
+    )
+  ) in
+
+  assert_equal "error" (List.hd !results) "Shows fallback on error";
+
+  set_should_throw false;
+
+  assert_equal "error" (List.hd !results) "Still in fallback without reset";
+
+  !reset_fn ();
+
+  assert_equal "ok" (List.hd !results) "Renders children after reset"
+)
+
+let () = test "ErrorBoundary reset keeps fallback if error persists" (fun () ->
+  let attempts = ref 0 in
+  let reset_fn = ref (fun () -> ()) in
+  let results = ref [] in
+
+  let _dispose = Owner.Unsafe.create_root (fun () ->
+    Effect.Unsafe.create (fun () ->
+      let result = ErrorBoundary.Unsafe.make
+        ~fallback:(fun ~error:_ ~reset ->
+          reset_fn := reset;
+          "error"
+        )
+        (fun () ->
+          incr attempts;
+          failwith "still failing"
+        )
+      in
+      results := result :: !results
+    )
+  ) in
+
+  assert_equal "error" (List.hd !results) "Shows fallback initially";
+
+  !reset_fn ();
+
+  assert_true (!attempts = 2) "Retries after reset";
+  assert_equal "error" (List.hd !results) "Still shows fallback when error persists"
+)
+
+let () = test "ErrorBoundary does not catch fallback exceptions" (fun () ->
+  try
+    let _result = ErrorBoundary.Unsafe.make
+      ~fallback:(fun ~error:_ ~reset:_ -> failwith "fallback blew up")
+      (fun () -> failwith "child error")
+    in
+    failwith "expected fallback exception"
+  with Failure msg ->
+    assert_true (msg = "fallback blew up") "Fallback exception should propagate"
 )
 
 (* ============================================

@@ -31,6 +31,8 @@ type t = Reactive.owner
 
 (** Create a new root ownership scope.
     Returns a dispose function that cleans up all owned computations.
+
+    The callback does not receive the dispose function; it is returned to the caller.
     
     If called outside a runtime, creates a temporary one.
     

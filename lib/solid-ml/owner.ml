@@ -20,11 +20,9 @@ let get_owner () =
 let on_cleanup = Reactive.on_cleanup
 
 (** Create a root owner and run a function within it.
-    
-    The function receives a dispose callback that can be used
-    to clean up the root and all its descendants.
-    
-    Note: create_root passes the dispose function to fn. *)
+
+    Returns a dispose callback that can be used to clean up the root
+    and all its descendants. The callback is returned to the caller. *)
 let create_root fn =
   Reactive.create_root (fun dispose -> fn (); dispose)
 

@@ -55,7 +55,7 @@ val suspense_context : suspense_state Context.t
 (** {1 Registration (for Resource module)} *)
 
 (** Increment the pending count. Call when a resource starts loading. *)
-val increment : suspense_state -> unit
+val increment : suspense_state -> int -> unit
 
 (** Check if we're inside a valid Suspense boundary. *)
 val has_boundary : unit -> bool

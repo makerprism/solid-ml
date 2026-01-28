@@ -164,7 +164,19 @@ let create (type a) (props : a for_props) : Html.node =
   match props.fallback with
   | Some fb ->
     let fallback_node = Html.to_dom_node fb in
-    let _fallback_placeholder = create_comment (document ()) "for-fallback" in
+    let fallback_html =
+      if is_element fallback_node then
+        Html.Element (element_of_node fallback_node)
+      else if is_text fallback_node then
+        Html.Text (text_of_node fallback_node)
+      else if is_document_fragment fallback_node then
+        Html.Fragment (fragment_of_node fallback_node)
+      else
+        Html.Empty
+    in
+    let initial_render_nodes =
+      if initial_items = [] then fallback_html :: initial_nodes else initial_nodes
+    in
 
     Effect.create_deferred
       ~track:(fun () -> Signal.get props.each)
@@ -180,7 +192,7 @@ let create (type a) (props : a for_props) : Html.node =
     
     Owner.on_cleanup (fun () -> Dom.remove_node fallback_node);
     
-    Html.fragment (initial_nodes @ [Text placeholder])
+    Html.fragment (initial_render_nodes @ [Text placeholder])
   | None ->
     Html.fragment (initial_nodes @ [Text placeholder])
 

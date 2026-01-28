@@ -53,8 +53,12 @@ let make ~fallback children =
     | No_error ->
       (* Try to render children *)
       let _ = !attempt in (* Force dependency on attempt for re-render *)
+      let handle_error exn =
+        let msg = Dom.exn_to_string exn in
+        set_state (Has_error msg)
+      in
       try
-        children ()
+        Reactive_core.with_error_handler handle_error children
       with exn ->
         let msg = Dom.exn_to_string exn in
         set_state (Has_error msg);

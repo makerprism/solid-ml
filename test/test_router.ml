@@ -133,6 +133,14 @@ let test_param_matching () =
       assert_equal (Route.Params.get "category" result.params) (Some "books")
     | None -> failwith "expected match"
   );
+
+  test "param values are URL-decoded" (fun () ->
+    let route = Route.create ~path:"/users/:id" ~data:() () in
+    match Route.match_route route "/users/john%20doe" with
+    | Some result ->
+      assert_equal (Route.Params.get "id" result.params) (Some "john doe")
+    | None -> failwith "expected match"
+  );
   
   test "missing param segment fails" (fun () ->
     let route = Route.create ~path:"/users/:id" ~data:() () in
@@ -155,6 +163,14 @@ let test_wildcard_matching () =
   test "wildcard captures multiple segments" (fun () ->
     let route = Route.create ~path:"/files/*" ~data:() () in
     match Route.match_route route "/files/path/to/file.txt" with
+    | Some result ->
+      assert_equal (Route.Params.get "*" result.params) (Some "path/to/file.txt")
+    | None -> failwith "expected match"
+  );
+
+  test "wildcard values are URL-decoded" (fun () ->
+    let route = Route.create ~path:"/files/*" ~data:() () in
+    match Route.match_route route "/files/path%2Fto%2Ffile.txt" with
     | Some result ->
       assert_equal (Route.Params.get "*" result.params) (Some "path/to/file.txt")
     | None -> failwith "expected match"
@@ -218,10 +234,24 @@ let test_route_list_matching () =
     assert_none (Route.match_routes routes "/unknown")
   );
   
-  test "first match wins" (fun () ->
-    (* /users matches before /users/:id because it's first in list *)
-    match Route.match_routes routes "/users" with
-    | Some (route, _) -> assert_equal (Route.data route) "users_list"
+  test "more specific match wins" (fun () ->
+    let ranked_routes = [
+      Route.create ~path:"/users/*" ~data:"users_catchall" ();
+      Route.create ~path:"/users/:id" ~data:"user_detail" ();
+      Route.create ~path:"/users/settings" ~data:"users_settings" ();
+    ] in
+    match Route.match_routes ranked_routes "/users/settings" with
+    | Some (route, _) -> assert_equal (Route.data route) "users_settings"
+    | None -> failwith "expected match"
+  );
+
+  test "stable tie-breaker keeps list order" (fun () ->
+    let tied_routes = [
+      Route.create ~path:"/items/:id" ~data:"first" ();
+      Route.create ~path:"/items/:id" ~data:"second" ();
+    ] in
+    match Route.match_routes tied_routes "/items/123" with
+    | Some (route, _) -> assert_equal (Route.data route) "first"
     | None -> failwith "expected match"
   )
 
@@ -238,6 +268,16 @@ let test_path_generation () =
   test "generate path with param" (fun () ->
     let path = Route.generate_path "/users/:id" [("id", "123")] in
     assert_equal path "/users/123"
+  );
+
+  test "generate path URL-encodes params" (fun () ->
+    let path = Route.generate_path "/users/:id" [("id", "john doe")] in
+    assert_equal path "/users/john+doe"
+  );
+
+  test "generate path encodes slashes" (fun () ->
+    let path = Route.generate_path "/files/:path" [("path", "a/b")] in
+    assert_equal path "/files/a%2Fb"
   );
   
   test "generate path with multiple params" (fun () ->

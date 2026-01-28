@@ -1,6 +1,6 @@
 (** DOM element creation functions.
     
-    These functions mirror the solid-ml-html API but create actual DOM nodes
+    These functions mirror the solid-ml-ssr API but create actual DOM nodes
     instead of HTML strings. This allows the same component code to work on
     both server (generating HTML) and client (creating DOM).
  *)

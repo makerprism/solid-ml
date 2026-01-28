@@ -273,7 +273,7 @@ let test_hydrate_adjacent_nodes_slots () =
     Render.hydrate root (fun () ->
       let inst = T.instantiate template in
       slot_a := Some (T.bind_nodes inst ~id:0 ~path:[| 1 |]);
-      slot_b := Some (T.bind_nodes inst ~id:1 ~path:[| 2 |]);
+      slot_b := Some (T.bind_nodes inst ~id:1 ~path:[| 3 |]);
       H.empty)
   in
 
@@ -364,7 +364,7 @@ let test_hydrate_nodes_fragment_between_regions () =
     Render.hydrate root (fun () ->
       let inst = T.instantiate template in
       slot_left := Some (T.bind_nodes inst ~id:0 ~path:[| 1 |]);
-      slot_right := Some (T.bind_nodes inst ~id:1 ~path:[| 2 |]);
+      slot_right := Some (T.bind_nodes inst ~id:1 ~path:[| 3 |]);
       H.empty)
   in
 
@@ -425,8 +425,17 @@ let test_template_dynamic_component_switch () =
   assert_eq ~name:"dynamic props update" (get_text_content root) "Hi Smithers";
   set_component comp_b;
   assert_eq ~name:"dynamic switch" (get_text_content root) "Yo Smithers";
-  let children = get_child_nodes root in
-  let child = element_of_node children.(0) in
+  let container = element_of_node (get_child_nodes root).(0) in
+  let container_children = get_child_nodes container in
+  let rec find_element idx =
+    if idx >= Array.length container_children then
+      fail "dynamic tag: missing element"
+    else if is_element container_children.(idx) then
+      element_of_node container_children.(idx)
+    else
+      find_element (idx + 1)
+  in
+  let child = find_element 0 in
   assert_eq ~name:"dynamic tag" (get_tag_name child) "SPAN";
   dispose ()
 
@@ -541,7 +550,7 @@ let test_template_dynamic_spread_props () =
   in
 
   let child =
-    match query_selector_within root "div div" with
+    match query_selector_within root "[data-x]" with
     | None -> fail "dynamic spread: missing child"
     | Some el -> el
   in
@@ -631,30 +640,30 @@ let test_template_portal_head () =
           ~when_:(fun () -> Signal.get visible)
           (fun () ->
             Html.portal ~target:head
-              ~children:(Html.title ~children:[Html.text (Signal.get title)] ())
+              ~children:(Html.title ~children:[Html.reactive_text_string title] ())
               ()
           )
       ] ())
   in
 
-  let head_html = get_inner_html head in
-  if not (string_contains_substring ~haystack:head_html ~needle:"<title>A Meaningful Page Title</title>") then
+  let head_text = get_text_content head in
+  if not (string_contains_substring ~haystack:head_text ~needle:"A Meaningful Page Title") then
     fail "portal head initial: title not found";
   set_title "A New Better Page Title";
-  let head_html = get_inner_html head in
-  if not (string_contains_substring ~haystack:head_html ~needle:"<title>A New Better Page Title</title>") then
+  let head_text = get_text_content head in
+  if not (string_contains_substring ~haystack:head_text ~needle:"A New Better Page Title") then
     fail "portal head update: title not found";
   set_visible false;
-  let head_html = get_inner_html head in
-  if string_contains_substring ~haystack:head_html ~needle:"<title>A New Better Page Title</title>" then
+  let head_text = get_text_content head in
+  if string_contains_substring ~haystack:head_text ~needle:"A New Better Page Title" then
     fail "portal head hide: title still present";
   set_visible true;
-  let head_html = get_inner_html head in
-  if not (string_contains_substring ~haystack:head_html ~needle:"<title>A New Better Page Title</title>") then
+  let head_text = get_text_content head in
+  if not (string_contains_substring ~haystack:head_text ~needle:"A New Better Page Title") then
     fail "portal head show: title missing";
   dispose ();
-  let head_html = get_inner_html head in
-  if string_contains_substring ~haystack:head_html ~needle:"<title>A New Better Page Title</title>" then
+  let head_text = get_text_content head in
+  if string_contains_substring ~haystack:head_text ~needle:"A New Better Page Title" then
     fail "portal head dispose: title still present"
 
 let test_template_portal_svg () =
@@ -1722,6 +1731,11 @@ let test_template_show_dom_children_toggle () =
   in
   assert_eq ~name:"tpl.show dom children on" (get_text_content span) "7";
   set_count 5;
+  let span =
+    match query_selector_within root "span" with
+    | None -> fail "tpl.show dom children: missing span after update"
+    | Some el -> el
+  in
   assert_eq ~name:"tpl.show dom children update" (get_text_content span) "5";
   set_count 2;
   assert_eq ~name:"tpl.show dom children off" (get_text_content root) "";
@@ -1754,6 +1768,74 @@ let test_template_show_fallback_toggle () =
   assert_eq ~name:"tpl.show fallback on" (get_text_content root) "7";
   set_count 2;
   assert_eq ~name:"tpl.show fallback off" (get_text_content root) "Too Low";
+  dispose ()
+
+let test_template_show_function_children_nonkeyed () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+  let name, set_name = Solid_ml_browser.Env.Signal.create "Alpha" in
+  let children_executed = ref 0 in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      Html.append_to_element root
+        (Html.div
+           ~children:
+             [ Solid_ml_template_runtime.Tpl.show_when
+                 ~when_:(fun () -> Signal.get name <> "")
+                 (fun () ->
+                   incr children_executed;
+                   Html.span ~children:[ Html.reactive_text_string name ] ()) ]
+           ())
+    )
+  in
+
+  assert_eq ~name:"tpl.show func nonkeyed initial" (get_text_content root) "Alpha";
+  assert_eq ~name:"tpl.show func nonkeyed children 1" (string_of_int !children_executed) "1";
+  set_name "Beta";
+  assert_eq ~name:"tpl.show func nonkeyed update" (get_text_content root) "Beta";
+  assert_eq ~name:"tpl.show func nonkeyed children update" (string_of_int !children_executed) "2";
+  set_name "";
+  assert_eq ~name:"tpl.show func nonkeyed off" (get_text_content root) "";
+  set_name "Gamma";
+  assert_eq ~name:"tpl.show func nonkeyed on again" (get_text_content root) "Gamma";
+  assert_eq ~name:"tpl.show func nonkeyed children 3" (string_of_int !children_executed) "3";
+  dispose ()
+
+let test_template_show_function_children_keyed () =
+  let root = create_element (document ()) "div" in
+  let body : element = [%mel.raw "document.body"] in
+  append_child body (node_of_element root);
+  let name, set_name = Solid_ml_browser.Env.Signal.create "Alpha" in
+  let children_executed = ref 0 in
+
+  let (_res, dispose) =
+    Reactive_core.create_root (fun () ->
+      Html.append_to_element root
+        (Html.div
+           ~children:
+             [ Solid_ml_template_runtime.Tpl.show_value
+                 ~when_:(fun () -> Signal.get name)
+                 ~truthy:(fun v -> v <> "")
+                 (fun () ->
+                   incr children_executed;
+                   let value = Signal.get name in
+                   Html.span ~children:[ Html.text value ] ()) ]
+           ())
+    )
+  in
+
+  assert_eq ~name:"tpl.show func keyed initial" (get_text_content root) "Alpha";
+  assert_eq ~name:"tpl.show func keyed children 1" (string_of_int !children_executed) "1";
+  set_name "Beta";
+  assert_eq ~name:"tpl.show func keyed update" (get_text_content root) "Beta";
+  assert_eq ~name:"tpl.show func keyed children 2" (string_of_int !children_executed) "2";
+  set_name "";
+  assert_eq ~name:"tpl.show func keyed off" (get_text_content root) "";
+  set_name "Gamma";
+  assert_eq ~name:"tpl.show func keyed on again" (get_text_content root) "Gamma";
+  assert_eq ~name:"tpl.show func keyed children 3" (string_of_int !children_executed) "3";
   dispose ()
 
 let test_template_show_nonkeyed_counts () =
@@ -1972,6 +2054,10 @@ let () =
     test_template_portal_svg ();
     test_template_portal_event ();
     test_template_portal_reactive_children ();
+    Test_switch_dom.run ();
+    Test_index_dom.run ();
+    Test_for_dom.run ();
+    Test_for_dom.run ();
     test_hydrate_text_slot ();
     test_hydrate_reactive_text_marker_adoption ();
     test_hydrate_normalizes_nodes_regions ();
@@ -2001,6 +2087,8 @@ let () =
     test_template_show_only_child_toggle ();
     test_template_show_dom_children_toggle ();
     test_template_show_fallback_toggle ();
+    test_template_show_function_children_nonkeyed ();
+    test_template_show_function_children_keyed ();
     test_template_show_nonkeyed_counts ();
     test_template_show_keyed_counts ();
     test_template_bind_input ();

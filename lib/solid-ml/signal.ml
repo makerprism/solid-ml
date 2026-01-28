@@ -10,9 +10,9 @@
 type 'a t = 'a Reactive.signal
 
 (** Create a signal with an initial value.
-    
-    By default, uses structural equality (=) to determine if the value
-    has changed. Updates are skipped if the new value equals the old. *)
+
+    By default, uses physical inequality (==) to determine if the value
+    has changed. Updates are skipped if the new value is the same object. *)
 let create ?equals initial =
   let signal = Reactive.create_signal ?equals initial in
   let setter new_value = Reactive.write_signal signal new_value in
@@ -56,6 +56,7 @@ let subscribe (signal : 'a t) callback =
     updated_at = 0;
     pure = false;
     user = true;
+    error_handler = None;
     owned = [];
     cleanups = [];
     owner = None;
@@ -140,6 +141,7 @@ module Unsafe = struct
       updated_at = 0;
       pure = false;
       user = true;
+      error_handler = None;
       owned = [];
       cleanups = [];
       owner = None;

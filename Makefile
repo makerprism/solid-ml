@@ -186,7 +186,7 @@ browser-tests:
 # Run browser tests in a real headless browser (requires Chrome)
 browser-tests-headless:
 	@echo "Running browser DOM tests (headless Chrome)..."
-	@CHROME_BIN=$${CHROME_BIN:-google-chrome}; \
+	@CHROME_BIN=$${CHROME_BIN:-/usr/bin/google-chrome}; \
 	if ! command -v "$$CHROME_BIN" >/dev/null; then \
 		echo "Error: Chrome executable not found. Set CHROME_BIN=/path/to/chrome"; \
 		exit 1; \

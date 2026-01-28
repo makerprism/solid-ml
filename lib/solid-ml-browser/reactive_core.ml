@@ -35,7 +35,12 @@ module Backend_Browser : Internal.Backend.S = struct
   (* Browser logs errors to console instead of crashing.
      Note: We use our local exn_to_string to avoid circular dependency with Dom. *)
   let handle_error exn context =
-    console_error ("solid-ml: Error in " ^ context ^ ": " ^ exn_to_string exn)
+    match get_runtime () with
+    | Some rt ->
+      (match rt.current_error_handler with
+       | Some handler -> handler exn
+       | None -> console_error ("solid-ml: Error in " ^ context ^ ": " ^ exn_to_string exn))
+    | None -> console_error ("solid-ml: Error in " ^ context ^ ": " ^ exn_to_string exn)
 
   let schedule_transition fn =
     ignore (Dom.set_timeout fn 0)
@@ -82,6 +87,20 @@ let peek_memo = R.peek_typed_memo
 
 let on_cleanup = R.on_cleanup
 let get_owner = R.get_owner
+
+let with_error_handler handler fn =
+  match R.get_runtime_opt () with
+  | None -> fn ()
+  | Some rt ->
+    let prev_handler = rt.Internal.Types.current_error_handler in
+    rt.current_error_handler <- Some handler;
+    match fn () with
+    | value ->
+      rt.current_error_handler <- prev_handler;
+      value
+    | exception exn ->
+      rt.current_error_handler <- prev_handler;
+      raise exn
 
 let with_owner (owner : owner option) (fn : unit -> 'a) : 'a =
   match R.get_runtime_opt () with

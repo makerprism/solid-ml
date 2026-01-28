@@ -261,6 +261,85 @@ let test_context_provide_and_use () =
   );
   print_endline "  PASSED"
 
+let test_context_nested_providers_use_nearest () =
+  print_endline "Test: Context nested providers use nearest value";
+  with_runtime (fun () ->
+    let context = Context.create "default" in
+    Context.provide context "outer" (fun () ->
+      let inner_value = Context.provide context "inner" (fun () ->
+        Context.use context
+      ) in
+      assert (inner_value = "inner");
+      assert (Context.use context = "outer")
+    )
+  );
+  print_endline "  PASSED"
+
+let test_context_scope_restores_after_exit () =
+  print_endline "Test: Context scope restores after provider exits";
+  with_runtime (fun () ->
+    let context = Context.create 0 in
+    Context.provide context 1 (fun () ->
+      assert (Context.use context = 1)
+    );
+    assert (Context.use context = 0)
+  );
+  print_endline "  PASSED"
+
+let test_context_isolated_between_roots () =
+  print_endline "Test: Context is isolated between roots";
+  with_runtime (fun () ->
+    let context = Context.create 0 in
+    let value_in_root1 = ref 0 in
+    let value_in_root2 = ref 0 in
+    let dispose1 = Owner.create_root (fun () ->
+      Context.provide context 1 (fun () ->
+        value_in_root1 := Context.use context
+      )
+    ) in
+    dispose1 ();
+    let dispose2 = Owner.create_root (fun () ->
+      value_in_root2 := Context.use context
+    ) in
+    dispose2 ();
+    assert (!value_in_root1 = 1);
+    assert (!value_in_root2 = 0)
+  );
+  print_endline "  PASSED"
+
+let test_context_value_signal_reactivity () =
+  print_endline "Test: Context can hold reactive signals";
+  with_runtime (fun () ->
+    let default_signal, _ = Signal.create 0 in
+    let context = Context.create default_signal in
+    let provided_signal, set_provided = Signal.create 1 in
+    let observed = ref 0 in
+    Context.provide context provided_signal (fun () ->
+      Effect.create (fun () ->
+        observed := Signal.get (Context.use context)
+      )
+    );
+    assert (!observed = 1);
+    set_provided 2;
+    assert (!observed = 2)
+  );
+  print_endline "  PASSED"
+
+let test_context_inherits_in_child_owner () =
+  print_endline "Test: Context value inherited in child owner";
+  with_runtime (fun () ->
+    let context = Context.create "default" in
+    let observed = ref "" in
+    Context.provide context "parent" (fun () ->
+      let _, dispose = Owner.run_with_owner (fun () ->
+        observed := Context.use context
+      ) in
+      dispose ()
+    );
+    assert (!observed = "parent")
+  );
+  print_endline "  PASSED"
+
 (* ============ createRoot ============ *)
 
 let test_nested_roots () =
@@ -716,6 +795,11 @@ let () =
   print_endline "\n-- Context --";
   test_create_context_defaults_to_default ();
   test_context_provide_and_use ();
+  test_context_nested_providers_use_nearest ();
+  test_context_scope_restores_after_exit ();
+  test_context_isolated_between_roots ();
+  test_context_value_signal_reactivity ();
+  test_context_inherits_in_child_owner ();
   
   print_endline "\n-- createRoot --";
   test_nested_roots ();
