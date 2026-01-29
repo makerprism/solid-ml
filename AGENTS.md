@@ -6,6 +6,8 @@
 
 This project builds with `/home/sabine/.opam/landing-pages-build/bin/dune` (dune 3.20.2) which is configured to work with the system OCaml installation. Do not use `opam` commands or reference any packages in `.opam/` or `_opam/` directories. Always use the dune binary specified in the Makefile's `DUNE` variable.
 
+**Git workflow:** Always use rebase (not merge) when integrating remote changes before pushing.
+
 ## Project Overview
 
 solid-ml is an OCaml framework for building reactive web applications with SSR, inspired by SolidJS.
