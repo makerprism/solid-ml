@@ -500,11 +500,15 @@ type static_prop =
      | Text_once_slot of Parsetree.expression
      | Nodes_slot of Parsetree.expression
      | Nodes_transition_slot of Parsetree.expression
-    | Nodes_keyed_slot of {
-        items_thunk : Parsetree.expression;
-        key_fn : Parsetree.expression;
-        render_fn : Parsetree.expression;
-      }
+     | Nodes_show_slot of {
+         when_ : Parsetree.expression;
+         render : Parsetree.expression;
+       }
+     | Nodes_keyed_slot of {
+         items_thunk : Parsetree.expression;
+         key_fn : Parsetree.expression;
+         render_fn : Parsetree.expression;
+       }
     | Nodes_indexed_slot of {
         items_thunk : Parsetree.expression;
         render_fn : Parsetree.expression;
@@ -623,6 +627,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
       | `Text_once
       | `Nodes
       | `Nodes_transition
+      | `Nodes_show
       | `Nodes_keyed
       | `Nodes_indexed
       | `Nodes_indexed_i
@@ -762,6 +767,19 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
             :: !slots_rev;
           incr slot_id;
           child_index := !child_index + 2
+        | Nodes_show_slot { when_; render } ->
+          Buffer.add_string current_segment "<!--$-->";
+          segments_rev := Buffer.contents current_segment :: !segments_rev;
+          Buffer.reset current_segment;
+          Buffer.add_string current_segment "<!--$-->";
+          let payload =
+            Ast_builder.Default.pexp_tuple ~loc [ when_; render ]
+          in
+          slots_rev :=
+            (!slot_id, `Nodes_show, path_to_element @ [ !child_index + 1 ], payload)
+            :: !slots_rev;
+          incr slot_id;
+          child_index := !child_index + 2
         | Nodes_transition_slot thunk ->
           Buffer.add_string current_segment "<!--$-->";
           segments_rev := Buffer.contents current_segment :: !segments_rev;
@@ -840,6 +858,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
               | `Text_once -> pexp_variant ~loc "Text" None
               | `Nodes -> pexp_variant ~loc "Nodes" None
               | `Nodes_transition -> pexp_variant ~loc "Nodes" None
+              | `Nodes_show -> pexp_variant ~loc "Nodes" None
               | `Nodes_keyed -> pexp_variant ~loc "Nodes" None
               | `Nodes_indexed -> pexp_variant ~loc "Nodes" None
               | `Nodes_indexed_i -> pexp_variant ~loc "Nodes" None
@@ -1332,10 +1351,11 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
              [ (Nolabel, evar ~loc slot_var); (Nolabel, thunk_call) ]
         | `Nodes ->
           let slot_var = "__solid_ml_tpl_nodes" ^ string_of_int id in
+          let thunk_var = "__solid_ml_tpl_nodes_thunk" ^ string_of_int id in
           (* Ensure subtree effects/listeners are disposed when the region is replaced. *)
           let node_var = "__solid_ml_tpl_nodes_value" ^ string_of_int id in
           let dispose_var = "__solid_ml_tpl_nodes_dispose" ^ string_of_int id in
-          let thunk_call = pexp_apply ~loc thunk [ (Nolabel, eunit ~loc) ] in
+          let thunk_call = pexp_apply ~loc (evar ~loc thunk_var) [ (Nolabel, eunit ~loc) ] in
           let pair =
             pexp_apply ~loc
               (pexp_ident ~loc (lid "Owner.run_with_root"))
@@ -1353,14 +1373,17 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
                   ~expr:pair ]
               (pexp_sequence ~loc set_nodes_call (evar ~loc dispose_var))
           in
-          pexp_apply ~loc
-            (pexp_ident ~loc (lid "Effect.create_with_cleanup"))
-            [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) body) ]
+          pexp_let ~loc Nonrecursive
+            [ value_binding ~loc ~pat:(pvar ~loc thunk_var) ~expr:thunk ]
+            (pexp_apply ~loc
+               (pexp_ident ~loc (lid "Effect.create_with_cleanup"))
+               [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) body) ])
         | `Nodes_transition ->
           let slot_var = "__solid_ml_tpl_nodes" ^ string_of_int id in
+          let thunk_var = "__solid_ml_tpl_nodes_thunk" ^ string_of_int id in
           let node_var = "__solid_ml_tpl_nodes_value" ^ string_of_int id in
           let dispose_var = "__solid_ml_tpl_nodes_dispose" ^ string_of_int id in
-          let thunk_call = pexp_apply ~loc thunk [ (Nolabel, eunit ~loc) ] in
+          let thunk_call = pexp_apply ~loc (evar ~loc thunk_var) [ (Nolabel, eunit ~loc) ] in
           let pair =
             pexp_apply ~loc
               (pexp_ident ~loc (lid "Owner.run_with_root"))
@@ -1379,13 +1402,152 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
               (pexp_sequence ~loc set_nodes_call (evar ~loc dispose_var))
           in
           let effect_call =
-            pexp_apply ~loc
-              (pexp_ident ~loc (lid "Effect.create_with_cleanup"))
-              [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) body) ]
+            pexp_let ~loc Nonrecursive
+              [ value_binding ~loc ~pat:(pvar ~loc thunk_var) ~expr:thunk ]
+              (pexp_apply ~loc
+                 (pexp_ident ~loc (lid "Effect.create_with_cleanup"))
+                 [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) body) ])
           in
           pexp_apply ~loc
             (pexp_ident ~loc (lid "Transition.run"))
             [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) effect_call) ]
+        | `Nodes_show ->
+          let slot_var = "__solid_ml_tpl_nodes" ^ string_of_int id in
+          let when_var = "__solid_ml_tpl_show_when" ^ string_of_int id in
+          let render_var = "__solid_ml_tpl_show_render" ^ string_of_int id in
+          let prev_var = "__solid_ml_tpl_show_prev" ^ string_of_int id in
+          let dispose_var = "__solid_ml_tpl_show_dispose" ^ string_of_int id in
+          let visible_var = "__solid_ml_tpl_show_visible" ^ string_of_int id in
+          let set_visible_var = "__solid_ml_tpl_show_set_visible" ^ string_of_int id in
+          let current_var = "__solid_ml_tpl_show_current" ^ string_of_int id in
+          let node_var = "__solid_ml_tpl_show_node" ^ string_of_int id in
+          let dispose_node_var = "__solid_ml_tpl_show_dispose_node" ^ string_of_int id in
+          let empty_fragment =
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid "Html.fragment"))
+              [ (Nolabel, pexp_construct ~loc (lid "[]") None) ]
+          in
+          let noop = pexp_fun ~loc Nolabel None (punit ~loc) (eunit ~loc) in
+          let when_call = pexp_apply ~loc (evar ~loc when_var) [ (Nolabel, eunit ~loc) ] in
+          let render_call = pexp_apply ~loc (evar ~loc render_var) [ (Nolabel, eunit ~loc) ] in
+          let render_pair =
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid "Owner.run_with_root"))
+              [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) render_call) ]
+          in
+          let dispose_get =
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid "!"))
+              [ (Nolabel, evar ~loc dispose_var) ]
+          in
+          let prev_get =
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid "!"))
+              [ (Nolabel, evar ~loc prev_var) ]
+          in
+          let set_nodes_call =
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid "Html.Internal_template.set_nodes"))
+              [ (Nolabel, evar ~loc slot_var); (Nolabel, evar ~loc node_var) ]
+          in
+          let clear_nodes_call =
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid "Html.Internal_template.set_nodes"))
+              [ (Nolabel, evar ~loc slot_var); (Nolabel, empty_fragment) ]
+          in
+          let set_dispose render_dispose =
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid ":="))
+              [ (Nolabel, evar ~loc dispose_var); (Nolabel, render_dispose) ]
+          in
+          let set_prev =
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid ":="))
+              [ (Nolabel, evar ~loc prev_var);
+                (Nolabel, pexp_construct ~loc (lid "Some") (Some (evar ~loc current_var))) ]
+          in
+          let mount_body =
+            pexp_let ~loc Nonrecursive
+              [ value_binding ~loc
+                  ~pat:(ppat_tuple ~loc [ pvar ~loc node_var; pvar ~loc dispose_node_var ])
+                  ~expr:render_pair ]
+              (pexp_sequence ~loc
+                 (pexp_apply ~loc dispose_get [ (Nolabel, eunit ~loc) ])
+                 (pexp_sequence ~loc set_nodes_call
+                    (pexp_sequence ~loc (set_dispose (evar ~loc dispose_node_var)) set_prev)))
+          in
+          let unmount_body =
+            pexp_sequence ~loc
+              (pexp_apply ~loc dispose_get [ (Nolabel, eunit ~loc) ])
+              (pexp_sequence ~loc clear_nodes_call
+                 (pexp_sequence ~loc (set_dispose noop) set_prev))
+          in
+          let update_body =
+            pexp_let ~loc Nonrecursive
+              [ value_binding ~loc
+                  ~pat:(pvar ~loc current_var)
+                  ~expr:(pexp_apply ~loc
+                           (pexp_ident ~loc (lid "Signal.get"))
+                           [ (Nolabel, evar ~loc visible_var) ]) ]
+              (pexp_match ~loc prev_get
+                 [ case
+                     ~lhs:(ppat_construct ~loc (lid "Some") (Some (ppat_var ~loc { loc; txt = "prev" })))
+                     ~guard:(Some (pexp_apply ~loc (pexp_ident ~loc (lid "="))
+                                    [ (Nolabel, evar ~loc "prev"); (Nolabel, evar ~loc current_var) ]))
+                     ~rhs:(eunit ~loc);
+                   case
+                     ~lhs:(ppat_any ~loc)
+                     ~guard:None
+                     ~rhs:(pexp_ifthenelse ~loc (evar ~loc current_var) mount_body (Some unmount_body)) ])
+          in
+          let sync_effect =
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid "Effect.create_render_effect"))
+              [ (Nolabel,
+                 pexp_fun ~loc Nolabel None (punit ~loc)
+                   (pexp_let ~loc Nonrecursive
+                      [ value_binding ~loc
+                          ~pat:(ppat_any ~loc)
+                          ~expr:(pexp_apply ~loc
+                                   (evar ~loc set_visible_var)
+                                   [ (Nolabel, when_call) ]) ]
+                      (eunit ~loc))) ]
+          in
+          let effect =
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid "Effect.create_render_effect"))
+              [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) update_body) ]
+          in
+          let cleanup =
+            pexp_apply ~loc
+              (pexp_ident ~loc (lid "Owner.on_cleanup"))
+              [ (Nolabel,
+                 pexp_fun ~loc Nolabel None (punit ~loc)
+                   (pexp_apply ~loc dispose_get [ (Nolabel, eunit ~loc) ])) ]
+          in
+          let bind =
+            pexp_let ~loc Nonrecursive
+              [ value_binding ~loc
+                  ~pat:(ppat_tuple ~loc [ pvar ~loc when_var; pvar ~loc render_var ])
+                  ~expr:thunk ]
+              (pexp_let ~loc Nonrecursive
+                 [ value_binding ~loc
+                     ~pat:(ppat_tuple ~loc [ pvar ~loc visible_var; pvar ~loc set_visible_var ])
+                     ~expr:(pexp_apply ~loc
+                              (pexp_ident ~loc (lid "Signal.create"))
+                              [ (Labelled "equals", pexp_ident ~loc (lid "(=)"));
+                                (Nolabel, pexp_construct ~loc (lid "false") None) ]);
+                   value_binding ~loc
+                     ~pat:(pvar ~loc prev_var)
+                     ~expr:(pexp_apply ~loc (pexp_ident ~loc (lid "ref"))
+                              [ (Nolabel, pexp_construct ~loc (lid "None") None) ]);
+                   value_binding ~loc
+                     ~pat:(pvar ~loc dispose_var)
+                     ~expr:(pexp_apply ~loc (pexp_ident ~loc (lid "ref"))
+                              [ (Nolabel, noop) ]) ]
+                 (pexp_sequence ~loc sync_effect (pexp_sequence ~loc effect cleanup)))
+          in
+          bind
         | `Nodes_keyed ->
           let slot_var = "__solid_ml_tpl_nodes" ^ string_of_int id in
           let items_var = "__solid_ml_tpl_items" ^ string_of_int id in
@@ -1540,12 +1702,13 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
       pexp_let ~loc Nonrecursive
         [ value_binding ~loc ~pat:(pvar ~loc slot_var) ~expr:bind_call ]
         acc
-    | `Nodes
-    | `Nodes_transition
-    | `Nodes_keyed
-    | `Nodes_indexed
-    | `Nodes_indexed_i
-    | `Nodes_indexed_accessors ->
+         | `Nodes
+         | `Nodes_transition
+         | `Nodes_show
+         | `Nodes_keyed
+         | `Nodes_indexed
+         | `Nodes_indexed_i
+         | `Nodes_indexed_accessors ->
       let slot_var = "__solid_ml_tpl_nodes" ^ string_of_int id in
       let bind_call =
         pexp_apply ~loc
@@ -2833,6 +2996,15 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                               [ (Nolabel, Ast_builder.Default.eunit ~loc:child_loc) ]
                           in
                           let render_call = compile_expr_force render_call in
+                          let render_call =
+                            Ast_builder.Default.pexp_apply ~loc:child_loc
+                              (Ast_builder.Default.pexp_ident ~loc:child_loc
+                                 { loc = child_loc; txt = Longident.parse "Effect.untrack" })
+                              [ (Nolabel,
+                                 Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
+                                   (Ast_builder.Default.punit ~loc:child_loc)
+                                   render_call) ]
+                          in
                           let portal_call =
                             let base =
                               Ast_builder.Default.pexp_apply ~loc:child_loc
@@ -2946,32 +3118,17 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                         | Some (when_, render) ->
                           has_dynamic := true;
                           let child_loc = child.pexp_loc in
-                          let when_call =
-                            Ast_builder.Default.pexp_apply ~loc:child_loc when_
-                              [ (Nolabel, Ast_builder.Default.eunit ~loc:child_loc) ]
-                          in
                           let render_call =
                             Ast_builder.Default.pexp_apply ~loc:child_loc render
                               [ (Nolabel, Ast_builder.Default.eunit ~loc:child_loc) ]
                           in
                           let render_call = compile_expr_force render_call in
-                          let empty_fragment =
-                            Ast_builder.Default.pexp_apply ~loc:child_loc
-                              (Ast_builder.Default.pexp_ident ~loc:child_loc
-                                 { loc = child_loc; txt = Longident.parse "Html.fragment" })
-                              [ ( Nolabel,
-                                  Ast_builder.Default.pexp_construct ~loc:child_loc
-                                    { loc = child_loc; txt = Longident.Lident "[]" }
-                                    None
-                                ) ]
-                          in
-                          let thunk =
+                          let render_thunk =
                             Ast_builder.Default.pexp_fun ~loc:child_loc Nolabel None
                               (Ast_builder.Default.punit ~loc:child_loc)
-                              (Ast_builder.Default.pexp_ifthenelse ~loc:child_loc when_call render_call
-                                 (Some empty_fragment))
+                              render_call
                           in
-                          parts_rev := Nodes_slot thunk :: !parts_rev;
+                          parts_rev := Nodes_show_slot { when_; render = render_thunk } :: !parts_rev;
                           true
                             | None ->
                               match extract_tpl_suspense ~aliases child with

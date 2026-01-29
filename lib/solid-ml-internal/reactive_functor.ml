@@ -1019,7 +1019,7 @@ module Make (B : Backend.S) = struct
     in
     let rt = get_runtime () in
     if rt.in_update then
-      push_effect rt comp
+      run_top comp
     else
       run_updates (fun () -> run_top comp) true
 
@@ -1040,7 +1040,7 @@ module Make (B : Backend.S) = struct
     on_cleanup (fun () -> !cleanup_ref ());
     let rt = get_runtime () in
     if rt.in_update then
-      push_effect rt comp
+      run_top comp
     else
       run_updates (fun () -> run_top comp) true
 

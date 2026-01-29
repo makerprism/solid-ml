@@ -46,12 +46,15 @@ module Env = struct
   module Effect = struct
     let create = Solid_ml.Effect.Unsafe.create
     let create_with_cleanup = Solid_ml.Effect.Unsafe.create_with_cleanup
+    let create_render_effect = Solid_ml.Effect.Unsafe.create_render_effect
+    let untrack = Solid_ml.Effect.Unsafe.untrack
   end
 
   module Owner = struct
     let on_cleanup = Solid_ml.Owner.on_cleanup
     let on_mount = Solid_ml.Owner.on_mount
     let run_with_root = Solid_ml.Owner.Unsafe.run_with_root
+    let run_with_owner _ fn = Solid_ml.Owner.run_with_owner None fn
   end
 
   module Suspense = Solid_ml.Suspense

@@ -257,6 +257,8 @@ module type TEMPLATE_ENV = sig
   module Effect : sig
     val create : (unit -> unit) -> unit
     val create_with_cleanup : (unit -> (unit -> unit)) -> unit
+    val create_render_effect : (unit -> unit) -> unit
+    val untrack : (unit -> 'a) -> 'a
   end
 
   module Owner : sig
@@ -264,6 +266,7 @@ module type TEMPLATE_ENV = sig
     val on_mount : (unit -> unit) -> unit
 
     val run_with_root : (unit -> 'a) -> 'a * (unit -> unit)
+    val run_with_owner : 'owner option -> (unit -> 'a) -> 'a
     (** Run a function under a fresh owner.
 
         Returns the function result and a disposer that cleans up any effects,

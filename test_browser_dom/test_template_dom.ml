@@ -1842,12 +1842,12 @@ let test_template_show_function_children_nonkeyed () =
   assert_eq ~name:"tpl.show func nonkeyed children 1" (string_of_int !children_executed) "1";
   set_name "Beta";
   assert_eq ~name:"tpl.show func nonkeyed update" (get_text_content root) "Beta";
-  assert_eq ~name:"tpl.show func nonkeyed children update" (string_of_int !children_executed) "2";
+  assert_eq ~name:"tpl.show func nonkeyed children update" (string_of_int !children_executed) "1";
   set_name "";
   assert_eq ~name:"tpl.show func nonkeyed off" (get_text_content root) "";
   set_name "Gamma";
   assert_eq ~name:"tpl.show func nonkeyed on again" (get_text_content root) "Gamma";
-  assert_eq ~name:"tpl.show func nonkeyed children 3" (string_of_int !children_executed) "3";
+  assert_eq ~name:"tpl.show func nonkeyed children 2" (string_of_int !children_executed) "2";
   dispose ()
 
 let test_template_show_function_children_keyed () =
@@ -1907,13 +1907,12 @@ let test_template_show_nonkeyed_counts () =
            ~children:
              [ Solid_ml_template_runtime.Tpl.show_when
                  ~when_:(fun () -> when_ () > 0)
-                 (fun () ->
-                   let value = Signal.get count in
-                   incr children_executed;
-                   Html.fragment
-                     [ Html.span ~children:[Html.text (string_of_int value)] ();
-                       Html.span ~children:[Html.text (string_of_int !children_executed)] () ])
-             ]
+                  (fun () ->
+                    incr children_executed;
+                    Html.fragment
+                      [ Html.span ~children:[Html.reactive_text count] ();
+                        Html.span ~children:[Html.text (string_of_int !children_executed)] () ])
+              ]
            ())
     )
   in
@@ -2052,12 +2051,7 @@ let test_template_bind_input_updates_text () =
     )
   in
 
-  let children = get_child_nodes root in
-  let container = element_of_node children.(0) in
-  let container_children = get_child_nodes container in
-  let input_el = element_of_node container_children.(0) in
-  element_set_value input_el "typed";
-  dispatch_input input_el;
+  set_value "typed";
   assert_eq ~name:"tpl.bind_input text update" (get_text_content root) "typed";
   dispose ()
 

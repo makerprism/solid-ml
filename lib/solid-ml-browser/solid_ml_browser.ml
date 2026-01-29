@@ -139,12 +139,15 @@ module Env = struct
   module Effect = struct
     let create = Reactive.Effect.create
     let create_with_cleanup = Reactive.Effect.create_with_cleanup
+    let create_render_effect = Reactive.Effect.create_render_effect
+    let untrack = Reactive.Effect.untrack
   end
 
   module Owner = struct
     let on_cleanup = Reactive.Owner.on_cleanup
     let on_mount = Reactive.Owner.on_mount
     let run_with_root = Reactive_core.run_with_root
+    let run_with_owner _ fn = Reactive_core.run_with_owner None fn
   end
 
   module Suspense = Suspense
