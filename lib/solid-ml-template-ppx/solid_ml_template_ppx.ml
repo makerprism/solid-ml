@@ -114,6 +114,89 @@ let collect_html_opens (structure : Parsetree.structure) : bool =
   iter#structure structure;
   !opened
 
+let structure_uses_unqualified_text (structure : Parsetree.structure) : bool =
+  let uses = ref false in
+  let rec head_ident = function
+    | { Parsetree.pexp_desc = Pexp_ident { txt = longident; _ }; _ } -> Some longident
+    | { Parsetree.pexp_desc = Pexp_apply (fn, _); _ } -> head_ident fn
+    | _ -> None
+  in
+  let iter =
+    object
+      inherit Ast_traverse.iter as super
+
+      method! expression expr =
+        (match expr.pexp_desc with
+         | Pexp_apply _ ->
+           (match head_ident expr with
+            | Some longident ->
+              (match longident_to_list longident with
+               | [ "text" ] -> uses := true
+               | _ -> ())
+            | None -> ())
+         | _ -> ());
+        super#expression expr
+    end
+  in
+  iter#structure structure;
+  !uses
+
+let contains_substring (s : string) (sub : string) : bool =
+  let len = String.length s in
+  let sub_len = String.length sub in
+  let rec loop idx =
+    if idx + sub_len > len then false
+    else if String.sub s idx sub_len = sub then true
+    else loop (idx + 1)
+  in
+  if sub_len = 0 then true else loop 0
+
+let warning_attr_includes_unused_open (attr : Parsetree.attribute) : bool =
+  if not (String.equal attr.attr_name.txt "warning") then false
+  else
+    match attr.attr_payload with
+    | PStr [ { pstr_desc = Pstr_eval ({ pexp_desc = Pexp_constant (Pconst_string (s, _, _)); _ }, _); _ } ] ->
+      contains_substring s "-33"
+    | _ -> false
+
+let add_unused_open_warning_to_html_opens (structure : Parsetree.structure) : Parsetree.structure =
+  let is_html_open (open_decl : Parsetree.open_declaration) : bool =
+    match open_decl.popen_expr.pmod_desc with
+    | Pmod_ident { txt = longident; _ } ->
+      (match List.rev (longident_to_list longident) with
+       | "Html" :: _ -> true
+       | _ -> false)
+    | _ -> false
+  in
+  let warning_attr ~loc =
+    let open Ast_builder.Default in
+    { attr_name = { loc; txt = "warning" };
+      attr_payload = PStr [ pstr_eval ~loc (estring ~loc "-33") [] ];
+      attr_loc = loc }
+  in
+  let mapper =
+    object
+      inherit Ast_traverse.map as super
+
+      method! structure_item item =
+        let item =
+          match item.pstr_desc with
+          | Pstr_open open_decl when is_html_open open_decl ->
+            let attrs = open_decl.popen_attributes in
+            if List.exists warning_attr_includes_unused_open attrs then item
+            else
+              let open_decl =
+                { open_decl with
+                  popen_attributes = warning_attr ~loc:open_decl.popen_loc :: attrs }
+              in
+              { item with pstr_desc = Pstr_open open_decl }
+          | _ -> item
+        in
+        super#structure_item item
+    end
+  in
+  mapper#structure structure
+
 let structure_defines_text (structure : Parsetree.structure) : bool =
   let defines = ref false in
   let rec has_text_pattern (pat : Parsetree.pattern) : bool =
@@ -2431,6 +2514,11 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
   let aliases = collect_tpl_aliases structure in
   let allow_unqualified_text = collect_html_opens structure in
   let shadowed_text = structure_defines_text structure in
+  let structure =
+    if allow_unqualified_text && (not shadowed_text) && structure_uses_unqualified_text structure then
+      add_unused_open_warning_to_html_opens structure
+    else structure
+  in
 
   let extract_static_prop = function
     | (Asttypes.Labelled "id", { pexp_desc = Pexp_constant (Pconst_string (s, _, _)); _ }) ->
