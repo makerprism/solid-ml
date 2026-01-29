@@ -380,7 +380,8 @@ let map_state f resource =
     
     The mapped resource updates when the source updates. *)
 let map f resource =
-  let state, set_state = Signal.create Loading in
+  let state, set_state_raw = Signal.create Loading in
+  let set_state s = ignore (set_state_raw s) in
   let id = !next_resource_id in
   incr next_resource_id;
 
@@ -420,7 +421,8 @@ let map_signal f resource =
     Note: the returned resource is read-only; its actions are no-ops
     except for refetch, which forwards to the sources. *)
 let combine r1 r2 =
-  let state, set_state = Signal.create Loading in
+  let state, set_state_raw = Signal.create Loading in
+  let set_state s = ignore (set_state_raw s) in
   let id = !next_resource_id in
   incr next_resource_id;
 
@@ -452,7 +454,8 @@ let combine r1 r2 =
     Note: the returned resource is read-only; its actions are no-ops
     except for refetch, which forwards to the sources. *)
 let combine_all resources =
-  let state, set_state = Signal.create Loading in
+  let state, set_state_raw = Signal.create Loading in
+  let set_state s = ignore (set_state_raw s) in
   let id = !next_resource_id in
   incr next_resource_id;
 
