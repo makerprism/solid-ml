@@ -29,6 +29,7 @@
 - Suspense now de-dups resource tracking by resource id.
 - Browser attribute name sanitization matches SSR (unsafe chars replaced with `_`).
 - Reactive text API renamed to `reactive_text*` (legacy aliases removed).
+- Template `Tpl.show_when` preserves mounted subtrees while `when_` stays truthy; use reactive text bindings inside the subtree for updates.
 
 ### Breaking (pre-release)
 - No releases yet; treat all changes as breaking until 1.0.
