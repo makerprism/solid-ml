@@ -27,7 +27,7 @@ let benchmark_signal_with_observers () =
       
       (* Update signal 1000 times *)
       for i = 1 to 1000 do
-        set_signal i
+        ignore (set_signal i)
       done
     )
   in

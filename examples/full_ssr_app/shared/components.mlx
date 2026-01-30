@@ -27,11 +27,11 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     let remove_first () =
       match Signal.get items with
       | [] -> ()
-      | _ :: rest -> set_items rest
+      | _ :: rest -> ignore (set_items rest)
     in
 
     let reverse () =
-      set_items (List.rev (Signal.get items))
+      ignore (set_items (List.rev (Signal.get items)))
     in
 
     <div>
@@ -67,15 +67,15 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       </div>
 
       <div class_="buttons">
-        <button class_="btn" onclick=(fun _ -> Signal.update count (fun n -> n - 1))>
+        <button class_="btn" onclick=(fun _ -> ignore (Signal.update count (fun n -> n - 1)))>
           (text "-")
         </button>
 
-        <button class_="btn" onclick=(fun _ -> Signal.update count (fun n -> n + 1))>
+        <button class_="btn" onclick=(fun _ -> ignore (Signal.update count (fun n -> n + 1)))>
           (text "+")
         </button>
 
-        <button class_="btn btn-secondary" onclick=(fun _ -> set_count initial)>
+        <button class_="btn btn-secondary" onclick=(fun _ -> ignore (set_count initial))>
           (text "Reset")
         </button>
       </div>
@@ -94,11 +94,12 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     let todos, set_todos = Signal.create initial_todos in
 
     let toggle_todo id =
-      set_todos
-        (List.map (fun todo ->
-           if todo.id = id then { todo with completed = not todo.completed }
-           else todo
-         ) (Signal.get todos))
+      ignore
+        (set_todos
+           (List.map (fun todo ->
+              if todo.id = id then { todo with completed = not todo.completed }
+              else todo
+            ) (Signal.get todos)))
     in
 
     <div class_="todo-list-container">

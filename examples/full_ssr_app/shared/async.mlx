@@ -86,32 +86,32 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
     (* Fetch next user with simulated loading state *)
     let fetch_next_user () =
-      set_loading true;
-      set_error_msg (Some "");
+      ignore (set_loading true);
+      ignore (set_error_msg (Some ""));
       (* SIMULATED async - in real code this would be an async operation *)
       let next_id = if (Signal.get user_id) >= 5 then 1 else (Signal.get user_id) + 1 in
       schedule ~delay_ms:600 (fun () ->
-        set_user_id next_id;
-        set_loading false
+        ignore (set_user_id next_id);
+        ignore (set_loading false)
       )
     in
 
     (* Fetch specific user by ID *)
     let fetch_user_by_id_input id_str =
-      set_loading true;
-      set_error_msg (Some "");
+      ignore (set_loading true);
+      ignore (set_error_msg (Some ""));
       (try
          let id = int_of_string id_str in
          schedule ~delay_ms:600 (fun () ->
-           set_user_id id;
-           set_loading false;
+           ignore (set_user_id id);
+           ignore (set_loading false);
            if fetch_user_by_id ~id = None then
-             set_error_msg (Some ("User not found: " ^ id_str))
+             ignore (set_error_msg (Some ("User not found: " ^ id_str)))
          )
        with
        | _ ->
-         set_error_msg (Some "Invalid ID");
-         set_loading false)
+         ignore (set_error_msg (Some "Invalid ID"));
+         ignore (set_loading false))
     in
 
     <div class_="async-container resource-demo">
@@ -217,7 +217,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
                     </button>
                     <button
                       class_="btn btn-secondary"
-                      onclick=(fun _ -> set_user_id 1; set_error_msg (Some ""))>
+                      onclick=(fun _ -> ignore (set_user_id 1); ignore (set_error_msg (Some "")))>
                       (text "Reset")
                     </button>
                   </div>
@@ -317,13 +317,13 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
           onclick=(fun _ ->
             let current_step = Signal.get step in
             if current_step < List.length steps_data then
-              set_step (current_step + 1)
+              ignore (set_step (current_step + 1))
           )>
           (text "Next Step")
         </button>
         <button
           class_="btn btn-secondary"
-          onclick=(fun _ -> set_step 0)>
+          onclick=(fun _ -> ignore (set_step 0))>
           (text "Reset")
         </button>
       </div>

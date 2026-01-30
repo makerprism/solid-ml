@@ -12,10 +12,10 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     let _remove_first () =
       match Signal.get items with
       | [] -> ()
-      | _ :: rest -> set_items rest
+      | _ :: rest -> ignore (set_items rest)
     in
 
-    let _reverse () = set_items (List.rev (Signal.get items)) in
+    let _reverse () = ignore (set_items (List.rev (Signal.get items))) in
 
     <div>
       <h2>(text "Template-Keyed Hydration")</h2>

@@ -16,11 +16,10 @@ module Signal = struct
   type 'a t = 'a Reactive_core.signal
   let get = Reactive_core.get_signal
   let set s v =
-    ignore (Reactive_core.set_signal s v);
-    v
+    Reactive_core.set_signal s v
   let create ?equals v = 
     let s = Reactive_core.create_signal ?equals v in
-    (s, fun v -> ignore (Reactive_core.set_signal s v); v)
+    (s, fun v -> Reactive_core.set_signal s v)
   let update s f = Reactive_core.update_signal s f
   let peek = Reactive_core.peek_signal
 end

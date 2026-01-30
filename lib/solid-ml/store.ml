@@ -22,7 +22,7 @@
 
 type 'a t = {
   value : 'a Signal.t;
-  set_value : 'a -> 'a;
+  set_value : 'a -> unit;
 }
 
 type ('a, 'b) setter = 'a t -> 'b -> unit
@@ -45,10 +45,10 @@ module Unsafe = struct
     Signal.Unsafe.peek store.value
 
   let set (store : 'a t) (value : 'a) : unit =
-    ignore (store.set_value value)
+    store.set_value value
 
   let update (store : 'a t) (fn : 'a -> 'a) : unit =
-    ignore (store.set_value (fn (Signal.Unsafe.get store.value)))
+    store.set_value (fn (Signal.Unsafe.get store.value))
 end
 
 (** {1 Reading} *)
@@ -62,10 +62,10 @@ let peek (store : 'a t) : 'a =
 (** {1 Updating} *)
 
 let set (store : 'a t) (value : 'a) : unit =
-  ignore (store.set_value value)
+  store.set_value value
 
 let update (store : 'a t) (fn : 'a -> 'a) : unit =
-  ignore (store.set_value (fn (Signal.get store.value)))
+  store.set_value (fn (Signal.get store.value))
 
 (** {1 Produce Utility} *)
 
@@ -78,5 +78,5 @@ let produce (fn : 'a -> unit) : ('a t -> 'a) =
 
 let reconcile (data : 'a) : ('a t -> 'a) =
   fun store ->
-    ignore (store.set_value data);
+    store.set_value data;
     data

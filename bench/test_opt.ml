@@ -11,7 +11,7 @@ let benchmark_optimization () =
     Solid_ml.Runtime.Unsafe.run (fun () ->
       let _, set_signal = Solid_ml.Signal.Unsafe.create "" in
       for i = 1 to 100000 do
-        set_signal (string_of_int i)
+        ignore (set_signal (string_of_int i))
       done
     )
   in
@@ -21,7 +21,7 @@ let benchmark_optimization () =
     Solid_ml.Runtime.Unsafe.run (fun () ->
       let _, set_signal = Solid_ml.Signal.Unsafe.create_physical "" in
       for i = 1 to 100000 do
-        set_signal (string_of_int i)
+        ignore (set_signal (string_of_int i))
       done
     )
   in

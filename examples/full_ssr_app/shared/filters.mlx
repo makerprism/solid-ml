@@ -88,24 +88,25 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     in
 
     let toggle_todo id =
-      set_todos
-        (List.map (fun todo ->
-           if todo.id = id then { todo with completed = not todo.completed }
-           else todo
-         ) (Signal.get todos))
+      ignore
+        (set_todos
+           (List.map (fun todo ->
+              if todo.id = id then { todo with completed = not todo.completed }
+              else todo
+            ) (Signal.get todos)))
     in
 
     <div class_="filters-container">
       <h1>(Html.text "Reactive Filters Demo")</h1>
 
       <div class_="filter-bar">
-        <button class_=(fun () -> filter_class All) onclick=(fun _ -> set_filter All)>
+        <button class_=(fun () -> filter_class All) onclick=(fun _ -> ignore (set_filter All))>
           (Html.text "All")
         </button>
-        <button class_=(fun () -> filter_class Active) onclick=(fun _ -> set_filter Active)>
+        <button class_=(fun () -> filter_class Active) onclick=(fun _ -> ignore (set_filter Active))>
           (Html.text "Active")
         </button>
-        <button class_=(fun () -> filter_class Completed) onclick=(fun _ -> set_filter Completed)>
+        <button class_=(fun () -> filter_class Completed) onclick=(fun _ -> ignore (set_filter Completed))>
           (Html.text "Completed")
         </button>
       </div>

@@ -32,7 +32,7 @@ let timer_component () =
 
     (* Start a timer that increments the counter every second *)
     let interval_id = Dom.set_interval (fun () ->
-      Reactive.Signal.update count (fun n -> n + 1)
+      ignore (Reactive.Signal.update count (fun n -> n + 1))
     ) 1000 in
 
     (* Return cleanup function - clears the timer *)
@@ -77,7 +77,7 @@ let resource_component () =
       h3 ~children:[text "Resource Cleanup Demo"] ();
       p ~children:[text "Click the button to add resources with cleanup handlers."] ();
       button
-        ~onclick:(fun _ -> add_resource ())
+        ~onclick:(fun _ -> ignore (add_resource ()))
         ~children:[text "Add Resource"]
         ();
       div ~class_:"messages" ~children:[

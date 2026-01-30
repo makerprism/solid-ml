@@ -86,7 +86,7 @@ let demonstrate_isolation () =
       Effect.Unsafe.create (fun () ->
         Printf.printf "[Domain 1] Signal value: %s\n" (Signal.get value)
       );
-      set_value "Domain 1 Updated";
+      ignore (set_value "Domain 1 Updated");
       Signal.get value
     )
   ) in
@@ -98,7 +98,7 @@ let demonstrate_isolation () =
       Effect.Unsafe.create (fun () ->
         Printf.printf "[Domain 2] Signal value: %s\n" (Signal.get value)
       );
-      set_value "Domain 2 Updated";
+      ignore (set_value "Domain 2 Updated");
       Signal.get value
     )
   ) in

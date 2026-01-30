@@ -198,18 +198,18 @@ let test_signal_with_function_value () =
   );
   print_endline "  PASSED"
 
-let test_signal_set_returns_argument () =
-  print_endline "Test: Set signal returns argument";
+let test_signal_set_updates_value () =
+  print_endline "Test: Set signal updates value";
   with_runtime (fun () ->
-    let _, set_value = Raw_signal.create (None : int option) in
-    let res1 = set_value None in
-    assert (res1 = None);
-    let res2 = set_value (Some 12) in
-    assert (res2 = Some 12);
-    let res3 = set_value (Some 12) in
-    assert (res3 = Some 12);
-    let res4 = set_value None in
-    assert (res4 = None)
+    let signal, set_value = Raw_signal.create (None : int option) in
+    set_value None;
+    assert (Raw_signal.get signal = None);
+    set_value (Some 12);
+    assert (Raw_signal.get signal = Some 12);
+    set_value (Some 12);
+    assert (Raw_signal.get signal = Some 12);
+    set_value None;
+    assert (Raw_signal.get signal = None)
   );
   print_endline "  PASSED"
 
@@ -1124,7 +1124,7 @@ let () =
   test_signal_set_different_value ();
   test_signal_set_equivalent_value ();
   test_signal_with_function_value ();
-  test_signal_set_returns_argument ();
+  test_signal_set_updates_value ();
   test_create_and_trigger_memo ();
   test_memo_not_triggered_on_equivalent_value ();
   test_create_and_trigger_memo_in_effect ();

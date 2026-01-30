@@ -35,8 +35,8 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     let skip_outer_click, set_skip_outer_click = Signal.create false in
 
     let cancel_edit () =
-      set_editing_id None;
-      set_draft ""
+      ignore (set_editing_id None);
+      ignore (set_draft "")
     in
 
     let save_edit () =
@@ -44,21 +44,22 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       | None -> ()
       | Some id ->
         let next_text = Signal.get draft in
-        set_items
-          (List.map (fun item ->
-             if item.id = id then { item with text = next_text } else item
-           ) (Signal.get items));
-        set_editing_id None;
-        set_draft ""
+        ignore
+          (set_items
+             (List.map (fun item ->
+                if item.id = id then { item with text = next_text } else item
+              ) (Signal.get items)));
+        ignore (set_editing_id None);
+        ignore (set_draft "")
     in
 
     let start_edit item =
       (match Signal.get editing_id with
        | Some current_id when current_id <> item.id -> save_edit ()
        | _ -> ());
-      set_editing_id (Some item.id);
-      set_draft item.text;
-      set_skip_outer_click true
+      ignore (set_editing_id (Some item.id));
+      ignore (set_draft item.text);
+      ignore (set_skip_outer_click true)
     in
 
     let view_items () =
@@ -75,7 +76,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
     let handle_outer_click () =
       if Signal.get skip_outer_click then
-        set_skip_outer_click false
+        ignore (set_skip_outer_click false)
       else
         match Signal.get editing_id with
         | None -> ()
@@ -99,7 +100,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
                 (Tpl.show_when
                    ~when_:(fun () -> view_item.is_editing)
                    (fun () ->
-                      <div class_="edit-controls" onclick=(fun _ -> set_skip_outer_click true)>
+                      <div class_="edit-controls" onclick=(fun _ -> ignore (set_skip_outer_click true))>
                         <input
                           type_="text"
                           class_="edit-input"
@@ -119,7 +120,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
                 (Tpl.show_when
                    ~when_:(fun () -> not view_item.is_editing)
                    (fun () ->
-                      <div class_="view-controls" onclick=(fun _ -> set_skip_outer_click true)>
+                      <div class_="view-controls" onclick=(fun _ -> ignore (set_skip_outer_click true))>
                         <span class_="item-text">(Tpl.text_once (fun () -> item.text))</span>
                         <button class_="btn-edit" onclick=(fun _ -> start_edit item)>
                           (Html.text "Edit")

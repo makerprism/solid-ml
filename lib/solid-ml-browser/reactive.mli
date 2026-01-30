@@ -11,10 +11,10 @@
 
 module Signal : sig
   type 'a t = 'a Reactive_core.signal
-  val create : ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> 'a)
+  val create : ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
   val get : 'a t -> 'a
-  val set : 'a t -> 'a -> 'a
-  val update : 'a t -> ('a -> 'a) -> 'a
+  val set : 'a t -> 'a -> unit
+  val update : 'a t -> ('a -> 'a) -> unit
   val peek : 'a t -> 'a
 end
 

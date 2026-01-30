@@ -6,8 +6,8 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     let count, set_count = Signal.create initial in
     let status, set_status = Signal.create "Waiting for hydration..." in
     let bump delta label =
-      Signal.update count (fun n -> n + delta);
-      set_status label
+      ignore (Signal.update count (fun n -> n + delta));
+      ignore (set_status label)
     in
 
     <main class_="app">
@@ -26,7 +26,7 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
           <button id="increment" class_="btn" onclick=(fun _ -> bump 1 "Incremented")>
             (Html.text "+")
           </button>
-          <button id="reset" class_="btn" onclick=(fun _ -> set_count initial; set_status "Reset to initial")>
+          <button id="reset" class_="btn" onclick=(fun _ -> ignore (set_count initial); ignore (set_status "Reset to initial"))>
             (Html.text "Reset")
           </button>
         </div>

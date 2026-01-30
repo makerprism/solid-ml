@@ -50,13 +50,13 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV)
       </div>
 
       <div class_="buttons">
-        <button class_="btn" onclick=(fun _ -> Signal.update count (fun n -> n - 1))>
+        <button class_="btn" onclick=(fun _ -> ignore (Signal.update count (fun n -> n - 1)))>
           (text "-")
         </button>
-        <button class_="btn" onclick=(fun _ -> Signal.update count (fun n -> n + 1))>
+        <button class_="btn" onclick=(fun _ -> ignore (Signal.update count (fun n -> n + 1)))>
           (text "+")
         </button>
-        <button class_="btn btn-secondary" onclick=(fun _ -> set_count 0)>
+        <button class_="btn btn-secondary" onclick=(fun _ -> ignore (set_count 0))>
           (text "Reset")
         </button>
       </div>

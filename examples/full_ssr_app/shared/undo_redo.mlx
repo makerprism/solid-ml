@@ -250,7 +250,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
             class_="btn"
             onclick=(fun _ ->
               let cmd = AddText "Hello" in
-              set_history (execute (Signal.get history) cmd)
+              ignore (set_history (execute (Signal.get history) cmd))
             )>
             (Html.text "Add 'Hello'")
           </button>
@@ -258,7 +258,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
             class_="btn"
             onclick=(fun _ ->
               let cmd = AddText "World" in
-              set_history (execute (Signal.get history) cmd)
+              ignore (set_history (execute (Signal.get history) cmd))
             )>
             (Html.text "Add 'World'")
           </button>
@@ -266,7 +266,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
             class_="btn"
             onclick=(fun _ ->
               let cmd = AddText ("Item " ^ string_of_int (List.length (present_texts ()) + 1)) in
-              set_history (execute (Signal.get history) cmd)
+              ignore (set_history (execute (Signal.get history) cmd))
             )>
             (Html.text "Add Item")
           </button>
@@ -285,7 +285,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
               | [] -> ()
               | first :: _ ->
                   let cmd = Replace {index = 0; old_text = first; new_text = "UPDATED"} in
-                  set_history (execute (Signal.get history) cmd)
+                  ignore (set_history (execute (Signal.get history) cmd))
             )>
             (Html.text "Replace First")
           </button>
@@ -299,7 +299,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
               | [] -> ()
               | last :: _ ->
                 let cmd = RemoveLast last in
-                set_history (execute (Signal.get history) cmd)
+                ignore (set_history (execute (Signal.get history) cmd))
             )>
             (Html.text "Remove Last")
           </button>
@@ -310,7 +310,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
               (fun () -> if can_modify () then None else Some ""))
             onclick=(fun _ ->
               let cmd = Clear (present_texts ()) in
-              set_history (execute (Signal.get history) cmd)
+              ignore (set_history (execute (Signal.get history) cmd))
             )>
             (Html.text "Clear All")
           </button>
@@ -324,7 +324,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
               ~name:"disabled"
               (fun () -> if can_undo () then None else Some ""))
             onclick=(fun _ ->
-              set_history (undo (Signal.get history))
+              ignore (set_history (undo (Signal.get history)))
             )>
             (Html.text "Undo")
           </button>
@@ -334,7 +334,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
               ~name:"disabled"
               (fun () -> if can_redo () then None else Some ""))
             onclick=(fun _ ->
-              set_history (redo (Signal.get history))
+              ignore (set_history (redo (Signal.get history)))
             )>
             (Html.text "Redo")
           </button>

@@ -29,22 +29,20 @@
  (name solid-ml-internal)
  (synopsis "Internal reactive primitives for solid-ml (do not use directly)")
  (description "Functor-based reactive internals shared between server and browser. Use solid-ml or solid-ml-browser instead.")
- (depends
-  (ocaml (>= 4.14.0))
-  (dune (>= 3.20))
-  (dune (< 3.21))))
+  (depends
+   (ocaml (>= 4.14.0))
+   (dune (< 3.21))))
 
 ; Server-side reactive framework
 (package
  (name solid-ml)
  (synopsis "Reactive web framework for OCaml (server-side)")
  (description "Fine-grained reactivity with signals, effects, and memos. Server-side with Domain-local storage for thread safety. Inspired by SolidJS.")
- (depends
-  (ocaml (>= 5.0.0))
-  (solid-ml-internal (= :version))
-  (solid-ml-template-runtime (= :version))
-  (dune (>= 3.20))
-  (dune (< 3.21))))
+  (depends
+   (ocaml (>= 5.0.0))
+   (solid-ml-internal (= :version))
+   (solid-ml-template-runtime (= :version))
+   (dune (< 3.21))))
 
 ; Server-side rendering
 (package
@@ -52,11 +50,10 @@
  (synopsis "Server-side rendering for solid-ml")
  (description "Render solid-ml components to HTML strings for SSR.")
  (allow_empty)
- (depends
-  (ocaml (>= 4.14.0))
-  (solid-ml (= :version))
-  (dune (>= 3.20))
-  (dune (< 3.21))))
+  (depends
+   (ocaml (>= 4.14.0))
+   (solid-ml (= :version))
+   (dune (< 3.21))))
 
 ; Browser-side reactive framework (Melange)
 (package
@@ -64,13 +61,12 @@
  (synopsis "Reactive web framework for OCaml (browser-side)")
  (description "Fine-grained reactivity with signals, effects, and memos. Browser-side via Melange. Inspired by SolidJS.")
  (allow_empty)
- (depends
-  (ocaml (>= 4.14.0))
-  (solid-ml-internal (= :version))
-  (solid-ml-template-runtime (= :version))
-  (melange (>= 3.0.0))
-  (dune (>= 3.20))
-  (dune (< 3.21))))
+  (depends
+   (ocaml (>= 4.14.0))
+   (solid-ml-internal (= :version))
+   (solid-ml-template-runtime (= :version))
+   (melange (>= 3.0.0))
+   (dune (< 3.21))))
 
 ; Router (SSR-aware)
 (package
@@ -78,12 +74,11 @@
  (synopsis "SSR-aware routing for solid-ml")
  (description "Routing with server-side data loaders and client-side navigation.")
  (allow_empty)
- (depends
-  (ocaml (>= 4.14.0))
-  (solid-ml (= :version))
-  (solid-ml-ssr (= :version))
-  (dune (>= 3.20))
-  (dune (< 3.21))))
+  (depends
+   (ocaml (>= 4.14.0))
+   (solid-ml (= :version))
+   (solid-ml-ssr (= :version))
+   (dune (< 3.21))))
 
 ; Template runtime interfaces (shared)
 (package
@@ -91,10 +86,9 @@
  (synopsis "Template runtime interfaces for solid-ml")
  (description "Shared runtime interfaces and types for SolidJS-style template compilation.")
  (allow_empty)
- (depends
-  (ocaml (>= 4.14.0))
-  (dune (>= 3.20))
-  (dune (< 3.21))))
+  (depends
+   (ocaml (>= 4.14.0))
+   (dune (< 3.21))))
 
 ; Template compiler PPX (build-time)
 (package
@@ -102,10 +96,8 @@
  (synopsis "Template compiler PPX for solid-ml")
  (description "PPX rewriter for SolidJS-style template compilation targeting solid-ml Html backends.")
  (allow_empty)
- (depends
-   (ocaml (>= 4.14.0))
-   (ppxlib (>= 0.27.0))
-   (mlx (>= 0.11))
-   (dune (>= 3.20))
-  (dune (< 3.21))))
-
+  (depends
+    (ocaml (>= 4.14.0))
+    (ppxlib (>= 0.27.0))
+    (mlx (>= 0.11))
+   (dune (< 3.21))))

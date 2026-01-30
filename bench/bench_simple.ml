@@ -18,7 +18,7 @@ let benchmark_signal_updates () =
     Solid_ml.Runtime.Unsafe.run (fun () ->
       let _, set_signal = Solid_ml.Signal.Unsafe.create 0 in
       for i = 1 to 10000 do
-        set_signal i
+        ignore (set_signal i)
       done
     )
   in
@@ -49,7 +49,7 @@ let benchmark_memo_chains () =
       
       (* Update root signal and run chain 100 times *)
       for i = 1 to 100 do
-        set_root i;
+        ignore (set_root i);
         ignore (chain_fn ())
       done
     )

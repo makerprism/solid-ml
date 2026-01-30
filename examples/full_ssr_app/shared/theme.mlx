@@ -251,7 +251,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     (* Create reactive theme signal *)
     let theme, set_theme_raw = Signal.create initial_theme in
     let set_theme t =
-      set_theme_raw t;
+      ignore (set_theme_raw t);
       match on_theme_change with
       | None -> ()
       | Some f -> f t

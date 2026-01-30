@@ -19,10 +19,10 @@
 module type SIGNAL = sig
   type 'a t
 
-  val create : ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> 'a)
+  val create : ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
   val get : 'a t -> 'a
   val peek : 'a t -> 'a
-  val update : 'a t -> ('a -> 'a) -> 'a
+  val update : 'a t -> ('a -> 'a) -> unit
 end
 
 module type HTML = sig

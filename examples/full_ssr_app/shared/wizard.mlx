@@ -183,7 +183,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
            ~when_:(fun () -> Signal.get current_step <> Intro)
            (fun () ->
               <button class_="btn btn-secondary" onclick=(fun _ ->
-                set_step (prev_step (Signal.get current_step))
+                ignore (set_step (prev_step (Signal.get current_step)))
               )>
                 (Html.text "Back")
               </button>
@@ -192,7 +192,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
            ~when_:(fun () -> Signal.get current_step <> Review)
            (fun () ->
               <button class_="btn btn-primary" onclick=(fun _ ->
-                set_step (next_step (Signal.get current_step))
+                ignore (set_step (next_step (Signal.get current_step)))
               )>
                 (Html.text "Next")
               </button>
@@ -201,7 +201,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
            ~when_:(fun () -> Signal.get current_step = Review)
            (fun () ->
               <button class_="btn btn-primary" onclick=(fun _ ->
-                set_step Intro
+                ignore (set_step Intro)
               )>
                 (Html.text "Restart")
               </button>

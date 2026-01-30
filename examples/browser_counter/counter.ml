@@ -36,17 +36,17 @@ let counter () =
       div ~class_:"buttons" ~children:[
         button 
           ~class_:"btn" 
-          ~onclick:(fun _ -> Reactive.Signal.update count (fun n -> n - 1))
+          ~onclick:(fun _ -> ignore (Reactive.Signal.update count (fun n -> n - 1)))
           ~children:[text "-"] 
           ();
         button 
           ~class_:"btn" 
-          ~onclick:(fun _ -> Reactive.Signal.update count (fun n -> n + 1))
+          ~onclick:(fun _ -> ignore (Reactive.Signal.update count (fun n -> n + 1)))
           ~children:[text "+"] 
           ();
         button 
           ~class_:"btn btn-reset" 
-          ~onclick:(fun _ -> set_count 0)
+          ~onclick:(fun _ -> ignore (set_count 0))
           ~children:[text "Reset"] 
           ();
       ] ();
@@ -74,24 +74,26 @@ let todo_list () =
     if String.length text > 0 then begin
       let id = !next_id in
       incr next_id;
-      Reactive.Signal.update todos (fun ts -> ts @ [{ id; text; completed = false }]);
-      set_new_todo_text ""
+      ignore (Reactive.Signal.update todos (fun ts -> ts @ [{ id; text; completed = false }]));
+      ignore (set_new_todo_text "")
     end
   in
   
   let toggle_todo id =
-    Reactive.Signal.update todos (fun ts ->
-      List.map (fun t ->
-        if t.id = id then { t with completed = not t.completed }
-        else t
-      ) ts
-    )
+    ignore
+      (Reactive.Signal.update todos (fun ts ->
+         List.map (fun t ->
+           if t.id = id then { t with completed = not t.completed }
+           else t
+         ) ts
+       ))
   in
   
   let remove_todo id =
-    Reactive.Signal.update todos (fun ts ->
-      List.filter (fun t -> t.id <> id) ts
-    )
+    ignore
+      (Reactive.Signal.update todos (fun ts ->
+         List.filter (fun t -> t.id <> id) ts
+       ))
   in
   
   let incomplete_count = Reactive.Memo.create (fun () ->

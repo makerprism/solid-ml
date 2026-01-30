@@ -33,11 +33,11 @@ type 'a t = 'a Reactive.signal
     
     {[
       let count, set_count = Signal.create 0
-      ignore (set_count 0)  (* No update - same value (physical) *)
-      ignore (set_count 1)  (* Updates and notifies *)
+      set_count 0  (* No update - same value (physical) *)
+      set_count 1  (* Updates and notifies *)
     ]}
 *)
-val create : ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> 'a)
+val create : ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
 
 (** Create a signal with a custom equality function.
     
@@ -48,7 +48,7 @@ val create : ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> 'a)
           []
     ]}
 *)
-val create_eq : equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> 'a)
+val create_eq : equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
 
 (** Create a signal using physical equality [(==)] for comparisons.
     
@@ -60,7 +60,7 @@ val create_eq : equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> 'a)
       let buffer, set_buffer = Signal.create_physical (Bytes.create 1024)
     ]}
 *)
-val create_physical : 'a -> 'a t * ('a -> 'a)
+val create_physical : 'a -> 'a t * ('a -> unit)
 
 (** Read the current value of a signal.
     If called inside an effect or memo, registers a dependency.
@@ -82,13 +82,12 @@ val peek : 'a t -> 'a
 
 (** Set a new value for the signal.
     Notifies all dependents if the value changed (according to equals).
-    Returns the value that was set.
     
     {[
-      ignore (Signal.set count 42)
+      Signal.set count 42
     ]}
 *)
-val set : 'a t -> 'a -> 'a
+val set : 'a t -> 'a -> unit
 
 (** Update the signal based on its current value.
     
@@ -96,7 +95,7 @@ val set : 'a t -> 'a -> 'a
       Signal.update count (fun n -> n + 1)
     ]}
 *)
-val update : 'a t -> ('a -> 'a) -> 'a
+val update : 'a t -> ('a -> 'a) -> unit
 
 (** {2 Advanced API} *)
 
@@ -106,12 +105,12 @@ val subscribe : 'a t -> (unit -> unit) -> (unit -> unit)
 
 module Unsafe : sig
   type 'a t = 'a Reactive.signal
-  val create : ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> 'a)
-  val create_eq : equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> 'a)
-  val create_physical : 'a -> 'a t * ('a -> 'a)
+  val create : ?equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
+  val create_eq : equals:('a -> 'a -> bool) -> 'a -> 'a t * ('a -> unit)
+  val create_physical : 'a -> 'a t * ('a -> unit)
   val get : 'a t -> 'a
   val peek : 'a t -> 'a
-  val set : 'a t -> 'a -> 'a
-  val update : 'a t -> ('a -> 'a) -> 'a
+  val set : 'a t -> 'a -> unit
+  val update : 'a t -> ('a -> 'a) -> unit
   val subscribe : 'a t -> (unit -> unit) -> (unit -> unit)
 end
