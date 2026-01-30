@@ -253,8 +253,6 @@ help:
 	@echo " make serve               - Build and serve browser examples"
 	@echo " make browser-examples    - Build all browser examples"
 	@echo ""
-	@echo "Full SSR (requires dream + cohttp-lwt-unix, or Docker):"
-	@echo ""
 	@echo "Browser tests (requires Chrome):"
 	@echo " make browser-tests       - Run browser tests (Node-only)"
 	@echo " make browser-tests-headless - Run browser DOM tests (headless Chrome)"
