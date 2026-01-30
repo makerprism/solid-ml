@@ -257,5 +257,3 @@ help:
 	@echo " make browser-tests       - Run browser tests (Node-only)"
 	@echo " make browser-tests-headless - Run browser DOM tests (headless Chrome)"
 	@echo ""
-	@echo "Installation:"
-	@echo "  opam install solid-ml solid-ml-ssr solid-ml-router"
