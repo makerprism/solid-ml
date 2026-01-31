@@ -37,6 +37,35 @@ let () =
   )
 ```
 
+## Install (Dune package management)
+
+Add one of the following to your project's `dune-project`:
+
+```lisp
+; Full stack + MLX (umbrella)
+(depends
+ (solid-ml (>= 0.1.0)))
+```
+
+```lisp
+; Server-only
+(depends
+ (solid-ml-server (>= 0.1.0))
+ (solid-ml-ssr (>= 0.1.0)))
+```
+
+```lisp
+; Browser-only
+(depends
+ (solid-ml-browser (>= 0.1.0)))
+```
+
+```lisp
+; Routing (SSR-aware)
+(depends
+ (solid-ml-router (>= 0.1.0)))
+```
+
 ## Core API
 
 ### Runtime Context

@@ -1,7 +1,8 @@
 # MLX Guide
 
 MLX provides JSX-like syntax for solid-ml-server components. Use it when you want
-cleaner templates without giving up the OCaml HTML DSL.
+cleaner templates without giving up the OCaml HTML DSL. The `solid-ml` umbrella
+package includes MLX by default.
 
 ## Setup
 
