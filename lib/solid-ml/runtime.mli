@@ -35,7 +35,7 @@ type t = Reactive.runtime
 (** An owner node in the reactive tree (opaque) *)
 type owner = Reactive.owner
 
-(** Get the current runtime. Creates one if none active. *)
+(** Get the current runtime. Raises if none is active. *)
 val get_current : unit -> t
 
 (** Get the current runtime if any *)

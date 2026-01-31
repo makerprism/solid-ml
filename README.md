@@ -41,15 +41,9 @@ let () =
 
 ### Runtime Context
 
-Reactive primitives follow SolidJS semantics: they can be called anywhere and
-bind to the current owner/runtime if present. If no runtime is active, solid-ml
-creates a per-domain runtime implicitly. This makes top-level usage ergonomic,
-but for server-side code you should still wrap each request in `Runtime.run`
-to keep reactive state isolated.
-
-**Behavior change:** implicit runtime creation means top-level signals/effects
-persist for the life of the domain. On servers, always use `Runtime.run` per
-request to avoid cross-request state.
+Reactive primitives bind to the current owner/runtime if present. On the server,
+solid-ml does not create an implicit runtime: you must call `Runtime.run` per
+request (or use SSR helpers that do it for you) to keep state isolated.
 
 ```ocaml
 (* Create isolated reactive context (recommended for SSR per-request) *)
@@ -157,7 +151,7 @@ Context.provide theme_context "dark" (fun () ->
 
 ### Router (SSR-aware)
 
-Router lives in `solid-ml-router` with SSR-aware components and loaders. See `examples/README.md` for runnable demos.
+Router lives in `solid-ml-router` with SSR-aware components and loaders. See [examples/README.md](examples/README.md) for runnable demos.
 
 ## Building
 
@@ -176,10 +170,27 @@ dune runtest
 - **For browser builds:** Node.js (for esbuild bundling)
 - **For web server examples:** Dream (not included - see examples for reference code)
 
+## SolidJS Notes
+
+Similarities:
+- Signals/effects/memos with automatic dependency tracking
+- Batch updates via `Batch.run`
+- Suspense boundaries and error boundaries
+
+Differences:
+- Effects run synchronously by default (browser can opt into microtask deferral)
+- Memos use structural equality by default (override with `~equals`)
+- No concurrent rendering or transitions
+- solid-ml browser can create an implicit runtime; solid-ml server requires `Runtime.run` per request. SolidJS SSR creates a new root per render/request.
+
+Practical guidance:
+- For server code, always create a runtime per request using `Runtime.run`, or use SSR helpers like `Solid_ml_ssr.Render.to_string`/`to_document` which create and dispose a runtime for you.
+- Avoid creating signals at top level in server code; they now raise because no runtime is active.
+
 ## Docs
 
-- `CHANGELOG.md` - Release notes and breaking changes
-- `LIMITATIONS.md` - Concise list of real constraints
-- `docs/guide-mlx.md` - MLX syntax and template PPX setup
-- `docs/guide-ssr-hydration.md` - SSR, hydration, and state transfer
-- `examples/README.md` - Example index and build commands
+- [CHANGELOG.md](CHANGELOG.md) - Release notes and breaking changes
+- [LIMITATIONS.md](LIMITATIONS.md) - Concise list of real constraints
+- [docs/guide-mlx.md](docs/guide-mlx.md) - MLX syntax and template PPX setup
+- [docs/guide-ssr-hydration.md](docs/guide-ssr-hydration.md) - SSR, hydration, and state transfer
+- [examples/README.md](examples/README.md) - Example index and build commands

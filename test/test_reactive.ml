@@ -48,6 +48,32 @@ let with_runtime fn =
 
 let ignore_set set v = ignore (set v)
 
+let test_requires_runtime () =
+  print_endline "Test: Runtime required on server";
+  assert (Solid_ml.Runtime.get_current_opt () = None);
+  let raised = ref false in
+  (try
+     let _ = Solid_ml.Signal.create 0 in
+     ()
+   with Solid_ml_internal.Types.No_runtime _ ->
+     raised := true);
+  assert !raised;
+  let raised_effect = ref false in
+  (try
+     Solid_ml.Effect.create (fun () -> ());
+     ()
+   with Solid_ml_internal.Types.No_runtime _ ->
+     raised_effect := true);
+  assert !raised_effect;
+  let raised_memo = ref false in
+  (try
+     let _ = Solid_ml.Memo.create (fun () -> 1) in
+     ()
+   with Solid_ml_internal.Types.No_runtime _ ->
+     raised_memo := true);
+  assert !raised_memo;
+  print_endline "  PASSED"
+
 (* ============ Signal Tests ============ *)
 
 let test_signal_basic () =
@@ -831,6 +857,7 @@ let () =
   print_endline "\n-- Integration Tests --";
   test_diamond_dependency ();
   test_effect_with_memo ();
+  test_requires_runtime ();
   test_runtime_isolation ();
   test_domain_parallelism ();
   

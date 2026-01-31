@@ -281,9 +281,9 @@ let count_substring (s : string) (needle : string) : int =
 
 let () =
   print_endline "Test: Template PPX compiles Tpl.text (non-MLX)";
-  let name, _set_name = Solid_ml_ssr.Env.Signal.create "World" in
   let html =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let name, _set_name = Solid_ml_ssr.Env.Signal.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div ~name ())
   in
@@ -291,6 +291,7 @@ let () =
 
   let html_props =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let name, _set_name = Solid_ml_ssr.Env.Signal.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_props ~name ())
   in
@@ -298,6 +299,7 @@ let () =
 
   let html_span =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let name, _set_name = Solid_ml_ssr.Env.Signal.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_span ~name ())
   in
@@ -305,6 +307,7 @@ let () =
 
   let html_p =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let name, _set_name = Solid_ml_ssr.Env.Signal.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p ~name ())
   in
@@ -312,6 +315,7 @@ let () =
 
   let html_p_static =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let name, _set_name = Solid_ml_ssr.Env.Signal.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_static ~name ())
   in
@@ -320,6 +324,7 @@ let () =
 
   let html_p_formatting =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let name, _set_name = Solid_ml_ssr.Env.Signal.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_formatting ~name ())
   in
@@ -327,6 +332,7 @@ let () =
 
   let html_p_space =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let name, _set_name = Solid_ml_ssr.Env.Signal.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_space ~name ())
   in
@@ -334,6 +340,7 @@ let () =
 
   let html_p_double_space =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let name, _set_name = Solid_ml_ssr.Env.Signal.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_double_space ~name ())
   in
@@ -341,6 +348,7 @@ let () =
 
   let html_p_tab_formatting =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let name, _set_name = Solid_ml_ssr.Env.Signal.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_tab_formatting ~name ())
   in
@@ -348,6 +356,7 @@ let () =
 
   let html_pre_formatting =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let name, _set_name = Solid_ml_ssr.Env.Signal.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_pre_formatting ~name ())
   in
@@ -355,33 +364,34 @@ let () =
 
   let html_code_formatting =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let name, _set_name = Solid_ml_ssr.Env.Signal.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_code_formatting ~name ())
   in
   assert (html_code_formatting = "<code>\n  <!--#-->World<!--#-->\n</code>");
 
-  let first, _set_first = Solid_ml_ssr.Env.Signal.create "Ada" in
-  let last, _set_last = Solid_ml_ssr.Env.Signal.create "Lovelace" in
   let html_p_two =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let first, _set_first = Solid_ml_ssr.Env.Signal.create "Ada" in
+      let last, _set_last = Solid_ml_ssr.Env.Signal.create "Lovelace" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_two_slots ~first ~last ())
   in
   assert (html_p_two = "<p>Hello <!--#-->Ada<!--#-->, <!--#-->Lovelace<!--#-->!</p>");
   assert (count_substring html_p_two "<!--#-->" = 4);
 
-  let href, _set_href = Solid_ml_ssr.Env.Signal.create "/a" in
-  let label, _set_label = Solid_ml_ssr.Env.Signal.create "Link" in
   let html_nested =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let href, _set_href = Solid_ml_ssr.Env.Signal.create "/a" in
+      let label, _set_label = Solid_ml_ssr.Env.Signal.create "Link" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_nested_formatting ~href ~label ())
   in
   assert (html_nested = "<div><a href=\"/a\"><!--#-->Link<!--#--></a></div>");
 
-  let flag, _set_flag = Solid_ml_ssr.Env.Signal.create true in
   let html_cond_true =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let flag, _set_flag = Solid_ml_ssr.Env.Signal.create true in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_conditional ~flag ())
   in
@@ -389,31 +399,32 @@ let () =
 
   let html_if_true =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let flag, _set_flag = Solid_ml_ssr.Env.Signal.create true in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_if ~flag ())
   in
   assert (html_if_true = "<div><!--$-->A<!--$--></div>");
 
-  let flag_false, _set_flag_false = Solid_ml_ssr.Env.Signal.create false in
   let html_if_false =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let flag_false, _set_flag_false = Solid_ml_ssr.Env.Signal.create false in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_if ~flag:flag_false ())
   in
   assert (html_if_false = "<div><!--$-->B<!--$--></div>");
 
-  let step, _set_step = Solid_ml_ssr.Env.Signal.create 2 in
   let html_switch =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let step, _set_step = Solid_ml_ssr.Env.Signal.create 2 in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_switch ~step ())
   in
   assert (html_switch = "<div><!--$-->Two<!--$--></div>");
 
-  let flag_a, _set_flag_a = Solid_ml_ssr.Env.Signal.create true in
-  let flag_b, _set_flag_b = Solid_ml_ssr.Env.Signal.create true in
   let html_adjacent_show =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let flag_a, _set_flag_a = Solid_ml_ssr.Env.Signal.create true in
+      let flag_b, _set_flag_b = Solid_ml_ssr.Env.Signal.create true in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_adjacent_show ~first:flag_a ~second:flag_b ())
   in
@@ -426,9 +437,9 @@ let () =
   in
   assert (html_adjacent_nodes = "<div><!--$-->A<!--$--><!--$-->B<!--$--></div>");
 
-  let items, _set_items = Solid_ml_ssr.Env.Signal.create [ "a"; "b" ] in
   let html_each =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let items, _set_items = Solid_ml_ssr.Env.Signal.create [ "a"; "b" ] in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_each ~items ())
   in
@@ -438,9 +449,9 @@ let () =
   if html_each <> expected_each then
     failwith ("each mismatch: " ^ html_each);
 
-  let items_i, _set_items_i = Solid_ml_ssr.Env.Signal.create [ "x"; "y" ] in
   let html_eachi =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let items_i, _set_items_i = Solid_ml_ssr.Env.Signal.create [ "x"; "y" ] in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_eachi ~items:items_i ())
   in
@@ -450,9 +461,9 @@ let () =
   if html_eachi <> expected_eachi then
     failwith ("eachi mismatch: " ^ html_eachi);
 
-  let items_idx, _set_items_idx = Solid_ml_ssr.Env.Signal.create [ "u"; "v" ] in
   let html_each_indexed =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let items_idx, _set_items_idx = Solid_ml_ssr.Env.Signal.create [ "u"; "v" ] in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_each_indexed ~items:items_idx ())
   in
@@ -462,9 +473,9 @@ let () =
   if html_each_indexed <> expected_each_indexed then
     failwith ("each_indexed mismatch: " ^ html_each_indexed);
 
-  let styles, _set_styles = Solid_ml_ssr.Env.Signal.create [ ("color", Some "red") ] in
   let html_style =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let styles, _set_styles = Solid_ml_ssr.Env.Signal.create [ ("color", Some "red") ] in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_style ~styles ())
   in
@@ -473,25 +484,25 @@ let () =
   let spread_value =
     Solid_ml_template_runtime.Spread.attrs [ ("data-x", Some "1") ]
   in
-  let spread, _set_spread = Solid_ml_ssr.Env.Signal.create spread_value in
   let html_spread =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let spread, _set_spread = Solid_ml_ssr.Env.Signal.create spread_value in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_spread ~spread ())
   in
   assert (html_spread = "<div data-x=\"1\">Spread</div>");
 
-  let flag_true, _set_flag_true = Solid_ml_ssr.Env.Signal.create true in
   let html_dynamic_true =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let flag_true, _set_flag_true = Solid_ml_ssr.Env.Signal.create true in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_dynamic ~flag:flag_true ())
   in
   assert (html_dynamic_true = "<div><!--$--><span><!--#-->Hi<!--#--></span><!--$--></div>");
 
-  let flag_false, _set_flag_false = Solid_ml_ssr.Env.Signal.create false in
   let html_dynamic_false =
     Solid_ml_ssr.Render.to_string (fun () ->
+      let flag_false, _set_flag_false = Solid_ml_ssr.Env.Signal.create false in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_dynamic ~flag:flag_false ())
   in

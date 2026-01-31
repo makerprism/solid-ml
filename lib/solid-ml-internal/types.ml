@@ -9,6 +9,9 @@
 
 (** {1 Computation State} *)
 
+(** Raised when a reactive API is used without an active runtime. *)
+exception No_runtime of string
+
 type computation_state = 
   | Clean   (** Up-to-date, no recomputation needed *)
   | Stale   (** Definitely needs recomputation *)

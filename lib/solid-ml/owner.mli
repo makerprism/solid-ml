@@ -34,7 +34,7 @@ type t = Reactive.owner
 
     The callback does not receive the dispose function; it is returned to the caller.
     
-    If called outside a runtime, creates a temporary one.
+    If called outside a runtime, raises. Use [Runtime.run] or [Owner.Unsafe.create_root].
     
     {[
       let dispose = Owner.create_root (fun () ->

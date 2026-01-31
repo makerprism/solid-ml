@@ -9,6 +9,7 @@
 # Override with: make DUNE=/path/to/dune <target>
 
 DUNE ?= /usr/bin/dune
+CHROME_BIN ?= /usr/bin/google-chrome
 
 # Quick start:
 #   make example-counter    # Run counter example
@@ -186,8 +187,7 @@ browser-tests:
 # Run browser tests in a real headless browser (requires Chrome)
 browser-tests-headless:
 	@echo "Running browser DOM tests (headless Chrome)..."
-	@CHROME_BIN=$${CHROME_BIN:-/usr/bin/google-chrome}; \
-	if ! command -v "$$CHROME_BIN" >/dev/null; then \
+	@if ! command -v "$(CHROME_BIN)" >/dev/null; then \
 		echo "Error: Chrome executable not found. Set CHROME_BIN=/path/to/chrome"; \
 		exit 1; \
 	fi

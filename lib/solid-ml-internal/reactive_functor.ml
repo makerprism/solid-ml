@@ -16,9 +16,14 @@ module Make (B : Backend.S) = struct
     match B.get_runtime () with
     | Some rt -> rt
     | None ->
-      let rt = create_runtime () in
-      B.set_runtime (Some rt);
-      rt
+      if B.allow_implicit_runtime then
+        let rt = create_runtime () in
+        B.set_runtime (Some rt);
+        rt
+      else
+        raise
+          (No_runtime
+             "solid-ml: No runtime active. Wrap in Runtime.run or use SSR helpers (Render.to_string/to_document).")
   
   let get_runtime_opt () = B.get_runtime ()
   
@@ -844,6 +849,7 @@ module Make (B : Backend.S) = struct
   
   (** Create a typed signal with optional equality function *)
   let create_typed_signal (type a) ?(equals : (a -> a -> bool) option) (initial : a) : a signal =
+    ignore (get_runtime ());
     let comparator = match equals with
       | Some eq -> Some (fun a b -> eq (Obj.obj a) (Obj.obj b))
       | None -> None

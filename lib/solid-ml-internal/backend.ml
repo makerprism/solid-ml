@@ -15,7 +15,9 @@ open Types
 
 (** Module type for runtime storage backends *)
 module type S = sig
-  (** Get the current runtime, if any *)
+  (** Whether to auto-create a runtime when none is active. *)
+  val allow_implicit_runtime : bool
+  (* Get the current runtime, if any *)
   val get_runtime : unit -> runtime option
   
   (** Set the current runtime *)
@@ -43,6 +45,8 @@ end
     On browser, this is the correct choice (JS is single-threaded). *)
 module Global : S = struct
   let current_runtime : runtime option ref = ref None
+
+  let allow_implicit_runtime = true
   
   let get_runtime () = !current_runtime
   let set_runtime rt = current_runtime := rt

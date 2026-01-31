@@ -228,8 +228,8 @@ let test_render_to_document () =
 
 let test_render_with_signals () =
   print_endline "Test: Render with signals";
-  let count, _set_count = Signal.create 42 in
   let html = Render.to_string (fun () ->
+    let count, _set_count = Signal.create 42 in
     Html.(div ~children:[
       text "Count: ";
       reactive_text count
@@ -268,8 +268,8 @@ let test_hydration_script () =
 
 let test_reactive_text () =
   print_endline "Test: reactive_text renders int signal with hydration markers";
-  let count, _set_count = Signal.create 42 in
   let html = Render.to_string (fun () ->
+    let count, _set_count = Signal.create 42 in
     Html.(div ~children:[reactive_text count] ())
   ) in
   (* Should contain hydration markers and the value *)
@@ -280,8 +280,8 @@ let test_reactive_text () =
 
 let test_reactive_text_of () =
   print_endline "Test: reactive_text_of with custom formatter";
-  let value_signal, _set_data = Signal.create {|hello|} in
   let html = Render.to_string (fun () ->
+    let value_signal, _set_data = Signal.create {|hello|} in
     Html.(div ~children:[
       reactive_text_of String.uppercase_ascii value_signal
     ] ())
@@ -292,8 +292,8 @@ let test_reactive_text_of () =
 
 let test_reactive_text_string () =
   print_endline "Test: reactive_text_string renders string signal";
-  let msg, _set_msg = Signal.create "world" in
   let html = Render.to_string (fun () ->
+    let msg, _set_msg = Signal.create "world" in
     Html.(div ~children:[reactive_text_string msg] ())
   ) in
   assert (contains html "world");
@@ -302,8 +302,8 @@ let test_reactive_text_string () =
 
 let test_reactive_text_marker_sequence () =
   print_endline "Test: reactive_text_string markers wrap text";
-  let msg, _set_msg = Signal.create "world" in
   let html = Render.to_string (fun () ->
+    let msg, _set_msg = Signal.create "world" in
     Html.(div ~children:[reactive_text_string msg] ())
   ) in
   let open_idx = require_index "open marker" (find_index html "<!--hk:") in
@@ -355,8 +355,8 @@ let test_form_handlers_ignored () =
 
 let test_counter_component () =
   print_endline "Test: Counter component renders";
-  let count, _set_count = Signal.create 0 in
   let html = Render.to_string (fun () ->
+    let count, _set_count = Signal.create 0 in
     Html.(div ~class_:"counter" ~children:[
       p ~children:[text "Count: "; reactive_text count] ();
       button ~children:[text "Increment"] ()

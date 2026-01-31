@@ -15,6 +15,7 @@ module Internal = Solid_ml_internal
 (** {1 DLS Backend (Server-specific)} *)
 
 module Backend_DLS : Internal.Backend.S = struct
+  let allow_implicit_runtime = false
   let runtime_key : Internal.Types.runtime option Domain.DLS.key =
     Domain.DLS.new_key (fun () -> None)
   

@@ -27,6 +27,7 @@ let exn_to_string : exn -> string = [%mel.raw {|
 |}]
 
 module Backend_Browser : Internal.Backend.S = struct
+  let allow_implicit_runtime = true
   let current_runtime : Internal.Types.runtime option ref = ref None
   
   let get_runtime () = !current_runtime
