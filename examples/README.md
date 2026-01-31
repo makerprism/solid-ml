@@ -26,5 +26,6 @@ Quick index of runnable examples and their primary entrypoints.
 
 ## Docker (optional)
 
-- `ssr_hydration_docker` - SSR + hydration demo in Docker
-  - Build: `docker build -t solid-ml-ssr-hydration -f examples/ssr_hydration_docker/Dockerfile .`
+- `ssr_api_app` - Canonical Docker build (SSR + Melange client bundle)
+  - Build: `docker build -t solid-ml-ssr-api -f examples/ssr_api_app/Dockerfile .`
+  - Notes: Builds Melange output with dune, then bundles `client.js` via esbuild for the static dir.
