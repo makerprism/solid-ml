@@ -1,6 +1,6 @@
 (** Tests for Suspense and ErrorBoundary *)
 
-open Solid_ml
+open Solid_ml_server
 
 open Solid_ml_router
 

@@ -25,7 +25,7 @@ let layout ~page_title ~initial_count content =
 
 let page ~initial_count =
   let content = [C.view ~initial:initial_count ()] in
-  layout ~page_title:"solid-ml SSR Hydration Demo" ~initial_count content
+  layout ~page_title:"solid-ml-server SSR Hydration Demo" ~initial_count content
 
 let render counter = Render.to_document (fun () -> page ~initial_count:counter)
 

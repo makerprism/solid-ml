@@ -1,6 +1,6 @@
 # MLX Guide
 
-MLX provides JSX-like syntax for solid-ml components. Use it when you want
+MLX provides JSX-like syntax for solid-ml-server components. Use it when you want
 cleaner templates without giving up the OCaml HTML DSL.
 
 ## Setup

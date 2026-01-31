@@ -30,7 +30,7 @@ let () =
   print_endline "Test: Template PPX compiles Tpl.attr_opt (MLX)";
   let some_html =
     Solid_ml_ssr.Render.to_string (fun () ->
-      let name, _set_name = Solid_ml.Signal.Unsafe.create "World" in
+      let name, _set_name = Solid_ml_server.Signal.Unsafe.create "World" in
       let module R = C (Solid_ml_ssr.Env) in
       R.render_a_some ~name ())
   in
@@ -38,7 +38,7 @@ let () =
 
   let none_html =
     Solid_ml_ssr.Render.to_string (fun () ->
-      let name, _set_name = Solid_ml.Signal.Unsafe.create "World" in
+      let name, _set_name = Solid_ml_server.Signal.Unsafe.create "World" in
       let module R = C (Solid_ml_ssr.Env) in
       R.render_a_none ~name ())
   in
@@ -46,8 +46,8 @@ let () =
 
   let attr_html =
     Solid_ml_ssr.Render.to_string (fun () ->
-      let name, _set_name = Solid_ml.Signal.Unsafe.create "World" in
-      let href, _set_href = Solid_ml.Signal.Unsafe.create "/x?y=<z>" in
+      let name, _set_name = Solid_ml_server.Signal.Unsafe.create "World" in
+      let href, _set_href = Solid_ml_server.Signal.Unsafe.create "/x?y=<z>" in
       let module R = C (Solid_ml_ssr.Env) in
       R.render_a_attr ~href ~name ())
   in
@@ -55,8 +55,8 @@ let () =
 
   let empty_html =
     Solid_ml_ssr.Render.to_string (fun () ->
-      let name, _set_name = Solid_ml.Signal.Unsafe.create "World" in
-      let empty_href, _set_empty_href = Solid_ml.Signal.Unsafe.create "" in
+      let name, _set_name = Solid_ml_server.Signal.Unsafe.create "World" in
+      let empty_href, _set_empty_href = Solid_ml_server.Signal.Unsafe.create "" in
       let module R = C (Solid_ml_ssr.Env) in
       R.render_a_attr ~href:empty_href ~name ())
   in
@@ -64,7 +64,7 @@ let () =
 
   let nested_html =
     Solid_ml_ssr.Render.to_string (fun () ->
-      let name, _set_name = Solid_ml.Signal.Unsafe.create "World" in
+      let name, _set_name = Solid_ml_server.Signal.Unsafe.create "World" in
       let module R = C (Solid_ml_ssr.Env) in
       Solid_ml_ssr.Html.div ~children:[ R.render_a_some ~name () ] ())
   in

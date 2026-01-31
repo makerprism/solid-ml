@@ -1,4 +1,4 @@
-# Agent Guidelines for solid-ml
+# Agent Guidelines for solid-ml-server
 
 ## Hard Constraints
 
@@ -10,7 +10,7 @@ This project builds with `/home/sabine/.opam/landing-pages-build/bin/dune` (dune
 
 ## Project Overview
 
-solid-ml is an OCaml framework for building reactive web applications with SSR, inspired by SolidJS.
+solid-ml-server is an OCaml framework for building reactive web applications with SSR, inspired by SolidJS.
 
 **Repository:** github.com/makerprism/solid-ml  
 **License:** MIT
@@ -24,7 +24,7 @@ solid-ml is an OCaml framework for building reactive web applications with SSR, 
 | Package | Purpose | Status |
 |---------|---------|--------|
 | `solid-ml-internal` | Shared reactive core (functor-based, DO NOT use directly) | Complete |
-| `solid-ml` | Server-side reactive framework (OCaml 5 with DLS) | Complete |
+| `solid-ml-server` | Server-side reactive framework (OCaml 5 with DLS) | Complete |
 | `solid-ml-ssr` | Server-side rendering to HTML strings | Complete |
 | `solid-ml-browser` | Browser-side reactive framework (Melange) | Complete |
 | `solid-ml-router` | SSR-aware routing with data loaders | Complete |
@@ -66,7 +66,7 @@ solid-ml-internal/
 - Server: Domain-local storage (thread-safe isolation per domain)
 - Browser: Global ref (safe in single-threaded JS)
 
-### Server (`solid-ml`)
+### Server (`solid-ml-server`)
 
 ```ocaml
 (* Defines DLS backend and instantiates functor *)
@@ -89,7 +89,7 @@ module Backend_Browser : Internal.Backend.S = struct
   let get_runtime () = !current_runtime
   let set_runtime rt = current_runtime := rt
   let handle_error exn context =
-    console_error ("solid-ml: Error in " ^ context ^ ": " ^ Printexc.to_string exn)
+    console_error ("solid-ml-server: Error in " ^ context ^ ": " ^ Printexc.to_string exn)
 end
 
 module R = Internal.Reactive_functor.Make(Backend_Browser)
@@ -252,14 +252,14 @@ let read_typed_signal (type a) (s : a signal) : a =
 
 ## Differences from SolidJS
 
-solid-ml aims to match SolidJS semantics closely. Here are the known differences:
+solid-ml-server aims to match SolidJS semantics closely. Here are the known differences:
 
 ### Implemented Features Matching SolidJS
 
-| Feature | solid-ml | SolidJS | Notes |
+| Feature | solid-ml-server | SolidJS | Notes |
 |---------|----------|---------|-------|
 | Signal equality | Physical (`!=`) | Reference (`===`) | Matches - both skip updates for same reference |
-| Memo equality | Structural (`=`) | Reference (`===`) | solid-ml uses structural by default (customizable) |
+| Memo equality | Structural (`=`) | Reference (`===`) | solid-ml-server uses structural by default (customizable) |
 | createSelector | `create_selector` | `createSelector` | Returns `(k -> bool)` with auto-cleanup |
 | Effect.on | `Effect.on` | `on()` | Explicit deps, untracked body, `~defer` option |
 | catchError | `Owner.catch_error` | `catchError` | Sync error handling (no setter reset) |
@@ -287,15 +287,15 @@ solid-ml aims to match SolidJS semantics closely. Here are the known differences
 
 ### Semantic Differences
 
-1. **Effect scheduling**: solid-ml effects run synchronously during `run_updates`. SolidJS sometimes defers to microtasks. This rarely matters in practice.
+1. **Effect scheduling**: solid-ml-server effects run synchronously during `run_updates`. SolidJS sometimes defers to microtasks. This rarely matters in practice.
 
-2. **Error boundaries**: `Owner.catch_error` catches synchronously thrown exceptions. SolidJS's `catchError` provides a setter to reset; solid-ml returns the fallback value directly since OCaml exceptions are sync.
+2. **Error boundaries**: `Owner.catch_error` catches synchronously thrown exceptions. SolidJS's `catchError` provides a setter to reset; solid-ml-server returns the fallback value directly since OCaml exceptions are sync.
 
 3. **Context ID generation**: Not thread-safe (uses `ref`, not `Atomic`). Create contexts at module init time before spawning domains.
 
-4. **No JSX compiler**: solid-ml requires manual DOM/HTML construction or use of MLX syntax. There's no Babel-like transform.
+4. **No JSX compiler**: solid-ml-server requires manual DOM/HTML construction or use of MLX syntax. There's no Babel-like transform.
 
-5. **Memo evaluation**: solid-ml memos are eager (computed immediately on creation). SolidJS memos are also eager but may defer in some cases.
+5. **Memo evaluation**: solid-ml-server memos are eager (computed immediately on creation). SolidJS memos are also eager but may defer in some cases.
 
 ### Browser-specific Notes
 

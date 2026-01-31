@@ -23,7 +23,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
   let view () =
     let initial_items = [
-      { id = 1; text = "Learn solid-ml" };
+      { id = 1; text = "Learn solid-ml-server" };
       { id = 2; text = "Build reactive UIs" };
       { id = 3; text = "Master OCaml" };
       { id = 4; text = "Deploy to production" };

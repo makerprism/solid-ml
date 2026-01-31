@@ -1,6 +1,6 @@
 (** Reactive signals with automatic dependency tracking.
     
-    Signals are the core primitive of solid-ml's reactivity system.
+    Signals are the core primitive of solid-ml-server's reactivity system.
     When you read a signal inside an effect or memo, that computation
     automatically subscribes to the signal and re-runs when it changes.
     

@@ -29,7 +29,7 @@ module type S = sig
   (** An HTML node (element, text, or fragment) *)
 
   type 'a signal
-  (** A reactive signal. On SSR this is [Solid_ml.Signal.t],
+  (** A reactive signal. On SSR this is [Solid_ml_server.Signal.t],
       on browser this is [Reactive.Signal.t]. *)
 
   type event

@@ -1,6 +1,6 @@
 (** Tests for the Component functor abstraction *)
 
-open Solid_ml
+open Solid_ml_server
 
 
 (** {1 Test Component}

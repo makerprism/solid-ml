@@ -47,7 +47,7 @@
     ]}
 *)
 
-open Solid_ml
+open Solid_ml_server
 
 module Signal = Signal.Unsafe
 

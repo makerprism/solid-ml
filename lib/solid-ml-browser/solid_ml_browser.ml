@@ -1,6 +1,6 @@
-(** solid-ml-browser: Browser-side reactive framework for solid-ml.
+(** solid-ml-browser: Browser-side reactive framework for solid-ml-server.
     
-    This library provides DOM rendering and hydration for solid-ml components,
+    This library provides DOM rendering and hydration for solid-ml-server components,
     compiled to JavaScript via Melange.
     
     It uses the shared reactive core (solid-ml-internal) with a browser-specific

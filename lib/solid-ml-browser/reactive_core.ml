@@ -40,8 +40,8 @@ module Backend_Browser : Internal.Backend.S = struct
     | Some rt ->
       (match rt.current_error_handler with
        | Some handler -> handler exn
-       | None -> console_error ("solid-ml: Error in " ^ context ^ ": " ^ exn_to_string exn))
-    | None -> console_error ("solid-ml: Error in " ^ context ^ ": " ^ exn_to_string exn)
+       | None -> console_error ("solid-ml-browser: Error in " ^ context ^ ": " ^ exn_to_string exn))
+    | None -> console_error ("solid-ml-browser: Error in " ^ context ^ ": " ^ exn_to_string exn)
 
   let schedule_transition fn =
     ignore (Dom.set_timeout fn 0)

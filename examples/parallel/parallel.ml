@@ -7,11 +7,11 @@
 
     Run with: dune exec examples/parallel/parallel.exe
 
-    IMPORTANT: This demonstrates that solid-ml is safe for parallel execution,
+    IMPORTANT: This demonstrates that solid-ml-server is safe for parallel execution,
     which is crucial for web servers handling concurrent requests.
 *)
 
-open Solid_ml
+open Solid_ml_server
 open Solid_ml_ssr
 
 (** Simulate a component that uses signals and memos *)

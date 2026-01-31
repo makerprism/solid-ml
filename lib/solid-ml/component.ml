@@ -9,7 +9,7 @@
 
     {[
       (* shared/counter.ml *)
-      module Counter (Env : Solid_ml.Component.COMPONENT_ENV) = struct
+      module Counter (Env : Solid_ml_server.Component.COMPONENT_ENV) = struct
         open Env
 
         let render ~initial () =

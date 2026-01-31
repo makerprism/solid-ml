@@ -29,6 +29,6 @@ let () =
     let (_result, _dispose) =
       Router.init_with_root ~config root (fun () -> Shared.app ())
     in
-    Dom.log "solid-ml router demo initialized!"
+    Dom.log "solid-ml-server router demo initialized!"
   | None ->
     Dom.error "Could not find #app element"

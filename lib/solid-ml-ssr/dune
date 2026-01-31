@@ -2,5 +2,5 @@
 (library
  (name solid_ml_ssr)
  (public_name solid-ml-ssr)
- (libraries solid-ml solid-ml-router solid-ml-template-runtime)
+ (libraries solid-ml-server solid-ml-router solid-ml-template-runtime)
  (modes byte native melange))

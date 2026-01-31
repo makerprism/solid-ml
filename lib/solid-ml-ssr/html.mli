@@ -28,7 +28,7 @@ type event = unit
 (** Element handle stub for unified SSR/browser interface. *)
 type element = unit
 
-type 'a signal = 'a Solid_ml.Signal.t
+type 'a signal = 'a Solid_ml_server.Signal.t
 (** A reactive signal type for unified SSR/browser components. *)
 
 (** Convert a node to its HTML string representation. *)

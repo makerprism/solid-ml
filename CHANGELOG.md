@@ -12,7 +12,7 @@
 - Router with route matching, params, wildcards, navigation, and link components.
 - Suspense boundaries, ErrorBoundary, and Resource utilities.
 - Browser-side render/hydrate APIs and navigation helpers.
-- Typed Resource errors across solid-ml, solid-ml-router, and solid-ml-browser.
+- Typed Resource errors across solid-ml-server, solid-ml-router, and solid-ml-browser.
 - Async Resource helpers with `create_with_error` and `create_async_with_error`.
 - `read_suspense`/`get` accept `~error_to_string` for typed errors.
 - Unique ID generation for SSR hydration.

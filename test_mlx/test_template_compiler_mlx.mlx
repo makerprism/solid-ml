@@ -107,7 +107,7 @@ let () =
   print_endline "Test: Template PPX compiles Tpl.text (MLX)";
   let html =
     Solid_ml_ssr.Render.to_string (fun () ->
-      let name, _set_name = Solid_ml.Signal.Unsafe.create "World" in
+      let name, _set_name = Solid_ml_server.Signal.Unsafe.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div ~name ())
   in
@@ -115,7 +115,7 @@ let () =
 
   let html_props =
     Solid_ml_ssr.Render.to_string (fun () ->
-      let name, _set_name = Solid_ml.Signal.Unsafe.create "World" in
+      let name, _set_name = Solid_ml_server.Signal.Unsafe.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_div_props ~name ())
   in
@@ -130,7 +130,7 @@ let () =
 
   let html_span =
     Solid_ml_ssr.Render.to_string (fun () ->
-      let name, _set_name = Solid_ml.Signal.Unsafe.create "World" in
+      let name, _set_name = Solid_ml_server.Signal.Unsafe.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_span ~name ())
   in
@@ -138,7 +138,7 @@ let () =
 
   let html_p =
     Solid_ml_ssr.Render.to_string (fun () ->
-      let name, _set_name = Solid_ml.Signal.Unsafe.create "World" in
+      let name, _set_name = Solid_ml_server.Signal.Unsafe.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p ~name ())
   in
@@ -146,7 +146,7 @@ let () =
 
   let html_p_static =
     Solid_ml_ssr.Render.to_string (fun () ->
-      let name, _set_name = Solid_ml.Signal.Unsafe.create "World" in
+      let name, _set_name = Solid_ml_server.Signal.Unsafe.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_static ~name ())
   in
@@ -154,7 +154,7 @@ let () =
 
   let html_p_formatting =
     Solid_ml_ssr.Render.to_string (fun () ->
-      let name, _set_name = Solid_ml.Signal.Unsafe.create "World" in
+      let name, _set_name = Solid_ml_server.Signal.Unsafe.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_formatting ~name ())
   in
@@ -162,7 +162,7 @@ let () =
 
   let html_p_space =
     Solid_ml_ssr.Render.to_string (fun () ->
-      let name, _set_name = Solid_ml.Signal.Unsafe.create "World" in
+      let name, _set_name = Solid_ml_server.Signal.Unsafe.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_space ~name ())
   in
@@ -170,7 +170,7 @@ let () =
 
   let html_p_double_space =
     Solid_ml_ssr.Render.to_string (fun () ->
-      let name, _set_name = Solid_ml.Signal.Unsafe.create "World" in
+      let name, _set_name = Solid_ml_server.Signal.Unsafe.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_double_space ~name ())
   in
@@ -178,7 +178,7 @@ let () =
 
   let html_p_tab_formatting =
     Solid_ml_ssr.Render.to_string (fun () ->
-      let name, _set_name = Solid_ml.Signal.Unsafe.create "World" in
+      let name, _set_name = Solid_ml_server.Signal.Unsafe.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_tab_formatting ~name ())
   in
@@ -186,7 +186,7 @@ let () =
 
   let html_pre_formatting =
     Solid_ml_ssr.Render.to_string (fun () ->
-      let name, _set_name = Solid_ml.Signal.Unsafe.create "World" in
+      let name, _set_name = Solid_ml_server.Signal.Unsafe.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_pre_formatting ~name ())
   in
@@ -194,7 +194,7 @@ let () =
 
   let html_code_formatting =
     Solid_ml_ssr.Render.to_string (fun () ->
-      let name, _set_name = Solid_ml.Signal.Unsafe.create "World" in
+      let name, _set_name = Solid_ml_server.Signal.Unsafe.create "World" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_code_formatting ~name ())
   in
@@ -202,8 +202,8 @@ let () =
 
   let html_p_two =
     Solid_ml_ssr.Render.to_string (fun () ->
-      let first, _set_first = Solid_ml.Signal.Unsafe.create "Ada" in
-      let last, _set_last = Solid_ml.Signal.Unsafe.create "Lovelace" in
+      let first, _set_first = Solid_ml_server.Signal.Unsafe.create "Ada" in
+      let last, _set_last = Solid_ml_server.Signal.Unsafe.create "Lovelace" in
       let module C = Hello (Solid_ml_ssr.Env) in
       C.render_p_two_slots ~first ~last ())
   in

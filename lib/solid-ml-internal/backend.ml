@@ -41,7 +41,7 @@ end
 
 (** Global ref backend - works on both server and browser.
     
-    On server, prefer the DLS backend from solid-ml for thread safety.
+    On server, prefer the DLS backend from solid-ml-server for thread safety.
     On browser, this is the correct choice (JS is single-threaded). *)
 module Global : S = struct
   let current_runtime : runtime option ref = ref None

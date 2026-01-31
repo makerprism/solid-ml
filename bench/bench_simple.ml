@@ -1,4 +1,4 @@
-(** Simple performance benchmarks for solid-ml *)
+(** Simple performance benchmarks for solid-ml-server *)
 
 open Printf
 
@@ -15,8 +15,8 @@ let benchmark_signal_updates () =
   
   (* Test 1: Simple signal updates *)
   let run_simple_updates () =
-    Solid_ml.Runtime.Unsafe.run (fun () ->
-      let _, set_signal = Solid_ml.Signal.Unsafe.create 0 in
+    Solid_ml_server.Runtime.Unsafe.run (fun () ->
+      let _, set_signal = Solid_ml_server.Signal.Unsafe.create 0 in
       for i = 1 to 10000 do
         ignore (set_signal i)
       done
@@ -30,22 +30,22 @@ let benchmark_memo_chains () =
   
   (* Test 1: Deep memo chain *)
   let run_deep_chain () =
-    Solid_ml.Runtime.Unsafe.run (fun () ->
-      let root_signal, set_root = Solid_ml.Signal.Unsafe.create 1 in
+    Solid_ml_server.Runtime.Unsafe.run (fun () ->
+      let root_signal, set_root = Solid_ml_server.Signal.Unsafe.create 1 in
       
       (* Build chain of 50 memos and return chain function *)
       let rec build_chain depth signal_fn =
         if depth = 0 then signal_fn
         else
-          let memo = Solid_ml.Memo.Unsafe.create (fun () ->
+          let memo = Solid_ml_server.Memo.Unsafe.create (fun () ->
             let v = signal_fn () in
             v + depth
           ) in
-          build_chain (depth - 1) (fun () -> Solid_ml.Memo.get memo)
+          build_chain (depth - 1) (fun () -> Solid_ml_server.Memo.get memo)
       in
       
       (* Create the chain function *)
-      let chain_fn = build_chain 50 (fun () -> Solid_ml.Signal.get root_signal) in
+      let chain_fn = build_chain 50 (fun () -> Solid_ml_server.Signal.get root_signal) in
       
       (* Update root signal and run chain 100 times *)
       for i = 1 to 100 do
@@ -58,7 +58,7 @@ let benchmark_memo_chains () =
   timeit "50-deep memo chain (100 updates)" run_deep_chain
 
 let run_benchmarks () =
-  printf "solid-ml Performance Benchmarks\n";
+  printf "solid-ml-server Performance Benchmarks\n";
   printf "=================================\n";
   
   benchmark_signal_updates ();

@@ -260,7 +260,7 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     in
     <div id="app">
       <header>
-        <h1>(Html.text "solid-ml SSR API Demo")</h1>
+        <h1>(Html.text "solid-ml-server SSR API Demo")</h1>
         <p class_="subtitle">(Html.text "Server-rendered data with client-side navigation")</p>
         <nav>
           (Html.fragment nav_children)

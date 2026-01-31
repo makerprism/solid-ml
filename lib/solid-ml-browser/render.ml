@@ -49,7 +49,7 @@ let render_append root component =
 let with_hydration root (f : unit -> 'a) : 'a =
   (* Hydration is a structured phase: always tear down. *)
   if Hydration.is_hydrating () then
-    failwith "solid-ml: Render.with_hydration called while already hydrating";
+    failwith "solid-ml-browser: Render.with_hydration called while already hydrating";
 
   Hydration.start_hydration ();
   Hydration.start_element_hydration root;

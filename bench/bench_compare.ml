@@ -11,7 +11,7 @@ let timeit name f =
   result
 
 (* Import both versions *)
-module Orig = Solid_ml
+module Orig = Solid_ml_server
 module Opt = Solid_ml_optimized
 
 let benchmark_signal_updates () =
@@ -97,7 +97,7 @@ let benchmark_memo_chains () =
   timeit "Optimized (30-deep chain, 200 updates)" run_optimized
 
 let run_comparison () =
-  printf "solid-ml Performance Comparison\n";
+  printf "solid-ml-server Performance Comparison\n";
   printf "=================================\n";
   
   benchmark_signal_updates ();

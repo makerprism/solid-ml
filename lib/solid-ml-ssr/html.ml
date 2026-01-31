@@ -6,7 +6,7 @@ type event = unit
 
 type element = unit
 
-type 'a signal = 'a Solid_ml.Signal.t
+type 'a signal = 'a Solid_ml_server.Signal.t
 
 (** Hydration key counter for marking reactive elements *)
 let hydration_key = ref 0
@@ -193,16 +193,16 @@ module Internal_template : Solid_ml_template_runtime.TEMPLATE
     update_attrs_by_path el.inst ~path:el.path ~name value_opt
 
   let run_updates fn =
-    match Solid_ml.Reactive.get_runtime_opt () with
+    match Solid_ml_server.Reactive.get_runtime_opt () with
     | None -> fn ()
     | Some rt ->
       if rt.Solid_ml_internal.Types.in_update then (
         rt.in_update <- false;
-        let res = Solid_ml.Reactive.run_updates fn false in
+        let res = Solid_ml_server.Reactive.run_updates fn false in
         rt.in_update <- true;
         res)
       else
-        Solid_ml.Reactive.run_updates fn false
+        Solid_ml_server.Reactive.run_updates fn false
 
   let set_value (el : element) (value : string) =
     set_attr el ~name:"value" (Some value)
@@ -566,17 +566,17 @@ let raw s = Raw s
 
 let reactive_text signal =
   let key = next_hydration_key () in
-  let value = string_of_int (Solid_ml.Signal.peek signal) in
+  let value = string_of_int (Solid_ml_server.Signal.peek signal) in
   ReactiveText { key; value }
 
 let reactive_text_of fmt signal =
   let key = next_hydration_key () in
-  let value = fmt (Solid_ml.Signal.peek signal) in
+  let value = fmt (Solid_ml_server.Signal.peek signal) in
   ReactiveText { key; value }
 
 let reactive_text_string signal =
   let key = next_hydration_key () in
-  let value = Solid_ml.Signal.peek signal in
+  let value = Solid_ml_server.Signal.peek signal in
   ReactiveText { key; value }
 
 (** Common attributes type *)

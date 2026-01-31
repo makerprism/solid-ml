@@ -3,7 +3,7 @@
     These components render to HTML using the provided Html module.
     For SSR defaults, use [Solid_ml_ssr.Router_components]. *)
 
-open Solid_ml
+open Solid_ml_server
 
 module Signal = Signal.Unsafe
 

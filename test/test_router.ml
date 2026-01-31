@@ -1,7 +1,7 @@
 (** Router tests *)
 
 open Solid_ml_router
-open Solid_ml
+open Solid_ml_server
 
 module Router_components = Solid_ml_ssr.Router_components
 

@@ -10,7 +10,7 @@
 (library
  (name shared_components)
  (modules shared_components)
- (libraries solid-ml-template-runtime solid-ml)
+ (libraries solid-ml-template-runtime solid-ml-server)
  (modes byte native melange)
  (preprocess (pps solid-ml-template-ppx)))
 

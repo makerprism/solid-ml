@@ -1,4 +1,4 @@
-(** Shared runtime interfaces for solid-ml template compilation.
+(** Shared runtime interfaces for solid-ml-server template compilation.
 
     This package is intended to support a SolidJS-style template compiler:
     - Templates are precompiled at build time into a static structure

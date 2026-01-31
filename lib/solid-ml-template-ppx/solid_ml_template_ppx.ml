@@ -1513,7 +1513,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
                                    [ (Nolabel, when_call) ]) ]
                       (eunit ~loc))) ]
           in
-          let effect =
+          let render_effect =
             pexp_apply ~loc
               (pexp_ident ~loc (lid "Effect.create_render_effect"))
               [ (Nolabel, pexp_fun ~loc Nolabel None (punit ~loc) update_body) ]
@@ -1545,7 +1545,7 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
                      ~pat:(pvar ~loc dispose_var)
                      ~expr:(pexp_apply ~loc (pexp_ident ~loc (lid "ref"))
                               [ (Nolabel, noop) ]) ]
-                 (pexp_sequence ~loc sync_effect (pexp_sequence ~loc effect cleanup)))
+                  (pexp_sequence ~loc sync_effect (pexp_sequence ~loc render_effect cleanup)))
           in
           bind
         | `Nodes_keyed ->

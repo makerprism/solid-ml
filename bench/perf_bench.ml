@@ -1,4 +1,4 @@
-(** Performance benchmarks for solid-ml reactive core *)
+(** Performance benchmarks for solid-ml-server reactive core *)
 
 open Printf
 
@@ -33,8 +33,8 @@ let benchmark_signal_updates () =
   
   (* Test 1: Simple signal updates *)
   let run_simple_updates () =
-    Solid_ml.Runtime.run (fun () ->
-      let signal, set_signal = Solid_ml.Signal.create 0 in
+    Solid_ml_server.Runtime.run (fun () ->
+      let signal, set_signal = Solid_ml_server.Signal.create 0 in
       for i = 1 to 10000 do
         set_signal i
       done
@@ -45,13 +45,13 @@ let benchmark_signal_updates () =
   
   (* Test 2: Signal with many observers *)
   let run_observers_updates () =
-    Solid_ml.Runtime.run (fun () ->
-      let signal, set_signal = Solid_ml.Signal.create 0 in
+    Solid_ml_server.Runtime.run (fun () ->
+      let signal, set_signal = Solid_ml_server.Signal.create 0 in
       
       (* Create 100 effects observing the signal *)
       for i = 1 to 100 do
-        ignore @@ Solid_ml.Effect.create (fun () ->
-          let _ = Solid_ml.Signal.get signal in
+        ignore @@ Solid_ml_server.Effect.create (fun () ->
+          let _ = Solid_ml_server.Signal.get signal in
           ()
         )
       done;
@@ -71,22 +71,22 @@ let benchmark_effect_execution () =
   
   (* Test 1: Many small effects *)
   let run_many_effects () =
-    Solid_ml.Runtime.run (fun () ->
+    Solid_ml_server.Runtime.run (fun () ->
       let signals = Array.init 1000 (fun _ -> 
-        fst (Solid_ml.Signal.create 0)
+        fst (Solid_ml_server.Signal.create 0)
       ) in
       
       (* Create 1000 effects each observing one signal *)
       Array.iteri (fun i signal ->
-        ignore @@ Solid_ml.Effect.create (fun () ->
-          let _ = Solid_ml.Signal.get signal in
+        ignore @@ Solid_ml_server.Effect.create (fun () ->
+          let _ = Solid_ml_server.Signal.get signal in
           ()
         )
       ) signals;
       
       (* Update all signals *)
       Array.iteri (fun i signal ->
-        let _, set_signal = Solid_ml.Signal.create 0 in
+        let _, set_signal = Solid_ml_server.Signal.create 0 in
         set_signal (i + 1)
       ) signals
     )
@@ -100,17 +100,17 @@ let benchmark_memory_pressure () =
   
   (* Test GC-heavy operations *)
   let run_memory_test () =
-    Solid_ml.Runtime.run (fun () ->
+    Solid_ml_server.Runtime.run (fun () ->
       let signals = Array.init 100 (fun _ -> 
-        fst (Solid_ml.Signal.create (Random.int 1000))
+        fst (Solid_ml_server.Signal.create (Random.int 1000))
       ) in
       
       (* Create and dispose many effects repeatedly *)
       for i = 1 to 100 do
-        let dispose = Solid_ml.Owner.create_root (fun () ->
+        let dispose = Solid_ml_server.Owner.create_root (fun () ->
           Array.iter (fun signal ->
-            ignore @@ Solid_ml.Effect.create (fun () ->
-              let _ = Solid_ml.Signal.get signal in
+            ignore @@ Solid_ml_server.Effect.create (fun () ->
+              let _ = Solid_ml_server.Signal.get signal in
               ()
             )
           ) signals
@@ -123,7 +123,7 @@ let benchmark_memory_pressure () =
   timeit "Create/dispose effects (100x100 signals)" run_memory_test
 
 let run_benchmarks () =
-  printf "solid-ml Performance Benchmarks\n";
+  printf "solid-ml-server Performance Benchmarks\n";
   printf "=================================\n";
   
   benchmark_signal_updates ();

@@ -1,8 +1,8 @@
-(** Tests for solid-ml reactive primitives *)
+(** Tests for solid-ml-server reactive primitives *)
 
 [@@@ocaml.warning "-32"]
 
-open Solid_ml
+open Solid_ml_server
 
 module Unsafe = struct
   module Signal = Signal.Unsafe
@@ -809,7 +809,7 @@ let test_domain_parallelism () =
 (* ============ Main ============ *)
 
 let () =
-  print_endline "\n=== solid-ml Reactive Tests ===\n";
+  print_endline "\n=== solid-ml-server Reactive Tests ===\n";
   
   print_endline "-- Signal Tests --";
   test_signal_basic ();

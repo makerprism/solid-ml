@@ -1,4 +1,4 @@
-(** solid-ml-router: routing for solid-ml.
+(** solid-ml-router: routing for solid-ml-server.
     
     This library provides routing with support for:
     - Pattern matching with parameters and wildcards

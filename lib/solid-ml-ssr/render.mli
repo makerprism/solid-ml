@@ -1,6 +1,6 @@
 (** Server-side rendering utilities.
 
-    This module provides functions to render solid-ml components to HTML strings
+    This module provides functions to render solid-ml-server components to HTML strings
     for server-side rendering (SSR).
 
     {[

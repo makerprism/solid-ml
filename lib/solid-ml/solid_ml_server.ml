@@ -1,11 +1,11 @@
-(** solid-ml: Fine-grained reactivity for OCaml.
+(** solid-ml-server: Fine-grained reactivity for OCaml.
     
     A reactive programming framework inspired by SolidJS, providing
     signals, effects, memos, and a component model with automatic
     dependency tracking.
     
     {[
-      open Solid_ml
+      open Solid_ml_server
       
       let counter () =
         let count, set_count = Signal.create 0 in
@@ -19,7 +19,7 @@
     ]}
     
     For server-side rendering with Dream or other frameworks,
-    wrap each request in [Runtime.run]:
+     wrap each request in [Runtime.run]:
     
     {[
       let handler _req =

@@ -1,4 +1,4 @@
-# solid-ml Limitations
+# solid-ml-server Limitations
 
 Short list of real constraints to keep in mind.
 

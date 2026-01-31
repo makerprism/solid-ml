@@ -1,9 +1,9 @@
-(** Tests for solid-ml additional components: Store, Resource *)
+(** Tests for solid-ml-server additional components: Store, Resource *)
 (** This test suite covers: *)
 (** - Store: Reactive state wrapper *)
 (** - Resource: Data fetching state management *)
 
-open Solid_ml
+open Solid_ml_server
 
 
 (** {1 Helper Functions} *)

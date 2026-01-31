@@ -124,7 +124,7 @@ let hydrate_filters () =
   match get_element "app" with
   | Some app_el ->
     let initial_todos : Shared_components.Filters.todo list = [
-       { id = 1; text = "Learn solid-ml"; completed = true };
+       { id = 1; text = "Learn solid-ml-server"; completed = true };
        { id = 2; text = "Build an SSR app"; completed = false };
        { id = 3; text = "Add hydration"; completed = false };
        { id = 4; text = "Deploy to production"; completed = false };

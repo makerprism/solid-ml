@@ -2,9 +2,9 @@
     
     These types use Obj.t for type erasure, allowing uniform handling
     of signals and memos in the dependency graph. The platform-specific
-    packages (solid-ml, solid-ml-dom) provide type-safe wrappers.
+    packages (solid-ml-server, solid-ml-browser) provide type-safe wrappers.
     
-    DO NOT use this module directly - use solid-ml or solid-ml-dom instead.
+    DO NOT use this module directly - use solid-ml-server or solid-ml-browser instead.
 *)
 
 (** {1 Computation State} *)

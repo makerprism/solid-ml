@@ -2,7 +2,7 @@
 
     This lives in [solid-ml-template-runtime] so both SSR and browser packages can
     expose a canonical environment without introducing a dependency on the core
-    [solid-ml] package.
+    [solid-ml-server] package.
 
     The template compiler only needs:
     - a signal type with basic operations
@@ -10,8 +10,8 @@
     - Effect.create for fine-grained reactive updates
     - Owner.on_cleanup for disposal (events, conditional mounts, lists)
 
-    Note: this interface is intentionally smaller than [Solid_ml.Component.COMPONENT_ENV]
-    and does not depend on [Solid_ml.Html_intf.S]. Compiled templates should not
+    Note: this interface is intentionally smaller than [Solid_ml_server.Component.COMPONENT_ENV]
+    and does not depend on [Solid_ml_server.Html_intf.S]. Compiled templates should not
     need to call element constructors at runtime; they instantiate precompiled
     templates via [Html.Template].
 *)

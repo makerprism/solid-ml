@@ -14,7 +14,7 @@
     will raise [No_router_context].
 *)
 
-open Solid_ml
+open Solid_ml_server
 
 (** {1 Types} *)
 

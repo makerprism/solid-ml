@@ -1,6 +1,6 @@
 (** Cleanup example for solid-ml-browser.
 
-    This example demonstrates the three cleanup APIs available in solid-ml:
+    This example demonstrates the three cleanup APIs available in solid-ml-server:
 
     1. Owner.on_cleanup - Register cleanup functions with the current owner
     2. Effect.create_with_cleanup - Effects that return cleanup functions
@@ -99,8 +99,8 @@ let resource_component () =
 let main_component () =
   Html.(
     div ~id:"app" ~class_:"cleanup-demo" ~children:[
-      h1 ~children:[text "solid-ml Cleanup Demo"] ();
-      p ~children:[text "This page demonstrates the three cleanup APIs in solid-ml."] ();
+      h1 ~children:[text "solid-ml-server Cleanup Demo"] ();
+      p ~children:[text "This page demonstrates the three cleanup APIs in solid-ml-server."] ();
 
       hr () ;
 
@@ -139,6 +139,6 @@ let () =
       Dom.log "Page unload: disposal complete"
     );
 
-    Dom.log "solid-ml cleanup demo mounted! Check console for cleanup messages."
+    Dom.log "solid-ml-server cleanup demo mounted! Check console for cleanup messages."
   | None ->
     Dom.error "Could not find #app element"

@@ -20,7 +20,7 @@ let counter () =
   
   Html.(
     div ~id:"counter" ~class_:"counter-app" ~children:[
-      h1 ~children:[text "solid-ml Counter"] ();
+      h1 ~children:[text "solid-ml-server Counter"] ();
       
       div ~class_:"display" ~children:[
         p ~children:[
@@ -63,7 +63,7 @@ type todo = {
 (** Todo list component *)
 let todo_list () =
   let todos, _set_todos = Reactive.Signal.create [
-    { id = 0; text = "Learn solid-ml"; completed = false };
+    { id = 0; text = "Learn solid-ml-server"; completed = false };
     { id = 1; text = "Build something cool"; completed = false };
   ] in
   let next_id = ref 2 in
@@ -184,9 +184,9 @@ let () =
     (* IMPORTANT: Register cleanup on page unload to prevent memory leaks *)
     Dom.on_unload (fun _evt ->
       dispose ();
-      Dom.log "solid-ml app disposed!"
+      Dom.log "solid-ml-server app disposed!"
     );
 
-    Dom.log "solid-ml app mounted!"
+    Dom.log "solid-ml-server app mounted!"
   | None ->
     Dom.error "Could not find #app element"

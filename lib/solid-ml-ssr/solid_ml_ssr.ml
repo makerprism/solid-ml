@@ -1,7 +1,7 @@
-(** solid-ml-ssr: Server-side rendering for solid-ml.
+(** solid-ml-ssr: Server-side rendering for solid-ml-server.
 
     This package provides HTML element functions and rendering utilities
-    for server-side rendering (SSR) of solid-ml components.
+    for server-side rendering (SSR) of solid-ml-server components.
 
     {[
       open Solid_ml_ssr
@@ -27,12 +27,12 @@ module Router_resource = Router_resource
 
 module Env = struct
   module Signal = struct
-    type 'a t = 'a Solid_ml.Signal.t
+    type 'a t = 'a Solid_ml_server.Signal.t
 
-    let create ?equals = Solid_ml.Signal.Unsafe.create ?equals
-    let get = Solid_ml.Signal.get
-    let peek = Solid_ml.Signal.peek
-    let update = Solid_ml.Signal.update
+    let create ?equals = Solid_ml_server.Signal.Unsafe.create ?equals
+    let get = Solid_ml_server.Signal.get
+    let peek = Solid_ml_server.Signal.peek
+    let update = Solid_ml_server.Signal.update
   end
 
   type 'a signal = 'a Signal.t
@@ -44,26 +44,26 @@ module Env = struct
 
   module Tpl = Solid_ml_template_runtime.Tpl
   module Effect = struct
-    let create = Solid_ml.Effect.Unsafe.create
-    let create_with_cleanup = Solid_ml.Effect.Unsafe.create_with_cleanup
-    let create_render_effect = Solid_ml.Effect.Unsafe.create_render_effect
-    let untrack = Solid_ml.Effect.Unsafe.untrack
+    let create = Solid_ml_server.Effect.Unsafe.create
+    let create_with_cleanup = Solid_ml_server.Effect.Unsafe.create_with_cleanup
+    let create_render_effect = Solid_ml_server.Effect.Unsafe.create_render_effect
+    let untrack = Solid_ml_server.Effect.Unsafe.untrack
   end
 
   module Owner = struct
-    let on_cleanup = Solid_ml.Owner.on_cleanup
-    let on_mount = Solid_ml.Owner.on_mount
-    let run_with_root = Solid_ml.Owner.Unsafe.run_with_root
-    let run_with_owner _ fn = Solid_ml.Owner.run_with_owner None fn
+    let on_cleanup = Solid_ml_server.Owner.on_cleanup
+    let on_mount = Solid_ml_server.Owner.on_mount
+    let run_with_root = Solid_ml_server.Owner.Unsafe.run_with_root
+    let run_with_owner _ fn = Solid_ml_server.Owner.run_with_owner None fn
   end
 
-  module Suspense = Solid_ml.Suspense
+  module Suspense = Solid_ml_server.Suspense
 
   module ErrorBoundary = struct
-    let make = Solid_ml.ErrorBoundary.Unsafe.make
+    let make = Solid_ml_server.ErrorBoundary.Unsafe.make
   end
 
-  module Transition = Solid_ml.Transition
+  module Transition = Solid_ml_server.Transition
 end
 
 module _ : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV = Env

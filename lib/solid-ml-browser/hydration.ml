@@ -73,7 +73,7 @@ let is_hydrating () = !current_context.is_hydrating
     @raise Failure if already hydrating (indicates a bug) *)
 let start_hydration () =
   if !current_context.is_hydrating then
-    failwith "solid-ml: start_hydration called while already hydrating";
+    failwith "solid-ml-browser: start_hydration called while already hydrating";
   !current_context.is_hydrating <- true;
   !current_context.cursor_stack <- [];
   !current_context.template_root_stack <- [];
@@ -83,7 +83,7 @@ let start_hydration () =
     @raise Failure if not hydrating (indicates a bug) *)
 let end_hydration () =
   if not !current_context.is_hydrating then
-    failwith "solid-ml: end_hydration called while not hydrating";
+    failwith "solid-ml-browser: end_hydration called while not hydrating";
   !current_context.is_hydrating <- false;
   !current_context.cursor_stack <- [];
   !current_context.template_root_stack <- [];
@@ -250,5 +250,4 @@ let remove_hydration_markers root =
   
   (* Remove all marked nodes *)
   List.iter remove_node !markers_to_remove
-
 

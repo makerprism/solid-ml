@@ -114,7 +114,7 @@ let create (type a) (props : a for_props) : Html.node =
 
         let parent = match node_parent_node placeholder_node with
           | Some parent -> element_of_node parent
-          | None -> raise (Failure "solid-ml: For placeholder not mounted")
+          | None -> raise (Failure "solid-ml-browser: For placeholder not mounted")
         in
 
         let new_states = ref [] in
@@ -185,7 +185,7 @@ let create (type a) (props : a for_props) : Html.node =
       ~run:(fun items ->
         let parent = match node_parent_node placeholder_node with
           | Some parent -> element_of_node parent
-          | None -> raise (Failure "solid-ml: For fallback not mounted")
+          | None -> raise (Failure "solid-ml-browser: For fallback not mounted")
         in
         if items = [] then
           Reactive_core.with_mount_scope (fun () ->

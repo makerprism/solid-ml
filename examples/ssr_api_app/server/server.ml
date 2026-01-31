@@ -257,7 +257,7 @@ let layout ~title:page_title ~current_path:_ ~children () =
               ~children:[text "JSONPlaceholder"] ();
             text " | Powered by ";
             a ~href:"https://github.com/makerprism/solid-ml"
-              ~children:[text "solid-ml"] ();
+              ~children:[text "solid-ml-server"] ();
           ] ();
         ] ();
         (* Hydration script *)
@@ -732,7 +732,7 @@ let () =
     | None -> 8080
   in
 
-  Printf.printf "=== solid-ml SSR API Demo ===\n";
+  Printf.printf "=== solid-ml-server SSR API Demo ===\n";
   Printf.printf "Server running at http://0.0.0.0:%d\n" port;
   Printf.printf "\n";
   Printf.printf "Pages:\n";

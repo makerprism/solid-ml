@@ -1,7 +1,7 @@
 ; solid-ml-internal: Shared reactive internals
 ;
 ; DO NOT depend on this package directly.
-; Use solid-ml (server) or solid-ml-browser (browser) instead.
+; Use solid-ml-server (server) or solid-ml-browser (browser) instead.
 ;
 ; This package provides:
 ; - Internal types with Obj.t for type erasure

@@ -10,7 +10,7 @@
     
     We use composable lenses:
     {[
-      Store.set store (users |-- nth 0 |-- logged_in) true  // solid-ml
+      Store.set store (users |-- nth 0 |-- logged_in) true  // solid-ml-browser
     ]}
     
     Key features:

@@ -34,4 +34,4 @@ let () =
     let _dispose = Render.hydrate main_el (fun () ->
       C.view ~initial ()
     ) in
-    Dom.log "solid-ml counter hydrated"
+    Dom.log "solid-ml-server counter hydrated"

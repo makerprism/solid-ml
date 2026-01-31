@@ -5,10 +5,10 @@ let reset () =
   State.reset ()
 
 let to_string component =
-  Solid_ml.Runtime.run (fun () ->
+  Solid_ml_server.Runtime.run (fun () ->
     reset ();
     let node = ref (Html.text "") in
-    let dispose = Solid_ml.Owner.create_root (fun () ->
+    let dispose = Solid_ml_server.Owner.create_root (fun () ->
       node := component ()
     ) in
     let result = Html.to_string !node in
@@ -17,10 +17,10 @@ let to_string component =
   )
 
 let to_document component =
-  Solid_ml.Runtime.run (fun () ->
+  Solid_ml_server.Runtime.run (fun () ->
     reset ();
     let node = ref (Html.text "") in
-    let dispose = Solid_ml.Owner.create_root (fun () ->
+    let dispose = Solid_ml_server.Owner.create_root (fun () ->
       node := component ()
     ) in
     let result = Html.render_document !node in

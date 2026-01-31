@@ -125,7 +125,7 @@ let render_page ~path =
   "<head>\n" ^
   "  <meta charset=\"UTF-8\">\n" ^
   "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" ^
-  "  <title>solid-ml Router Demo</title>\n" ^
+  "  <title>solid-ml-server Router Demo</title>\n" ^
   "  <style>" ^ css ^ "</style>\n" ^
   "</head>\n" ^
   "<body>\n" ^

@@ -33,7 +33,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV)
   let home_page () =
     <div class_="page">
       <h2>(text "Home")</h2>
-      <p>(text "Welcome to the solid-ml router demo!")</p>
+      <p>(text "Welcome to the solid-ml-server router demo!")</p>
       <p>(text "Click the navigation links above to see routing in action.")</p>
       <p>(text "This example supports SSR + client-side navigation.")</p>
     </div>
@@ -90,7 +90,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV)
   let about_page () =
     <div class_="page">
       <h2>(text "About")</h2>
-      <p>(text "solid-ml is an OCaml framework for reactive web applications.")</p>
+      <p>(text "solid-ml-server is an OCaml framework for reactive web applications.")</p>
 
       <h3>(text "Key Features")</h3>
       <ul>
@@ -165,7 +165,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV)
   let app () =
     <div class_="app">
       <header>
-        <h1>(text "solid-ml Router Demo")</h1>
+        <h1>(text "solid-ml-server Router Demo")</h1>
         (nav_bar ())
       </header>
       <main>
@@ -174,7 +174,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV)
       <footer>
         <p>
           (text "Built with ")
-          (a ~href:"https://github.com/makerprism/solid-ml" ~target:"_blank" ~children:[text "solid-ml"] ())
+          (a ~href:"https://github.com/makerprism/solid-ml" ~target:"_blank" ~children:[text "solid-ml-server"] ())
         </p>
       </footer>
     </div>

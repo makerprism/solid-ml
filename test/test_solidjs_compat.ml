@@ -6,7 +6,7 @@
 
 [@@@ocaml.warning "-20-32"]
 
-open Solid_ml
+open Solid_ml_server
 
 module Unsafe = struct
   module Signal = Signal.Unsafe
@@ -425,7 +425,7 @@ let test_catch_error_top_level () =
   print_endline "Test: catchError top level";
   let errored = ref false in
   with_runtime (fun () ->
-    let _ = Solid_ml.Owner.catch_error
+    let _ = Solid_ml_server.Owner.catch_error
       (fun () -> raise (Failure "fail"))
       (fun _ -> errored := true; ())
     in
@@ -438,9 +438,9 @@ let test_catch_error_nested () =
   print_endline "Test: catchError nested in catchError";
   let errored = ref false in
   with_runtime (fun () ->
-    let _ = Solid_ml.Owner.catch_error
+    let _ = Solid_ml_server.Owner.catch_error
       (fun () ->
-        let _ = Solid_ml.Owner.catch_error
+        let _ = Solid_ml_server.Owner.catch_error
           (fun () -> raise (Failure "fail"))
           (fun exn -> raise exn)
         in
@@ -457,7 +457,7 @@ let test_catch_error_in_initial_effect () =
   let errored = ref false in
   with_runtime (fun () ->
     Effect.create (fun () ->
-      let _ = Solid_ml.Owner.catch_error
+      let _ = Solid_ml_server.Owner.catch_error
         (fun () -> raise (Failure "fail"))
         (fun _ -> errored := true; ())
       in
@@ -474,7 +474,7 @@ let test_catch_error_in_update_effect () =
     let s, set_s = Signal.create 0 in
     Effect.create (fun () ->
       let v = Signal.get s in
-      let _ = Solid_ml.Owner.catch_error
+      let _ = Solid_ml_server.Owner.catch_error
         (fun () -> if v <> 0 then raise (Failure "fail"))
         (fun _ -> errored := true; ())
       in
@@ -491,7 +491,7 @@ let test_catch_error_in_initial_nested_effect () =
   with_runtime (fun () ->
     Effect.create (fun () ->
       Effect.create (fun () ->
-        let _ = Solid_ml.Owner.catch_error
+        let _ = Solid_ml_server.Owner.catch_error
           (fun () -> raise (Failure "fail"))
           (fun _ -> errored := true; ())
         in
@@ -510,7 +510,7 @@ let test_catch_error_in_nested_update_effect () =
     Effect.create (fun () ->
       Effect.create (fun () ->
         let v = Signal.get s in
-        let _ = Solid_ml.Owner.catch_error
+        let _ = Solid_ml_server.Owner.catch_error
           (fun () -> if v <> 0 then raise (Failure "fail"))
           (fun _ -> errored := true; ())
         in
@@ -528,7 +528,7 @@ let test_catch_error_in_nested_update_effect_different_levels () =
   with_runtime (fun () ->
     let s, set_s = Signal.create 0 in
     Effect.create (fun () ->
-      let _ = Solid_ml.Owner.catch_error
+      let _ = Solid_ml_server.Owner.catch_error
         (fun () ->
           let v = Signal.get s in
           if v <> 0 then raise (Failure "fail")
@@ -547,7 +547,7 @@ let test_catch_error_in_nested_memo () =
   let errored = ref false in
   with_runtime (fun () ->
     let _ = Memo.create (fun () ->
-      let _ = Solid_ml.Owner.catch_error
+      let _ = Solid_ml_server.Owner.catch_error
         (fun () ->
           Effect.create (fun () -> ());
           failwith "fail")

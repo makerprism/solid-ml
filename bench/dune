@@ -1,11 +1,11 @@
 (executable
  (name test_opt)
- (libraries solid-ml solid-ml-ssr))
+ (libraries solid-ml-server solid-ml-ssr))
 
 (executable
  (name bench_simple)
- (libraries solid-ml solid-ml-ssr))
+ (libraries solid-ml-server solid-ml-ssr))
 
 (executable
  (name bench_observers)
- (libraries solid-ml solid-ml-ssr))
+ (libraries solid-ml-server solid-ml-ssr))

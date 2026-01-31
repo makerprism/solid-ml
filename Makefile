@@ -1,4 +1,4 @@
-# solid-ml Makefile
+# solid-ml-server Makefile
 #
 # NOTE: This project uses dune 3.20.2 installed at /usr/bin/dune.
 # The dune-project uses (lang dune 3.17) for compatibility.
@@ -237,7 +237,7 @@ browser-tests-headless:
 # ==============================================================================
 
 help:
-	@echo "solid-ml Makefile"
+	@echo "solid-ml-server Makefile"
 	@echo ""
 	@echo "Development:"
 	@echo " make build              - Build all packages"

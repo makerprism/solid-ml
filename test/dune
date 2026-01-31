@@ -1,34 +1,34 @@
 (test
   (name test_reactive)
-  (libraries solid-ml))
+  (libraries solid-ml-server))
 
 (test
   (name test_html)
-  (libraries solid-ml solid-ml-ssr))
+  (libraries solid-ml-server solid-ml-ssr))
 
 (test
   (name test_solidjs_compat)
-  (libraries solid-ml))
+  (libraries solid-ml-server))
 
 (test
   (name test_router)
-  (libraries solid-ml solid-ml-ssr solid-ml-router))
+  (libraries solid-ml-server solid-ml-ssr solid-ml-router))
 
 (test
   (name test_suspense)
-  (libraries solid-ml solid-ml-router))
+  (libraries solid-ml-server solid-ml-router))
 
 (test
   (name test_additional_components)
-  (libraries solid-ml))
+  (libraries solid-ml-server))
 
 (test
   (name test_component)
-  (libraries solid-ml solid-ml-ssr))
+  (libraries solid-ml-server solid-ml-ssr))
 
 (test
    (name test_template)
-   (libraries solid-ml solid-ml-ssr))
+   (libraries solid-ml-server solid-ml-ssr))
 
 (test
   (name test_template_ppx)
@@ -38,11 +38,11 @@
 (test
   (name test_template_compiler)
   (modules test_template_compiler)
-  (libraries solid-ml solid-ml-ssr solid-ml-template-runtime)
+  (libraries solid-ml-server solid-ml-ssr solid-ml-template-runtime)
   (preprocess (pps solid-ml-template-ppx)))
 
 (test
   (name test_template_attr)
   (modules test_template_attr)
-  (libraries solid-ml solid-ml-ssr solid-ml-template-runtime)
+  (libraries solid-ml-server solid-ml-ssr solid-ml-template-runtime)
   (preprocess (pps solid-ml-template-ppx)))

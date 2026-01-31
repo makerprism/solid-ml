@@ -11,7 +11,7 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     in
 
     <main class_="app">
-      <h1>(Html.text "solid-ml SSR + Hydration")</h1>
+      <h1>(Html.text "solid-ml-server SSR + Hydration")</h1>
       <p>(Html.text "This counter was rendered on the server and hydrated in the browser.")</p>
 
       <div class_="counter">
@@ -40,7 +40,7 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
           <Html.Svg.circle cx="60" cy="60" r="50" fill="#4f46e5" />
           <Html.Svg.text_ x="60" y="68" fill="white"
                      style="font-size:24px; text-anchor:middle; font-family:system-ui;">
-            (Html.text "solid-ml")
+            (Html.text "solid-ml-server")
           </Html.Svg.text_>
         </Html.Svg.svg>))
 

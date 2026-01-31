@@ -1,4 +1,4 @@
-# solid-ml
+# solid-ml-server
 
 An OCaml framework for building reactive web applications with server-side rendering (SSR), inspired by [SolidJS](https://www.solidjs.com/).
 
@@ -7,7 +7,7 @@ An OCaml framework for building reactive web applications with server-side rende
 ## Quick Start
 
 ```ocaml
-open Solid_ml
+open Solid_ml_server
 
 let () =
   Runtime.run (fun () ->
@@ -42,7 +42,7 @@ let () =
 ### Runtime Context
 
 Reactive primitives bind to the current owner/runtime if present. On the server,
-solid-ml does not create an implicit runtime: you must call `Runtime.run` per
+solid-ml-server does not create an implicit runtime: you must call `Runtime.run` per
 request (or use SSR helpers that do it for you) to keep state isolated.
 
 ```ocaml
@@ -181,7 +181,7 @@ Differences:
 - Effects run synchronously by default (browser can opt into microtask deferral)
 - Memos use structural equality by default (override with `~equals`)
 - No concurrent rendering or transitions
-- solid-ml browser can create an implicit runtime; solid-ml server requires `Runtime.run` per request. SolidJS SSR creates a new root per render/request.
+- solid-ml-browser can create an implicit runtime; solid-ml-server requires `Runtime.run` per request. SolidJS SSR creates a new root per render/request.
 
 Practical guidance:
 - For server code, always create a runtime per request using `Runtime.run`, or use SSR helpers like `Solid_ml_ssr.Render.to_string`/`to_document` which create and dispose a runtime for you.

@@ -1,8 +1,8 @@
-(** Tests for solid-ml-html server-side rendering *)
+(** Tests for solid-ml-server HTML server-side rendering *)
 
 open Solid_ml_ssr
 
-module Signal = Solid_ml.Signal.Unsafe
+module Signal = Solid_ml_server.Signal.Unsafe
 
 (** Helper to check if string contains substring *)
 let contains s sub =
@@ -242,13 +242,13 @@ let test_render_with_signals () =
 let test_hydration_script () =
   print_endline "Test: Hydration script";
   let script =
-    Solid_ml.Runtime.run (fun () ->
+    Solid_ml_server.Runtime.run (fun () ->
       Solid_ml_ssr.State.reset ();
       Solid_ml_ssr.State.set_encoded
         ~key:"count"
         ~encode:Solid_ml_ssr.State.encode_int
         3;
-      let resource = Solid_ml.Resource.of_value 7 in
+      let resource = Solid_ml_server.Resource.of_value 7 in
       Solid_ml_ssr.Resource_state.set
         ~key:"resource"
         ~encode:Solid_ml_ssr.State.encode_int
@@ -710,7 +710,7 @@ let test_svg_text_tspan () =
 (* ============ Main ============ *)
 
 let () =
-  print_endline "\n=== solid-ml-html Tests ===\n";
+  print_endline "\n=== solid-ml-server HTML Tests ===\n";
   
   print_endline "-- HTML Element Tests --";
   test_text ();

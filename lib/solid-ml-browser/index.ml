@@ -90,7 +90,7 @@ let create (type a) (props : a index_props) : Html.node =
 
         let parent = match node_parent_node placeholder_node with
           | Some parent -> element_of_node parent
-          | None -> raise (Failure "solid-ml: Index placeholder not mounted")
+          | None -> raise (Failure "solid-ml-browser: Index placeholder not mounted")
         in
 
         (match !fallback_node_ref with

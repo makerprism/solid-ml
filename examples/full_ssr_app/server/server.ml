@@ -18,14 +18,14 @@ module Inline_edit = Shared_components.Inline_edit.Make(Solid_ml_ssr.Env)
 module Async = Shared_components.Async.Make(Solid_ml_ssr.Env)
 
 let sample_todos = Shared_components.Components.[
-  { id = 1; text = "Learn solid-ml"; completed = true };
+  { id = 1; text = "Learn solid-ml-server"; completed = true };
   { id = 2; text = "Build an SSR app"; completed = false };
   { id = 3; text = "Add hydration"; completed = false };
   { id = 4; text = "Deploy to production"; completed = false };
 ]
 
 let sample_todos_filters : Shared_components.Filters.todo list = [
-  { id = 1; text = "Learn solid-ml"; completed = true };
+  { id = 1; text = "Learn solid-ml-server"; completed = true };
   { id = 2; text = "Build an SSR app"; completed = false };
   { id = 3; text = "Add hydration"; completed = false };
   { id = 4; text = "Deploy to production"; completed = false };
@@ -1327,7 +1327,7 @@ let layout ~title:page_title ~children () =
     "full_ssr_app.__private__/": "/static/node_modules/full_ssr_app.__private__/",
     "full_ssr_app.__private__.shared_components/": "/static/node_modules/full_ssr_app.__private__.shared_components/",
     "solid-ml-browser/": "/static/node_modules/solid-ml-browser/",
-    "solid-ml/": "/static/node_modules/solid-ml/",
+    "solid-ml-server/": "/static/node_modules/solid-ml-server/",
     "solid-ml-internal/": "/static/node_modules/solid-ml-internal/",
     "solid-ml-template-runtime/": "/static/node_modules/solid-ml-template-runtime/"
   }
@@ -1347,7 +1347,7 @@ let layout ~title:page_title ~children () =
 
 (** Home page *)
 let home_page ~current_path () =
-  layout ~title:"Home - solid-ml SSR" ~children:(
+  layout ~title:"Home - solid-ml-server SSR" ~children:(
     Shared.app_layout ~current_path ~children:(
       Shared.home_page ()
     ) ()
@@ -1355,7 +1355,7 @@ let home_page ~current_path () =
 
 (** Counter page - uses Shared.counter *)
 let counter_page ~current_path ~initial () =
-  layout ~title:"Counter - solid-ml SSR" ~children:(
+  layout ~title:"Counter - solid-ml-server SSR" ~children:(
     Shared.app_layout ~current_path ~children:(
       Shared.counter_content ~initial ()
     ) ()
@@ -1363,7 +1363,7 @@ let counter_page ~current_path ~initial () =
 
 (** Todos page - uses Shared.todo_list *)
 let todos_page ~current_path ~todos () =
-  layout ~title:"Todos - solid-ml SSR" ~children:(
+  layout ~title:"Todos - solid-ml-server SSR" ~children:(
     Shared.app_layout ~current_path ~children:(
       Shared.todos_content ~initial_todos:todos ()
     ) ()
@@ -1371,7 +1371,7 @@ let todos_page ~current_path ~todos () =
 
 (** Filters page - uses Filters.view *)
 let filters_page ~current_path ~todos () =
-  layout ~title:"Filters - solid-ml SSR" ~children:(
+  layout ~title:"Filters - solid-ml-server SSR" ~children:(
     Shared.app_layout ~current_path ~children:(
       Filters.view ~initial_todos:todos ()
     ) ()
@@ -1379,7 +1379,7 @@ let filters_page ~current_path ~todos () =
 
 (** 404 page *)
 let not_found_page ~current_path ~request_path () =
-  layout ~title:"Not Found - solid-ml SSR" ~children:(
+  layout ~title:"Not Found - solid-ml-server SSR" ~children:(
     Shared.app_layout ~current_path ~children:(
       Html.div ~children:[
         Html.h2 ~children:[Html.text "404 - Page Not Found"] ();
@@ -1401,7 +1401,7 @@ let handle_home req =
 let handle_keyed _req =
   let html =
     Render.to_document (fun () ->
-      layout ~title:"Keyed - solid-ml SSR" ~children:(
+      layout ~title:"Keyed - solid-ml-server SSR" ~children:(
         Shared.app_layout ~current_path:(Routes.path Routes.Keyed) ~children:(
           Shared.keyed_demo ()
         ) ()
@@ -1413,7 +1413,7 @@ let handle_template_keyed _req =
   let module T = Shared_components.Template_keyed.Make (Solid_ml_ssr.Env) in
   let html =
     Render.to_document (fun () ->
-      layout ~title:"Template-Keyed - solid-ml SSR" ~children:(
+      layout ~title:"Template-Keyed - solid-ml-server SSR" ~children:(
         Shared.app_layout ~current_path:(Routes.path Routes.Template_keyed) ~children:(
           T.view ()
         ) ()
@@ -1461,7 +1461,7 @@ let handle_filters _req =
 
 (** Inline-edit page - uses Inline_edit.view *)
 let inline_edit_page ~current_path () =
-  layout ~title:"Inline Edit - solid-ml SSR" ~children:(
+      layout ~title:"Inline Edit - solid-ml-server SSR" ~children:(
     Shared.app_layout ~current_path ~children:(
       Inline_edit.view ()
     ) ()
@@ -1478,7 +1478,7 @@ let handle_async _req =
   let module Async = Shared_components.Async.Make(Solid_ml_ssr.Env) in
   let html =
     Render.to_document (fun () ->
-      layout ~title:"Async - solid-ml SSR" ~children:(
+      layout ~title:"Async - solid-ml-server SSR" ~children:(
         Shared.app_layout ~current_path:(Routes.path Routes.Async) ~children:(
           Async.view ()
         ) ()
@@ -1491,7 +1491,7 @@ let handle_undo_redo _req =
   let module Undo_redo = Shared_components.Undo_redo.Make(Solid_ml_ssr.Env) in
   let html =
     Render.to_document (fun () ->
-      layout ~title:"Undo-Redo - solid-ml SSR" ~children:(
+      layout ~title:"Undo-Redo - solid-ml-server SSR" ~children:(
         Shared.app_layout ~current_path:(Routes.path Routes.Undo_redo) ~children:(
           Undo_redo.view ()
         ) ()
@@ -1504,7 +1504,7 @@ let handle_theme _req =
   let module Theme = Shared_components.Theme.Make(Solid_ml_ssr.Env) in
   let html =
     Render.to_document (fun () ->
-      layout ~title:"Theme - solid-ml SSR" ~children:(
+      layout ~title:"Theme - solid-ml-server SSR" ~children:(
         Shared.app_layout ~current_path:(Routes.path Routes.Theme) ~children:(
           Theme.view ()
         ) ()
@@ -1517,7 +1517,7 @@ let handle_wizard _req =
   let module Wizard = Shared_components.Wizard.Make(Solid_ml_ssr.Env) in
   let html =
     Render.to_document (fun () ->
-      layout ~title:"Wizard - solid-ml SSR" ~children:(
+      layout ~title:"Wizard - solid-ml-server SSR" ~children:(
         Shared.app_layout ~current_path:(Routes.path Routes.Wizard) ~children:(
           Wizard.view ()
         ) ()
@@ -1541,7 +1541,7 @@ let () =
     | None -> 8080
   in
 
-  Printf.printf "=== solid-ml Full SSR Demo ===\n";
+  Printf.printf "=== solid-ml-server Full SSR Demo ===\n";
   Printf.printf "Server running at http://localhost:%d\n" port;
   Printf.printf "\n";
   Printf.printf "Pages:\n";

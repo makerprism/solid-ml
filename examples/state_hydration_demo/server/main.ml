@@ -15,7 +15,7 @@ module C = State_hydration_shared.Components
 (** {1 Component Functions} *)
 
 let counter_component ~(initial : int) =
-  let count, _set_count = Solid_ml.Signal.create initial in
+  let count, _set_count = Solid_ml_server.Signal.create initial in
   Html.(
     div ~class_:"counter-demo" ~children:[
       h2 ~children:[text "Server→Client State Transfer"] ();
@@ -207,7 +207,7 @@ let layout ~title:page_title ~children () =
       body ~children:[
         div ~class_:"container" ~children:[
           h1 ~children:[text "State Hydration Demo"] ();
-          p ~children:[text "This page demonstrates the solid-ml State module for server→client state transfer."] ();
+          p ~children:[text "This page demonstrates the solid-ml-server State module for server→client state transfer."] ();
           children
         ] ()
       ] ()
