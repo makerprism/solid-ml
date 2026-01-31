@@ -6,6 +6,7 @@
 ## Unreleased
 
 ### Added
+- Umbrella package `solid-ml` that pulls in solid-ml-server, SSR, router, browser, and MLX tooling.
 - Fine-grained reactivity: signals, effects, memos, batch, owner, and context.
 - Server-side rendering with HTML helpers and hydration markers.
 - Client-side DOM runtime with Melange, hydration, and event handling.
@@ -35,6 +36,7 @@
 
 ### Breaking (pre-release)
 - No releases yet; treat all changes as breaking until 1.0.
+- Renamed the main server package from `solid-ml` to `solid-ml-server`. Use `solid-ml` only as the umbrella meta package.
 - Resource states now use `Loading/Ready/Error`; `Pending` is deprecated and treated as loading.
 - Router components are now a functor only; SSR defaults moved to `Solid_ml_ssr.Router_components`.
 - `Solid_ml_router.Resource.render_simple` moved to `Solid_ml_ssr.Router_resource`.

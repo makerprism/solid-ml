@@ -8,4 +8,5 @@
  (synopsis "solid-ml-server hello world using dune")
  (description "Minimal dune project that renders a solid-ml-server component on the server.")
  (depends
-  (solid-ml (>= 0.1.0))))
+  (solid-ml-server (>= 0.1.0))
+  (solid-ml-ssr (>= 0.1.0))))
