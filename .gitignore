@@ -4,9 +4,6 @@ _build/
 *.merlin
 *.cmt
 
-# opam files (generated from dune-project)
-*.opam
-
 # opam switch artifacts
 _opam/
 .opam-switch/
@@ -57,4 +54,3 @@ coverage/
 bisect*.out
 *.profraw
 *.profdata
-
