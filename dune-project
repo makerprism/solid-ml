@@ -61,14 +61,16 @@
   (dune (< 3.21))))
 
 ; Server-side rendering
-(package
- (name solid-ml-ssr)
- (synopsis "Server-side rendering for solid-ml-server")
- (description "Render solid-ml-server components to HTML strings for SSR.")
- (allow_empty)
+ (package
+  (name solid-ml-ssr)
+  (synopsis "Server-side rendering for solid-ml-server")
+  (description "Render solid-ml-server components to HTML strings for SSR.")
+  (allow_empty)
    (depends
     (ocaml (>= 4.14.0))
     (solid-ml-server (= :version))
+    (solid-ml-router (= :version))
+    (solid-ml-template-runtime (= :version))
     (dune (< 3.21))))
 
 ; Browser-side reactive framework (Melange)
@@ -85,15 +87,15 @@
    (dune (< 3.21))))
 
 ; Router (SSR-aware)
-(package
- (name solid-ml-router)
- (synopsis "SSR-aware routing for solid-ml-server")
- (description "Routing with server-side data loaders and client-side navigation.")
- (allow_empty)
+ (package
+  (name solid-ml-router)
+  (synopsis "SSR-aware routing for solid-ml-server")
+  (description "Routing with server-side data loaders and client-side navigation.")
+  (allow_empty)
    (depends
     (ocaml (>= 4.14.0))
     (solid-ml-server (= :version))
-    (solid-ml-ssr (= :version))
+    (solid-ml-internal (= :version))
     (dune (< 3.21))))
 
 ; Template runtime interfaces (shared)
