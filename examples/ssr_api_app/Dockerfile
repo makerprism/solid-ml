@@ -31,20 +31,15 @@ RUN opam switch create 5.4.0 -y
 RUN eval "$(opam env --switch=5.4.0)" && \
     opam install dune.3.21.0 melange mlx dream yojson curl
 
-ENV OPAMSWITCH=5.4.0
-ENV PATH="/opam/5.4.0/.opam-switch/bin:${PATH}"
-
 WORKDIR /app
 
 COPY . .
 
 # Build client bundle (Melange)
-RUN eval "$(opam env --switch=5.4.0)" && \
-    dune build examples/ssr_api_app/client
+RUN opam exec --switch=5.4.0 -- dune build examples/ssr_api_app/client
 
 # Build server (no enabled_if, always enabled)
-RUN eval "$(opam env --switch=5.4.0)" && \
-    dune build examples/ssr_api_app/server/server.exe
+RUN opam exec --switch=5.4.0 -- dune build examples/ssr_api_app/server/server.exe
 
 # Bundle client.js with esbuild to resolve module imports
 RUN cd _build/default/examples/ssr_api_app/client/output && \
