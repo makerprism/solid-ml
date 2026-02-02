@@ -1,0 +1,12 @@
+(version 20260122)
+
+(build
+ (run dune build -p %{pkg-self:name} -j %{jobs}))
+
+(depends ocaml dune)
+
+(source
+ (fetch
+  (url
+   https://gitlab.inria.fr/fpottier/menhir/-/archive/20260122/archive.tar.gz)
+  (checksum md5=5545d2adfcdb882159ec55f7f1a658d2)))

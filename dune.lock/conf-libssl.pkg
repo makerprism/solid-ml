@@ -1,0 +1,18 @@
+(version 4)
+
+(build
+ (withenv
+  ((= HOMEBREW_NO_AUTO_UPDATE 1))
+  (run pkg-config --print-errors --exists openssl)))
+
+(depends conf-pkg-config)
+
+(depexts libssl-dev)
+
+(extra_sources
+ (homebrew.sh
+  (fetch
+   (url
+    https://raw.githubusercontent.com/ocaml/opam-source-archives/main/patches/conf-libssl/homebrew.sh.4)
+   (checksum
+    sha256=c6e132e784f0d3250b434a91ad806416ad6c30e25465bd4e37df946a33bfbad2))))

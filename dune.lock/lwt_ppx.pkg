@@ -1,0 +1,15 @@
+(version 5.9.3)
+
+(build
+ (progn
+  (when
+   %{pkg-self:dev}
+   (run dune subst))
+  (run dune build -p %{pkg-self:name} -j %{jobs} @install)))
+
+(depends dune ocaml ppxlib lwt)
+
+(source
+ (fetch
+  (url https://github.com/ocsigen/lwt/archive/refs/tags/5.9.3.tar.gz)
+  (checksum md5=c24a86336f721f58bfd01757b4c672fe)))
