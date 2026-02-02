@@ -28,6 +28,10 @@ build:
 test:
 	@$(DUNE) runtest
 
+# Regenerate opam files from dune-project
+opam:
+	@$(DUNE) build solid-ml.opam solid-ml-server.opam solid-ml-ssr.opam solid-ml-router.opam solid-ml-browser.opam solid-ml-internal.opam solid-ml-template-runtime.opam solid-ml-template-ppx.opam
+
 # Clean all build artifacts
 clean:
 	@$(DUNE) clean
