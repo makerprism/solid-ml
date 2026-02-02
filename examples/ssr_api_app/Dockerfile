@@ -8,6 +8,7 @@ RUN apt-get update \
         curl \
         ca-certificates \
         git \
+        opam \
         pkg-config \
         libev-dev \
         libgmp-dev \
@@ -18,19 +19,32 @@ RUN apt-get update \
         npm \
     && rm -rf /var/lib/apt/lists/*
 
-# Install dune from official binary script
-ENV DUNE_VERSION=3.20.2
-RUN curl -fsSL https://github.com/ocaml-dune/dune-bin-install/releases/download/v3/install.sh \
-    | sh -s -- ${DUNE_VERSION} --install-root /usr --no-update-shell-config
+# NOTE: Opam usage is intentionally allowed here to install Melange.
+SHELL ["/bin/bash", "-lc"]
+
+ENV OPAMROOT=/opam
+ENV OPAMYES=1
+ENV OPAMJOBS=2
+
+RUN opam init --disable-sandboxing --bare -y
+RUN opam switch create 5.4.0 -y
+RUN eval "$(opam env --switch=5.4.0)" && \
+    opam install dune.3.21.0 melange mlx dream yojson curl
+
+ENV OPAMSWITCH=5.4.0
+ENV PATH="/opam/5.4.0/.opam-switch/bin:${PATH}"
 
 WORKDIR /app
+
 COPY . .
 
 # Build client bundle (Melange)
-RUN dune build examples/ssr_api_app/client
+RUN eval "$(opam env --switch=5.4.0)" && \
+    dune build examples/ssr_api_app/client
 
 # Build server (no enabled_if, always enabled)
-RUN dune build examples/ssr_api_app/server/server.exe
+RUN eval "$(opam env --switch=5.4.0)" && \
+    dune build examples/ssr_api_app/server/server.exe
 
 # Bundle client.js with esbuild to resolve module imports
 RUN cd _build/default/examples/ssr_api_app/client/output && \

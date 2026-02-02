@@ -2,9 +2,9 @@
 
 ## Hard Constraints
 
-**NEVER use opam commands or access .opam or _opam folders.**
+**NEVER use opam commands or access .opam or _opam folders, except inside `examples/ssr_api_app/Dockerfile` when installing Melange for the Docker build.**
 
-This project builds with `/home/sabine/.opam/landing-pages-build/bin/dune` (dune 3.20.2) which is configured to work with the system OCaml installation. Do not use `opam` commands or reference any packages in `.opam/` or `_opam/` directories. Always use the dune binary specified in the Makefile's `DUNE` variable.
+This project builds with `/home/sabine/.opam/landing-pages-build/bin/dune` (dune 3.20.2) which is configured to work with the system OCaml installation. Do not use `opam` commands or reference any packages in `.opam/` or `_opam/` directories, except for the Dockerfile exception above. Always use the dune binary specified in the Makefile's `DUNE` variable.
 
 **Git workflow:** Always use rebase (not merge) when integrating remote changes before pushing.
 

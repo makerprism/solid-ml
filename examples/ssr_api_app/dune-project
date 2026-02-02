@@ -18,8 +18,8 @@
  (synopsis "Example SSR app for solid-ml-server")
  (description "A full-stack SSR example using Dream and solid-ml-server.")
  (allow_empty)
-  (depends
-   (ocaml (= 5.2.1))
+   (depends
+    (ocaml (= 5.4.0))
    (dream (>= 1.0.0~alpha8))
    (solid-ml (>= 0.1.0))
    (curl (>= 0.9.0))
