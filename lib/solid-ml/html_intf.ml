@@ -153,6 +153,14 @@ module type S = sig
   val button : ?id:string -> ?class_:string -> ?type_:string -> ?disabled:bool ->
     ?tabindex:int -> ?aria_label:string -> ?aria_expanded:bool -> ?aria_controls:string -> ?aria_haspopup:bool ->
     ?onclick:(event -> unit) -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+
+  val fieldset : ?id:string -> ?class_:string -> ?disabled:bool ->
+    ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+
+  val legend : ?id:string -> ?class_:string ->
+    ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+
+  val datalist : ?id:string -> ?class_:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
   
   (** {2 Media} *)
   
