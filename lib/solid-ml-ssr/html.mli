@@ -184,8 +184,9 @@ val button : ?id:string -> ?class_:string -> ?type_:string -> ?disabled:bool -> 
 val output : ?id:string -> ?class_:string -> ?for_:string -> ?name:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val progress : ?id:string -> ?class_:string -> ?value:string -> ?max:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
 val meter : ?id:string -> ?class_:string -> ?value:string -> ?min:string -> ?max:string -> ?low:string -> ?high:string -> ?optimum:string -> ?attrs:(string * string) list -> children:node list -> unit -> node
-val fieldset : ?id:string -> ?class_:string -> ?disabled:bool -> ?attrs:(string * string) list -> children:node list -> unit -> node
-val legend : ?attrs:(string * string) list -> children:node list -> unit -> node
+val fieldset : ?id:string -> ?class_:string -> ?disabled:bool -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val legend : ?id:string -> ?class_:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
+val datalist : ?id:string -> ?class_:string -> ?data:(string * string) list -> ?attrs:(string * string) list -> children:node list -> unit -> node
 
 (** {2 Media} *)
 

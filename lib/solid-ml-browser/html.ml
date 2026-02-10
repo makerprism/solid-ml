@@ -1430,13 +1430,21 @@ let meter ?id ?class_ ?value ?min ?max ?low ?high ?optimum ?(attrs=[]) ~children
     set_opt_attr el "optimum" optimum
   ) children
 
-let fieldset ?id ?class_ ?(disabled=false) ?(attrs=[]) ~children () =
+let fieldset ?id ?class_ ?(disabled=false) ?(data=[]) ?(attrs=[]) ~children () =
   make_element_with_attrs "fieldset" ?id ?class_ ~attrs (fun el ->
-    set_bool_attr el "disabled" disabled
+    set_bool_attr el "disabled" disabled;
+    set_data_attrs el data
   ) children
 
-let legend ?(attrs=[]) ~children () =
-  make_element_with_attrs "legend" ~attrs (fun _ -> ()) children
+let legend ?id ?class_ ?(data=[]) ?(attrs=[]) ~children () =
+  make_element_with_attrs "legend" ?id ?class_ ~attrs (fun el ->
+    set_data_attrs el data
+  ) children
+
+let datalist ?id ?class_ ?(data=[]) ?(attrs=[]) ~children () =
+  make_element_with_attrs "datalist" ?id ?class_ ~attrs (fun el ->
+    set_data_attrs el data
+  ) children
 
 (** {1 Media} *)
 

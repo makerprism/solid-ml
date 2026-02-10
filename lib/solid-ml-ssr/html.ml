@@ -1380,17 +1380,33 @@ let meter ?id ?class_ ?value ?min ?max ?low ?high ?optimum ?(attrs=[]) ~children
   in
   element "meter" attrs children
 
-let fieldset ?id ?class_ ?(disabled=false) ?(attrs=[]) ~children () =
-  let attrs = [] 
-    |> add_opt "id" id 
+let fieldset ?id ?class_ ?(disabled=false) ?(data=[]) ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
     |> add_opt "class" class_
     |> add_bool "disabled" disabled
+    |> add_data data
     |> add_attrs attrs
   in
   element "fieldset" attrs children
 
-let legend ?(attrs=[]) ~children () =
+let legend ?id ?class_ ?(data=[]) ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_data data
+    |> add_attrs attrs
+  in
   element "legend" attrs children
+
+let datalist ?id ?class_ ?(data=[]) ?(attrs=[]) ~children () =
+  let attrs = []
+    |> add_opt "id" id
+    |> add_opt "class" class_
+    |> add_data data
+    |> add_attrs attrs
+  in
+  element "datalist" attrs children
 
 (** Media *)
 let picture ?id ?class_ ?(attrs=[]) ~children () =
