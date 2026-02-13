@@ -138,17 +138,15 @@ cleanup playbook.
 Primitive child literals are lowered as static text in template mode. For
 example, `(42)`, `(3.5)`, `(true)`, and `("hello")` are valid child forms.
 
-`{expr}` interpolation (children and props) is available in the makerprism MLX
-fork branch (`makerprism/mlx`, `feature/jsx-brace-interpolation`, PR #1).
+`{expr}` interpolation (children and props) is available via the makerprism MLX
+fork (`makerprism/mlx`, `feature/jsx-brace-interpolation`, PR #1), and this
+repository's `dune.lock/mlx.pkg` is pinned to that fork source.
 
-To use that syntax in this repository now, pin `mlx` to the fork branch:
+If you update the fork pin, refresh the lockdir with:
 
 ```bash
-opam pin add mlx "https://github.com/makerprism/mlx.git#feature/jsx-brace-interpolation"
+dune pkg lock
 ```
-
-After pinning, reinstall dependencies and rebuild so `mlx-pp` resolves to the
-forked parser implementation.
 
 ## Testing Without Pinning (Optional)
 

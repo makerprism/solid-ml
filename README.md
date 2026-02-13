@@ -201,11 +201,13 @@ dune runtest
 
 ### MLX Fork (brace interpolation)
 
-To use `{expr}` interpolation in `.mlx` children/props today, pin `mlx` to the
-makerprism fork branch:
+This repository uses Dune package management and the lockdir currently pins
+`mlx` to the makerprism fork branch with brace interpolation support.
+
+If you need to refresh the lockdir after updating the fork pin, run:
 
 ```bash
-opam pin add mlx "https://github.com/makerprism/mlx.git#feature/jsx-brace-interpolation"
+dune pkg lock
 ```
 
 ## SolidJS Notes
