@@ -141,3 +141,15 @@ example, `(42)`, `(3.5)`, `(true)`, and `("hello")` are valid child forms.
 `{expr}` interpolation is available in the makerprism MLX fork branch
 (`makerprism/mlx`, `feature/jsx-brace-interpolation`). Until that branch is
 released and consumed here, use `(expr)` in child position in this repository.
+
+## Testing With MLX Fork
+
+To test brace interpolation before an upstream release, build the forked `mlx-pp`
+binary and prepend it to `PATH` when running dune:
+
+```bash
+PATH="$HOME/dev/mlx/_build/default/mlx:$PATH" dune runtest test_mlx
+```
+
+This lets `dune-project` keep `mlx-pp` as-is while temporarily using your forked
+parser locally.
