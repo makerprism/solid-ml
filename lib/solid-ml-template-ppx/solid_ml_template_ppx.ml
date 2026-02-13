@@ -2713,6 +2713,15 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
     in
     mapper#expression expr
 
+  and is_likely_node_expression (expr : Parsetree.expression) : bool =
+    match expr.pexp_desc with
+    | Pexp_apply _
+    | Pexp_ifthenelse _
+    | Pexp_match _
+    | Pexp_let _
+    | Pexp_sequence _ -> true
+    | _ -> false
+
   and compile_expr_force_no_dynamic_text (expr : Parsetree.expression) : Parsetree.expression =
     let mapper =
       object
@@ -3479,8 +3488,19 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                                           parts_rev := Element child_el :: !parts_rev;
                                           true
                                         | None ->
-                                          failed_child := Some child;
-                                          false)
+                                          if !has_dynamic && is_likely_node_expression child then (
+                                            let thunk_expr = compile_expr_force child in
+                                            let thunk =
+                                              Ast_builder.Default.pexp_fun ~loc:child.pexp_loc Nolabel None
+                                                (Ast_builder.Default.punit ~loc:child.pexp_loc)
+                                                thunk_expr
+                                            in
+                                            parts_rev := Nodes_slot thunk :: !parts_rev;
+                                            true
+                                          ) else (
+                                            failed_child := Some child;
+                                            false
+                                          ))
                 in
 
                 let children_list =

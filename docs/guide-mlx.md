@@ -129,6 +129,9 @@ Example:
 - MLX children currently use `(expr)` forms in compiled templates.
 - Use `Tpl.class_list`, `Tpl.style`, `Tpl.attr`, and `Tpl.attr_opt` for reactive
   attributes.
+- In dynamic templates, node-producing OCaml expressions (for example helper
+  function calls or `if`/`match` expressions returning nodes) can be used
+  directly in child position without wrapping in `Tpl.nodes`.
 - Avoid adjacent `Tpl.show`/`Tpl.if_` siblings under the same parent; wrap in
   a single `Tpl.nodes` with an `if/else`.
 

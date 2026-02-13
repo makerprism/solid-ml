@@ -112,6 +112,14 @@ module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       (Html.int 42)
       (Html.float 3.5)
     </div>
+
+  let child_factory () =
+    <span>(Html.text "From factory")</span>
+
+  let render_dynamic_with_child_factory () =
+    <div onclick=(fun _ -> ())>
+      (child_factory ())
+    </div>
 end
 
 let () =
@@ -254,5 +262,12 @@ let () =
       C.render_numeric_children ())
   in
   assert (html_numeric_children = "<div>423.5</div>");
+
+  let html_dynamic_with_child_factory =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_dynamic_with_child_factory ())
+  in
+  assert (html_dynamic_with_child_factory = "<div><!--$--><span>From factory</span><!--$--></div>");
 
   print_endline "  PASSED"
