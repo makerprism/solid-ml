@@ -199,6 +199,15 @@ dune runtest
 - **For browser builds:** Node.js (for esbuild bundling)
 - **For web server examples:** Dream (not included - see examples for reference code)
 
+### MLX Fork (brace interpolation)
+
+To use `{expr}` interpolation in `.mlx` children/props today, pin `mlx` to the
+makerprism fork branch:
+
+```bash
+opam pin add mlx "https://github.com/makerprism/mlx.git#feature/jsx-brace-interpolation"
+```
+
 ## SolidJS Notes
 
 Similarities:

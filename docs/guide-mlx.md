@@ -140,13 +140,20 @@ example, `(42)`, `(3.5)`, `(true)`, and `("hello")` are valid child forms.
 
 `{expr}` interpolation (children and props) is available in the makerprism MLX
 fork branch (`makerprism/mlx`, `feature/jsx-brace-interpolation`, PR #1).
-Until that branch is released and consumed here, use `(expr)` child forms and
-plain `prop=expr` forms in this repository.
 
-## Testing With MLX Fork
+To use that syntax in this repository now, pin `mlx` to the fork branch:
 
-To test brace interpolation before an upstream release, use the forked parser
-binary as `mlx-pp` in `PATH`.
+```bash
+opam pin add mlx "https://github.com/makerprism/mlx.git#feature/jsx-brace-interpolation"
+```
+
+After pinning, reinstall dependencies and rebuild so `mlx-pp` resolves to the
+forked parser implementation.
+
+## Testing Without Pinning (Optional)
+
+If you do not want to pin `mlx`, you can still test via PATH override by using
+the forked parser binary as `mlx-pp`.
 
 1) Build the forked preprocessor executable:
 
