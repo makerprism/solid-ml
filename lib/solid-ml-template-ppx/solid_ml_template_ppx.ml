@@ -2715,11 +2715,23 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
 
   and is_likely_node_expression (expr : Parsetree.expression) : bool =
     match expr.pexp_desc with
-    | Pexp_apply _
     | Pexp_ifthenelse _
     | Pexp_match _
     | Pexp_let _
     | Pexp_sequence _ -> true
+    | Pexp_apply (_fn, args) ->
+      (* Keep this conservative: only treat function calls as likely node
+         expressions when they follow the common OCaml component/helper calling
+         style with a final unit argument, e.g. [child ()] or
+         [Router.link ~href ... ()].
+
+         This avoids swallowing obviously non-node calls like
+         [string_of_int n] into dynamic-node fallback paths. *)
+      List.exists
+        (function
+          | (Asttypes.Nolabel, e) -> is_unit_expr e
+          | _ -> false)
+        args
     | _ -> false
 
   and compile_expr_force_no_dynamic_text (expr : Parsetree.expression) : Parsetree.expression =
