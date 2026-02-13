@@ -84,10 +84,10 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     in
 
     <div class_="inline-edit-container" onclick=(fun _ -> handle_outer_click ())>
-      <h1>(Html.text "Inline Edit Demo")</h1>
+      <h1>{Html.text "Inline Edit Demo"}</h1>
 
       <p class_="instructions">
-        (Html.text "Edit one item at a time. Save applies changes; Cancel resets the draft.")
+        {Html.text "Edit one item at a time. Save applies changes; Cancel resets the draft."}
       </p>
 
       <ul class_="editable-list">

@@ -113,7 +113,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
               ()
           ] ()
     in
-    <span class_=(fun () -> "theme-icon " ^ icon_class)>(Tpl.nodes (fun () -> svg))</span>
+    <span class_=(fun () -> "theme-icon " ^ icon_class)>{Tpl.nodes (fun () -> svg)}</span>
 
   (** {1 Theme Card Component - Uses reactive selection state} *)
 

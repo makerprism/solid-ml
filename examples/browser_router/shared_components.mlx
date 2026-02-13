@@ -32,8 +32,8 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV)
 
   let home_page () =
     <div class_="page">
-      <h2>(text "Home")</h2>
-      <p>(text "Welcome to the solid-ml-server router demo!")</p>
+      <h2>{text "Home"}</h2>
+      <p>{text "Welcome to the solid-ml-server router demo!"}</p>
       <p>(text "Click the navigation links above to see routing in action.")</p>
       <p>(text "This example supports SSR + client-side navigation.")</p>
     </div>
@@ -41,7 +41,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV)
   let counter_page () =
     let count, set_count = Signal.create 0 in
     <div class_="page">
-      <h2>(text "Counter")</h2>
+      <h2>{text "Counter"}</h2>
       <p>(text "This counter demonstrates reactive state within a routed page.")</p>
 
       <div class_="counter-display">
@@ -51,10 +51,10 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV)
 
       <div class_="buttons">
         <button class_="btn" onclick=(fun _ -> ignore (Signal.update count (fun n -> n - 1)))>
-          (text "-")
+          {text "-"}
         </button>
         <button class_="btn" onclick=(fun _ -> ignore (Signal.update count (fun n -> n + 1)))>
-          (text "+")
+          {text "+"}
         </button>
         <button class_="btn btn-secondary" onclick=(fun _ -> ignore (set_count 0))>
           (text "Reset")

@@ -186,9 +186,9 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     in
 
     <div class_="undo-redo-container">
-      <h1>(Html.text "Undo/Redo History Management")</h1>
+      <h1>{Html.text "Undo/Redo History Management"}</h1>
       <p class_="intro">
-        (Html.text "Demonstrates command pattern, history stack, and immutable state updates with time-travel debugging.")
+        {Html.text "Demonstrates command pattern, history stack, and immutable state updates with time-travel debugging."}
       </p>
 
       (* History indicator - reactive counters *)

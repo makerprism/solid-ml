@@ -11,8 +11,8 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     in
 
     <main class_="app">
-      <h1>(Html.text "solid-ml-server SSR + Hydration")</h1>
-      <p>(Html.text "This counter was rendered on the server and hydrated in the browser.")</p>
+      <h1>{Html.text "solid-ml-server SSR + Hydration"}</h1>
+      <p>{Html.text "This counter was rendered on the server and hydrated in the browser."}</p>
 
       <div class_="counter">
         <div id="counter-value" class_="counter-value">
@@ -21,13 +21,13 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
         <div class_="buttons">
           <button id="decrement" class_="btn" onclick=(fun _ -> bump (-1) "Decremented")>
-            (Html.text "-")
+            {Html.text "-"}
           </button>
           <button id="increment" class_="btn" onclick=(fun _ -> bump 1 "Incremented")>
-            (Html.text "+")
+            {Html.text "+"}
           </button>
           <button id="reset" class_="btn" onclick=(fun _ -> ignore (set_count initial); ignore (set_status "Reset to initial"))>
-            (Html.text "Reset")
+            {Html.text "Reset"}
           </button>
         </div>
 

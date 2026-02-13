@@ -43,7 +43,7 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
   open Html
 
   let loading_block () =
-    <div class_="loading">(Html.text "Loading...")</div>
+    <div class_="loading">{Html.text "Loading..."}</div>
 
   let error_block msg =
     <div class_="error">(Tpl.text_value msg)</div>
@@ -260,8 +260,8 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     in
     <div id="app">
       <header>
-        <h1>(Html.text "solid-ml-server SSR API Demo")</h1>
-        <p class_="subtitle">(Html.text "Server-rendered data with client-side navigation")</p>
+        <h1>{Html.text "solid-ml-server SSR API Demo"}</h1>
+        <p class_="subtitle">{Html.text "Server-rendered data with client-side navigation"}</p>
         <nav>
           (Html.fragment nav_children)
         </nav>

@@ -67,9 +67,9 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     in
 
     <Html.div class_="wizard-container">
-      <Html.h1>(Html.text "Simple Wizard")</Html.h1>
+      <Html.h1>{Html.text "Simple Wizard"}</Html.h1>
       <p class_="intro">
-        (Html.text "Three steps with varied UI. Data is shown as JSON below.")
+        {Html.text "Three steps with varied UI. Data is shown as JSON below."}
       </p>
 
       <div class_="wizard-content">

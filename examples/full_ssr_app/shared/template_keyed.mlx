@@ -18,15 +18,15 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     let _reverse () = ignore (set_items (List.rev (Signal.get items))) in
 
     <div>
-      <h2>(text "Template-Keyed Hydration")</h2>
-      <p>(text "Tpl.each_keyed: reverse/remove should update without DOM recreation.")</p>
+      <h2>{text "Template-Keyed Hydration"}</h2>
+      <p>{text "Tpl.each_keyed: reverse/remove should update without DOM recreation."}</p>
 
       <div class_="buttons">
         <button class_="btn" onclick=(fun _ -> _reverse ())>
-          (text "Reverse")
+          {text "Reverse"}
         </button>
         <button class_="btn btn-secondary" onclick=(fun _ -> _remove_first ())>
-          (text "Remove first")
+          {text "Remove first"}
         </button>
       </div>
 
