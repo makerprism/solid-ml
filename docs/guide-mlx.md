@@ -144,11 +144,28 @@ released and consumed here, use `(expr)` in child position in this repository.
 
 ## Testing With MLX Fork
 
-To test brace interpolation before an upstream release, build the forked `mlx-pp`
-binary and prepend it to `PATH` when running dune:
+To test brace interpolation before an upstream release, use the forked parser
+binary as `mlx-pp` in `PATH`.
+
+1) Build the forked preprocessor executable:
 
 ```bash
-PATH="$HOME/dev/mlx/_build/default/mlx:$PATH" dune runtest test_mlx
+cd /path/to/makerprism-mlx
+dune build mlx/pp.exe
+```
+
+2) Expose it as `mlx-pp` (symlink once):
+
+```bash
+mkdir -p /path/to/makerprism-mlx/.local-bin
+ln -sf /path/to/makerprism-mlx/_build/default/mlx/pp.exe \
+  /path/to/makerprism-mlx/.local-bin/mlx-pp
+```
+
+3) Run tests in `solid-ml` with that path prepended:
+
+```bash
+PATH="/path/to/makerprism-mlx/.local-bin:$PATH" dune runtest test_mlx
 ```
 
 This lets `dune-project` keep `mlx-pp` as-is while temporarily using your forked
