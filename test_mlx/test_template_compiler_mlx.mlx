@@ -120,6 +120,11 @@ module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     <div onclick=(fun _ -> ())>
       (child_factory ())
     </div>
+
+  let render_dynamic_with_if_child ~show () =
+    <div onclick=(fun _ -> ())>
+      (if show then <span>(Html.text "Shown")</span> else Html.empty)
+    </div>
 end
 
 let () =
@@ -269,5 +274,19 @@ let () =
       C.render_dynamic_with_child_factory ())
   in
   assert (html_dynamic_with_child_factory = "<div><!--$--><span>From factory</span><!--$--></div>");
+
+  let html_dynamic_if_child_true =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_dynamic_with_if_child ~show:true ())
+  in
+  assert (html_dynamic_if_child_true = "<div><!--$--><span>Shown</span><!--$--></div>");
+
+  let html_dynamic_if_child_false =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_dynamic_with_if_child ~show:false ())
+  in
+  assert (html_dynamic_if_child_false = "<div><!--$--><!--$--></div>");
 
   print_endline "  PASSED"
