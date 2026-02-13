@@ -138,5 +138,6 @@ cleanup playbook.
 Primitive child literals are lowered as static text in template mode. For
 example, `(42)`, `(3.5)`, `(true)`, and `("hello")` are valid child forms.
 
-`{expr}` interpolation is not supported yet in this stack. Use `(expr)` in child
-position for now.
+`{expr}` interpolation is available in the makerprism MLX fork branch
+(`makerprism/mlx`, `feature/jsx-brace-interpolation`). Until that branch is
+released and consumed here, use `(expr)` in child position in this repository.
