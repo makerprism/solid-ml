@@ -97,17 +97,17 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     in
 
     <div class_="filters-container">
-      <h1>{Html.text "Reactive Filters Demo"}</h1>
+      <h1>(Html.text "Reactive Filters Demo")</h1>
 
       <div class_="filter-bar">
         <button class_=(fun () -> filter_class All) onclick=(fun _ -> ignore (set_filter All))>
-          {Html.text "All"}
+          (Html.text "All")
         </button>
         <button class_=(fun () -> filter_class Active) onclick=(fun _ -> ignore (set_filter Active))>
-          {Html.text "Active"}
+          (Html.text "Active")
         </button>
         <button class_=(fun () -> filter_class Completed) onclick=(fun _ -> ignore (set_filter Completed))>
-          {Html.text "Completed"}
+          (Html.text "Completed")
         </button>
       </div>
 

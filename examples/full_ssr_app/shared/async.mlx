@@ -115,9 +115,9 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     in
 
     <div class_="async-container resource-demo">
-      <h2>{text "Reactive Resource State"}</h2>
+      <h2>(text "Reactive Resource State")</h2>
       <p class_="instructions">
-        {text "This demonstrates reactive state management with loading, success, and error states. Enter a user ID (1-5) or use the buttons to load different users."}
+        (text "This demonstrates reactive state management with loading, success, and error states. Enter a user ID (1-5) or use the buttons to load different users.")
       </p>
 
       (* Status Bar - reactive based on loading/error state *)

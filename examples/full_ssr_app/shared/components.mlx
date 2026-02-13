@@ -35,15 +35,15 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
     in
 
     <div>
-      <h2>{text "Keyed Hydration Demo"}</h2>
-      <p>{text "Try reverse/remove; DOM nodes should be adopted and reordered."}</p>
+      <h2>(text "Keyed Hydration Demo")</h2>
+      <p>(text "Try reverse/remove; DOM nodes should be adopted and reordered.")</p>
 
       <div class_="buttons">
         <button class_="btn" onclick=(fun _ -> reverse ())>
-          {text "Reverse"}
+          (text "Reverse")
         </button>
         <button class_="btn btn-secondary" onclick=(fun _ -> remove_first ())>
-          {text "Remove first"}
+          (text "Remove first")
         </button>
       </div>
 

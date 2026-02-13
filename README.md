@@ -199,16 +199,10 @@ dune runtest
 - **For browser builds:** Node.js (for esbuild bundling)
 - **For web server examples:** Dream (not included - see examples for reference code)
 
-### MLX Fork (brace interpolation)
+### MLX Interpolation Direction
 
-This repository uses Dune package management and the lockdir currently pins
-`mlx` to the makerprism fork branch with brace interpolation support.
-
-If you need to refresh the lockdir after updating the fork pin, run:
-
-```bash
-dune pkg lock
-```
+We currently optimize MLX DX around ergonomic `(...)` interpolation and avoid
+adopting `{...}` syntax in this repository.
 
 ## SolidJS Notes
 

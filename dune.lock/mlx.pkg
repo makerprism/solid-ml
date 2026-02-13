@@ -26,7 +26,6 @@
 
 (source
  (fetch
-  (url
-   https://github.com/makerprism/mlx/archive/refs/heads/feature/jsx-brace-interpolation.tar.gz)
+  (url https://github.com/ocaml-mlx/mlx/releases/download/0.11/mlx-0.11.tbz)
   (checksum
-   sha256=c2a19b94d94448c1268de922735f3185cb99d4cd49bfdc2c5ecdbbeea1c93aad)))
+   sha256=bea6b7e57deb13a1cc20af3fe9101b90b77d3e886097c6d44dd63eb96f5aaceb)))
