@@ -78,6 +78,9 @@ Tests:
 
 Target: support `{expr}` in child and attribute positions.
 
+Prerequisite: `mlx-pp` parser support for brace interpolation. Without parser
+support, `.mlx` files fail before template PPX lowering can run.
+
 Implementation areas:
 
 - MLX parser/dialect front-end integration
