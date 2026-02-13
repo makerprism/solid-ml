@@ -495,10 +495,11 @@ type static_prop =
 
 
    and node_part =
-     | Static_text of string
-     | Text_slot of Parsetree.expression
-     | Text_once_slot of Parsetree.expression
-     | Nodes_slot of Parsetree.expression
+      | Static_text of string
+      | Auto_static_text of string
+      | Text_slot of Parsetree.expression
+      | Text_once_slot of Parsetree.expression
+      | Nodes_slot of Parsetree.expression
      | Nodes_transition_slot of Parsetree.expression
      | Nodes_show_slot of {
          when_ : Parsetree.expression;
@@ -720,6 +721,9 @@ let compile_element_tree ~(loc : Location.t) ~(root : element_node) : Parsetree.
     List.iter
       (function
         | Static_text s ->
+          Buffer.add_string current_segment (escape_html s);
+          incr child_index
+        | Auto_static_text s ->
           Buffer.add_string current_segment (escape_html s);
           incr child_index
         | Element child_el ->
@@ -2921,14 +2925,12 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                   | None ->
                     (match child.pexp_desc with
                      | Pexp_constant (Pconst_string (s, _, _)) ->
-                       has_dynamic := true;
-                       parts_rev := Static_text s :: !parts_rev;
+                       parts_rev := Auto_static_text s :: !parts_rev;
                        true
                      | Pexp_constant (Pconst_integer (s, None)) ->
                        (match int_of_string_opt s with
                         | Some n ->
-                          has_dynamic := true;
-                          parts_rev := Static_text (string_of_int n) :: !parts_rev;
+                          parts_rev := Auto_static_text (string_of_int n) :: !parts_rev;
                           true
                         | None ->
                           failed_child := Some child;
@@ -2936,19 +2938,16 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                      | Pexp_constant (Pconst_float (s, None)) ->
                        (match float_of_string_opt s with
                         | Some f ->
-                          has_dynamic := true;
-                          parts_rev := Static_text (string_of_float f) :: !parts_rev;
+                          parts_rev := Auto_static_text (string_of_float f) :: !parts_rev;
                           true
                         | None ->
                           failed_child := Some child;
                           false)
                      | Pexp_construct ({ txt = Longident.Lident "true"; _ }, None) ->
-                       has_dynamic := true;
-                       parts_rev := Static_text "true" :: !parts_rev;
+                       parts_rev := Auto_static_text "true" :: !parts_rev;
                        true
                      | Pexp_construct ({ txt = Longident.Lident "false"; _ }, None) ->
-                       has_dynamic := true;
-                       parts_rev := Static_text "false" :: !parts_rev;
+                       parts_rev := Auto_static_text "false" :: !parts_rev;
                        true
                      | _ ->
                      match extract_tpl_text_thunk ~aliases child with
@@ -3534,6 +3533,15 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
     | _ -> None
   in
 
+  let rec has_auto_static_text (root : element_node) : bool =
+    List.exists
+      (function
+        | Auto_static_text _ -> true
+        | Element child -> has_auto_static_text child
+        | _ -> false)
+      root.children
+  in
+
   let mapper =
       object
         inherit Ast_traverse.map as super
@@ -3545,10 +3553,10 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                  ~shadowed_text
                  expr
          with
-         | Some (root, true) ->
-           compile_element_tree ~loc:expr.pexp_loc ~root
-         | _ -> super#expression expr
-      end
+         | Some (root, dynamic) when dynamic || has_auto_static_text root ->
+            compile_element_tree ~loc:expr.pexp_loc ~root
+          | _ -> super#expression expr
+       end
   in
 
   mapper#structure structure
