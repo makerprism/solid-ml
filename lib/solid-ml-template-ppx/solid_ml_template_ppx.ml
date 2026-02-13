@@ -2919,11 +2919,43 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                     parts_rev := Static_text lit :: !parts_rev;
                     true
                   | None ->
-                    match extract_tpl_text_thunk ~aliases child with
-                    | Some thunk ->
-                      has_dynamic := true;
-                      parts_rev := Text_slot thunk :: !parts_rev;
-                      true
+                    (match child.pexp_desc with
+                     | Pexp_constant (Pconst_string (s, _, _)) ->
+                       has_dynamic := true;
+                       parts_rev := Static_text s :: !parts_rev;
+                       true
+                     | Pexp_constant (Pconst_integer (s, None)) ->
+                       (match int_of_string_opt s with
+                        | Some n ->
+                          has_dynamic := true;
+                          parts_rev := Static_text (string_of_int n) :: !parts_rev;
+                          true
+                        | None ->
+                          failed_child := Some child;
+                          false)
+                     | Pexp_constant (Pconst_float (s, None)) ->
+                       (match float_of_string_opt s with
+                        | Some f ->
+                          has_dynamic := true;
+                          parts_rev := Static_text (string_of_float f) :: !parts_rev;
+                          true
+                        | None ->
+                          failed_child := Some child;
+                          false)
+                     | Pexp_construct ({ txt = Longident.Lident "true"; _ }, None) ->
+                       has_dynamic := true;
+                       parts_rev := Static_text "true" :: !parts_rev;
+                       true
+                     | Pexp_construct ({ txt = Longident.Lident "false"; _ }, None) ->
+                       has_dynamic := true;
+                       parts_rev := Static_text "false" :: !parts_rev;
+                       true
+                     | _ ->
+                     match extract_tpl_text_thunk ~aliases child with
+                     | Some thunk ->
+                       has_dynamic := true;
+                       parts_rev := Text_slot thunk :: !parts_rev;
+                       true
                     | None ->
                       match extract_tpl_text_once_thunk ~aliases child with
                       | Some thunk ->
@@ -3449,7 +3481,7 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                                           true
                                         | None ->
                                           failed_child := Some child;
-                                          false
+                                          false)
                 in
 
                 let children_list =
@@ -3529,9 +3561,11 @@ let impl (structure : Parsetree.structure) : Parsetree.structure =
     Location.raise_errorf ~loc
       "solid-ml-template-ppx: found unsupported Tpl.%s.\n\n\
        Current supported subset: %s.\n\n\
-       If you intended to use the template compiler here, ensure this file is built with:\n\
-         (preprocess (pps solid-ml-template-ppx))\n\
-       For `.mlx` authoring, enable the `mlx` dialect in your `dune-project` (see MLX README)."
+       If you intended template lowering here, check setup:\n\
+         1) In dune-project, enable the `mlx` dialect for `.mlx` files.\n\
+         2) In the dune stanza compiling this file, include:\n\
+              (preprocess (pps solid-ml-template-ppx))\n\
+       See docs/guide-mlx.md for the canonical setup."
       name supported_subset
 
 let () =

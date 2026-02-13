@@ -167,7 +167,10 @@ end = struct
   let error name =
     "Solid_ml_template_runtime.Tpl." ^ name
     ^ " reached runtime. This means the template compiler did not rewrite this MLX tree.\n\n"
-    ^ "Fix: ensure your dune stanza includes (preprocess (pps mlx solid-ml-template-ppx))."
+    ^ "Fix:\n"
+    ^ "  1) Ensure the dune stanza compiling this file includes:\n"
+    ^ "     (preprocess (pps solid-ml-template-ppx)).\n"
+    ^ "  2) If this is a `.mlx` file, ensure dune-project defines the mlx dialect."
 
   let text (_thunk : unit -> string) : 'a t =
     Uncompiled "text"

@@ -1,0 +1,38 @@
+module C (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
+  module Html = Env.Html
+  open Html
+
+  let _ = empty
+
+  let render_literals () =
+    <div>
+      ("A")
+      (42)
+      (3.5)
+      (true)
+      (false)
+    </div>
+
+  let render_normalized_int () =
+    <div>
+      (1_000)
+    </div>
+end
+
+let () =
+  print_endline "Test: Template PPX auto text children (MLX)";
+  let html_literals =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module R = C (Solid_ml_ssr.Env) in
+      R.render_literals ())
+  in
+  assert (html_literals = "<div>A423.5truefalse</div>");
+
+  let html_normalized_int =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module R = C (Solid_ml_ssr.Env) in
+      R.render_normalized_int ())
+  in
+  assert (html_normalized_int = "<div>1000</div>");
+
+  print_endline "  PASSED"

@@ -101,6 +101,17 @@ module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       (Tpl.nodes (fun () -> Html.fragment [ Html.text "A"; Html.text "B" ]))
       (Tpl.nodes (fun () -> Html.text "C"))
     </div>
+
+  let render_if_child ~show () =
+    <div>
+      (if show then Html.text "Shown" else Html.empty)
+    </div>
+
+  let render_numeric_children () =
+    <div>
+      (Html.int 42)
+      (Html.float 3.5)
+    </div>
 end
 
 let () =
@@ -222,5 +233,26 @@ let () =
       C.render_adjacent_nodes_fragment ())
   in
   assert (html_adjacent_nodes_fragment = "<div><!--$-->AB<!--$--><!--$-->C<!--$--></div>");
+
+  let html_if_child_true =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_if_child ~show:true ())
+  in
+  assert (html_if_child_true = "<div>Shown</div>");
+
+  let html_if_child_false =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_if_child ~show:false ())
+  in
+  assert (html_if_child_false = "<div></div>");
+
+  let html_numeric_children =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_numeric_children ())
+  in
+  assert (html_numeric_children = "<div>423.5</div>");
 
   print_endline "  PASSED"

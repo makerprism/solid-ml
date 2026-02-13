@@ -1,6 +1,6 @@
 # MLX Guide
 
-MLX provides JSX-like syntax for solid-ml-server components. Use it when you want
+MLX provides JSX-like syntax for solid-ml components. Use it when you want
 cleaner templates without giving up the OCaml HTML DSL. The `solid-ml` umbrella
 package includes MLX by default.
 
@@ -20,12 +20,21 @@ Add the MLX dialect to your `dune-project`:
    (run mlx-pp %{input-file}))))
 ```
 
-Enable the template PPX where you want `{expr}` interpolation:
+Enable the template PPX in each `dune` stanza that uses template-lowered
+constructs (`Tpl.*` markers, compiled dynamic regions):
 
 ```scheme
 (preprocess
  (pps solid-ml-template-ppx))
 ```
+
+Canonical rule:
+
+- `.mlx` syntax requires the `mlx` dialect in `dune-project`.
+- Template lowering requires `solid-ml-template-ppx` in the local stanza.
+
+If template lowering is missing or misconfigured, `Tpl.*` markers will not be
+rewritten and can reach runtime.
 
 ## MLX vs HTML DSL
 
@@ -75,10 +84,56 @@ Two-way input bindings:
 />
 ```
 
+## Migration Notes (Current Surface)
+
+In existing codebases, you may see local shims like:
+
+```ocaml
+module Tpl = struct
+  include Env.Tpl
+  let text_once f = Html.text (f ())
+  let nodes f = f ()
+end
+```
+
+This pattern is valid, but it also signals that the author wanted less template
+ceremony for static text and plain node expressions.
+
+Recommended migration direction:
+
+- Keep `Tpl.text` for truly reactive text.
+- Use plain `Html.text` for static text.
+- Use ordinary OCaml node expressions where possible.
+- Keep `Tpl.nodes` for explicit dynamic-region intent.
+
+Example:
+
+```ocaml
+(* Before *)
+(Tpl.text_once (fun () -> model.title))
+
+(* After *)
+(Html.text model.title)
+```
+
+```ocaml
+(* Before *)
+(Tpl.nodes (fun () -> if show then <span>(Html.text "On")</span> else Html.empty))
+
+(* After *)
+(if show then <span>(Html.text "On")</span> else Html.empty)
+```
+
 ## Notes
 
-- MLX children must use `(expr)` unless the template PPX is enabled.
+- MLX children currently use `(expr)` forms in compiled templates.
 - Use `Tpl.class_list`, `Tpl.style`, `Tpl.attr`, and `Tpl.attr_opt` for reactive
   attributes.
 - Avoid adjacent `Tpl.show`/`Tpl.if_` siblings under the same parent; wrap in
   a single `Tpl.nodes` with an `if/else`.
+
+For large codebases, see `docs/guide-mlx-migration.md` for a mechanical
+cleanup playbook.
+
+Primitive child literals are lowered as static text in template mode. For
+example, `(42)`, `(3.5)`, `(true)`, and `("hello")` are valid child forms.

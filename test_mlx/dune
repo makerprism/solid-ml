@@ -11,3 +11,9 @@
  (modules test_template_attr_mlx)
  (libraries solid-ml-server solid-ml-ssr solid-ml-template-runtime)
  (preprocess (pps solid-ml-template-ppx)))
+
+(test
+ (name test_template_auto_text_children_mlx)
+ (modules test_template_auto_text_children_mlx)
+ (libraries solid-ml-server solid-ml-ssr solid-ml-template-runtime)
+ (preprocess (pps solid-ml-template-ppx)))
