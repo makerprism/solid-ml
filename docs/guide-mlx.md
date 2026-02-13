@@ -138,43 +138,7 @@ cleanup playbook.
 Primitive child literals are lowered as static text in template mode. For
 example, `(42)`, `(3.5)`, `(true)`, and `("hello")` are valid child forms.
 
-`{expr}` interpolation (children and props) is available in the makerprism MLX
-fork branch (`makerprism/mlx`, `feature/jsx-brace-interpolation`, PR #1).
-
-To use that syntax in this repository now, pin `mlx` to the fork branch:
-
-```bash
-opam pin add mlx "https://github.com/makerprism/mlx.git#feature/jsx-brace-interpolation"
-```
-
-After pinning, reinstall dependencies and rebuild so `mlx-pp` resolves to the
-forked parser implementation.
-
-## Testing Without Pinning (Optional)
-
-If you do not want to pin `mlx`, you can still test via PATH override by using
-the forked parser binary as `mlx-pp`.
-
-1) Build the forked preprocessor executable:
-
-```bash
-cd /path/to/makerprism-mlx
-dune build mlx/pp.exe
-```
-
-2) Expose it as `mlx-pp` (symlink once):
-
-```bash
-mkdir -p /path/to/makerprism-mlx/.local-bin
-ln -sf /path/to/makerprism-mlx/_build/default/mlx/pp.exe \
-  /path/to/makerprism-mlx/.local-bin/mlx-pp
-```
-
-3) Run tests in `solid-ml` with that path prepended:
-
-```bash
-PATH="/path/to/makerprism-mlx/.local-bin:$PATH" dune runtest test_mlx
-```
-
-This lets `dune-project` keep `mlx-pp` as-is while temporarily using your forked
-parser locally.
+`{expr}` interpolation is intentionally not part of the default MLX surface in
+this repository. Prefer ergonomic `(...)` interpolation and remove ceremony via
+normal OCaml expressions where possible, while keeping explicit `Tpl.*` forms in
+contexts where the template compiler requires them.

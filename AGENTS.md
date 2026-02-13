@@ -8,6 +8,10 @@ This project builds with `/home/sabine/.opam/landing-pages-build/bin/dune` (dune
 
 **Git workflow:** Always use rebase (not merge) when integrating remote changes before pushing.
 
+**Branch/PR workflow:** Work in a feature branch (not `main`) and open a pull request for each session's feature/fix. Do not stack PRs: keep exactly one active PR per session and wait for it to be merged (or explicitly closed) before starting another PR branch.
+
+**Examples policy:** When adding a user-facing feature, update all relevant examples in the same session/PR to demonstrate the new capability. Do not defer example updates to a later stacked PR.
+
 ## Product Stage Policy
 
 This project is still in an early stage. Prioritize DX and simplicity over API stability.
