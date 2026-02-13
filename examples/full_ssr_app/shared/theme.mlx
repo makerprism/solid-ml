@@ -123,7 +123,7 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       if Signal.get theme_signal = card_theme then base_class ^ " selected" else base_class
     )) onclick=(fun _ -> on_select ())>
       <div class_="theme-preview">
-        (Tpl.nodes (fun () -> theme_icon ~theme:card_theme ()))
+        (theme_icon ~theme:card_theme ())
         <span class_="theme-label">(Tpl.text_once (fun () -> theme_to_string card_theme))</span>
       </div>
       (Tpl.show_when
@@ -287,13 +287,13 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         <h2>(text "Select Theme")</h2>
         <div class_="theme-cards">
           <div class_="theme-card-wrapper">
-            (Tpl.nodes (fun () -> theme_card ~theme_signal:theme ~card_theme:Light ~on_select:(fun () -> set_theme Light) ()))
+            (theme_card ~theme_signal:theme ~card_theme:Light ~on_select:(fun () -> set_theme Light) ())
           </div>
           <div class_="theme-card-wrapper">
-            (Tpl.nodes (fun () -> theme_card ~theme_signal:theme ~card_theme:Dark ~on_select:(fun () -> set_theme Dark) ()))
+            (theme_card ~theme_signal:theme ~card_theme:Dark ~on_select:(fun () -> set_theme Dark) ())
           </div>
           <div class_="theme-card-wrapper">
-            (Tpl.nodes (fun () -> theme_card ~theme_signal:theme ~card_theme:Auto ~on_select:(fun () -> set_theme Auto) ()))
+            (theme_card ~theme_signal:theme ~card_theme:Auto ~on_select:(fun () -> set_theme Auto) ())
           </div>
         </div>
       </div>
@@ -302,14 +302,14 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
 
       (* Theme info and palette - reactive to theme changes *)
       <div class_="theme-details">
-        (Tpl.nodes (fun () -> theme_info ~theme_signal:theme ()))
-        (Tpl.nodes (fun () -> color_palette ()))
+        (theme_info ~theme_signal:theme ())
+        (color_palette ())
       </div>
 
       <div class_="section-divider"></div>
 
       (* LocalStorage info - shows current stored value reactively *)
-      (Tpl.nodes (fun () -> localStorage_info ~theme_signal:theme ~set_theme ()))
+      (localStorage_info ~theme_signal:theme ~set_theme ())
 
       (* Instructions *)
       <div class_="instructions">
