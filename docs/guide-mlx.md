@@ -140,5 +140,5 @@ example, `(42)`, `(3.5)`, `(true)`, and `("hello")` are valid child forms.
 
 `{expr}` interpolation is intentionally not part of the default MLX surface in
 this repository. Prefer ergonomic `(...)` interpolation and remove ceremony via
-normal OCaml expressions where possible (for example, direct node expressions
-instead of trivial `Tpl.nodes` wrappers).
+normal OCaml expressions where possible, while keeping explicit `Tpl.*` forms in
+contexts where the template compiler requires them.
