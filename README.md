@@ -221,5 +221,8 @@ Practical guidance:
 - [CHANGELOG.md](CHANGELOG.md) - Release notes and breaking changes
 - [LIMITATIONS.md](LIMITATIONS.md) - Concise list of real constraints
 - [docs/guide-mlx.md](docs/guide-mlx.md) - MLX syntax and template PPX setup
+- [docs/guide-mlx-migration.md](docs/guide-mlx-migration.md) - Mechanical rewrites for reducing Tpl ceremony
+- [docs/rfc-mlx-dx.md](docs/rfc-mlx-dx.md) - Proposed DX improvements for MLX surface
+- [docs/rfc-mlx-implementation-plan.md](docs/rfc-mlx-implementation-plan.md) - Staged implementation plan for MLX DX RFC
 - [docs/guide-ssr-hydration.md](docs/guide-ssr-hydration.md) - SSR, hydration, and state transfer
 - [examples/README.md](examples/README.md) - Example index and build commands

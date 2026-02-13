@@ -8,6 +8,15 @@ This project builds with `/home/sabine/.opam/landing-pages-build/bin/dune` (dune
 
 **Git workflow:** Always use rebase (not merge) when integrating remote changes before pushing.
 
+## Product Stage Policy
+
+This project is still in an early stage. Prioritize DX and simplicity over API stability.
+
+- Prefer simple, obvious, ergonomic solutions over complex compatibility layers.
+- It is acceptable to change APIs when it meaningfully improves usability.
+- Do not block improvements for backward compatibility concerns at this stage.
+- When you introduce a breaking change, update docs/tests in the same change so migration is clear.
+
 ## Project Overview
 
 solid-ml-server is an OCaml framework for building reactive web applications with SSR, inspired by SolidJS.
