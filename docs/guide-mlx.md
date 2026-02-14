@@ -132,6 +132,8 @@ Example:
 - In dynamic templates, node-producing OCaml expressions (for example helper
   function calls or `if`/`match` expressions returning nodes) can be used
   directly in child position without wrapping in `Tpl.nodes`.
+- If a child expression is rejected, keep `Tpl.nodes (fun () -> ...)` for that
+  specific case; this still remains the explicit escape hatch.
 - Avoid adjacent `Tpl.show`/`Tpl.if_` siblings under the same parent; wrap in
   a single `Tpl.nodes` with an `if/else`.
 

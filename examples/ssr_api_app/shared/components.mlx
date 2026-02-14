@@ -64,16 +64,15 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         </h3>
         <p>(Tpl.text_value post.body)</p>
       </a>
-      (Tpl.nodes (fun () ->
-         if show_user then
-           <div class_="meta">
-             <a href=(Tpl.attr ~name:"href" (fun () -> "/users/" ^ string_of_int post.user_id))
-                class_="meta-link">
-               (Tpl.text_value user_label)
-             </a>
-           </div>
-         else
-           Html.empty))
+      (if show_user then
+         <div class_="meta">
+           <a href=(Tpl.attr ~name:"href" (fun () -> "/users/" ^ string_of_int post.user_id))
+              class_="meta-link">
+             (Tpl.text_value user_label)
+           </a>
+         </div>
+       else
+         Html.empty)
     </div>
 
   let user_card (u : user_info) =
@@ -101,30 +100,28 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       <div class_="section-title">
         <h2>(Html.text "Recent Posts")</h2>
         <span class_="count">
-          (Tpl.nodes (fun () ->
-             match state with
-             | Ready posts -> Html.text
-                 (string_of_int (List.length posts) ^ " posts")
-             | Loading -> Html.text "Loading..."
-             | Error _ -> Html.text ""))
+          (match state with
+           | Ready posts -> Html.text
+               (string_of_int (List.length posts) ^ " posts")
+           | Loading -> Html.text "Loading..."
+           | Error _ -> Html.text "")
         </span>
       </div>
       <p>(Html.text "Click on a post to view details and comments, or click on a user to see their profile.")</p>
       <div id="posts-list">
-        (Tpl.nodes (fun () ->
-           render_state state ~ready:(fun posts ->
-             let user_name_for users user_id =
-               match List.find_opt (fun (u : user_info) -> u.id = user_id) users with
-               | Some u -> u.name
-               | None -> ""
-             in
-             let show_user, name_for_post =
-               match users_opt with
-               | Some users -> true, (fun post -> user_name_for users post.user_id)
-               | None -> false, (fun _ -> "")
-             in
-             Html.fragment (List.map (fun post ->
-               post_card ~show_user ~user_name:(name_for_post post) post) posts))))
+        (render_state state ~ready:(fun posts ->
+           let user_name_for users user_id =
+             match List.find_opt (fun (u : user_info) -> u.id = user_id) users with
+             | Some u -> u.name
+             | None -> ""
+           in
+           let show_user, name_for_post =
+             match users_opt with
+             | Some users -> true, (fun post -> user_name_for users post.user_id)
+             | None -> false, (fun _ -> "")
+           in
+           Html.fragment (List.map (fun post ->
+             post_card ~show_user ~user_name:(name_for_post post) post) posts)))
       </div>
     </div>
 
@@ -133,19 +130,17 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       <div class_="section-title">
         <h2>(Html.text "All Users")</h2>
         <span class_="count">
-          (Tpl.nodes (fun () ->
-             match state with
-             | Ready users -> Html.text
-                 (string_of_int (List.length users) ^ " users")
-             | Loading -> Html.text "Loading..."
-             | Error _ -> Html.text ""))
+          (match state with
+           | Ready users -> Html.text
+               (string_of_int (List.length users) ^ " users")
+           | Loading -> Html.text "Loading..."
+           | Error _ -> Html.text "")
         </span>
       </div>
       <p>(Html.text "Click on a user to view their profile and posts.")</p>
       <div id="users-list">
-        (Tpl.nodes (fun () ->
-           render_state state ~ready:(fun users ->
-             Html.fragment (List.map user_card users))))
+        (render_state state ~ready:(fun users ->
+           Html.fragment (List.map user_card users)))
       </div>
     </div>
 
@@ -161,38 +156,35 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
       <div class_="section-title">
         <h2>(Html.text "User Profile")</h2>
       </div>
-      (Tpl.nodes (fun () ->
-         render_state user_state ~ready:(fun (u : user_info) ->
-           let initial = String.sub u.name 0 1 in
-           <div class_="user-profile">
-             <div class_="avatar">(Tpl.text_value initial)</div>
-             <div class_="info">
-               <h2>(Tpl.text_value u.name)</h2>
-               <p class_="username">(Tpl.text_value ("@" ^ u.username))</p>
-               <div class_="details">
-                 <span>(Tpl.text_value ("Email: " ^ u.email))</span>
-                 <span>(Tpl.text_value ("Phone: " ^ u.phone))</span>
-                 <span>(Tpl.text_value ("Website: " ^ u.website))</span>
-                 <span>(Tpl.text_value ("Company: " ^ u.company))</span>
-                 <span>(Tpl.text_value ("City: " ^ u.city))</span>
-               </div>
+      (render_state user_state ~ready:(fun (u : user_info) ->
+         let initial = String.sub u.name 0 1 in
+         <div class_="user-profile">
+           <div class_="avatar">(Tpl.text_value initial)</div>
+           <div class_="info">
+             <h2>(Tpl.text_value u.name)</h2>
+             <p class_="username">(Tpl.text_value ("@" ^ u.username))</p>
+             <div class_="details">
+               <span>(Tpl.text_value ("Email: " ^ u.email))</span>
+               <span>(Tpl.text_value ("Phone: " ^ u.phone))</span>
+               <span>(Tpl.text_value ("Website: " ^ u.website))</span>
+               <span>(Tpl.text_value ("Company: " ^ u.company))</span>
+               <span>(Tpl.text_value ("City: " ^ u.city))</span>
              </div>
-           </div>)))
+           </div>
+         </div>))
       <div class_="detail-section" id="user-posts">
         <div class_="section-title">
           <h3>(Html.text "Posts")</h3>
           <span class_="count">
-            (Tpl.nodes (fun () ->
-               match posts_state with
-               | Ready posts -> Html.text (string_of_int (List.length posts) ^ " posts")
-               | Loading -> Html.text "Loading..."
-               | Error _ -> Html.text ""))
+            (match posts_state with
+             | Ready posts -> Html.text (string_of_int (List.length posts) ^ " posts")
+             | Loading -> Html.text "Loading..."
+             | Error _ -> Html.text "")
           </span>
         </div>
         <div id="posts-list">
-          (Tpl.nodes (fun () ->
-             render_state posts_state ~ready:(fun posts ->
-               Html.fragment (List.map (post_card ~show_user:false) posts))))
+          (render_state posts_state ~ready:(fun posts ->
+             Html.fragment (List.map (post_card ~show_user:false) posts)))
         </div>
       </div>
     </div>
@@ -205,34 +197,31 @@ module App (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
         <span class_="current">(Html.text "Post")</span>
       </div>
       <div class_="detail-section" id="post-detail">
-        (Tpl.nodes (fun () ->
-           render_state post_state ~ready:(fun post ->
-             <div>
-               <h2>(Tpl.text_value post.title)</h2>
-               <div class_="meta">
-                 (Html.text "By ")
-                <a href=(Tpl.attr ~name:"href" (fun () -> "/users/" ^ string_of_int post.user_id))>
-                  (Tpl.text_value ("User #" ^ string_of_int post.user_id))
-                </a>
-               </div>
-               <div class_="body">(Tpl.text_value post.body)</div>
-             </div>)))
+        (render_state post_state ~ready:(fun post ->
+           <div>
+             <h2>(Tpl.text_value post.title)</h2>
+             <div class_="meta">
+               (Html.text "By ")
+              <a href=(Tpl.attr ~name:"href" (fun () -> "/users/" ^ string_of_int post.user_id))>
+                (Tpl.text_value ("User #" ^ string_of_int post.user_id))
+              </a>
+             </div>
+             <div class_="body">(Tpl.text_value post.body)</div>
+           </div>))
       </div>
       <div class_="comments-section" id="comments-section">
         <div class_="section-title">
           <h3>(Html.text "Comments")</h3>
           <span class_="count">
-            (Tpl.nodes (fun () ->
-               match comments_state with
-               | Ready comments -> Html.text (string_of_int (List.length comments) ^ " comments")
-               | Loading -> Html.text "Loading..."
-               | Error _ -> Html.text ""))
+            (match comments_state with
+             | Ready comments -> Html.text (string_of_int (List.length comments) ^ " comments")
+             | Loading -> Html.text "Loading..."
+             | Error _ -> Html.text "")
           </span>
         </div>
         <div id="comments-list">
-          (Tpl.nodes (fun () ->
-             render_state comments_state ~ready:(fun comments ->
-               Html.fragment (List.map comment_card comments))))
+          (render_state comments_state ~ready:(fun comments ->
+             Html.fragment (List.map comment_card comments)))
         </div>
       </div>
     </div>
