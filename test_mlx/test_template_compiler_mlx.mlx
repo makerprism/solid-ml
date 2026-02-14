@@ -132,6 +132,14 @@ module Hello (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
        | 0 -> <span>(Html.text "Zero")</span>
        | _ -> <span>(Html.text "Other")</span>)
     </div>
+
+  let labeled_child ~label =
+    <span>(Html.text label)</span>
+
+  let render_dynamic_with_labeled_child () =
+    <div onclick=(fun _ -> ())>
+      (labeled_child ~label:"Labeled")
+    </div>
 end
 
 let () =
@@ -309,5 +317,12 @@ let () =
       C.render_dynamic_with_match_child ~which:1 ())
   in
   assert (html_dynamic_match_child_other = "<div><!--$--><span>Other</span><!--$--></div>");
+
+  let html_dynamic_with_labeled_child =
+    Solid_ml_ssr.Render.to_string (fun () ->
+      let module C = Hello (Solid_ml_ssr.Env) in
+      C.render_dynamic_with_labeled_child ())
+  in
+  assert (html_dynamic_with_labeled_child = "<div><!--$--><span><!--#-->Labeled<!--#--></span><!--$--></div>");
 
   print_endline "  PASSED"

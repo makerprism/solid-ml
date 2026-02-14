@@ -194,15 +194,13 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
                     <p class_="user-email">(Tpl.text_once (fun () -> user.email))</p>
                   </div>
                 </div>
-                (Tpl.nodes (fun () ->
-                   match user.bio with
-                   | Some bio ->
-                       <div class_="user-bio">
-                         <h3>(text "Bio")</h3>
-                         <p>(Tpl.text_once (fun () -> bio))</p>
-                       </div>
-                   | None -> Html.text ""
-                 ))
+                (match user.bio with
+                 | Some bio ->
+                     <div class_="user-bio">
+                       <h3>(text "Bio")</h3>
+                       <p>(Tpl.text_once (fun () -> bio))</p>
+                     </div>
+                 | None -> Html.text "")
 
                 (* User controls *)
                 <div class_="user-meta">
@@ -295,12 +293,10 @@ module Make (Env : Solid_ml_template_runtime.Env_intf.TEMPLATE_ENV) = struct
            ~render:(fun item ->
              <div class_=(fun () -> item.step_class)>
                <div class_="step-indicator">
-                 (Tpl.nodes (fun () ->
-                   if item.is_complete then
-                     <span class_="check">(text "OK")</span>
-                   else
-                     <span class_="step-number">(Tpl.text_once (fun () -> item.step_number))</span>
-                 ))
+                 (if item.is_complete then
+                    <span class_="check">(text "OK")</span>
+                  else
+                    <span class_="step-number">(Tpl.text_once (fun () -> item.step_number))</span>)
                </div>
                <div class_="step-content">
                 <h3>(Tpl.text_once (fun () -> item.title))</h3>

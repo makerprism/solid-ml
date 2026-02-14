@@ -2721,6 +2721,13 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
           | _ -> false)
         args
     in
+    let has_labeled_arg args =
+      List.exists
+        (function
+          | (Asttypes.Labelled _, _) | (Asttypes.Optional _, _) -> true
+          | _ -> false)
+        args
+    in
     let is_known_non_node_function_name = function
       | "string_of_int"
       | "string_of_float"
@@ -2752,7 +2759,7 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
 
          This avoids swallowing obviously non-node calls like
          [string_of_int n] into dynamic-node fallback paths. *)
-      has_final_unit_arg args
+      (has_final_unit_arg args || has_labeled_arg args)
       && (match head_ident expr with
           | Some longident ->
             (match List.rev (longident_to_list longident) with
