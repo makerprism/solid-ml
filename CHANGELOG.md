@@ -33,6 +33,8 @@
 - Browser attribute name sanitization matches SSR (unsafe chars replaced with `_`).
 - Reactive text API renamed to `reactive_text*` (legacy aliases removed).
 - Template `Tpl.show_when` preserves mounted subtrees while `when_` stays truthy; use reactive text bindings inside the subtree for updates.
+- MLX template PPX now accepts common node-producing OCaml child expressions directly in dynamic templates (e.g. helper calls, `if`, `match`) without always requiring `Tpl.nodes`; explicit `Tpl.nodes` remains supported as an escape hatch.
+- Examples were updated to demonstrate reduced `Tpl.nodes` ceremony where supported.
 
 ### Breaking (pre-release)
 - No releases yet; treat all changes as breaking until 1.0.
