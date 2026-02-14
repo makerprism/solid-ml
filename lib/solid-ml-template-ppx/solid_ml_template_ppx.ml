@@ -2714,6 +2714,31 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
     mapper#expression expr
 
   and is_likely_node_expression (expr : Parsetree.expression) : bool =
+    let has_final_unit_arg args =
+      List.exists
+        (function
+          | (Asttypes.Nolabel, e) -> is_unit_expr e
+          | _ -> false)
+        args
+    in
+    let is_known_non_node_function_name = function
+      | "string_of_int"
+      | "string_of_float"
+      | "float_of_int"
+      | "int_of_float"
+      | "int_of_string"
+      | "float_of_string"
+      | "fst"
+      | "snd"
+      | "not"
+      | "ignore"
+      | "failwith"
+      | "invalid_arg"
+      | "print_endline"
+      | "prerr_endline"
+      | "self_init" -> true
+      | _ -> false
+    in
     match expr.pexp_desc with
     | Pexp_ifthenelse _
     | Pexp_match _
@@ -2727,12 +2752,25 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
 
          This avoids swallowing obviously non-node calls like
          [string_of_int n] into dynamic-node fallback paths. *)
-      List.exists
-        (function
-          | (Asttypes.Nolabel, e) -> is_unit_expr e
-          | _ -> false)
-        args
+      has_final_unit_arg args
+      && (match head_ident expr with
+          | Some longident ->
+            (match List.rev (longident_to_list longident) with
+             | name :: _ -> not (is_known_non_node_function_name name)
+             | [] -> true)
+          | None -> true)
     | _ -> false
+
+  and child_expr_kind (expr : Parsetree.expression) : string =
+    match expr.pexp_desc with
+    | Pexp_apply _ -> "function application"
+    | Pexp_ifthenelse _ -> "if expression"
+    | Pexp_match _ -> "match expression"
+    | Pexp_let _ -> "let expression"
+    | Pexp_sequence _ -> "sequence expression"
+    | Pexp_ident _ -> "identifier"
+    | Pexp_constant _ -> "constant"
+    | _ -> "expression"
 
   and compile_expr_force_no_dynamic_text (expr : Parsetree.expression) : Parsetree.expression =
     let mapper =
@@ -3552,9 +3590,11 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
                       | _ ->
                         if !has_dynamic then
                           Location.raise_errorf ~loc:failed.pexp_loc
-                            "solid-ml-template-ppx: unsupported JSX child expression in a dynamic template.\n\n\
+                            "solid-ml-template-ppx: unsupported JSX child %s in a dynamic template.\n\n\
                              Wrap dynamic text with Tpl.text/Tpl.text_value, or use Html.text for literals.\n\
-                             For node expressions, use Tpl.nodes or an intrinsic tag."
+                             For node expressions, either use a direct node-producing helper call (for example [child ()])\n\
+                             or wrap explicitly with [Tpl.nodes (fun () -> ...)]."
+                            (child_expr_kind failed)
                         else
                           (* For other unrecognized children (function calls, etc.), silently skip
                              template processing and leave as regular OCaml code. This is the
