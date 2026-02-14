@@ -2714,37 +2714,37 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
     mapper#expression expr
 
   and is_likely_node_expression (expr : Parsetree.expression) : bool =
-    let has_final_unit_arg args =
-      List.exists
-        (function
-          | (Asttypes.Nolabel, e) -> is_unit_expr e
-          | _ -> false)
-        args
-    in
-    let has_labeled_arg args =
-      List.exists
-        (function
-          | (Asttypes.Labelled _, _) | (Asttypes.Optional _, _) -> true
-          | _ -> false)
-        args
-    in
-    let is_known_non_node_function_name = function
-      | "string_of_int"
-      | "string_of_float"
-      | "float_of_int"
-      | "int_of_float"
-      | "int_of_string"
-      | "float_of_string"
-      | "fst"
-      | "snd"
-      | "not"
-      | "ignore"
-      | "failwith"
-      | "invalid_arg"
-      | "print_endline"
-      | "prerr_endline"
-      | "self_init" -> true
+    let is_labeled = function
+      | (Asttypes.Labelled _, _) | (Asttypes.Optional _, _) -> true
       | _ -> false
+    in
+    let rec collect_apply_args (expr : Parsetree.expression) (acc : (Asttypes.arg_label * Parsetree.expression) list)
+        : (Asttypes.arg_label * Parsetree.expression) list =
+      match expr.pexp_desc with
+      | Pexp_apply (fn, args) -> collect_apply_args fn (args @ acc)
+      | _ -> acc
+    in
+    let has_final_positional_unit_arg (expr : Parsetree.expression) =
+      let all_args = collect_apply_args expr [] in
+      match
+        List.find_opt
+          (function
+            | (Asttypes.Nolabel, _) -> true
+            | _ -> false)
+          (List.rev all_args)
+      with
+      | Some (Asttypes.Nolabel, e) -> is_unit_expr e
+      | _ -> false
+    in
+    let has_labeled_only_args args =
+      List.exists is_labeled args && List.for_all is_labeled args
+    in
+    let has_labeled_callback_arg args =
+      List.exists
+        (function
+          | ((Asttypes.Labelled _ | Asttypes.Optional _), { pexp_desc = Pexp_function _; _ }) -> true
+          | _ -> false)
+        args
     in
     match expr.pexp_desc with
     | Pexp_ifthenelse _
@@ -2753,19 +2753,16 @@ let transform_structure (structure : Parsetree.structure) : Parsetree.structure 
     | Pexp_sequence _ -> true
     | Pexp_apply (_fn, args) ->
       (* Keep this conservative: only treat function calls as likely node
-         expressions when they follow the common OCaml component/helper calling
-         style with a final unit argument, e.g. [child ()] or
-         [Router.link ~href ... ()].
+         expressions when they follow common node-helper styles:
+         - final positional unit argument (e.g. [child ()], [Router.link ... ()])
+         - labeled-only calls (common with MLX lowering)
+         - labeled callbacks (e.g. [render: (fun ... -> ...)]).
 
-         This avoids swallowing obviously non-node calls like
-         [string_of_int n] into dynamic-node fallback paths. *)
-      (has_final_unit_arg args || has_labeled_arg args)
-      && (match head_ident expr with
-          | Some longident ->
-            (match List.rev (longident_to_list longident) with
-             | name :: _ -> not (is_known_non_node_function_name name)
-             | [] -> true)
-          | None -> true)
+         This avoids swallowing non-node value helpers into dynamic-node
+         fallback paths and preserves PPX guidance for unsupported children. *)
+      has_final_positional_unit_arg expr
+      || has_labeled_only_args args
+      || has_labeled_callback_arg args
     | _ -> false
 
   and child_expr_kind (expr : Parsetree.expression) : string =

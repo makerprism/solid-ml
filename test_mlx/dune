@@ -17,3 +17,8 @@
  (modules test_template_auto_text_children_mlx)
  (libraries solid-ml-server solid-ml-ssr solid-ml-template-runtime)
  (preprocess (pps solid-ml-template-ppx)))
+
+(test
+ (name test_template_diagnostics)
+ (modules test_template_diagnostics)
+ (libraries solid-ml-template-ppx ppxlib))
