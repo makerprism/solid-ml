@@ -1,8 +1,16 @@
-# solid-ml-server
+# solid-ml
 
 An OCaml framework for building reactive web applications with server-side rendering (SSR), inspired by [SolidJS](https://www.solidjs.com/).
 
-**Status:** Experimental. Core features are complete, but the project is not production-hardened.
+**Status:** Discontinued. The experiment is winding down — the framework kind of works (tests pass, SSR and hydration operate), but there are likely bugs still lurking, and practical application development proved too high-friction to justify continued investment. The repository remains public as a reference. See the [blog posts](#blog-posts) for the full story.
+
+## Background
+
+solid-ml was an experiment in using AI agents to port the architectural philosophy of SolidJS — fine-grained reactivity, no Virtual DOM, high-performance hydration — to OCaml. Development followed a human-AI partnership structure, with a human "Governor" managing architecture while LLMs (Claude and GPT) handled code generation over an 18-day sprint.
+
+What worked well: the MLX template language feels natural if you've used JSX, and the compiler catches mismatched tags. The core reactivity engine is solid.
+
+What didn't: targeting full SSR with hydration introduced substantial complexity (hydration markers, isomorphic module interfaces, template compilation requiring identical output across environments) that proved difficult to maintain and debug in an AI-generated codebase.
 
 ## Quick Start
 
@@ -220,6 +228,11 @@ Differences:
 Practical guidance:
 - For server code, always create a runtime per request using `Runtime.run`, or use SSR helpers like `Solid_ml_ssr.Render.to_string`/`to_document` which create and dispose a runtime for you.
 - Avoid creating signals at top level in server code; they now raise because no runtime is active.
+
+## Blog Posts
+
+- [solid-ml: The Experiment of Making AI Agents Port SolidJS to OCaml](https://makerprism.com/en/blog/solid-ml-a-solidjs-port-to-ocaml/) - Origin story, development methodology, and technical details
+- [The State of solid-ml](https://makerprism.com/en/blog/the-state-of-solid-ml/) - What worked, what didn't, and why the experiment is winding down
 
 ## Docs
 
